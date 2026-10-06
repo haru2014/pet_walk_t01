@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PawTrail 예상 사용 시나리오 스크린 갤러리</title>
+  <style>
+    :root {
+      --primary: #10B981;
+      --primary-dark: #059669;
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+    header {
+      text-align: center;
+      max-width: 720px;
+      margin-bottom: 24px;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      color: #34D399;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 960px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 10px 16px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      max-width: 900px;
+      width: 100%;
+    }
+    @media (min-width: 768px) {
+      .main-container {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+      }
+    }
+    .phone-wrapper {
+      position: relative;
+      width: 320px;
+      height: 640px;
+      background: #000;
+      border-radius: 40px;
+      padding: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 3px #334155;
+      flex-shrink: 0;
+    }
+    .screen-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 30px;
+      display: block;
+      transition: opacity 0.2s ease;
+    }
+    .details-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 480px;
+      width: 100%;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .details-card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+    .details-card .summary {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .features-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .features-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #E2E8F0;
+      line-height: 1.5;
+    }
+    .features-list li span.bullet {
+      color: var(--primary);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🐾 PawTrail 예상 사용 시나리오 스크린</h1>
+    <p>반려견의 관절과 발바닥을 지키는 핵심 사용자 여정(User Journey) 프로토타입</p>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" onclick="switchScreen(0)">1. 산책 플래너</button>
+    <button class="tab-btn" onclick="switchScreen(1)">2. 안심 순환 프리뷰</button>
+    <button class="tab-btn" onclick="switchScreen(2)">3. 다크 포켓 모드</button>
+    <button class="tab-btn" onclick="switchScreen(3)">4. 공원안내판 비전 판독</button>
+    <button class="tab-btn" onclick="switchScreen(4)">5. 완주 리포트 & 체크인</button>
+    <button class="tab-btn" onclick="switchScreen(5)">6. 커뮤니티 지도 보강</button>
+  </div>
+
+  <div class="main-container">
+    <div class="phone-wrapper">
+      <img id="screenImg" class="screen-img" src="01_walk_planner.jpg" alt="PawTrail Screen" />
+    </div>
+
+    <div class="details-card">
+      <div id="screenBadge" class="badge">US-01 / US-02 / US-06 / US-16</div>
+      <h2 id="screenTitle">1. 맞춤형 산책 플래너</h2>
+      <p id="screenSummary" class="summary">
+        견주가 반려견 프로필을 확인하고, 목표 산책 시간(15~60분)과 선호 노면을 직관적으로 선택하거나 자연어로 요청하는 첫 진입 화면입니다.
+      </p>
+      <ul id="screenFeatures" class="features-list">
+        <li><span class="bullet">✔</span> 반려견 '코코' 프로필 (포메라니안, 관절 안심 케어 뱃지)</li>
+        <li><span class="bullet">✔</span> 목표 산책 시간 프리셋 칩(15/30/45/60분) 및 5분 단위 슬라이더 (US-16)</li>
+        <li><span class="bullet">✔</span> 선호 노면 선택 칩 (흙길, 잔디길, 탄성포장, 보도블록)</li>
+        <li><span class="bullet">✔</span> 자연어 AI 발화 지원 ("25분 폭신한 길로 짜줘")</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const screens = [
+      {
+        img: "01_walk_planner.jpg",
+        badge: "US-01 / US-02 / US-06 / US-16",
+        title: "1. 맞춤형 산책 플래너",
+        summary: "견주가 반려견 프로필을 확인하고, 목표 산책 시간(15~60분)과 선호 노면을 직관적으로 선택하거나 자연어로 요청하는 첫 진입 화면입니다.",
+        features: [
+          "반려견 '코코' 프로필 (포메라니안, 관절 안심 케어 뱃지)",
+          "목표 산책 시간 프리셋 칩(15/30/45/60분) 및 5분 단위 슬라이더 (US-16)",
+          "선호 노면 선택 칩 (흙길, 잔디길, 탄성포장, 보도블록)",
+          "자연어 AI 발화 지원 ('25분 폭신한 길로 짜줘')"
+        ]
+      },
+      {
+        img: "02_route_preview.jpg",
+        badge: "US-03 / US-07",
+        title: "2. 안심 순환 경로 프리뷰",
+        summary: "생성된 순환 코스를 지도 위에 노면별 색상(잔디=초록, 흙=갈색, 아스팔트=회색)으로 시각화하고 노면 출처 투명성 및 상용 지도 앱 도보 길찾기를 연동합니다.",
+        features: [
+          "노면별 색상 구분 Polyline (초록: 잔디, 갈색: 흙길, 회색: 아스팔트)",
+          "코스 요약 바텀시트: 총 1.4km, 25분, 푹신한 노면 비율 82%",
+          "노면 출처 투명성: 'OSM 보행망 및 공원 폴리곤 결합 (0.90 신뢰도)'",
+          "네이버지도 / 카카오맵 도보 길찾기 외부 딥링크 원터치 버튼"
+        ]
+      },
+      {
+        img: "03_pocket_mode.jpg",
+        badge: "US-08 / UX-Rule 6",
+        title: "3. 초절전 다크 포켓 모드",
+        summary: "주머니 속에서 화면 꺼짐으로 인한 OS 절전/GPS 차단을 방지하기 위해 Screen Wake Lock을 켜고, 오터치 방지 다크 락스크린을 노출합니다.",
+        features: [
+          "Screen Wake Lock 활성화로 주머니 속 상시 고정밀 위치 추적",
+          "True Black (#000000) OLED 초절전 락스크린 인터페이스",
+          "실시간 타이머(18:42), 이동 거리(1.15km), 속도(3.6km/h) HUD",
+          "오터치 차단 및 한 손 복귀를 위한 '밀어서 잠금 해제(Slide to Unlock)'"
+        ]
+      },
+      {
+        img: "04_vision_inspection.jpg",
+        badge: "US-04 (ParkBoardInspector)",
+        title: "4. 공원 종합안내판 비전 판독",
+        summary: "공원 입구 오프라인 종합안내도를 촬영하면 Gemini Flash가 흙길 산책로와 반려견 출입 금지 구역(놀이터, 생태데크)을 사전에 시각 판독하여 경로에 반영합니다.",
+        features: [
+          "공원 종합안내판 촬영 즉시 Gemini Flash AI 분석 (92% Confidence)",
+          "비포장 흙길 산책로 영역 자동 감지 (88% Match)",
+          "반려견 출입 금지 구역(어린이놀이터, 생태데크) 식별 (94% Match)",
+          "금지 구역 차단 및 흙길 우선화 '제약조건 반영 코스 생성' 원터치 버튼"
+        ]
+      },
+      {
+        img: "05_walk_report.jpg",
+        badge: "US-08 / US-09 / US-14",
+        title: "5. 완주 체크인 & 안심 리포트",
+        summary: "산책 종료 후 실제 밟은 선호 노면 달성률(85%)을 확인하고, 만족도 별점 평가와 함께 안심 마스킹된 코스를 커뮤니티에 공유하거나 즐겨찾기에 보관합니다.",
+        features: [
+          "선호 노면 달성률 원형 게이지 (85% 달성 - 흙길 60%, 잔디 25%)",
+          "완주 통계 요약 (거리 1.35km, 소요 시간 26분, 평균 속도 3.1km/h)",
+          "5점 만점 노면 만족도 별점 평가 (다음 산책 피드포워드 반영)",
+          "출발지 150m 안심 마스킹 적용 커뮤니티 공유 및 나만의 코스 즐겨찾기(US-14)"
+        ]
+      },
+      {
+        img: "06_community_enrichment.jpg",
+        badge: "US-05 (CommunityMapEnricher)",
+        title: "6. 커뮤니티 노면 제보 검증 및 지도 보강",
+        summary: "완주 후기 작성 시 견주가 첨부한 현장 노면 사진을 Gemini Flash가 검증(신뢰도 0.85 이상)하여 결측된 OSM 지도 링크 속성을 영구 보강합니다.",
+        features: [
+          "후기 사진 노면 재질 실시간 비전 판독 (비포장 흙길 91% Confidence)",
+          "발바닥 위험요소(유리/파쇄석) 안전 검증 (Paw Safe)",
+          "OSM Map Way #987654 surface 속성 'community_verified' 영구 갱신",
+          "집단지성 기여 리워드: +10 Community Points 🐾 적립"
+        ]
+      }
+    ];
+
+    function switchScreen(index) {
+      const data = screens[index];
+      const imgEl = document.getElementById("screenImg");
+      imgEl.style.opacity = "0";
+
+      setTimeout(() => {
+        imgEl.src = data.img;
+        imgEl.style.opacity = "1";
+        document.getElementById("screenBadge").innerText = data.badge;
+        document.getElementById("screenTitle").innerText = data.title;
+        document.getElementById("screenSummary").innerText = data.summary;
+
+        const featuresEl = document.getElementById("screenFeatures");
+        featuresEl.innerHTML = data.features
+          .map(f => `<li><span class="bullet">✔</span> ${f}</li>`)
+          .join("");
+      }, 150);
+
+      const buttons = document.querySelectorAll(".tab-btn");
+      buttons.forEach((btn, idx) => {
+        if (idx === index) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+  </script>
+</body>
+</html>
