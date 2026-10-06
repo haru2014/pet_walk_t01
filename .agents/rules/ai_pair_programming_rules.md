@@ -1,6 +1,6 @@
-# PawTrail AI Pair Programming 자동 점검 규칙 (Always-On Global Rules)
+# 편하개 AI Pair Programming 자동 점검 규칙 (Always-On Global Rules)
 
-본 규칙은 **PawTrail** 프로젝트에서 모든 AI 코딩 어시스턴트(Antigravity, Gemini Code Assist 등)가 코드를 생성, 수정, 리팩토링, 리뷰할 때 **사용자의 별도 지시나 팀원의 수동 확인 없이 자동으로 즉시 점검하고 적용해야 하는 절대 강제 규칙(Mandatory Automated Rules)**입니다.
+본 규칙은 **편하개** 프로젝트에서 모든 AI 코딩 어시스턴트(Antigravity, Gemini Code Assist 등)가 코드를 생성, 수정, 리팩토링, 리뷰할 때 **사용자의 별도 지시나 팀원의 수동 확인 없이 자동으로 즉시 점검하고 적용해야 하는 절대 강제 규칙(Mandatory Automated Rules)**입니다.
 
 ---
 

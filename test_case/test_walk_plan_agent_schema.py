@@ -6,7 +6,7 @@
   - Pydantic V2 Strict Schema 검증 (10~90분, 좌표 유효범위, 선호 노면)
   - 불명확한 질의 시 안전 기본값(20분, 완만 경사, 계단 회피, 그늘 우선) 폴백
 - [US-A2] 반려견 프로필 로컬 저장 및 JSON 파일 백업/복원:
-  - Local-First (AsyncStorage @PawTrail:dog_profile) 영속화
+  - Local-First (AsyncStorage @pet_walk:dog_profile) 영속화
   - 프로필 JSON 내보내기/가져오기(Export/Import) 데이터 무결성 보장
   - 웰니스 카피라이팅 가드레일 (슬개골 탈구 등 임상 질병 용어 검출 0건)
 - [US-E3] 로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정:

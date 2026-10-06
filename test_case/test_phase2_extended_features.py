@@ -1,6 +1,6 @@
 """[US-17 ~ US-29] Phase 2 / 차기 고도화 실전 안전 확장 백로그 TDD 테스트 모듈.
 
-명세서 기준 (docs/03_PawTrail_Agile_User_Stories.md Section 4):
+명세서 기준 (docs/03_편하개_Agile_User_Stories.md Section 4):
 - [US-17] 관절 안심 완만길·그늘길 영토 점령 (Calm & Green Hexagon):
   - H3 헥사곤 공간 인덱싱 기반 안심 완만길(경사 <=5%, 계단 0) 점령 시 2.5배 가중치 (Calm Bonus)
   - 점령 타일 Calm Green (#10B981) 렌더링
@@ -27,7 +27,7 @@
 - [US-28] 통신 음영지역 산책 유지 및 오프라인 지도 벡터 캐시:
   - 500m 주변 사전 캐싱(Pre-caching), 오프라인 음성 안내 무중단
 - [US-29] 나만의 안심 코스 즐겨찾기(Bookmark) 로컬 보관함 및 원터치 재산책:
-  - @PawTrail:favorites 로컬 CRUD 및 원터치 재산책 즉시 시작
+  - @pet_walk:favorites 로컬 CRUD 및 원터치 재산책 즉시 시작
 """
 
 import pytest
@@ -222,7 +222,7 @@ class FavoriteCourseRecord(BaseModel):
 
 
 class LocalFavoritesManager:
-    """[US-29] @PawTrail:favorites AsyncStorage 보관함 관리자."""
+    """[US-29] @pet_walk:favorites AsyncStorage 보관함 관리자."""
 
     def __init__(self):
         self.favorites: Dict[str, FavoriteCourseRecord] = {}

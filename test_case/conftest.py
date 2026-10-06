@@ -1,4 +1,4 @@
-"""PawTrail TDD 공통 Fixture 및 Mock 데이터 정의 모듈.
+"""편하개 TDD 공통 Fixture 및 Mock 데이터 정의 모듈.
 
 애자일 사용자 스토리(US-A1 ~ US-H1) 및 시스템 아키텍처에 정의된
 핵심 데이터 모델과 테스트 환경을 구성합니다.

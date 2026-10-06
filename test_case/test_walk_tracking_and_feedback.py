@@ -2,7 +2,7 @@
 
 최신 생명주기 명세서(docs/03, docs/04, docs/06) 기준:
 - [US-E1] 백그라운드 GPS 위치 추적 및 실산책 경로 로컬 저장 (Local-First):
-  - 상세 보행 GPS 궤적(위경도 배열)과 자택 위치는 서버로 절대 전송하지 않고 AsyncStorage(@PawTrail:walk_history)에만 영구 보관
+  - 상세 보행 GPS 궤적(위경도 배열)과 자택 위치는 서버로 절대 전송하지 않고 AsyncStorage(@pet_walk:walk_history)에만 영구 보관
   - 최근 100회 산책 기록 보관 관리 (FIFO 롤링)
   - 네트워크 차단(비행기 모드) 상태에서도 100% 정상 저장 검증
 - [US-E2] 산책 종료 후 보행 체감 피드백 수집 및 로컬 통계:
@@ -29,7 +29,7 @@ class WalkPoint(BaseModel):
 
 
 class LocalWalkRecord(BaseModel):
-    """[US-E1] 로컬 AsyncStorage (@PawTrail:walk_history) 산책 기록 스키마."""
+    """[US-E1] 로컬 AsyncStorage (@pet_walk:walk_history) 산책 기록 스키마."""
     walk_id: str
     dog_id: str
     total_distance_m: float = Field(..., gt=0)
@@ -184,7 +184,7 @@ class TestEasOtaAndCbtTuning:
             update_id="update-20260921-hotfix",
             runtime_version="exposdk:51.0.0",
             channel="production",
-            bundle_url="https://u.expo.dev/pawtrail-bundle-v1.js",
+            bundle_url="https://u.expo.dev/pet_walk-bundle-v1.js",
             created_at="2026-09-21T18:00:00Z",
             is_critical_hotfix=True
         )
