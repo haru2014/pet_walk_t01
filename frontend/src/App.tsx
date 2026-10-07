@@ -42,7 +42,7 @@ export default function App() {
       const summary = await FeedbackContextService.buildRecentFeedbackContext();
       setFeedbackSummary(summary);
     }
-    loadData();
+    void loadData();
   }, []);
 
   const showAlert = (msg: string) => {
@@ -79,18 +79,20 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const content = event.target?.result as string;
-      const restored = await BackupService.restoreFromJsonString(content);
-      if (restored) {
-        setProfile(restored);
-        showAlert(`🎉 '${restored.name}' 프로필이 파일에서 성공적으로 복원되었습니다!`);
-      } else {
-        showAlert('❌ 잘못된 형식의 백업 파일입니다.');
+    void (async () => {
+      try {
+        const content = await file.text();
+        const restored = await BackupService.restoreFromJsonString(content);
+        if (restored) {
+          setProfile(restored);
+          showAlert(`🎉 '${restored.name}' 프로필이 파일에서 성공적으로 복원되었습니다!`);
+        } else {
+          showAlert('❌ 잘못된 형식의 백업 파일입니다.');
+        }
+      } catch {
+        showAlert('❌ 파일 읽기 실패');
       }
-    };
-    reader.readAsText(file);
+    })();
     e.target.value = '';
   };
 
@@ -223,8 +225,9 @@ export default function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
                 <div>
-                  <label style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>이름</label>
+                  <label htmlFor="dog-name-input" style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>이름</label>
                   <input
+                    id="dog-name-input"
                     type="text"
                     value={profile.name}
                     onChange={(e) => handleProfileChange({ name: e.target.value })}
@@ -234,8 +237,9 @@ export default function App() {
 
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>나이 (세)</label>
+                    <label htmlFor="dog-age-input" style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>나이 (세)</label>
                     <input
+                      id="dog-age-input"
                       type="number"
                       value={profile.ageYears}
                       onChange={(e) => handleProfileChange({ ageYears: Number(e.target.value) })}
@@ -243,8 +247,9 @@ export default function App() {
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>체중 (kg)</label>
+                    <label htmlFor="dog-weight-input" style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>체중 (kg)</label>
                     <input
+                      id="dog-weight-input"
                       type="number"
                       step="0.1"
                       value={profile.weightKg}
@@ -255,24 +260,31 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>관절 안심 케어 선호도</label>
+                  <span style={{ display: 'block', color: TOKENS.colors.textMuted, marginBottom: '4px' }}>관절 안심 케어 선호도</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    {[0, 1, 2].map((lvl) => (
-                      <button
-                        key={lvl}
-                        onClick={() => handleProfileChange({ jointCareLevel: lvl as JointCareLevel })}
-                        style={{
-                          flex: 1, padding: '7px 4px', fontSize: '11px', borderRadius: '10px',
-                          border: profile.jointCareLevel === lvl ? `1.5px solid ${TOKENS.colors.primary}` : `1px solid ${TOKENS.colors.border}`,
-                          background: profile.jointCareLevel === lvl ? TOKENS.colors.primaryLight : '#FFF',
-                          color: profile.jointCareLevel === lvl ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted,
-                          fontWeight: profile.jointCareLevel === lvl ? '700' : '400',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {lvl === 0 ? '일반' : lvl === 1 ? '안심' : '적극보호'}
-                      </button>
-                    ))}
+                    {[0, 1, 2].map((lvl) => {
+                      let careText = '적극보호';
+                      if (lvl === 0) careText = '일반';
+                      else if (lvl === 1) careText = '안심';
+
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => handleProfileChange({ jointCareLevel: lvl as JointCareLevel })}
+                          style={{
+                            flex: 1, padding: '7px 4px', fontSize: '11px', borderRadius: '10px',
+                            border: profile.jointCareLevel === lvl ? `1.5px solid ${TOKENS.colors.primary}` : `1px solid ${TOKENS.colors.border}`,
+                            background: profile.jointCareLevel === lvl ? TOKENS.colors.primaryLight : '#FFF',
+                            color: profile.jointCareLevel === lvl ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted,
+                            fontWeight: profile.jointCareLevel === lvl ? '700' : '400',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {careText}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -294,6 +306,7 @@ export default function App() {
 
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
+                  type="button"
                   onClick={handleExportJson}
                   style={{
                     flex: 1, padding: '9px 10px', borderRadius: '12px', border: `1px solid ${TOKENS.colors.primaryMint}`,
@@ -304,15 +317,22 @@ export default function App() {
                 </button>
 
                 <label
+                  htmlFor="json-file-input"
                   style={{
                     flex: 1, padding: '9px 10px', borderRadius: '12px', border: `1px solid ${TOKENS.colors.primaryMint}`,
                     background: TOKENS.colors.primary, color: '#FFF', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-                    textAlign: 'center', boxSizing: 'border-box',
+                    textAlign: 'center', boxSizing: 'border-box', display: 'inline-block',
                   }}
                 >
                   불러오기 (복원) 📤
-                  <input type="file" accept=".json" onChange={handleImportJson} style={{ display: 'none' }} />
                 </label>
+                <input
+                  id="json-file-input"
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportJson}
+                  style={{ display: 'none' }}
+                />
               </div>
             </CardWrapper>
 
