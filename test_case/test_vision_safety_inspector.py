@@ -1,12 +1,12 @@
-"""[US-D1, US-D2] Vision AI 현장 위험물(턱/계단/장애물) 분석 및 동적 우회 재탐색 TDD 테스트 모듈.
+"""[Phase 2 차기 고도화: US-D1, US-D2] Vision AI 현장 위험물(턱/계단/장애물) 분석 및 동적 우회 재탐색 TDD 테스트 모듈.
 
 최신 생명주기 명세서(docs/03, docs/04, docs/06) 기준:
-- [US-D1] Vision AI 기반 현장 턱·계단·보행 장애물 시각 분석:
+- [Phase 2: US-D1] Vision AI 기반 현장 턱·계단·보행 장애물 시각 분석:
   - Gemini 1.5 사용 불가에 따른 후보 모델 우선순위 체인(Gemini 3.5 Flash-Lite -> 3.1 Flash-Lite -> 3.6 Flash) 기반 순차 자동 선택(Cascading Fallback)
   - 1) 현장 장애물 진단: 높은 턱, 야외 계단, 공사 장애물 Pydantic V2 Structured JSON
   - 2) 공원 종합안내판 판독(ParkBoardInspector): 흙길/잔디 산책로 범례 및 반려견 출입 금지 구역 파싱
   - 위험도(warning, danger) 및 권장 조치(reroute, proceed_with_caution) 판별
-- [US-D2] 현장 위험 구간 우회 및 동적 재탐색:
+- [Phase 2: US-D2] 현장 위험 구간 우회 및 동적 재탐색:
   - 위험물 감지 시 해당 링크 비용 10배 페널티 부여 또는 통행 차단
   - 3초 이내에 안전 우회 경로 동적 재산출 (POST /api/v1/walk/reroute)
   - "전방 턱 구간을 우회하여 새로운 경로를 안내합니다" 음성/화면 알림 갱신

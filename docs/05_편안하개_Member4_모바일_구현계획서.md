@@ -10,11 +10,11 @@
 * **주요 R&R**: 
   - React Native (Expo SDK 51+) 모바일 클라이언트 아키텍처 구축
   - Local-First 영속성 스토리지(`AsyncStorage`) 설계 및 민감정보 보호
-  - React Native Maps 기반 노면/경사도/그늘 Polyline 분기 렌더링
+  - React Native Maps 기반 무장애·노면·지면온도 Polyline 분기 렌더링
   - Android Foreground Service 기반 백그라운드 GPS 로깅 엔진 구현
   - `expo-speech` 기반 시선 해방(Eyes-Free) 핸즈프리 음성 내비게이션
   - EAS Build 1회 APK 패키징 및 EAS Update 무선 OTA 실시간 핫픽스 파이프라인 운용
-* **총 개발 규모**: 8개 사용자 스토리 (Must 6개, Should 2개), **총 29 Story Points**
+* **총 개발 규모**: **7개 핵심 사용자 스토리 (Must 6개, Should 1개), 총 24 Story Points** *(Phase 2: US-D2 5 pt 별도)*
 
 ---
 
@@ -43,9 +43,9 @@ export const TOKENS = {
     textMuted: '#6B756F',        // 설명 및 보조 텍스트 (슬레이트 그레이)
     
     // 지도 Polyline 분기 색상 (US-C1)
-    routeSafe: '#10B981',        // 🌿 완만/그늘 안심 구간
+    routeSafe: '#10B981',        // 🌿 완만/저온 안심 구간
     routeNormal: '#3B82F6',      // 🏢 일반 보행로
-    routeCaution: '#F97316',     // ⚠️ 급경사/턱/위험 주의 구간
+    routeCaution: '#F97316',     // ⚠️ 급경사/고온/위험 주의 구간
     
     // 초절전 다크 포켓 모드 (US-C2)
     pocketBg: '#000000',         // True Black OLED 절전 배경
@@ -89,16 +89,23 @@ export const TOKENS = {
 
 ## 3. 멤버 4 담당 사용자 스토리 및 R&R 매핑
 
+### 3.1 핵심 MVP 담당 스토리 (7개 스토리 / 24 pt)
+
 | Story ID | 에픽 (Epic) | 사용자 스토리 명칭 | 역할 및 산출물 | 난이도 | 우선순위 | 포인트 |
 |:---:|---|---|---|:---:|:---:|:---:|
 | **US-A2** | [Epic A] 산책 조건 입력 | 반려견 프로필 로컬 등록 및 JSON 백업/복원 | `AsyncStorage` CRUD 모듈, JSON 파일 내보내기/불러오기 | 하 | Must | 3 pt |
 | **US-C1** | [Epic C] 모바일 UI & 안내 | RN Maps 기반 구간별 색상 분기 경로 시각화 | `react-native-maps` 분기 Polyline 및 코스 요약 바텀시트 | 중 | Must | 5 pt |
 | **US-C2** | [Epic C] 모바일 UI & 안내 | 시선 해방(Eyes-Free) 백그라운드 음성 안내 | Android Foreground Service + `expo-speech` TTS 엔진 | 상 | Must | 5 pt |
-| **US-D2** | [Epic D] 현장 위험 & 재탐색 | 현장 위험 구간 우회 및 동적 재탐색 안내 | 우회 경로 수신 시 실시간 음성/화면 알림 즉시 갱신 | 중상 | Should | 5 pt |
 | **US-E1** | [Epic E] 산책 기록 & Memory | 백그라운드 GPS 위치 추적 및 실산책 로컬 저장 | 화면 꺼짐 무중단 GPS 로깅 + `@편안하개:walk_history` 저장 | 중상 | Must | 5 pt |
 | **US-E2** | [Epic E] 산책 기록 & Memory | 산책 종료 후 보행 체감 피드백 및 로컬 통계 | 완주 통계 연산 로직 및 3초 원터치 피드백 데이터 바인딩 | 하 | Must | 3 pt |
-| **US-E3** | [Epic E] 산책 기록 & Memory | 누적 피드백 기반 무상태(Stateless) AI 보정 | 최근 3회 피드백 요약 페이로드 추출 및 API 헤더/바디 주입 | 중 | Should | 3 pt |
+| **US-E3** | [Epic E] 산책 기록 & Memory | 누적 피드백 기반 무상태(Stateless) AI 보정 | 최근 3회 피드백 요약 페이로드 추출 및 API 바디 주입 | 중 | Should | 3 pt |
 | **US-H1** | [Epic H] 무중단 배포 | EAS Build 1회 배포, EAS Update 무선 OTA & CBT | APK 패키징, `eas update` 무선 핫픽스, 5인 필드 CBT 지원 | 상 | Must | 5 pt |
+
+### 3.2 Phase 2 차기 고도화 연계 스토리
+
+| Story ID | 에픽 (Epic) | 사용자 스토리 명칭 | 역할 및 산출물 | 난이도 | 우선순위 | 포인트 |
+|:---:|---|---|---|:---:|:---:|:---:|
+| **US-D2** | [Phase 2] 현장 위험 & 재탐색 | 현장 위험 구간 우회 및 동적 재탐색 안내 | 우회 경로 수신 시 실시간 음성/화면 알림 즉시 갱신 | 중상 | Should (Phase 2) | 5 pt |
 
 ---
 
