@@ -5,12 +5,53 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Stateless-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2051-61DAFB.svg)](https://expo.dev/)
-[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-88%2F88%20Passed-brightgreen.svg)](file:///d:/cody/pet_walk_t01/test_case/README.md)
+[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-94%2F94%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/test_case/README.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
+## ⚡ 빠른 데모 실행 가이드 (Quick Demo Guide)
+
+웹 브라우저를 통해 **프론트엔드 인터랙티브 프로토타입**과 **6대 핵심 시나리오 목업 갤러리**를 바로 실행하여 체험할 수 있습니다.
+
+### 1️⃣ 웹 프론트엔드 실시간 데모 (React / Vite)
+반려견 프로필 등록 및 속도 자동 계산, Local-First JSON 백업/복원, AI 피드백 기반 적응형 보정 위젯을 직접 조작할 수 있습니다.
+
+```bash
+# 1. 프론트엔드 폴더 이동 및 패키지 설치
+cd frontend
+npm install
+
+# 2. 로컬 개발 서버 실행
+npm run dev
+```
+> 🌐 **로컬 접속 URL**: [http://localhost:5173](http://localhost:5173)  
+> *(현재 백그라운드 서버가 실행 중이라면 위 링크를 클릭하여 즉시 접속 가능)*
+
+---
+
+### 2️⃣ 6대 핵심 시나리오 인터랙티브 목업 갤러리 (HTML)
+고대비 야외 시인성 및 한 손 조작 Thumb Zone이 적용된 6대 사용자 여정 화면(산책 플래너, 지도, 음성 내비, 피드백 등)을 한눈에 확인할 수 있습니다.
+
+```bash
+# Windows PowerShell에서 브라우저 열기
+Start-Process mockup/index.html
+
+# macOS
+open mockup/index.html
+```
+
+---
+
+### 3️⃣ TDD 핵심 엔진 전수 검증 (94개 테스트 100% Pass)
+```bash
+python -m pytest test_case/ -v
+```
+
+---
+
 ## 📖 목차 (Table of Contents)
+0. [빠른 데모 실행 가이드 (Quick Demo Guide)](#-빠른-데모-실행-가이드-quick-demo-guide)
 1. [프로젝트 개요 (Overview)](#-1-프로젝트-개요-overview)
 2. [해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
 3. [4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
