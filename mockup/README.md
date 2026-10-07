@@ -1,6 +1,6 @@
-# 📱 편하개 예상 사용 시나리오 스크린 명세서 (Screen Specifications)
+# 📱 편안하개 예상 사용 시나리오 스크린 명세서 (Screen Specifications)
 
-본 문서는 **편하개 (반려견 맞춤형 안심 노면 산책 플랫폼)**의 개정된 사용자 스토리(US-01 ~ US-16) 및 비전 AI 2대 파이프라인(사전 안내판 판독 & 사후 커뮤니티 지도 보강)을 반영한 핵심 사용자 여정(User Journey) 화면 UI 설계 및 기능 명세서입니다.
+본 문서는 **편안하개 (반려견 맞춤형 안심 노면 산책 플랫폼)**의 개정된 사용자 스토리(US-01 ~ US-16) 및 비전 AI 2대 파이프라인(사전 안내판 판독 & 사후 커뮤니티 지도 보강)을 반영한 핵심 사용자 여정(User Journey) 화면 UI 설계 및 기능 명세서입니다.
 
 ---
 
@@ -19,7 +19,7 @@ graph LR
 
 ## 1. 01_walk_planner.jpg (대화형 산책 플래너 & 시간/노면 선택)
 
-![01_walk_planner](file:///d:/cody/편하개/docs/screens/01_walk_planner.jpg)
+![01_walk_planner](file:///d:/cody/편안하개/docs/screens/01_walk_planner.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 맞춤형 산책 플래너 (Walk Planner Screen)
@@ -34,7 +34,7 @@ graph LR
 
 ## 2. 02_route_preview.jpg (지도 기반 안심 순환 경로 프리뷰)
 
-![02_route_preview](file:///d:/cody/편하개/docs/screens/02_route_preview.jpg)
+![02_route_preview](file:///d:/cody/편안하개/docs/screens/02_route_preview.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 안심 순환 경로 프리뷰 (Route Preview Screen)
@@ -53,7 +53,7 @@ graph LR
 
 ## 3. 03_pocket_mode.jpg (주머니 보관 초절전 다크 포켓 모드)
 
-![03_pocket_mode](file:///d:/cody/편하개/docs/screens/03_pocket_mode.jpg)
+![03_pocket_mode](file:///d:/cody/편안하개/docs/screens/03_pocket_mode.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 초절전 다크 포켓 락스크린 (Dark Pocket Mode Screen)
@@ -68,7 +68,7 @@ graph LR
 
 ## 4. 04_vision_inspection.jpg (공원 종합안내판 비전 판독 및 제약 도출)
 
-![04_vision_inspection](file:///d:/cody/편하개/docs/screens/04_vision_inspection.jpg)
+![04_vision_inspection](file:///d:/cody/편안하개/docs/screens/04_vision_inspection.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 공원 종합안내판 비전 인스펙터 (Park Board Vision Inspector)
@@ -85,7 +85,7 @@ graph LR
 
 ## 5. 05_walk_report.jpg (산책 완료 체크인 & 안심 리포트)
 
-![05_walk_report](file:///d:/cody/편하개/docs/screens/05_walk_report.jpg)
+![05_walk_report](file:///d:/cody/편안하개/docs/screens/05_walk_report.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 완주 체크인 및 산책 리포트 (Walk Completion & Check-In Report)
@@ -102,7 +102,7 @@ graph LR
 
 ## 6. 06_community_enrichment.jpg (완주 후기 사진 비전 검증 및 지도 영구 보강)
 
-![06_community_enrichment](file:///d:/cody/편하개/docs/screens/06_community_enrichment.jpg)
+![06_community_enrichment](file:///d:/cody/편안하개/docs/screens/06_community_enrichment.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 커뮤니티 노면 제보 검증 및 지도 보강 (Community Surface Enrichment)
@@ -117,4 +117,4 @@ graph LR
 
 ---
 
-> 🐾 **편하개 Team**: 본 시나리오 스크린 명세는 프론트엔드 컴포넌트 개발(`components/`, `hooks/`) 및 5인 실사용자 CBT 현장 테스트의 기준 설계로 활용됩니다.
+> 🐾 **편안하개 Team**: 본 시나리오 스크린 명세는 프론트엔드 컴포넌트 개발(`components/`, `hooks/`) 및 5인 실사용자 CBT 현장 테스트의 기준 설계로 활용됩니다.

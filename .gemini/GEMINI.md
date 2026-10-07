@@ -1,6 +1,6 @@
 # Gemini Code Assist 준수 지침 (GEMINI.md)
 
-본 문서는 **편하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 기록·공유 플랫폼)** 개발 프로젝트에서 VSCode의 Gemini Code Assist 확장이 코드를 분석, 제안, 생성 및 리팩토링할 때 반드시 준수해야 하는 엔지니어링 지침입니다. AI 모델은 모든 응답에서 아래 핵심 원칙과 세부 기술 요구사항을 엄격하게 반영해야 합니다.
+본 문서는 **편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 기록·공유 플랫폼)** 개발 프로젝트에서 VSCode의 Gemini Code Assist 확장이 코드를 분석, 제안, 생성 및 리팩토링할 때 반드시 준수해야 하는 엔지니어링 지침입니다. AI 모델은 모든 응답에서 아래 핵심 원칙과 세부 기술 요구사항을 엄격하게 반영해야 합니다.
 
 ---
 
@@ -12,7 +12,7 @@
 4. **[검증 신뢰성]**: 가짜 lint/빌드/테스트 수행 결과를 제공하지 않으며 실제 실행 결과만을 기반으로 보고합니다.
 5. **[신규 기능 및 변경사항 전수 테스트 의무]**: 기획 및 사용자 스토리에 명시되지 않은 신규 기능, 비즈니스 로직, UI 컴포넌트, 유틸, 서비스가 추가되거나 기존 코드가 수정될 경우, 기존 시스템과의 상호작용 및 회귀 결함(Regression)을 사전에 차단하기 위해 **전체 테스트 스위트(`python -m pytest test_case/ -v`)를 반드시 자동 실행하여 100% 무결성을 검증**하고 결과를 보고합니다.
 6. **[요청하지 않은 기능 추가 절대 금지 (YAGNI & No Spec Creep) 및 예외 처리]**:
-   - Gemini는 사용자의 명시적인 요청이나 기획서(`docs/01_편하개_Project_Proposal.md`), 애자일 사용자 스토리(`docs/03_편하개_Agile_User_Stories.md`, 18개 스토리 / 77pt / 372h), 작업 분할 명세서(`docs/06_편하개_Task_Breakdown_and_Estimations.md`, 68개 Task)에 정의되지 않은 부가 기능, 임의의 더미 UI/컴포넌트, 미확정 기능을 자의적으로 추가하거나 임의로 생성하지 않습니다.
+   - Gemini는 사용자의 명시적인 요청이나 기획서(`docs/01_편안하개_Project_Proposal.md`), 애자일 사용자 스토리(`docs/03_편안하개_Agile_User_Stories.md`, 18개 스토리 / 77pt / 372h), 작업 분할 명세서(`docs/06_편안하개_Task_Breakdown_and_Estimations.md`, 68개 Task)에 정의되지 않은 부가 기능, 임의의 더미 UI/컴포넌트, 미확정 기능을 자의적으로 추가하거나 임의로 생성하지 않습니다.
    - 기능 개선이나 리팩토링 시에도 사용자가 지시한 요구사항 범위 내에서만 최소·최적의 코드를 작성하며, 실제 활용되지 않는 불필요한 레거시 기능이 발견될 경우 임의로 유지하거나 기능을 확장하지 않고 즉시 배제 및 삭제합니다.
    - **[예외 조항 및 사후 정리 의무]**: 문제 해결, 디버깅, 기술 검증 등을 위해 부득이하게 임시 로직, 보조 UI, 디버깅 코드를 추가해야 하는 예외적인 상황에서는 **반드시 사전에 사용자의 명시적 승인을 받아야 하며**, 해당 목적이 달성되어 **필요성이 소진된 직후에는 지체 없이 해당 코드를 완전히 삭제(원복)하여 코드베이스의 100% 무결성을 회복**해야 합니다.
 7. **[데이터베이스 및 저장소 무결성 유지 가이드라인 (Local-First & Supabase)]**:
@@ -84,7 +84,7 @@ Gemini는 단일 파일이나 특정 코드 블록만을 고립적으로 분석�
 
 ## [핵심 원칙 3] 모바일(Android/Expo) 플랫폼 안정성 및 핸즈프리 런타임 무결점 유지 (Android Stability & Hands-Free Runtime)
 
-편하개 앱은 React Native 및 Expo 기반의 안드로이드 환경을 주요 타깃으로 하므로, 빌드 및 실행 시스템의 안정성을 저해하는 코드를 생성해서는 안 됩니다.
+편안하개 앱은 React Native 및 Expo 기반의 안드로이드 환경을 주요 타깃으로 하므로, 빌드 및 실행 시스템의 안정성을 저해하는 코드를 생성해서는 안 됩니다.
 
 1. **백그라운드 GPS 및 음성 안내(TTS) 안정성**:
    - **포그라운드 서비스 크래시 방지**: `expo-location` 백그라운드 태스크 등록 시 Android 네이티브 노티피케이션 채널 및 Foreground Service 타입을 정확히 설정하여 비정상 종료를 방어합니다.
@@ -165,18 +165,18 @@ Gemini는 단일 파일이나 특정 코드 블록만을 고립적으로 분석�
 본 `GEMINI.md`는 범용적인 엔지니어링 및 개발 운영 지침만을 규정하며, 도메인별 세부 기술 사양 및 역할별 지침은 아래의 개별 문서로 위임하여 관리합니다:
 
 1. **노면 비용 함수, 가중치 계수 및 공간 라우팅 수학 모델**:
-   - ➔ [`docs/04_편하개_Architecture_Design.md`](file:///d:/코디세이/편하개/docs/04_편하개_Architecture_Design.md) **제7장 (노면 비용 모델 및 공간 라우팅 가중치 사양)** 참조
+   - ➔ [`docs/04_편안하개_Architecture_Design.md`](file:///d:/코디세이/편안하개/docs/04_편안하개_Architecture_Design.md) **제7장 (노면 비용 모델 및 공간 라우팅 가중치 사양)** 참조
    - 내용: 링크 비용 함수 수식, 가중치 계수(선호 0.4~0.5, 아스팔트 2.5, 자갈 3.5), 계단 배제(Hard Constraint), DEM 경사도, SunCalc 그늘, OSM 결측치 Fallback, 100점 만점 Scorer.
 2. **실사용자 5인 필드 테스트(CBT) 시나리오**:
-   - ➔ [`docs/01_편하개_Project_Proposal.md`](file:///d:/코디세이/편하개/docs/01_편하개_Project_Proposal.md) **제8장 (실사용자 CBT 테스트 및 피드백 반영 계획)** 참조
+   - ➔ [`docs/01_편안하개_Project_Proposal.md`](file:///d:/코디세이/편안하개/docs/01_편안하개_Project_Proposal.md) **제8장 (실사용자 CBT 테스트 및 피드백 반영 계획)** 참조
    - 내용: 5대 페르소나(소형/관절케어견, 대형견, 노령견, 일반견, 활동견)별 E2E 산책 시나리오 및 피드백 반영 체계.
 3. **18대 애자일 사용자 스토리 및 인수 조건**:
-   - ➔ [`docs/03_편하개_Agile_User_Stories.md`](file:///d:/코디세이/편하개/docs/03_편하개_Agile_User_Stories.md) 참조
+   - ➔ [`docs/03_편안하개_Agile_User_Stories.md`](file:///d:/코디세이/편안하개/docs/03_편안하개_Agile_User_Stories.md) 참조
    - 내용: US-A1 ~ US-H1 (77 Story Points / 372 Hours) 및 스토리별 DoD/AC 명세.
 4. **68대 세부 구현 Task 및 추적성 매트릭스**:
-   - ➔ [`docs/06_편하개_Task_Breakdown_and_Estimations.md`](file:///d:/코디세이/편하개/docs/06_편하개_Task_Breakdown_and_Estimations.md) 및 [`docs/07_편하개_Traceability_Matrix.md`](file:///d:/코디세이/편하개/docs/07_편하개_Traceability_Matrix.md) 참조
+   - ➔ [`docs/06_편안하개_Task_Breakdown_and_Estimations.md`](file:///d:/코디세이/편안하개/docs/06_편안하개_Task_Breakdown_and_Estimations.md) 및 [`docs/07_편안하개_Traceability_Matrix.md`](file:///d:/코디세이/편안하개/docs/07_편안하개_Traceability_Matrix.md) 참조
 5. **5인 역할별 AI 페어 프로그래밍 자동 점검 체크리스트**:
-   - ➔ [`docs/checklist/`](file:///d:/코디세이/편하개/docs/checklist/) 및 [`.agents/rules/ai_pair_programming_rules.md`](file:///d:/코디세이/편하개/.agents/rules/ai_pair_programming_rules.md) 참조
+   - ➔ [`docs/checklist/`](file:///d:/코디세이/편안하개/docs/checklist/) 및 [`.agents/rules/ai_pair_programming_rules.md`](file:///d:/코디세이/편안하개/.agents/rules/ai_pair_programming_rules.md) 참조
    - 내용: Member A(AI Agent Lead), Member B(Vision/GIS), Member C(Backend/Routing), Member D(Frontend/Mobile), Member E(UI/UX/Wellness) 상세 체크리스트.
 
 ---
@@ -185,7 +185,7 @@ Gemini는 단일 파일이나 특정 코드 블록만을 고립적으로 분석�
 
 Gemini는 사용자의 질문에 답하거나 코드를 제안/수정할 때, 다음 4단계 프로세스를 내부적으로 검증한 후 답변을 출력해야 합니다.
 
-1. **[검증 단계]** 제안하려는 코드가 편하개의 18개 핵심 사용자 스토리(**US-A1 ~ US-H1**) 및 Local-First / 무상태(Stateless) 아키텍처와 완벽히 부합하며 불필요한 오버엔지니어링(YAGNI)을 배제했는가?
+1. **[검증 단계]** 제안하려는 코드가 편안하개의 18개 핵심 사용자 스토리(**US-A1 ~ US-H1**) 및 Local-First / 무상태(Stateless) 아키텍처와 완벽히 부합하며 불필요한 오버엔지니어링(YAGNI)을 배제했는가?
 2. **[안정성 단계]** 모바일(Android/Expo) 런타임, 포그라운드 서비스 및 음성 길 안내(TTS)에서 예외(권한, 크래시, 메모리 누수, 백그라운드 GPS 유지)가 완전히 방어되었는가?
 3. **[품질 단계]** SonarLint 규칙(단일 파일 250라인 이하, 함수 40라인 이하, 인지 복잡도 10 이하, 중첩 삼항연산 금지, 미사용 코드 제거)과 앱 전역 긍정적 웰니스 카피라이팅을 완벽히 지켰는가?
 4. **[테스트 실행 단계]** 비즈니스 로직 및 기능 추가/수정 시 `python -m pytest test_case/ -v`로 전체 74개 테스트 스위트를 실행하여 100% 통과 여부를 검증하였는가?

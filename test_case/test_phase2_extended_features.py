@@ -1,6 +1,6 @@
 """[US-17 ~ US-29] Phase 2 / 차기 고도화 실전 안전 확장 백로그 TDD 테스트 모듈.
 
-명세서 기준 (docs/03_편하개_Agile_User_Stories.md Section 4):
+명세서 기준 (docs/03_편안하개_Agile_User_Stories.md Section 4):
 - [US-17] 관절 안심 완만길·그늘길 영토 점령 (Calm & Green Hexagon):
   - H3 헥사곤 공간 인덱싱 기반 안심 완만길(경사 <=5%, 계단 0) 점령 시 2.5배 가중치 (Calm Bonus)
   - 점령 타일 Calm Green (#10B981) 렌더링

@@ -1,6 +1,6 @@
-# 편하개 코딩 컨벤션 및 정적 분석(SonarLint) 가이드라인
+# 편안하개 코딩 컨벤션 및 정적 분석(SonarLint) 가이드라인
 
-본 문서는 **편하개** 프로젝트의 코드 품질, 안정성 및 유지보수성을 극대화하고 SonarLint 정적 분석 경고를 사전에 방지하기 위한 통합 코딩 규칙입니다. 모든 프론트엔드(TypeScript/React Native Expo) 및 백엔드/AI(Python/FastAPI/LangGraph) 코드 작성 및 리팩토링 시 본 규칙을 엄격하게 준수해야 합니다.
+본 문서는 **편안하개** 프로젝트의 코드 품질, 안정성 및 유지보수성을 극대화하고 SonarLint 정적 분석 경고를 사전에 방지하기 위한 통합 코딩 규칙입니다. 모든 프론트엔드(TypeScript/React Native Expo) 및 백엔드/AI(Python/FastAPI/LangGraph) 코드 작성 및 리팩토링 시 본 규칙을 엄격하게 준수해야 합니다.
 
 ---
 
@@ -195,7 +195,7 @@
 
 ### 6.3 회귀 방지 전수 테스트 실행 및 보고
 - 테스트케이스를 갱신한 직후, 관련 테스트 스위트(Pytest, Jest 등)를 직접 실행하여 **회귀 결함(Regression) 발생 여부를 확인**하고 테스트 통과 결과를 보고서에 명시합니다.
-- `docs/03_편하개_Agile_User_Stories.md`의 DoD 체크박스를 최신 통과 현황에 맞게 동기화합니다.
+- `docs/03_편안하개_Agile_User_Stories.md`의 DoD 체크박스를 최신 통과 현황에 맞게 동기화합니다.
 
 ---
 
