@@ -1,4 +1,4 @@
-# 🐾 편하개 팀 빌딩 & 핵심 프로젝트 전략
+# 🐾 편안하개 팀 빌딩 & 핵심 프로젝트 전략
 
 > **"AI Native 관점의 선택과 집중"**  
 > 5주라는 제한된 일정 내에 실제 사용 가능한 완성도 높은 제품을 구현하고 가치를 증명하기 위해 반드시 준수해야 할 팀 R&R 및 엔지니어링 실행 원칙입니다.
@@ -44,7 +44,7 @@
 
 ## 👥 3. 5인 팀 R&R (역할과 책임) 명세
 
-편하개 개발팀은 `docs/guideline/역할.txt`의 표준 가이드라인에 따라 5인 전원의 역할을 명확히 정의하고 기능별 전문성을 극대화하여 협업합니다.
+편안하개 개발팀은 `docs/guideline/역할.txt`의 표준 가이드라인에 따라 5인 전원의 역할을 명확히 정의하고 기능별 전문성을 극대화하여 협업합니다.
 
 ### 3.1 팀원별 핵심 역할 및 직관적 정의 (`역할.txt` 정합)
 
@@ -66,11 +66,11 @@
 | **2번** | **Member B** | **지도·공간데이터·AI 분석**<br/>(AI & Spatial Data Engineer) | • Gemini 가용 모델 우선순위 선택 파이프라인(3.5 Flash-Lite ➔ 3.1 Flash-Lite ➔ 3.6 Flash) 기반 현장 시각적 위험물(턱, 계단, 장애물) 및 공원 안내판 판독<br>• Structured JSON 출력 스키마 고정 및 저조도/모션 블러 예외 처리<br>• DEM 고도 래스터 적재 및 경로 세그먼트 고도 샘플링 파이프라인<br>• SunCalc 태양 고도/방위각 실시간 연산 모듈 및 그늘/경사 테스트베드 검증<br>• 기상청 단기예보 n8n 연동 및 지면열 위험 지수 산출 수지식 구현<br>• 전국 공영주차장 API 클라이언트 및 커뮤니티 200m 공간 블러링(Spatial Jittering) 파이프라인 | **71 h**<br/>(19.1%) | Epic B (US-B1, US-B2, US-B3)<br>Epic D (US-D1, US-D2)<br>Epic F (US-F1)<br>Epic G (US-G1, US-G2)<br>*(총 14개 Task)* |
 | **3번** | **Member C** | **서버·맞춤 경로 계산**<br/>(Backend & Spatial Routing Lead) | • FastAPI 백엔드 코어 구축 및 Stateless REST API 엔드포인트 구현<br>• OpenRouteService / OSRM 라우팅 API Adapter 연동 및 순환 루프 후보 생성<br>• OSM Steps 데이터 필터링 및 계단 링크 하드 제약 배제(Hard Constraint) 라우팅<br>• 건물 외곽선 폴리곤 기반 시간대별 그림자 투영 및 shade_ratio 공간 연산<br>• 위험 감지 좌표 임시 차단(Block List) 및 실시간 안전 우회 경로 재탐색 API<br>• Supabase Auth 간편 이메일 가입/로그인 및 커뮤니티 공개 코스 REST API | **91 h**<br/>(24.5%) | Epic B (US-B1, US-B2, US-B3, US-B4)<br>Epic D (US-D2)<br>Epic F (US-F1)<br>Epic G (US-G1, US-G2)<br>*(총 14개 Task)* |
 | **4번** | **Member D** | **모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | • **React Native (Expo SDK 51+) 모바일 앱 코어 아키텍처 구축**<br>• **Android Foreground Service + expo-speech 기반 시선 해방 핸즈프리 음성 안내 엔진 개발**<br>• react-native-maps 기반 구간별 색상 분기 Polyline 렌더링 및 카메라 트래킹<br>• **AsyncStorage 로컬 스토리지 모듈(반려견 프로필, 개인 궤적, JSON 백업/복원)**<br>• 칼만 필터 기반 도심 GPS 튀김 완화 및 도로망 궤적 스냅 보정<br>• **EAS Build 1회 APK 패키징 & EAS Update (`expo-updates`) 무선 무점검 OTA 파이프라인** | **94 h**<br/>(25.3%) | Epic A (US-A2)<br>Epic C (US-C1, US-C2)<br>Epic D (US-D2)<br>Epic E (US-E1, US-E2, US-E3)<br>Epic H (US-H1)<br>*(총 17개 Task)* |
-| **5번** | **Member E** | **화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | • **전문 디자이너: 편하개 디자인 시스템 구축 (Color Tokens, Typography, Iconography)**<br>• **6대 핵심 시나리오 고화질 UI 화면 완성 (플래너, 프리뷰, 다크 포켓, 인스펙션, 리포트, 커뮤니티)**<br>• 반려견 프로필 온보딩 및 산책 플래너 슬라이더/칩 인터랙션 UI/UX 구현<br>• 산책 완주 인포그래픽 요약 카드 & 보행 체감 피드백 UI 디자인<br>• **앱 전역 긍정적 웰니스 카피라이팅 가이드라인 수립 (질병 용어 100% 배제)**<br>• **최소 5인 실사용자 필드 테스트(CBT) 사용성 평가(Usability Testing), 전체 기능 통합 검증 및 UI/UX 튜닝 총괄** | **51 h**<br/>(13.7%) | Epic A (US-A2, US-A3)<br>Epic C (US-C1)<br>Epic E (US-E2)<br>Epic F (US-F1)<br>Epic G (US-G1, US-G2)<br>Epic H (US-H1)<br>*(총 12개 Task)* |
+| **5번** | **Member E** | **화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | • **전문 디자이너: 편안하개 디자인 시스템 구축 (Color Tokens, Typography, Iconography)**<br>• **6대 핵심 시나리오 고화질 UI 화면 완성 (플래너, 프리뷰, 다크 포켓, 인스펙션, 리포트, 커뮤니티)**<br>• 반려견 프로필 온보딩 및 산책 플래너 슬라이더/칩 인터랙션 UI/UX 구현<br>• 산책 완주 인포그래픽 요약 카드 & 보행 체감 피드백 UI 디자인<br>• **앱 전역 긍정적 웰니스 카피라이팅 가이드라인 수립 (질병 용어 100% 배제)**<br>• **최소 5인 실사용자 필드 테스트(CBT) 사용성 평가(Usability Testing), 전체 기능 통합 검증 및 UI/UX 튜닝 총괄** | **51 h**<br/>(13.7%) | Epic A (US-A2, US-A3)<br>Epic C (US-C1)<br>Epic E (US-E2)<br>Epic F (US-F1)<br>Epic G (US-G1, US-G2)<br>Epic H (US-H1)<br>*(총 12개 Task)* |
 
 ---
 
-## 🧠 4. 편하개 핵심 AI 파이프라인
+## 🧠 4. 편안하개 핵심 AI 파이프라인
 
 ```mermaid
 flowchart LR

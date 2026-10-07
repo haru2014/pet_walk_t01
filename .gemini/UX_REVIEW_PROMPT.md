@@ -1,13 +1,13 @@
-# 편하개 UX Review & Improvement Prompt
+# 편안하개 UX Review & Improvement Prompt
 
 ## 🎯 목적
-Gemini Code Assist가 **편하개 (반려견 맞춤형 안심 노면 산책 플랫폼)**의 프론트엔드 UI를 분석하고, 실사용자(야외 견주 5인 CBT) 관점에서 UX 결함과 사용성 문제를 우선순위화하여 최소 변경으로 개선하도록 지원하는 작업용 프롬프트입니다.
+Gemini Code Assist가 **편안하개 (반려견 맞춤형 안심 노면 산책 플랫폼)**의 프론트엔드 UI를 분석하고, 실사용자(야외 견주 5인 CBT) 관점에서 UX 결함과 사용성 문제를 우선순위화하여 최소 변경으로 개선하도록 지원하는 작업용 프롬프트입니다.
 
 ---
 
 ## 🧭 기본 실행 원칙
 1. `.gemini/UX_COMPACT_RULES.md`에 정의된 10대 UX 원칙(야외 시인성, 한 손 조작, 노면 색상 규격, 외부 지도 딥링크 등)을 기본 정책으로 적용합니다.
-2. 기획서(`docs/01_편하개_Project_Proposal.md`) 및 사용자 스토리(`docs/03_편하개_Agile_User_Stories.md`)의 요구사항을 기준점으로 삼습니다.
+2. 기획서(`docs/01_편안하개_Project_Proposal.md`) 및 사용자 스토리(`docs/03_편안하개_Agile_User_Stories.md`)의 요구사항을 기준점으로 삼습니다.
 3. 요청되지 않은 전면적인 리디자인을 지양하고, **문제를 정확히 진단한 후 가장 영향도가 높은 부분부터 최소 단위로 개선**합니다.
 
 ---
@@ -31,7 +31,7 @@ Gemini Code Assist가 **편하개 (반려견 맞춤형 안심 노면 산책 플�
 
 ---
 
-## 📋 Phase 2 — 편하개 특화 UX Audit (10대 점검 영역)
+## 📋 Phase 2 — 편안하개 특화 UX Audit (10대 점검 영역)
 
 1. **Outdoor Readability & Contrast**: 햇빛 아래에서 글자와 지도 선(Polyline)이 잘 보이는가? (대비 4.5:1 이상)
 2. **One-Handed Usability (Thumb Zone)**: 핵심 액션 버튼이 하단 40% 영역에 배치되어 있는가?

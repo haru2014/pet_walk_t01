@@ -16,7 +16,7 @@ import pytest
 from typing import List, Dict, Any, Literal
 from pydantic import BaseModel, Field, ValidationError
 
-# 체급별 표준 보행 속도 (m/min) - 03_편하개_Agile_User_Stories.md US-A3 정합
+# 체급별 표준 보행 속도 (m/min) - 03_편안하개_Agile_User_Stories.md US-A3 정합
 DOG_WALK_SPEEDS_M_PER_MIN = {
     "small": 46.67,                  # 2.8 km/h
     "medium": 60.0,                  # 3.6 km/h

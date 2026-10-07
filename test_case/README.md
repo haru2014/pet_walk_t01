@@ -1,6 +1,6 @@
-# 🧪 편하개 TDD (Test-Driven Development) 테스트 스위트
+# 🧪 편안하개 TDD (Test-Driven Development) 테스트 스위트
 
-본 디렉토리(`test_case/`)는 **편하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼)**의 **8개 에픽(Epic A ~ H) 및 18개 핵심 애자일 사용자 스토리(US-A1 ~ US-H1)**와 **차기 확장 백로그(Phase 2 / US-17 ~ US-29)**를 포괄하는 종합 TDD 테스트 스위트입니다.
+본 디렉토리(`test_case/`)는 **편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼)**의 **8개 에픽(Epic A ~ H) 및 18개 핵심 애자일 사용자 스토리(US-A1 ~ US-H1)**와 **차기 확장 백로그(Phase 2 / US-17 ~ US-29)**를 포괄하는 종합 TDD 테스트 스위트입니다.
 
 본 프로젝트는 **GitHub Actions CI 워크플로우(`.github/workflows/ci.yml`)**를 통해 Push 및 Pull Request 시 자동으로 모든 단위·계약·통합 테스트를 실행하여 무결성을 검증합니다.
 
@@ -68,7 +68,7 @@ python -m pytest test_case/test_phase2_extended_features.py -v
 
 ## ⚙️ GitHub Actions CI / TDD 파이프라인 연동 (`.github/workflows/ci.yml`)
 
-편하개은 GitHub Actions 기반 Continuous Integration(CI)을 통해 품질 가드레일과 TDD 자동화를 실현합니다:
+편안하개는 GitHub Actions 기반 Continuous Integration(CI)을 통해 품질 가드레일과 TDD 자동화를 실현합니다:
 
 1. **트리거 조건**:
    - `main`, `develop`, `feat/**`, `fix/**`, `chore/**` 브랜치에 Push 발생 시
@@ -87,6 +87,6 @@ python -m pytest test_case/test_phase2_extended_features.py -v
 ---
 
 ## 📋 TDD 원칙 및 가드레일 동기화 규칙
-1. **사용자 스토리 100% 정합성**: 모든 테스트 모듈은 `03_편하개_Agile_User_Stories.md`의 인수 조건(Acceptance Criteria) 및 `06_편하개_Task_Breakdown_and_Estimations.md`의 완료 정의(DoD)를 직접 검증합니다.
+1. **사용자 스토리 100% 정합성**: 모든 테스트 모듈은 `03_편안하개_Agile_User_Stories.md`의 인수 조건(Acceptance Criteria) 및 `06_편안하개_Task_Breakdown_and_Estimations.md`의 완료 정의(DoD)를 직접 검증합니다.
 2. **웰니스 카피라이팅 가드레일**: 앱 UI, DTO 및 테스트 코드 내에서 '슬개골 탈구' 등 임상 질병 단어를 배제하고 '관절 안심 케어', '폭신한 길' 등 순화된 언어를 엄격히 준수합니다.
 3. **프라이버시 바이 디자인(Local-First) 보증**: 민감한 자택 위치 및 상세 보행 GPS 궤적은 서버로 전송하지 않고 로컬 스토리지에만 보관하며, 커뮤니티 공유 시 200m 공간 마스킹이 적용됨을 테스트로 보증합니다.

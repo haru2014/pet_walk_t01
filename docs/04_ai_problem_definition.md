@@ -1,9 +1,9 @@
-# 🧠 [편하개] AI 문제 정의서 (AI Problem Definition)
+# 🧠 [편안하개] AI 문제 정의서 (AI Problem Definition)
 
-> **프로젝트 명칭**: 편하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼)  
-> **기준 문서**: [`03_편하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md), [`02_편하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편하개_Team_building.md)  
+> **프로젝트 명칭**: 편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼)  
+> **기준 문서**: [`03_편안하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md), [`02_편안하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편안하개_Team_building.md)  
 > **작성 일자**: 2026-10-06  
-> **문서 목적**: 편하개 프로젝트에서 AI 기술(LLM Agent, Multimodal Vision, 다요소 공간 스코어링, 지능형 피드백 보정)을 통해 해결하고자 하는 핵심 문제 영역과 기술적 솔루션을 정의한다.
+> **문서 목적**: 편안하개 프로젝트에서 AI 기술(LLM Agent, Multimodal Vision, 다요소 공간 스코어링, 지능형 피드백 보정)을 통해 해결하고자 하는 핵심 문제 영역과 기술적 솔루션을 정의한다.
 
 ---
 
@@ -27,7 +27,7 @@ flowchart TD
     end
 
     Reality --> LegacyLimits
-    LegacyLimits --> Goal["🎯 AI Native '편하개' 솔루션 도입 필요"]
+    LegacyLimits --> Goal["🎯 AI Native '편안하개' 솔루션 도입 필요"]
 ```
 
 ### 1.1 기존 산책 및 내비게이션 솔루션의 4대 한계
@@ -43,17 +43,17 @@ flowchart TD
 
 ---
 
-## 🎯 2. 편하개 앱이 AI를 통해 해결하고자 하는 5대 핵심 문제
+## 🎯 2. 편안하개 앱이 AI를 통해 해결하고자 하는 5대 핵심 문제
 
-편하개는 바닥부터 GIS 알고리즘을 직접 코딩하는 대신, **"사용자 문제를 정밀 정의하고 AI Agent가 외부 도구(Routing Adapter, Steps, DEM, Shade, Vision)를 자율 제어해 해결하는 역량"**에 집중합니다.
+편안하개는 바닥부터 GIS 알고리즘을 직접 코딩하는 대신, **"사용자 문제를 정밀 정의하고 AI Agent가 외부 도구(Routing Adapter, Steps, DEM, Shade, Vision)를 자율 제어해 해결하는 역량"**에 집중합니다.
 
 | 문제 번호 | 해결 대상 핵심 문제 (Problem) | AI 기반 솔루션 및 기술 접근 (AI Solution) | 연계 애자일 스토리 |
 |:---:|---|---|:---:|
-| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L50-L64) |
-| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L80-L94) |
-| **문제 3** | **관절 충격(계단/급경사) 및 땡볕 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• OSM `steps` 하드 회피 + DEM 경사도 3배 페널티<br>• SunCalc 태양 궤적 피크 시간대 그늘길 할인<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L99-L112)<br>[`US-B2`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L113-L126)<br>[`US-B3`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L127-L140)<br>[`US-B4`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L141-L154) |
-| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L191-L206)<br>[`US-D2`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L207-L220) |
-| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L225-L238)<br>[`US-E3`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L252-L266)<br>[`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L298-L312) |
+| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64) |
+| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94) |
+| **문제 3** | **관절 충격(계단/급경사) 및 땡볕 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• OSM `steps` 하드 회피 + DEM 경사도 3배 페널티<br>• SunCalc 태양 궤적 피크 시간대 그늘길 할인<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L99-L112)<br>[`US-B2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L113-L126)<br>[`US-B3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L127-L140)<br>[`US-B4`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L141-L154) |
+| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L191-L206)<br>[`US-D2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L207-L220) |
+| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L225-L238)<br>[`US-E3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L252-L266)<br>[`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L298-L312) |
 
 ---
 
@@ -93,7 +93,7 @@ sequenceDiagram
 
 ### 3.2 [문제 2 & 3] 다요소 제약 기반 안심 순환 경로 생성 및 스코어링 (US-A3, US-B1~B4)
 
-일반 최단거리 알고리즘은 가파른 계단이나 지옥 같은 오르막길, 땡볕 아스팔트로 안내하기 십상입니다. 편하개는 GIS 외부 어댑터와 다요소 분석 파이프라인을 결합하여 복합적인 안전 코스를 계산합니다.
+일반 최단거리 알고리즘은 가파른 계단이나 지옥 같은 오르막길, 땡볕 아스팔트로 안내하기 십상입니다. 편안하개는 GIS 외부 어댑터와 다요소 분석 파이프라인을 결합하여 복합적인 안전 코스를 계산합니다.
 
 ```mermaid
 flowchart LR
@@ -156,7 +156,7 @@ flowchart TD
 
 ### 3.4 [문제 5] 프라이버시 보호형 무상태(Stateless) AI 피드백 루프 (US-E1, US-E3, US-G2)
 
-개인화 추천 시스템은 일반적으로 서버에 대량의 사용자 데이터를 수집합니다. 하지만 반려견 산책 궤적과 자택 위치는 심각한 프라이버시 침해 위험을 내포합니다. 편하개는 **Local-First 저장과 Stateless AI 오케스트레이션**으로 이 난제를 해결합니다.
+개인화 추천 시스템은 일반적으로 서버에 대량의 사용자 데이터를 수집합니다. 하지만 반려견 산책 궤적과 자택 위치는 심각한 프라이버시 침해 위험을 내포합니다. 편안하개는 **Local-First 저장과 Stateless AI 오케스트레이션**으로 이 난제를 해결합니다.
 
 ```mermaid
 flowchart LR
@@ -206,7 +206,7 @@ flowchart LR
 
 ## 📊 5. AI 기능 정량적 성공 지표 및 검증 기준 (DoD 정합)
 
-편하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`test_case/`](file:///d:/cody/pet_walk_t01/test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
+편안하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`test_case/`](file:///d:/cody/pet_walk_t01/test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
 
 | 검증 영역 | 정량 목표 지표 | 검증 방식 및 테스트 모듈 |
 |---|:---:|---|
@@ -220,7 +220,7 @@ flowchart LR
 
 ---
 
-## 💡 6. 요약: 편하개 AI의 핵심 차별화 가치
+## 💡 6. 요약: 편안하개 AI의 핵심 차별화 가치
 
 > **"오버엔지니어링(직접 GIS 엔진/CV 개발)을 배제하고, AI Agent의 외부 도구 제어력과 Local-First 프라이버시 설계를 통해 실사용자 견주와 반려견에게 진정한 '시선과 관절의 자유'를 제공한다."**
 

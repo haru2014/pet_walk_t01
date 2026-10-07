@@ -1,4 +1,4 @@
-# 🐾 편하개 (PetWalk)
+# 🐾 편안하개 (PetWalk)
 > **AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼**  
 > *"견주에게는 시선과 두 손의 자유를, 반려견에게는 관절 안심 발걸음을"*
 
@@ -25,7 +25,7 @@
 
 ## 🌟 1. 프로젝트 개요 (Overview)
 
-**편하개(PetWalk)**는 노령견이나 관절 보호가 필요한 반려견을 위해 **계단 회피, 완만 경사(DEM), 실시간 그늘길(SunCalc), 푹신한 노면(흙·잔디·탄성포장)**을 과학적으로 탐색하여 맞춤형 순환 산책 코스를 생성하는 **AI Native 모바일 산책 플랫폼**입니다.
+**편안하개(PetWalk)**는 노령견이나 관절 보호가 필요한 반려견을 위해 **계단 회피, 완만 경사(DEM), 실시간 그늘길(SunCalc), 푹신한 노면(흙·잔디·탄성포장)**을 과학적으로 탐색하여 맞춤형 순환 산책 코스를 생성하는 **AI Native 모바일 산책 플랫폼**입니다.
 
 기존 반려견 산책 앱이 단순 거리/배변 기록에 머무르거나 인간 보행 속도 기준의 상용 지도에 의존했던 한계를 극복하고, **LangGraph ReAct Agent**와 **Multimodal Vision AI(Gemini 3.x Cascading Chain)**를 통해 현장 맞춤형 산책 환경을 자율적으로 오케스트레이션합니다. 또한 스마트폰을 주머니에 넣은 채 산책할 수 있는 **초절전 다크 포켓 모드**와 **시선 해방(Eyes-Free) 핸즈프리 음성 내비게이션**을 지원합니다.
 
@@ -50,16 +50,16 @@ flowchart TD
     end
 
     Reality --> LegacyLimits
-    LegacyLimits --> Solution["🎯 편하개 AI Native 솔루션 도입"]
+    LegacyLimits --> Solution["🎯 편안하개 AI Native 솔루션 도입"]
 ```
 
 > [!IMPORTANT]
 > **5대 핵심 해결 영역**
-> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 그늘길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L50-L64)).
-> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L80-L94)).
-> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + DEM 종단 경사도 페널티 + SunCalc 11~15시 피크 그늘길 할인 ($W_{\text{shade}}=0.6$) ➔ 100점 만점 최적 코스 도출 ([`US-B1~B4`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L99-L154)).
-> 4. **현장 시각 위험 분석 & 동적 우회**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L191-L220)).
-> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L225-L238), [`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md#L298-L312)).
+> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 그늘길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64)).
+> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94)).
+> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + DEM 종단 경사도 페널티 + SunCalc 11~15시 피크 그늘길 할인 ($W_{\text{shade}}=0.6$) ➔ 100점 만점 최적 코스 도출 ([`US-B1~B4`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L99-L154)).
+> 4. **현장 시각 위험 분석 & 동적 우회**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L191-L220)).
+> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L225-L238), [`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L298-L312)).
 
 ---
 
@@ -67,7 +67,7 @@ flowchart TD
 
 ```
 +--------------------------------------------------------------------------------------------------+
-|                                  편하개 4대 핵심 엔지니어링 전략                                   |
+|                                 편안하개 4대 핵심 엔지니어링 전략                                  |
 +--------------------------------------------------------------------------------------------------+
   [전략 1] C++ GIS 바닥 코딩 ❌  ➔  AI Agent 외부 도구 제어 & Routing API Adapter 연동 ⭕
   [전략 2] 화면 주시 보행 위험 ❌  ➔  React Native Expo 시선 해방(Eyes-Free) 음성 안내 & EAS OTA ⭕
@@ -125,7 +125,7 @@ graph TB
 
 ## 📱 5. 핵심 사용자 여정 및 화면 시나리오 (User Journey & Screens)
 
-편하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](file:///d:/cody/pet_walk_t01/mockup/index.html))
+편안하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](file:///d:/cody/pet_walk_t01/mockup/index.html))
 
 ```mermaid
 graph LR
@@ -149,7 +149,7 @@ graph LR
 
 ## 👥 6. 5인 팀 R&R 및 애자일 스펙 (Team Roles & Agile Backlog)
 
-편하개 프로젝트는 5인 전담 R&R과 **18개 핵심 애자일 사용자 스토리 (총 77 Story Points / 372 Hours)** 체계로 운영됩니다. (상세 명세: [`02_편하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편하개_Team_building.md), [`03_편하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편하개_Agile_User_Stories.md))
+편안하개 프로젝트는 5인 전담 R&R과 **18개 핵심 애자일 사용자 스토리 (총 77 Story Points / 372 Hours)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md))
 
 | 번호 | 역할 명칭 (포지션) | 담당 팀원 | 핵심 R&R 및 주요 산출물 | 연계 사용자 스토리 |
 |:---:|---|:---:|---|:---:|
@@ -203,8 +203,8 @@ test_case/test_phase2_extended_features.py ............                   [100%]
 pet_walk_t01/
 ├── README.md                                  # [본 문서] 프로젝트 통합 개요 및 엔지니어링 표준
 ├── docs/                                      # 프로젝트 기획 및 엔지니어링 문서
-│   ├── 02_편하개_Team_building.md              # 5인 팀 R&R 및 4대 기술 엔지니어링 전략
-│   ├── 03_편하개_Agile_User_Stories.md         # 8대 에픽(A~H), 18개 사용자 스토리 및 DoD 명세서
+│   ├── 02_편안하개_Team_building.md            # 5인 팀 R&R 및 4대 기술 엔지니어링 전략
+│   ├── 03_편안하개_Agile_User_Stories.md       # 8대 에픽(A~H), 18개 사용자 스토리 및 DoD 명세서
 │   └── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
 ├── mockup/                                    # 예상 사용 시나리오 스크린 갤러리 및 UI 목업
 │   ├── index.html                             # 인터랙티브 스크린 뷰어 웹 애플리케이션
