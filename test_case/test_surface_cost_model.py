@@ -1,19 +1,19 @@
-"""[US-B1, US-B2, US-B3, US-B4] 무계단·완만경사·그늘 과학 라우팅 및 다요소 스코어링 TDD 테스트 모듈.
+"""[US-B1, US-B2, US-B3] 무장애길·지면온도 라우팅 및 다요소 스코어링 TDD 테스트 모듈.
 
 최신 생명주기 명세서(docs/03, docs/04, docs/06) 기준:
-- [US-B1] 지도 데이터 기반 확인된 계단 구간 우선 회피:
+- [US-B1] 무장애길(경사 15도 미만·무계단) 안심 경로 도출:
   - OSM 보행 네트워크 highway=steps 링크를 하드 제약(Hard Constraint)으로 배제
   - 계단 메타데이터 투명 제공: has_stairs: false, stairs_data_source: "osm", confidence: 0.90
   - 계단 우회 불가 시 계단 수/위치 사전 고지
-- [US-B2] DEM 기반 최대 경사도 제어 및 완만한 경사 경로:
   - 수치표고모델(DEM) 고도 데이터 기반 링크별 종단 경사도(slope_percent) 산출
-  - 급경사(> 8%) 구간 페널티 가중치 부여, 매우 완만(<=5%), 완만(<=8%) 우선 라우팅
+  - 최대 경사 15도(약 26.8%) 초과 구간 배제, 급경사(> 8%) 구간 페널티 가중치 부여, 매우 완만(<=5%), 완만(<=8%) 우선 라우팅
   - 코스 전체 최대 경사도 및 평균 경사도 산출
-- [US-B3] 태양 위치(SunCalc) 및 건물 형상 기반 시간대별 그늘 우선 평가:
-  - 11~15시 피크 일조 시간대에 그늘길 비용 할인(W_shade = 0.6) 적용
-  - 코스 전체 예상 그늘 비율(average_shade_ratio) 산출
-- [US-B4] Routing API Adapter 연동 및 다요소 스코어링 (Candidate Route Scorer):
-  - 후보 경로 2~3개 중 계단 배제(30점), 경사도 적합도(30점), 그늘 지표(20점), 거리 적합도(20점) 종합 채점 (100점 만점)
+- [US-B2] 기상·노면 연동 지면온도 기반 안심 경로 도출:
+  - 기상청 실시간 기온/일사량 + 노면 재질(아스팔트, 콘크리트, 흙/잔디) 결합 지면온도 추정 (S_surface_temp)
+  - 지면온도 임계치(35~40°C 이상 고온) 초과 링크 페널티 가중치 부여 및 열 위험 회피
+  - 피크 일조 시간대 고온 노면 우회 (그늘 단독 라우팅은 제외하고 지면온도 모델에 통합 연동)
+- [US-B3] Routing API Adapter 연동 및 후보 경로 다요소 스코어링 (Candidate Route Scorer):
+  - 후보 경로 2~3개 중 무장애길(계단 배제 30점 + 완만 경사 30점 = 60점), 지면온도/노면 안전(20점), 목표 거리 적합도(20점) 종합 채점 (100점 만점)
   - 최고 점수의 최적 경로 선정 알고리즘 검증
 - 노면 비용 모델 (잔디/흙 할인 0.45, 아스팔트 2.5, 자갈 3.5) 및 OSM 속성/공원 폴리곤 결합 노면 출처 투명성 검증
 """
@@ -69,6 +69,26 @@ def resolve_surface_attribute(
 resolve_surface_with_land_cover = resolve_surface_attribute
 
 
+def estimate_surface_temperature(
+    air_temp_c: float,
+    solar_radiation_index: float,
+    surface: str,
+    shade_ratio: float = 0.0
+) -> float:
+    """[US-B2] 기상청 기온·일사량 및 노면 재질 연동 지면온도 추정 수지식 (S_surface_temp)."""
+    alpha_map = {
+        "asphalt": 18.0,
+        "paved": 14.0,
+        "rubber": 12.0,
+        "dirt": 8.0,
+        "grass": 4.0,
+        "gravel": 10.0,
+    }
+    alpha = alpha_map.get(surface, 12.0)
+    effective_solar = solar_radiation_index * (1.0 - min(1.0, max(0.0, shade_ratio)))
+    return round(air_temp_c + (alpha * effective_solar), 1)
+
+
 def calculate_link_cost(
     length_m: float,
     surface: str,
@@ -76,10 +96,11 @@ def calculate_link_cost(
     slope_percent: float = 0.0,
     is_stairs: bool = False,
     shade_ratio: float = 0.0,
-    is_noon_peak: bool = False
+    is_noon_peak: bool = False,
+    estimated_surface_temp_c: Optional[float] = None
 ) -> float:
-    """[US-B1~B4] 노면, 계단, 경사도, 그늘을 종합 반영한 링크 가중치 비용 함수."""
-    # 1. 계단 하드 회피 (비용 무한대 가깝게 패널티 부여)
+    """[US-B1~B3] 노면, 계단, 경사도, 지면온도/그늘을 종합 반영한 링크 가중치 비용 함수."""
+    # 1. 무장애길 - 계단 하드 회피 (US-B1: 비용 무한대 가깝게 패널티 부여)
     if is_stairs:
         return length_m * 100.0
 
@@ -87,23 +108,28 @@ def calculate_link_cost(
     base_weight = SURFACE_BASE_WEIGHTS.get(surface, 1.0)
     pref_factor = PREF_DISCOUNT_FACTOR if surface in selected_preferred_surfaces else 1.0
 
-    # 3. 경사도 페널티 (US-B2): > 8% 급경사는 3.0배 페널티, <= 5%는 1.0
+    # 3. 무장애길 - 경사도 페널티 (US-B1): > 8% 급경사는 3.0배 페널티, <= 5%는 1.0
     slope_factor = 1.0
     if slope_percent > 8.0:
         slope_factor = 3.0
     elif slope_percent > 5.0:
         slope_factor = 1.5
 
-    # 4. 그늘 할인 (US-B3): 11~15시 피크 시간대 & 그늘 비율 >= 0.5 시 0.6 할인
-    shade_factor = 1.0
-    if is_noon_peak and shade_ratio >= 0.5:
-        shade_factor = 0.6
+    # 4. 지면온도 열위험 페널티 및 그늘 완화 (US-B2)
+    thermal_factor = 1.0
+    if estimated_surface_temp_c is not None:
+        if estimated_surface_temp_c >= 40.0:
+            thermal_factor = 3.0  # 40℃ 이상 고온 노면 3배 페널티
+        elif estimated_surface_temp_c > 35.0:
+            thermal_factor = 1.8  # 35℃ 초과 주의 페널티
+    elif is_noon_peak and shade_ratio >= 0.5:
+        thermal_factor = 0.6  # 피크 일조 시간대 차광/저온 할인
 
-    return length_m * base_weight * pref_factor * slope_factor * shade_factor
+    return length_m * base_weight * pref_factor * slope_factor * thermal_factor
 
 
 def filter_links_avoiding_stairs(links: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """[US-B1] OSM 네트워크에서 계단(highway=steps) 링크 배제 및 메타데이터 반환."""
+    """[US-B1] 무장애길 - OSM 네트워크에서 계단(highway=steps) 링크 배제 및 메타데이터 반환."""
     filtered = [l for l in links if l.get("highway") != "steps"]
     metadata = {
         "has_stairs": any(l.get("highway") == "steps" for l in filtered),
@@ -115,7 +141,7 @@ def filter_links_avoiding_stairs(links: List[Dict[str, Any]]) -> Tuple[List[Dict
 
 
 def calculate_course_slope_metrics(links: List[Dict[str, Any]]) -> Dict[str, float]:
-    """[US-B2] 코스 전체 링크들의 최대 경사도 및 거리 가중 평균 경사도 산출."""
+    """[US-B1] 무장애길 - 코스 전체 링크들의 최대 경사도 및 거리 가중 평균 경사도 산출."""
     if not links:
         return {"max_slope_percent": 0.0, "average_slope_percent": 0.0}
 
@@ -135,11 +161,17 @@ def score_candidate_route(
     target_distance: float,
     is_noon: bool = True
 ) -> float:
-    """[US-B4] Candidate Route Scorer: 후보 경로 다요소 종합 채점 (100점 만점)."""
-    # 1. 계단 배제 (30점): 계단 없으면 30점, 있으면 0점
+    """[US-B3] Candidate Route Scorer: 후보 경로 다요소 종합 채점 (100점 만점).
+    
+    1. 무장애길 - 계단 배제 (30점): 계단 없으면 30점, 있으면 0점 (US-B1)
+    2. 무장애길 - 경사도 적합도 (30점): max_slope <= 5% 30점, <= 8% 20점, > 8% 10점 (US-B1)
+    3. 지면온도/열안전 지표 (20점): 고온 노면 회피 및 지면온도/그늘 적합도 (US-B2)
+    4. 거리 적합도 점수 (20점): 목표 거리 대비 오차율 기반 채점 (US-B3)
+    """
+    # 1. 무장애길 - 계단 배제 (30점)
     stairs_score = 0.0 if candidate.get("has_stairs", False) else 30.0
 
-    # 2. 경사도 점수 (30점): max_slope <= 5% 30점, <= 8% 20점, > 8% 10점
+    # 2. 무장애길 - 경사도 점수 (30점)
     max_slope = candidate.get("max_slope_percent", 5.0)
     if max_slope <= 5.0:
         slope_score = 30.0
@@ -148,16 +180,27 @@ def score_candidate_route(
     else:
         slope_score = 10.0
 
-    # 3. 그늘 점수 (20점): 그늘 비율 * 20
-    shade_ratio = candidate.get("average_shade_ratio", 0.5)
-    shade_score = round(shade_ratio * 20.0, 1)
+    # 3. 지면온도 및 열안전 점수 (20점)
+    if "surface_temp_c" in candidate:
+        temp = candidate["surface_temp_c"]
+        if temp <= 32.0:
+            thermal_score = 20.0
+        elif temp <= 36.0:
+            thermal_score = 15.0
+        elif temp <= 40.0:
+            thermal_score = 8.0
+        else:
+            thermal_score = 0.0
+    else:
+        shade_ratio = candidate.get("average_shade_ratio", 0.5)
+        thermal_score = round(shade_ratio * 20.0, 1)
 
     # 4. 거리 적합도 점수 (20점): 오차율 0%일 때 20점, 오차율마다 감점
     dist = candidate.get("total_distance_m", target_distance)
     error_rate = abs(dist - target_distance) / target_distance if target_distance > 0 else 0.0
     dist_score = max(0.0, round(20.0 * (1.0 - min(1.0, error_rate * 4)), 1))
 
-    total_score = stairs_score + slope_score + shade_score + dist_score
+    total_score = stairs_score + slope_score + thermal_score + dist_score
     return min(100.0, total_score)
 
 
@@ -166,7 +209,7 @@ def score_candidate_route(
 # ==========================================
 
 class TestSurfaceCostModel:
-    """노면 가중치 비용 모델 단위 테스트 (US-B4 노면 기초)."""
+    """노면 가중치 비용 모델 단위 테스트 (US-B3 노면 기초)."""
 
     def test_preferred_surface_discount_applied(self):
         """선호 노면 선택 시 비용 할인(0.45)이 정상 적용되는지 검증."""
@@ -182,7 +225,7 @@ class TestSurfaceCostModel:
 
 
 class TestStairsAvoidanceRouting:
-    """[US-B1] 지도 데이터 기반 계단 회피 테스트."""
+    """[US-B1] 무장애길 - 지도 데이터 기반 계단 회피 테스트."""
 
     def test_filter_links_removes_stairs_links(self, mock_osm_network_links):
         """OSM 네트워크에서 highway=steps 링크가 하드 배제되는지 검증."""
@@ -200,7 +243,7 @@ class TestStairsAvoidanceRouting:
 
 
 class TestDemSlopeControl:
-    """[US-B2] DEM 기반 경사도 제어 및 완만 경사 평가 테스트."""
+    """[US-B1] 무장애길 - DEM 기반 경사도 제어 및 완만 경사 평가 테스트."""
 
     def test_steep_slope_penalized(self):
         """경사도 11.2% 급경사 링크는 완만 평지(2.0%) 대비 3배 페널티가 부여되는지 검증."""
@@ -220,8 +263,8 @@ class TestDemSlopeControl:
         assert metrics["average_slope_percent"] == 3.2
 
 
-class TestShadePrioritization:
-    """[US-B3] 태양 위치 및 건물 형상 기반 그늘 우선 평가 테스트."""
+class TestSurfaceTemperatureRouting:
+    """[US-B2] 기상·노면 연동 지면온도 기반 안심 경로 도출 테스트."""
 
     def test_noon_peak_shade_discount_applied(self):
         """11~15시 피크 일조 시간에 그늘길(그늘비율 0.8)에 비용 할인(0.6) 적용 검증."""
@@ -229,12 +272,33 @@ class TestShadePrioritization:
         sun_cost = calculate_link_cost(100.0, "paved", [], shade_ratio=0.2, is_noon_peak=True)
         assert shade_cost == pytest.approx(sun_cost * 0.6, rel=1e-2)
 
+    def test_surface_temperature_estimation_by_surface_type(self):
+        """기온 28℃, 맑음(일사 1.0) 조건에서 아스팔트(46℃) vs 잔디(32℃) 지면온도 차이 산출 검증."""
+        asphalt_temp = estimate_surface_temperature(28.0, 1.0, "asphalt", shade_ratio=0.0)
+        grass_temp = estimate_surface_temperature(28.0, 1.0, "grass", shade_ratio=0.0)
+        shaded_asphalt = estimate_surface_temperature(28.0, 1.0, "asphalt", shade_ratio=0.8)
+
+        assert asphalt_temp == 46.0  # 28 + 18*1.0
+        assert grass_temp == 32.0    # 28 + 4*1.0
+        assert shaded_asphalt == 31.6  # 28 + 18*(1-0.8) = 28 + 3.6
+        assert asphalt_temp > grass_temp
+
+    def test_high_surface_temperature_link_penalized(self):
+        """40℃ 이상 고온 링크는 일반 링크 대비 3배 페널티가 부여되어 회피되는지 검증."""
+        hot_link_cost = calculate_link_cost(100.0, "asphalt", [], estimated_surface_temp_c=42.5)
+        cool_link_cost = calculate_link_cost(100.0, "asphalt", [], estimated_surface_temp_c=30.0)
+        assert hot_link_cost == pytest.approx(cool_link_cost * 3.0, rel=1e-2)
+
+
+# 레거시 호환 클래스 별칭
+TestShadePrioritization = TestSurfaceTemperatureRouting
+
 
 class TestCandidateRouteScorer:
-    """[US-B4] Routing Adapter 및 후보 경로 다요소 스코어러 테스트."""
+    """[US-B3] Routing Adapter 및 후보 경로 다요소 스코어러 테스트."""
 
     def test_candidate_scorer_selects_safest_gentle_shade_route(self):
-        """3개 후보 경로 중 계단이 없고 완만하며 그늘이 풍부한 코스가 최고 득점하는지 검증."""
+        """3개 후보 경로 중 계단이 없고 완만하며 그늘/저온이 풍부한 코스가 최고 득점하는지 검증."""
         target_dist = 1200.0
 
         # 후보 1: 최적 코스 (계단 없음, 경사 3.5%, 그늘 80%, 거리 1200m)
@@ -272,6 +336,32 @@ class TestCandidateRouteScorer:
         assert score1 > score3
         # 계단이 있는 후보 2는 감점으로 인해 후보 1보다 현저히 낮아야 함
         assert score2 <= 70.0
+
+    def test_candidate_scorer_with_surface_temperature_evaluation(self):
+        """지면온도가 31℃인 안심 코스가 42℃인 과열 코스보다 열 안전 점수에서 높은 점수를 받는지 검증."""
+        target_dist = 1000.0
+        cool_route = {
+            "route_id": "cool_route",
+            "has_stairs": False,
+            "max_slope_percent": 3.0,
+            "surface_temp_c": 31.0,
+            "total_distance_m": 1000.0
+        }
+        hot_route = {
+            "route_id": "hot_route",
+            "has_stairs": False,
+            "max_slope_percent": 3.0,
+            "surface_temp_c": 42.0,
+            "total_distance_m": 1000.0
+        }
+        cool_score = score_candidate_route(cool_route, target_dist)
+        hot_score = score_candidate_route(hot_route, target_dist)
+
+        # cool_score = 30 + 30 + 20 + 20 = 100
+        # hot_score = 30 + 30 + 0 + 20 = 80
+        assert cool_score == 100.0
+        assert hot_score == 80.0
+        assert cool_score > hot_score
 
 
 class TestSurfaceSourceResolver:

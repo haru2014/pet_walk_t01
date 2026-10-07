@@ -49,11 +49,11 @@ flowchart TD
 
 | 문제 번호 | 해결 대상 핵심 문제 (Problem) | AI 기반 솔루션 및 기술 접근 (AI Solution) | 연계 애자일 스토리 |
 |:---:|---|---|:---:|
-| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64) |
-| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94) |
-| **문제 3** | **관절 충격(계단/급경사) 및 땡볕 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• OSM `steps` 하드 회피 + DEM 경사도 3배 페널티<br>• SunCalc 태양 궤적 피크 시간대 그늘길 할인<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L99-L112)<br>[`US-B2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L113-L126)<br>[`US-B3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L127-L140)<br>[`US-B4`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L141-L154) |
-| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L191-L206)<br>[`US-D2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L207-L220) |
-| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L225-L238)<br>[`US-E3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L252-L266)<br>[`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L298-L312) |
+| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64) |
+| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94) |
+| **문제 3** | **관절 충격(계단/급경사) 및 고온 노면 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• 무장애길: OSM `steps` 하드 회피 + DEM 15도 미만 경사 제어<br>• 지면온도: 기상청 단기예보·노면 연동 지면온도 추정 및 고온(>35℃) 회피<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L98-L112)<br>[`US-B2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L114-L127)<br>[`US-B3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L129-L142) |
+| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **[Phase 2 차기 고도화] Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L308-L323)<br>[`US-D2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L325-L343)<br>*(Phase 2)* |
+| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L209-L222)<br>[`US-E3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L236-L250)<br>[`US-G2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L267-L281) |
 
 ---
 
@@ -61,7 +61,7 @@ flowchart TD
 
 ### 3.1 [문제 1] 대화형 자연어 산책 요청의 정밀 구조화 (US-A1)
 
-견주는 산책 조건을 정형화된 서식으로 생각하지 않습니다. *"날이 더우니 그늘 많은 곳으로 30분 정도만 완만하게 걷자"*라는 모호하고 복합적인 자연어 질의를 시스템이 이해할 수 있는 엄격한 제약조건으로 치환해야 합니다.
+견주는 산책 조건을 정형화된 서식으로 생각하지 않습니다. *"날이 더우니 시원하고 완만한 길로 20분 정도만 걷자"*라는 모호하고 복합적인 자연어 질의를 시스템이 이해할 수 있는 엄격한 제약조건으로 치환해야 합니다.
 
 ```mermaid
 sequenceDiagram
@@ -71,13 +71,13 @@ sequenceDiagram
     participant Agent as LangGraph ReAct Agent
     participant Schema as Pydantic V2 Strict Schema
 
-    견주->>Client: "9살 노령견이라 계단 피하고 그늘길로 20분만" 발화
+    견주->>Client: "9살 노령견이라 계단 피하고 완만한 길로 20분만" 발화
     Client->>Client: 로컬 DogProfile (말티즈, 9살, 관절케어 2) 바인딩
     Client->>Agent: POST /api/v1/walk/plan (prompt + client_dog_context)
     Agent->>Agent: LLM Intent Parsing (엔티티 추출)
     Agent->>Schema: Validate WalkIntent
     alt 유효성 검증 성공
-        Schema-->>Agent: TargetDuration=20, AvoidStairs=True, Slope=gentle, Shade=high
+        Schema-->>Agent: TargetDuration=20, AvoidStairs=True, Slope=gentle, SurfaceTemp=safe
     else 모호/실패 시
         Schema-->>Agent: 기본 안전 프리셋 폴백 (완만 경사, 계단 회피, 20분)
     end
@@ -86,12 +86,12 @@ sequenceDiagram
 
 - **기술 구현**:
   - `LangGraph` 기반 ReAct 상태 머신 오케스트레이션.
-  - `WalkIntent` Pydantic 스키마: `target_duration` (10~90분), `avoid_stairs` (bool), `slope_preference` (gentle / very_gentle / none), `shade_priority` (high / normal).
+  - `WalkIntent` Pydantic 스키마: `target_duration` (10~90분), `avoid_stairs` (bool), `slope_preference` (gentle / very_gentle / none), `surface_temp_safe` (bool).
   - 정확도 목표: 자연어 질의 10종에 대해 엔티티 추출 정확도 **85% 이상**.
 
 ---
 
-### 3.2 [문제 2 & 3] 다요소 제약 기반 안심 순환 경로 생성 및 스코어링 (US-A3, US-B1~B4)
+### 3.2 [문제 2 & 3] 다요소 제약 기반 안심 순환 경로 생성 및 스코어링 (US-A3, US-B1~B3)
 
 일반 최단거리 알고리즘은 가파른 계단이나 지옥 같은 오르막길, 땡볕 아스팔트로 안내하기 십상입니다. 편안하개는 GIS 외부 어댑터와 다요소 분석 파이프라인을 결합하여 복합적인 안전 코스를 계산합니다.
 
@@ -102,8 +102,8 @@ flowchart LR
 
     subgraph MultiFactor["다요소 공간 분석 레이어"]
         F1["OSM highway=steps<br/>(계단 하드 회피: 30점)"]
-        F2["DEM 고도 래스터<br/>(경사도 >8% 페널티: 30점)"]
-        F3["SunCalc + 건물 2.5D<br/>(그늘 할인 W=0.6: 20점)"]
+        F2["DEM 고도 래스터<br/>(경사 < 15° 유지: 30점)"]
+        F3["지면온도 추정 모델<br/>(35℃ 이하 저온 노면: 20점)"]
         F4["체급별 속도 모델<br/>(시간 오차 ±15%: 20점)"]
     end
 
@@ -118,13 +118,13 @@ flowchart LR
   - 대형견: $4.2\text{ km/h}$ ($70.0\text{ m/min}$)
   - 노령견: $2.2\text{ km/h}$ ($36.7\text{ m/min}$)
   - 목표 시간 대비 $\pm 15\%$ 이내로 수렴하도록 웨이포인트 거리 동적 보정.
-- **다요소 채점 수식 (`US-B4`)**:
-  $$\text{Safety Score} = S_{\text{stairs}}(30) + S_{\text{slope}}(30) + S_{\text{shade}}(20) + S_{\text{duration}}(20)$$
-  - 계단 배제 여부, 평균/최대 경사도, 예상 그늘 비율(`shade_ratio`), 목표 시간 수렴도를 합산하여 최고 득점 코스 선정.
+- **다요소 채점 수식 (`US-B3`)**:
+  $$\text{Safety Score} = S_{\text{stairs}}(30) + S_{\text{slope}}(30) + S_{\text{surface\_temp}}(20) + S_{\text{duration}}(20)$$
+  - 계단 배제 여부, 경사도 적합도(15도 미만), 지면온도 안전도(35℃ 이하 저온 노면), 목표 시간 수렴도를 합산하여 최고 득점 코스 선정.
 
 ---
 
-### 3.3 [문제 4] 현장 시각 위험 분석 & 공원 종합안내판 비전 판독 (US-D1, US-D2)
+### 3.3 [Phase 2 차기 고도화] 현장 시각 위험 분석 & 공원 종합안내판 비전 판독 (US-D1, US-D2)
 
 수치 지도에는 드러나지 않는 현장의 물리적 위험 요소(턱, 계단 공사)와 법적·행정적 제약(공원 내 반려견 금지 구역)을 시각 인공지능으로 즉시 진단합니다.
 
