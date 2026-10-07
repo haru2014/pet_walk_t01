@@ -1,0 +1,19 @@
+{
+  "name": "petwalk-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "편안하개(PetWalk) AI Native 모바일 앱 프론트엔드 코어",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Ready for mobile tests\""
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
