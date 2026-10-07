@@ -13,44 +13,51 @@ import { STORAGE_KEYS, StorageKey, DogProfile, WalkRecord, FeedbackSummary } fro
 // 인메모리 폴백 저장소 (네이티브 AsyncStorage 미지원 환경용)
 const memoryStorage = new Map<string, string>();
 
-/** 네이티브 AsyncStorage 가져오기 시도 (동적 import 또는 폴백) */
-async function getAsyncStorage(): Promise<{
+// 스토리지 드라이버 인터페이스
+export interface StorageDriver {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
-  clear: () => Promise<void>;
-}> {
-  try {
-    // React Native AsyncStorage 패키지가 설치된 환경인 경우
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
-      return AsyncStorage;
+  clear?: () => Promise<void>;
+}
+
+// 기본 드라이버 (브라우저 localStorage 또는 인메모리 Map)
+let currentDriver: StorageDriver = {
+  getItem: async (key: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
     }
-  } catch {
-    // 미설치 또는 비React Native 환경 (브라우저 또는 Node/테스트)
-  }
+    return memoryStorage.get(key) ?? null;
+  },
+  setItem: async (key: string, val: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, val);
+      return;
+    }
+    memoryStorage.set(key, val);
+  },
+  removeItem: async (key: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    memoryStorage.delete(key);
+  },
+};
 
-  // 브라우저 localStorage 지원 확인
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return {
-      getItem: async (key: string) => window.localStorage.getItem(key),
-      setItem: async (key: string, val: string) => { window.localStorage.setItem(key, val); },
-      removeItem: async (key: string) => { window.localStorage.removeItem(key); },
-      clear: async () => { window.localStorage.clear(); },
-    };
-  }
-
-  // 인메모리 폴백
-  return {
-    getItem: async (key: string) => memoryStorage.get(key) ?? null,
-    setItem: async (key: string, val: string) => { memoryStorage.set(key, val); },
-    removeItem: async (key: string) => { memoryStorage.delete(key); },
-    clear: async () => { memoryStorage.clear(); },
-  };
+/** 네이티브 AsyncStorage 가져오기 시도 (동적 import 또는 폴백) */
+async function getAsyncStorage(): Promise<StorageDriver> {
+  return currentDriver;
 }
 
 export class LocalStorageService {
+  /**
+   * 커스텀 스토리지 드라이버 주입 (React Native AsyncStorage 등)
+   */
+  static setAdapter(driver: StorageDriver): void {
+    currentDriver = driver;
+  }
+
   /**
    * 단일 데이터 조회 (제네릭)
    */
