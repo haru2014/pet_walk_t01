@@ -5,12 +5,53 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Stateless-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2051-61DAFB.svg)](https://expo.dev/)
-[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-88%2F88%20Passed-brightgreen.svg)](file:///d:/cody/pet_walk_t01/test_case/README.md)
+[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-94%2F94%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/test_case/README.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
+## ⚡ 빠른 데모 실행 가이드 (Quick Demo Guide)
+
+웹 브라우저를 통해 **프론트엔드 인터랙티브 프로토타입**과 **6대 핵심 시나리오 목업 갤러리**를 바로 실행하여 체험할 수 있습니다.
+
+### 1️⃣ 웹 프론트엔드 실시간 데모 (React / Vite)
+반려견 프로필 등록 및 속도 자동 계산, Local-First JSON 백업/복원, AI 피드백 기반 적응형 보정 위젯을 직접 조작할 수 있습니다.
+
+```bash
+# 1. 프론트엔드 폴더 이동 및 패키지 설치
+cd frontend
+npm install
+
+# 2. 로컬 개발 서버 실행
+npm run dev
+```
+> 🌐 **로컬 접속 URL**: [http://localhost:5173](http://localhost:5173)  
+> *(현재 백그라운드 서버가 실행 중이라면 위 링크를 클릭하여 즉시 접속 가능)*
+
+---
+
+### 2️⃣ 6대 핵심 시나리오 인터랙티브 목업 갤러리 (HTML)
+고대비 야외 시인성 및 한 손 조작 Thumb Zone이 적용된 6대 사용자 여정 화면(산책 플래너, 지도, 음성 내비, 피드백 등)을 한눈에 확인할 수 있습니다.
+
+```bash
+# Windows PowerShell에서 브라우저 열기
+Start-Process mockup/index.html
+
+# macOS
+open mockup/index.html
+```
+
+---
+
+### 3️⃣ TDD 핵심 엔진 전수 검증 (94개 테스트 100% Pass)
+```bash
+python -m pytest test_case/ -v
+```
+
+---
+
 ## 📖 목차 (Table of Contents)
+0. [빠른 데모 실행 가이드 (Quick Demo Guide)](#-빠른-데모-실행-가이드-quick-demo-guide)
 1. [프로젝트 개요 (Overview)](#-1-프로젝트-개요-overview)
 2. [해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
 3. [4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
@@ -55,11 +96,11 @@ flowchart TD
 
 > [!IMPORTANT]
 > **5대 핵심 해결 영역**
-> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 그늘길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64)).
-> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94)).
-> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + DEM 종단 경사도 페널티 + SunCalc 11~15시 피크 그늘길 할인 ($W_{\text{shade}}=0.6$) ➔ 100점 만점 최적 코스 도출 ([`US-B1~B4`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L99-L154)).
-> 4. **현장 시각 위험 분석 & 동적 우회**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L191-L220)).
-> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L225-L238), [`US-G2`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L298-L312)).
+> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64)).
+> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94)).
+> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + 15도 미만 무장애 완만경사 + 기상·노면 연동 지면온도 추정 및 고온 노면 회피 ➔ 100점 만점 최적 코스 도출 ([`US-B1~B3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L96-L142)).
+> 4. **현장 시각 위험 분석 & 동적 우회 (Phase 2 차기 고도화)**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L308-L343)).
+> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L209-L222), [`US-G2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L267-L281)).
 
 ---
 
@@ -75,7 +116,7 @@ flowchart TD
   [전략 4] 과도한 스트리밍 인프라 ❌ ➔  예측 가능한 Stateless REST API & 5주 애자일 완결 ⭕
 ```
 
-* **1. AI Agent 도구 오케스트레이션**: 무거운 지리 알고리즘을 직접 구현하지 않고, LangGraph ReAct Agent가 ORS/OSRM 라우팅 어댑터, DEM 고도 래스터, SunCalc 태양 궤적, Gemini Vision 모델을 표준 도구(`@tool`)로 유기적으로 지휘합니다.
+* **1. AI Agent 도구 오케스트레이션**: 무거운 지리 알고리즘을 직접 구현하지 않고, LangGraph ReAct Agent가 ORS/OSRM 라우팅 어댑터, DEM 고도 래스터, 지면온도 추정 모델을 표준 도구(`@tool`)로 유기적으로 지휘합니다. (Phase 2: Gemini Vision 체인 확장)
 * **2. 시선 해방(Eyes-Free) & 두 손의 자유**: 한 손에 리드줄을 쥐고 화면을 보는 위험을 없애기 위해, Android Foreground Service 기반 백그라운드 GPS 추적과 `expo-speech` TTS 실시간 음성 브리핑(회전 30m 전 안내, 40m 이탈 경고)을 제공합니다.
 * **3. 프라이버시 최우선 Local-First 아키텍처**: 반려견 프로필, 실보행 GPS 트랙, 자택 좌표는 기기 내부 `AsyncStorage`에만 보관하며, 클라우드(Supabase)는 200m 공간 마스킹된 공개 커뮤니티 코스와 현장 제보만 최소한으로 취합합니다.
 * **4. 무중단 무선 배포 (EAS Build 1회 + EAS Update OTA)**: 번거로운 스토어 재심사나 APK 재설치 없이, `expo-updates` 무선 무점검 OTA를 통해 핫픽스와 UI 개선 사항을 실시간 반영합니다.
@@ -87,7 +128,7 @@ flowchart TD
 ```mermaid
 graph TB
     subgraph Client["📱 모바일 클라이언트 (React Native / Expo SDK 51+)"]
-        UI["UI Screens (6대 핵심 시나리오)"]
+        UI["UI Screens (핵심 시나리오)"]
         TTS["expo-speech (핸즈프리 음성 안내)"]
         GPS["expo-location (Foreground Service)"]
         Store[("Local AsyncStorage<br/>@pet_walk:dog_profile<br/>@pet_walk:walk_history")]
@@ -98,15 +139,14 @@ graph TB
         Agent["LangGraph ReAct Walk Agent"]
         Scorer["Candidate Route Scorer (100점 만점)"]
         Masker["200m Spatial Jittering Engine"]
-        VisionPipe["Gemini Model Selector (Cascading Chain)"]
+        VisionPipe["(Phase 2) Gemini Cascading Chain"]
     end
 
     subgraph External["🌐 외부 연동 인프라 & 도구"]
         ORS["Routing Adapter (ORS / OSRM)"]
-        DEM["DEM 고도 / OSM 보행망 (Steps Hard Avoid)"]
-        Sun["SunCalc (태양 궤적 & 그늘 할인)"]
-        Gemini["Gemini Flash (3.5-Lite ➔ 3.1-Lite ➔ 3.6)"]
-        KMA["기상청 단기예보 (지면열 수지식)"]
+        DEM["DEM 고도 / OSM 보행망 (무장애길 제약)"]
+        TempModel["기상청 단기예보 & 지면온도 추정 모델"]
+        Gemini["(Phase 2) Gemini 3.x Flash"]
         Supa[("Supabase Cloud (Auth & 200m Masked Feed)")]
     end
 
@@ -114,50 +154,50 @@ graph TB
     GPS --> TTS
     UI -->|Stateless Payload| Router
     Router --> Agent
-    Agent --> ORS & DEM & Sun
+    Agent --> ORS & DEM & TempModel
     Agent --> Scorer
-    Router --> VisionPipe --> Gemini
+    Router -.->|Phase 2| VisionPipe --> Gemini
     Router --> Masker --> Supa
-    Router --> KMA
 ```
 
 ---
 
 ## 📱 5. 핵심 사용자 여정 및 화면 시나리오 (User Journey & Screens)
 
-편안하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](file:///d:/cody/pet_walk_t01/mockup/index.html))
+편안하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](file:///d:/코디세이/pet_walk_t01/mockup/index.html))
 
 ```mermaid
 graph LR
-    S1["1. 산책 플래너<br/>(자연어/시간/노면)"] -->|사전 안내판 판독| S4["4. 공원안내판 비전 판독<br/>(금지구역 차단 & 흙길 우선)"]
-    S4 -->|제약 반영 경로 생성| S2["2. 순환 경로 프리뷰<br/>(노면 Polyline & 딥링크)"]
+    S1["1. 산책 플래너<br/>(자연어/시간/노면)"] --> S2["2. 순환 경로 프리뷰<br/>(무장애·지면온도 Polyline)"]
     S2 -->|산책 시작| S3["3. 다크 포켓 모드<br/>(WakeLock & 슬라이드 언락)"]
     S3 -->|산책 완주| S5["5. 체크인 & 리포트<br/>(달성률 85% & 즐겨찾기)"]
-    S5 -->|노면 사진 후기| S6["6. 커뮤니티 코스 공유<br/>(200m 공간 안심 마스킹)"]
+    S5 -->|코스 공유| S6["6. 커뮤니티 코스 공유<br/>(200m 공간 안심 마스킹)"]
+    S1 -.->|Phase 2: 사전 안내판 판독| S4["4. 공원안내판 비전 판독<br/>(금지구역 차단)"]
+    S4 -.->|제약 반영| S2
 ```
 
 | 시나리오 화면 | 화면 명칭 | 연계 스토리 | 핵심 기능 및 UX 특징 |
 |:---:|---|:---:|---|
-| **01** | **맞춤형 산책 플래너**<br/>([`01_walk_planner.jpg`](file:///d:/cody/pet_walk_t01/mockup/01_walk_planner.jpg)) | `US-A1`<br>`US-A2`<br>`US-A3` | • 반려견 활성 프로필 카드 ('코코', 관절 안심 케어 집중)<br>• 자연어 질의 입력창 (*"관절 안심 케어가 필요한 코코 25분 폭신한 길"*)<br>• 10~90분 시간 슬라이더 및 선호 노면 선택 칩(흙길, 잔디길, 탄성포장) |
-| **02** | **안심 순환 경로 프리뷰**<br/>([`02_route_preview.jpg`](file:///d:/cody/pet_walk_t01/mockup/02_route_preview.jpg)) | `US-B1~B4`<br>`US-C1` | • 노면별 색상 분기 Polyline (🌿 잔디: `#10B981`, 🟤 흙길: `#92400E`, 🏢 보도블록: `#3B82F6`)<br>• 바텀시트: 총 1.4km, 예상 25분, 폭신한 길 비율 **82%** 표시<br>• 네이버/카카오 지도 원터치 외부 네비게이션 딥링크 제공 |
-| **03** | **초절전 다크 포켓 모드**<br/>([`03_pocket_mode.jpg`](file:///d:/cody/pet_walk_t01/mockup/03_pocket_mode.jpg)) | `US-C2`<br>`US-E1` | • Screen Wake Lock & OLED True Black (`#000000`) 배터리 극소화<br>• 주머니 오터치 방지 '밀어서 잠금 해제(Slide to Unlock)' 엄지 조작<br>• 실시간 HUD(시간, 거리, 속도) 및 백그라운드 TTS 음성 브리핑 연동 |
-| **04** | **공원안내판 비전 인스펙터**<br/>([`04_vision_inspection.jpg`](file:///d:/cody/pet_walk_t01/mockup/04_vision_inspection.jpg)) | `US-D1`<br>`US-D2` | • 공원 입구 오프라인 종합안내도 촬영 ➔ Gemini Flash 구조화 파싱<br>• 비포장 흙길 산책로 녹색 식별, 반려견 출입 금지 구역 붉은색 차단<br>• 금지구역 라우팅 격리 및 흙길 우선 경유 대안 순환로 즉시 수립 |
-| **05** | **완주 체크인 & 안심 리포트**<br/>([`05_walk_report.jpg`](file:///d:/cody/pet_walk_t01/mockup/05_walk_report.jpg)) | `US-E2`<br>`US-E3` | • 선호 노면 달성률 게이지 (폭신한 길 85% 달성)<br>• 3초 원터치 체감 피드백(별점) 수집 ➔ 다음 산책 무상태 경사도 보정 반영<br>• 나만의 안심 코스 즐겨찾기(`@pet_walk:favorites`) 로컬 저장 |
-| **06** | **커뮤니티 안심 공유 피드**<br/>([`06_community_enrichment.jpg`](file:///d:/cody/pet_walk_t01/mockup/06_community_enrichment.jpg)) | `US-G2` | • 출발지/도착지 **반경 200m 공간 지터링 및 절단**으로 자택 위치 완벽 은폐<br>• 검증된 동네 산책로 코스 공유 및 현장 위험 제보 등록 |
+| **01** | **맞춤형 산책 플래너**<br/>([`01_walk_planner.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/01_walk_planner.jpg)) | `US-A1`<br>`US-A2`<br>`US-A3` | • 반려견 활성 프로필 카드 ('코코', 관절 안심 케어 집중)<br>• 자연어 질의 입력창 (*"관절 안심 케어가 필요한 코코 25분 폭신한 길"*)<br>• 10~90분 시간 슬라이더 및 선호 노면 선택 칩(흙길, 잔디길, 탄성포장) |
+| **02** | **안심 순환 경로 프리뷰**<br/>([`02_route_preview.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/02_route_preview.jpg)) | `US-B1~B3`<br>`US-C1` | • 노면/온도별 색상 분기 Polyline (🌿 안심/저온: `#10B981`, 🟤 흙길: `#92400E`, ⚠️ 고온주의: `#F97316`)<br>• 바텀시트: 총 1.4km, 예상 25분, 폭신한 길 비율 **82%** 표시<br>• 네이버/카카오 지도 원터치 외부 네비게이션 딥링크 제공 |
+| **03** | **초절전 다크 포켓 모드**<br/>([`03_pocket_mode.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/03_pocket_mode.jpg)) | `US-C2`<br>`US-E1` | • Screen Wake Lock & OLED True Black (`#000000`) 배터리 극소화<br>• 주머니 오터치 방지 '밀어서 잠금 해제(Slide to Unlock)' 엄지 조작<br>• 실시간 HUD(시간, 거리, 속도) 및 백그라운드 TTS 음성 브리핑 연동 |
+| **04** | **공원안내판 비전 인스펙터 (Phase 2)**<br/>([`04_vision_inspection.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/04_vision_inspection.jpg)) | `US-D1`<br>`US-D2`<br>*(Phase 2)* | • 공원 입구 오프라인 종합안내도 촬영 ➔ Gemini Flash 구조화 파싱<br>• 비포장 흙길 산책로 녹색 식별, 반려견 출입 금지 구역 붉은색 차단<br>• 금지구역 라우팅 격리 및 흙길 우선 경유 대안 순환로 즉시 수립 |
+| **05** | **완주 체크인 & 안심 리포트**<br/>([`05_walk_report.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/05_walk_report.jpg)) | `US-E2`<br>`US-E3` | • 선호 노면 달성률 게이지 (폭신한 길 85% 달성)<br>• 3초 원터치 체감 피드백(별점) 수집 ➔ 다음 산책 무상태 경사도 보정 반영<br>• 나만의 안심 코스 즐겨찾기(`@pet_walk:favorites`) 로컬 저장 |
+| **06** | **커뮤니티 안심 공유 피드**<br/>([`06_community_enrichment.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/06_community_enrichment.jpg)) | `US-G2` | • 출발지/도착지 **반경 200m 공간 지터링 및 절단**으로 자택 위치 완벽 은폐<br>• 검증된 동네 산책로 코스 공유 및 현장 위험 제보 등록 |
 
 ---
 
 ## 👥 6. 5인 팀 R&R 및 애자일 스펙 (Team Roles & Agile Backlog)
 
-편안하개 프로젝트는 5인 전담 R&R과 **18개 핵심 애자일 사용자 스토리 (총 77 Story Points / 372 Hours)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md))
+편안하개 프로젝트는 5인 전담 R&R과 **15개 핵심 애자일 사용자 스토리 (총 62 Story Points / 298 Hours, Phase 2 확장 별도)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](file:///d:/코디세이/pet_walk_t01/docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md))
 
 | 번호 | 역할 명칭 (포지션) | 담당 팀원 | 핵심 R&R 및 주요 산출물 | 연계 사용자 스토리 |
 |:---:|---|:---:|---|:---:|
-| **1번** | **프로젝트 총괄·AI 기능 설계**<br/>(PM & AI Agent Lead) | **Member A** | • 전체 프로젝트 리딩, LangGraph ReAct 오케스트레이션<br>• 자연어 의도 파싱 스키마 설계 및 Candidate Route Scorer 튜닝 | `US-A1`, `US-A3`, `US-B4`, `US-E3` |
-| **2번** | **지도·공간데이터·AI 분석**<br/>(AI & Spatial Data Engineer) | **Member B** | • OSM 보행망·계단 데이터 정제, DEM 수치표고모델 경사도 분석<br>• SunCalc 태양 궤적 그늘 모델링, 기상청 지면열 파이프라인 | `US-B1~B3`, `US-D1`, `US-F1`, `US-G1` |
-| **3번** | **서버·맞춤 경로 계산**<br/>(Backend & Spatial Routing Lead) | **Member C** | • FastAPI 무상태 REST API 개발, ORS/OSRM 라우팅 어댑터<br>• 계단 회피 및 경사 비용 함수 구현, 200m 공간 지터링 알고리즘 | `US-B1~B4`, `US-D2`, `US-G2` |
-| **4번** | **모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | **Member D** | • React Native Expo 모바일 앱 구축, Android Foreground Service GPS<br>• `expo-speech` 백그라운드 음성 브리핑, Local-First `AsyncStorage` | `US-C1`, `US-C2`, `US-E1`, `US-H1` |
-| **5번** | **화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | **Member E** | • 6대 시나리오 UI/UX 화면 개발, 고대비 시인성 토큰 적용<br>• 웰니스 카피라이팅 가드레일 준수, EAS Update 배포 및 5인 CBT 총괄 | `US-A2`, `US-E2`, `US-H1` |
+| **1번** | **프로젝트 총괄·AI 기능 설계**<br/>(PM & AI Agent Lead) | **Member A** | • 전체 프로젝트 리딩, LangGraph ReAct 오케스트레이션<br>• 자연어 의도 파싱 스키마 설계 및 Candidate Route Scorer 튜닝 | `US-A1`, `US-A3`, `US-B3`, `US-E3`<br>*(Phase 2: US-D2)* |
+| **2번** | **지도·공간데이터·AI 분석**<br/>(AI & Spatial Data Engineer) | **Member B** | • OSM 보행망·무장애길 데이터 정제, DEM 15도 미만 경사도 분석<br>• 기상청 지면온도 추정 모델 및 고온 노면 회피 파이프라인 | `US-B1`, `US-B2`, `US-F1`, `US-G1`, `US-G2`<br>*(Phase 2: US-D1, US-D2)* |
+| **3번** | **서버·맞춤 경로 계산**<br/>(Backend & Spatial Routing Lead) | **Member C** | • FastAPI 무상태 REST API 개발, ORS/OSRM 라우팅 어댑터<br>• 무장애길 및 지면온도 비용 함수 구현, 200m 공간 지터링 알고리즘 | `US-B1~B3`, `US-F1`, `US-G1`, `US-G2`<br>*(Phase 2: US-D2)* |
+| **4번** | **모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | **Member D** | • React Native Expo 모바일 앱 구축, Android Foreground Service GPS<br>• `expo-speech` 백그라운드 음성 브리핑, Local-First `AsyncStorage` | `US-A2`, `US-C1`, `US-C2`, `US-E1`, `US-E2`, `US-E3`, `US-H1`<br>*(Phase 2: US-D2)* |
+| **5번** | **화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | **Member E** | • 핵심 시나리오 UI/UX 화면 개발, 고대비 시인성 토큰 적용<br>• 웰니스 카피라이팅 가드레일 준수, EAS Update 배포 및 5인 CBT 총괄 | `US-A2`, `US-A3`, `US-C1`, `US-E2`, `US-F1`, `US-G1`, `US-G2`, `US-H1` |
 
 ---
 
