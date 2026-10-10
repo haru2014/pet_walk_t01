@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../theme/tokens';
-import { WalkRecord, WalkFeedback } from '../types/storage';
+import { WalkRecord, WalkFeedback, SlopeFeedbackLevel } from '../types/storage';
 import { QuickFeedbackModal } from '../components/feedback/QuickFeedbackModal';
 
 export interface WalkReportScreenProps {
@@ -16,6 +16,13 @@ export interface WalkReportScreenProps {
   dogName: string;
   onSaveFeedback: (feedback: WalkFeedback) => void;
   onGoHome: () => void;
+}
+
+function getSlopeRatingLabel(rating?: SlopeFeedbackLevel): string {
+  if (rating === 'gentle') return '🌿 완만/평지 (관절 편안)';
+  if (rating === 'moderate') return '🚶 적당함';
+  if (rating === 'steep') return '⛰️ 가파름 (다음 코스 자동 완화)';
+  return '';
 }
 
 export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
@@ -94,6 +101,11 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
               <Text style={styles.feedbackScoreText}>
                 만족도: {'⭐'.repeat(record.feedback.comfortScore)} ({record.feedback.comfortScore}점)
               </Text>
+              {Boolean(record.feedback.slopeRating) && (
+                <Text style={styles.feedbackSlopeText}>
+                  경사도: {getSlopeRatingLabel(record.feedback.slopeRating)}
+                </Text>
+              )}
               <View style={styles.feedbackTagsWrap}>
                 {record.feedback.tags.map((t) => (
                   <View key={t} style={styles.tagBadge}>
@@ -104,7 +116,6 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
               {Boolean(record.feedback.comment) && (
                 <Text style={styles.feedbackComment}>"{record.feedback.comment}"</Text>
               )}
-
             </View>
           ) : (
             <TouchableOpacity
@@ -174,6 +185,7 @@ const styles = StyleSheet.create({
   feedbackEditBtn: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.primary },
   feedbackContent: { gap: 6 },
   feedbackScoreText: { fontSize: 13, fontWeight: '600', color: TOKENS.colors.textMain },
+  feedbackSlopeText: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.primaryDark },
   feedbackTagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   tagBadge: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   tagBadgeText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.primaryDark },

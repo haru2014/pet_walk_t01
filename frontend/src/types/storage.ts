@@ -9,8 +9,11 @@ export const STORAGE_KEYS = {
   APP_SETTINGS: '@편안하개:app_settings',
 } as const;
 
+export type SlopeFeedbackLevel = 'gentle' | 'moderate' | 'steep';
+
 export interface WalkFeedback {
   comfortScore: number;
+  slopeRating?: SlopeFeedbackLevel; // 경사도 세부 체감 평가 (완만 / 보통 / 가파름)
   tags: string[];
   comment?: string;
 }

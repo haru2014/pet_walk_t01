@@ -2,34 +2,40 @@
  * [편안하개 - PetWalk]
  * 3초 원터치 산책 체감 피드백 모달 (Screen-05, US-E2, Phase 5)
  *
- * 5점 만족도 평가, 원터치 웰니스 칩 선택, 한 줄 메모 입력
+ * 5점 만족도 평가, [📐 경사도 체감 3단계 평가], 웰니스 태그 칩, 한 줄 메모
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
-import { WalkFeedback } from '../../types/storage';
+import { WalkFeedback, SlopeFeedbackLevel } from '../../types/storage';
 
 export interface QuickFeedbackModalProps {
-  visible: boolean;
-  dogName: string;
-  onSubmit: (feedback: WalkFeedback) => void;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly dogName: string;
+  readonly onSubmit: (feedback: WalkFeedback) => void;
+  readonly onClose: () => void;
 }
 
+interface SlopeOption {
+  readonly key: SlopeFeedbackLevel;
+  readonly icon: string;
+  readonly title: string;
+  readonly desc: string;
+}
+
+const SLOPE_OPTIONS: readonly SlopeOption[] = [
+  { key: 'gentle', icon: '🌿', title: '완만/평지', desc: '관절에 편안해요' },
+  { key: 'moderate', icon: '🚶', title: '적당함', desc: '무난한 오르내림' },
+  { key: 'steep', icon: '⛰️', title: '가파름', desc: '다음 코스 경사 완화' },
+];
+
 const FEEDBACK_TAGS = [
-  '👍 완만해요',
   '🌳 그늘 많아요',
-  '🐾 발이 편해요',
-  '⛰️ 경사가 가팔랐어요',
-  '🚶 계단이 적었어요',
+  '🐾 폭신한 흙/잔디',
+  '🚶 계단 적어요',
+  '☀️ 땡볕 구간 있음',
+  '💧 음용수대 있음',
 ];
 
 function getScoreEmoji(score: number): string {
@@ -46,19 +52,21 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
   onClose,
 }) => {
   const [comfortScore, setComfortScore] = useState<number>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>(['완만해요', '발이 편해요']);
+  const [slopeRating, setSlopeRating] = useState<SlopeFeedbackLevel>('gentle');
+  const [selectedTags, setSelectedTags] = useState<string[]>(['폭신한 흙/잔디']);
   const [comment, setComment] = useState('');
 
   const toggleTag = (tag: string) => {
     const rawTag = tag.replace(/^[^\s]+\s*/, '');
     setSelectedTags((prev) =>
-      prev.includes(rawTag) ? prev.filter((t) => t !== rawTag) : [...prev, rawTag]
+      prev.includes(rawTag) ? prev.filter((t) => t !== rawTag) : [...prev, rawTag],
     );
   };
 
   const handleSubmit = () => {
     onSubmit({
       comfortScore,
+      slopeRating,
       tags: selectedTags,
       comment: comment.trim() || undefined,
     });
@@ -71,17 +79,17 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
         <View style={styles.container}>
           {/* 헤더 */}
           <View style={styles.header}>
-            <Text style={styles.title}>3초 빠른 피드백 🐾</Text>
+            <Text style={styles.title}>산책 체감 피드백 🐾</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>
-            {dogName}와의 오늘 산책은 어떠셨나요? 다음 산책 AI 코스에 자동 반영돼요.
+            {dogName}와의 오늘 산책은 어떠셨나요? 경사도 피드백이 다음 AI 코스에 자동 반영돼요.
           </Text>
 
-          {/* 5점 만족도 점수 */}
-          <Text style={styles.sectionLabel}>보행 만족도</Text>
+          {/* 1. 보행 종합 만족도 */}
+          <Text style={styles.sectionLabel}>보행 종합 만족도</Text>
           <View style={styles.scoreRow}>
             {[1, 2, 3, 4, 5].map((score) => {
               const isSelected = comfortScore === score;
@@ -101,9 +109,34 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
             })}
           </View>
 
+          {/* 2. 📐 경사도 체감 세분화 평가 (복원) */}
+          <Text style={[styles.sectionLabel, { marginTop: 14 }]}>
+            📐 코스 경사도 체감 (관절 안심 보정)
+          </Text>
+          <View style={styles.slopeRow}>
+            {SLOPE_OPTIONS.map((opt) => {
+              const isSelected = slopeRating === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  activeOpacity={0.8}
+                  onPress={() => setSlopeRating(opt.key)}
+                  style={[styles.slopeBtn, isSelected && styles.slopeBtnSelected]}
+                >
+                  <Text style={styles.slopeIcon}>{opt.icon}</Text>
+                  <Text style={[styles.slopeTitle, isSelected && styles.slopeTitleSelected]}>
+                    {opt.title}
+                  </Text>
+                  <Text style={[styles.slopeDesc, isSelected && styles.slopeDescSelected]}>
+                    {opt.desc}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-          {/* 원터치 태그 칩 */}
-          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>체감 특징 (여러 개 선택 가능)</Text>
+          {/* 3. 웰니스 체감 태그 */}
+          <Text style={[styles.sectionLabel, { marginTop: 14 }]}>노면 및 환경 특징</Text>
           <View style={styles.tagWrap}>
             {FEEDBACK_TAGS.map((tag) => {
               const rawTag = tag.replace(/^[^\s]+\s*/, '');
@@ -123,18 +156,18 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
             })}
           </View>
 
-          {/* 한 줄 메모 */}
-          <Text style={[styles.sectionLabel, { marginTop: 14 }]}>한 줄 메모 (선택)</Text>
+          {/* 4. 한 줄 메모 */}
+          <Text style={[styles.sectionLabel, { marginTop: 12 }]}>한 줄 메모 (선택)</Text>
           <TextInput
             value={comment}
             onChangeText={setComment}
-            placeholder="예: 흙길 구간이 넓고 조용해서 좋았어요"
+            placeholder="예: 흙길 구간이 넓고 경사가 완만해 좋았어요"
             placeholderTextColor="#9CA3AF"
             style={styles.input}
           />
 
           <TouchableOpacity activeOpacity={0.85} onPress={handleSubmit} style={styles.submitBtn}>
-            <Text style={styles.submitBtnText}>피드백 완료 ✓</Text>
+            <Text style={styles.submitBtnText}>경사도 피드백 반영하기 ✓</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -144,26 +177,33 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  container: { backgroundColor: TOKENS.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  title: { fontSize: 18, fontWeight: '800', color: TOKENS.colors.textMain },
+  container: { backgroundColor: TOKENS.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 32 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  title: { fontSize: 17, fontWeight: '800', color: TOKENS.colors.textMain },
   closeBtn: { padding: 4 },
   closeIcon: { fontSize: 18, color: TOKENS.colors.textMuted },
-  subtitle: { fontSize: 13, color: TOKENS.colors.textMuted, lineHeight: 18, marginBottom: 16 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 8 },
-  scoreRow: { flexDirection: 'row', gap: 8 },
-  scoreBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: TOKENS.colors.border, alignItems: 'center', backgroundColor: TOKENS.colors.background },
+  subtitle: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16, marginBottom: 12 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 6 },
+  scoreRow: { flexDirection: 'row', gap: 6 },
+  scoreBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: TOKENS.colors.border, alignItems: 'center', backgroundColor: TOKENS.colors.background },
   scoreBtnSelected: { borderColor: TOKENS.colors.primary, backgroundColor: '#F0FDF4' },
-  scoreText: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMuted, marginBottom: 2 },
+  scoreText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMuted, marginBottom: 2 },
   scoreTextSelected: { color: TOKENS.colors.primaryDark },
-  scoreEmoji: { fontSize: 16 },
-  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tagChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: TOKENS.colors.border, backgroundColor: TOKENS.colors.surface },
+  scoreEmoji: { fontSize: 14 },
+  slopeRow: { flexDirection: 'row', gap: 6 },
+  slopeBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 10, borderWidth: 1.5, borderColor: TOKENS.colors.border, alignItems: 'center', backgroundColor: TOKENS.colors.background },
+  slopeBtnSelected: { borderColor: TOKENS.colors.primary, backgroundColor: '#F0FDF4' },
+  slopeIcon: { fontSize: 16, marginBottom: 2 },
+  slopeTitle: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
+  slopeTitleSelected: { color: TOKENS.colors.primaryDark },
+  slopeDesc: { fontSize: 9, color: TOKENS.colors.textMuted, textAlign: 'center' },
+  slopeDescSelected: { color: TOKENS.colors.primaryDark, fontWeight: '600' },
+  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tagChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1.2, borderColor: TOKENS.colors.border, backgroundColor: TOKENS.colors.surface },
   tagChipSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  tagChipText: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.textMuted },
+  tagChipText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.textMuted },
   tagChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
-  input: { backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: TOKENS.colors.textMain, marginBottom: 16 },
-  submitBtn: { backgroundColor: TOKENS.colors.primary, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  input: { backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 12, color: TOKENS.colors.textMain, marginBottom: 14 },
+  submitBtn: { backgroundColor: TOKENS.colors.primary, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  submitBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 });
-

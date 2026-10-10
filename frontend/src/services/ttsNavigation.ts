@@ -3,6 +3,7 @@
  * expo-speech 기반 시선 해방(Eyes-Free) 핸즈프리 음성 안내 엔진 (US-C2, Phase 4)
  */
 
+import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 
 export class TTSNavigationService {
@@ -26,12 +27,19 @@ export class TTSNavigationService {
           this.isSpeaking = false;
         },
         onError: (err) => {
-          console.warn('[TTSNavigationService] 발화 오류:', err);
+          // 웹 브라우저의 Autoplay Policy(인터랙션 전 오디오 차단)로 인한 경고는 info로 완화
+          if (Platform.OS === 'web') {
+            console.info('[TTSNavigationService] 브라우저 오디오 정책에 따른 대기 상태:', err);
+          } else {
+            console.warn('[TTSNavigationService] 발화 오류:', err);
+          }
           this.isSpeaking = false;
         },
       });
     } catch (e) {
-      console.warn('[TTSNavigationService] TTS 미지원 환경:', e);
+      if (Platform.OS !== 'web') {
+        console.warn('[TTSNavigationService] TTS 미지원 환경:', e);
+      }
     }
   }
 

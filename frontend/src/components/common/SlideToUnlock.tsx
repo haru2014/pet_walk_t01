@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 
 const HANDLE_SIZE = 56;
@@ -37,7 +37,7 @@ export const SlideToUnlock: React.FC<SlideToUnlockProps> = ({
       },
       onPanResponderRelease: (_, gesture) => {
         const unlocked = maxTravelRef.current > 0 && gesture.dx >= maxTravelRef.current * UNLOCK_RATIO;
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start();
         if (unlocked) onUnlockRef.current();
       },
     }),
