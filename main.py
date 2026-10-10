@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 from agent.walk_planning_agent import run_walk_planning_agent
+from agent.supabase_repository import community_repo
 from test_case.test_api_contracts import (
     apply_spatial_masking_to_course,
-    WalkPlanRequestV1,
     WalkPlanResponseV1,
     CommunityCourseShareRequest,
     CommunityCourseSummary,
@@ -50,7 +50,11 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "mode": "live"}
+    return {
+        "status": "ok",
+        "mode": "live",
+        "supabase_connected": community_repo.is_connected(),
+    }
 
 
 @app.post(
@@ -135,26 +139,13 @@ def plan_walk_route(req: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-# 인메모리 커뮤니티 피드 저장소 (초기 데모용)
-_COMMUNITY_FEEDS: List[Dict[str, Any]] = [
-    {
-        "course_id": "feed_1",
-        "title": "성산근린공원 폭신한 숲길 루프",
-        "masked_polyline": [[127.038, 37.544], [127.040, 37.545], [127.039, 37.543]],
-        "distance_m": 1600.0,
-        "duration_min": 26,
-        "rating": 4.9,
-        "is_origin_masked": True,
-    }
-]
-
-
 @app.post("/api/v1/community/share")
 def share_community_course(req: CommunityCourseShareRequest):
-    """[US-G2] 출발지 및 도착지 200m 공간 마스킹 후 커뮤니티 피드 등록."""
+    """[US-G2] 출발지 및 도착지 200m 공간 마스킹 후 Supabase PostgreSQL / 인메모리 피드 등록."""
     mask_result = apply_spatial_masking_to_course(req.raw_coordinates, masking_radius_m=200.0)
+    current_count = len(community_repo.get_feeds())
     new_feed = {
-        "course_id": f"feed_{len(_COMMUNITY_FEEDS) + 1}",
+        "course_id": f"feed_{current_count + 1}",
         "title": req.course_title,
         "masked_polyline": mask_result["masked_coordinates"],
         "distance_m": 1400.0,
@@ -162,11 +153,18 @@ def share_community_course(req: CommunityCourseShareRequest):
         "rating": float(req.satisfaction_rating),
         "is_origin_masked": mask_result["is_masked"],
     }
-    _COMMUNITY_FEEDS.insert(0, new_feed)
-    return {"status": "shared", "feed": new_feed}
+    saved_feed = community_repo.save_course(new_feed)
+    return {
+        "status": "shared",
+        "feed": saved_feed,
+        "is_supabase": community_repo.is_connected(),
+    }
 
 
 @app.get("/api/v1/community/feed")
 def get_community_feed():
-    """공유된 안심 코스 피드 목록 조회."""
-    return {"feeds": _COMMUNITY_FEEDS}
+    """공유된 안심 코스 피드 목록 조회 (Supabase DB 우선, 인메모리 자동 폴백)."""
+    return {
+        "feeds": community_repo.get_feeds(),
+        "is_supabase": community_repo.is_connected(),
+    }
