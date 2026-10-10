@@ -485,4 +485,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
   },
+  dualModeBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  dualModeBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+  badgeLive: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  badgeOffline: { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  dualModeText: { fontSize: 11, fontWeight: '600' },
+  textLive: { color: '#059669' },
+  textOffline: { color: '#4B5563' },
 });
