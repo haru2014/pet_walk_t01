@@ -30,7 +30,7 @@ export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionSubtitle}>AI 추천 안심 코스 (US-C1)</Text>
+        <Text style={styles.sectionSubtitle}>AI 추천 안심 코스</Text>
         <Text style={styles.sectionTitle}>{dog.name}와 걷는 순환 코스 🗺️</Text>
       </View>
 

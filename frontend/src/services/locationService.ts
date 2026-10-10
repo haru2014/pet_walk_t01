@@ -7,6 +7,7 @@
  * - 수집 좌표는 인메모리 버퍼에만 보관 (서버 전송 없음, Local-First)
  */
 
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
@@ -88,6 +89,14 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
     if (foreground.status !== 'granted') return { ok: false, reason: 'permission_denied' };
 
     buffer.length = 0;
+
+    // 🌐 웹 브라우저 환경: OS 백그라운드 태스크가 없으므로 브라우저 포그라운드 위치 감시로 안전하게 전환
+    if (Platform.OS === 'web') {
+      await startForeground();
+      return { ok: true, mode: 'foreground' };
+    }
+
+    // 📱 모바일 네이티브 환경 (Android / iOS): Foreground Service 무중단 수집
     const background = await Location.requestBackgroundPermissionsAsync();
     if (background.status === 'granted') {
       await startBackground();
@@ -106,7 +115,7 @@ export async function stopWalkTracking(): Promise<void> {
   foregroundSubscription?.remove();
   foregroundSubscription = null;
   try {
-    if (await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK)) {
+    if (Platform.OS !== 'web' && await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK)) {
       await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
     }
   } catch (error) {
@@ -119,6 +128,7 @@ export async function stopWalkTracking(): Promise<void> {
  * "🐾 편안하개 안심 산책 중: {distance}km / {duration}분"
  */
 export async function updateTrackingNotification(distanceKm: number, durationMinutes: number): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     const isStarted = await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK);
     if (!isStarted) return;

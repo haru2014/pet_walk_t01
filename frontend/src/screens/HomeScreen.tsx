@@ -70,10 +70,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onPress={onStartWalk}
       />
 
-      {/* 최근 피드백 AI 보정 알림 (US-E3) */}
+      {/* 최근 피드백 AI 보정 알림 */}
       {feedbackSummary && (
         <CardWrapper variant="flat" style={{ marginBottom: 14 }}>
-          <Text style={styles.cardHeaderTitle}>🤖 최근 피드백 AI 보정 (US-E3)</Text>
+          <Text style={styles.cardHeaderTitle}>🤖 최근 피드백 AI 맞춤 보정</Text>
           <Text style={styles.cardBodyText}>
             • 최근 분석: {feedbackSummary.recent_walk_count}회{'\n'}
             • 경사 불만족: {feedbackSummary.slope_dissatisfaction_count}회{'\n'}

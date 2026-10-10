@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Svg, { Polyline, Circle, G, Text as SvgText, Rect, Path, Defs, Pattern } from 'react-native-svg';
 import { TOKENS } from '../../theme/tokens';
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature, SegmentType } from '../../types/route';
@@ -122,30 +122,13 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 
             return (
               <G key={segKey}>
-                {/* 화이트 케이싱 */}
-                <Polyline
-                  points={pointsStr}
-                  fill="none"
-                  stroke="#FFFFFF"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={0.9}
-                />
-                {/* 컬러 라인 */}
-                <Polyline
-                  points={pointsStr}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <Polyline points={pointsStr} fill="none" stroke="#FFFFFF" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
+                <Polyline points={pointsStr} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
               </G>
             );
           })}
 
-          {/* 2. 회전 및 주의 스텝 핀 */}
+          {/* 2. 회전 및 주의 스텝 핀 (시각 그래픽) */}
           {stepPins.map((pin: RouteStepPin) => {
             const pt = project(pin.position);
             const isCaution = pin.kind === 'caution';
@@ -153,26 +136,9 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             const isSelected = pin.id === selectedPinId;
 
             return (
-              <G
-                key={pin.id}
-                onPress={() => handlePinPress(pin)}
-              >
-                <Circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={isSelected ? 14 : 11}
-                  fill={color}
-                  stroke="#FFFFFF"
-                  strokeWidth="2.5"
-                />
-                <SvgText
-                  x={pt.x}
-                  y={pt.y + 4}
-                  textAnchor="middle"
-                  fontSize={isSelected ? "13" : "11"}
-                  fontWeight="bold"
-                  fill="#FFFFFF"
-                >
+              <G key={pin.id}>
+                <Circle cx={pt.x} cy={pt.y} r={isSelected ? 14 : 11} fill={color} stroke="#FFFFFF" strokeWidth="2.5" />
+                <SvgText x={pt.x} y={pt.y + 4} textAnchor="middle" fontSize={isSelected ? '13' : '11'} fontWeight="bold" fill="#FFFFFF">
                   {isCaution ? '!' : '↱'}
                 </SvgText>
               </G>
@@ -183,18 +149,25 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           <G>
             <Circle cx={startPt.x} cy={startPt.y} r={18} fill={TOKENS.colors.primary} opacity={0.2} />
             <Circle cx={startPt.x} cy={startPt.y} r={13} fill={TOKENS.colors.primary} stroke="#FFFFFF" strokeWidth="2.5" />
-            <SvgText
-              x={startPt.x}
-              y={startPt.y - 18}
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="bold"
-              fill={TOKENS.colors.primaryDark}
-            >
+            <SvgText x={startPt.x} y={startPt.y - 18} textAnchor="middle" fontSize="10" fontWeight="bold" fill={TOKENS.colors.primaryDark}>
               출발/도착
             </SvgText>
           </G>
         </Svg>
+
+        {/* 핀 터치 인터랙션 오버레이 (Web/Mobile 100% 호환 Thumb Zone) */}
+        {stepPins.map((pin: RouteStepPin) => {
+          const pt = project(pin.position);
+          return (
+            <Pressable
+              key={`touch_${pin.id}`}
+              style={[styles.pinTouchTarget, { left: pt.x - 16, top: pt.y - 16 }]}
+              onPress={() => handlePinPress(pin)}
+              accessibilityRole="button"
+              accessibilityLabel={pin.instruction}
+            />
+          );
+        })}
 
         {/* 범례 오버레이 */}
         <View style={styles.legend}>
@@ -225,9 +198,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'column',
-  },
+  container: { flexDirection: 'column' },
   mapCanvas: {
     borderRadius: TOKENS.borderRadius.card,
     overflow: 'hidden',
@@ -236,6 +207,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F7F3',
     position: 'relative',
     alignSelf: 'center',
+  },
+  pinTouchTarget: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    zIndex: 10,
   },
   legend: {
     position: 'absolute',
@@ -252,21 +230,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendBar: {
-    width: 14,
-    height: 4,
-    borderRadius: 2,
-  },
-  legendLabel: {
-    fontSize: 10,
-    color: TOKENS.colors.textMain,
-    fontWeight: '500',
-  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendBar: { width: 14, height: 4, borderRadius: 2 },
+  legendLabel: { fontSize: 10, color: TOKENS.colors.textMain, fontWeight: '500' },
   briefingBanner: {
     position: 'absolute',
     bottom: 10,
@@ -277,13 +243,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  briefingText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  summaryWrapper: {
-    marginTop: 12,
-  },
+  briefingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  summaryWrapper: { marginTop: 12 },
 });
