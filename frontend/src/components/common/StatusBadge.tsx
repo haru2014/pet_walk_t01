@@ -1,89 +1,96 @@
 /**
  * [편안하개 - PetWalk]
- * 웰니스 상태 뱃지 및 인포 칩 (StatusBadge)
- * 
- * 디자인 규격:
- * - 배경: #ECFDF5
- * - 테두리: 1px solid #A7F3D0
- * - 텍스트: #087F5B, Medium (500)
- * - 라운딩: 20px
+ * React Native 웰니스 상태 뱃지 및 인포 칩 (StatusBadge)
  */
 
 import React, { ReactNode } from 'react';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 
 export interface StatusBadgeProps {
   children: ReactNode;
   variant?: 'green' | 'muted' | 'warning' | 'solidGreen';
-  icon?: ReactNode;
-  style?: React.CSSProperties;
-  className?: string;
-  onClick?: () => void;
+  style?: ViewStyle;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   children,
   variant = 'green',
-  icon,
   style,
-  className = '',
-  onClick,
 }) => {
-  const getVariantStyles = (): React.CSSProperties => {
-    switch (variant) {
-      case 'solidGreen':
-        return {
-          background: TOKENS.colors.primarySubtle,
-          color: TOKENS.colors.primary,
-          border: 'none',
-          fontWeight: TOKENS.fontWeight.bold,
-        };
-      case 'muted':
-        return {
-          background: '#F3F4F6',
-          color: TOKENS.colors.textMuted,
-          border: '1px solid #E5E7EB',
-          fontWeight: TOKENS.fontWeight.medium,
-        };
-      case 'warning':
-        return {
-          background: '#FEF3C7',
-          color: '#B45309',
-          border: '1px solid #FDE68A',
-          fontWeight: TOKENS.fontWeight.medium,
-        };
-      case 'green':
-      default:
-        return {
-          background: TOKENS.colors.primaryLight,
-          color: TOKENS.colors.primaryDark,
-          border: `1px solid ${TOKENS.colors.primaryMint}`,
-          fontWeight: TOKENS.fontWeight.medium,
-        };
-    }
-  };
-
-  const badgeStyle: React.CSSProperties = {
-    fontSize: '12px',
-    padding: '4px 10px',
-    borderRadius: `${TOKENS.borderRadius.badge}px`,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    cursor: onClick ? 'pointer' : 'default',
-    lineHeight: '1.2',
-    ...getVariantStyles(),
-    ...style,
-  };
-
   return (
-    <span
-      onClick={onClick}
-      style={badgeStyle}
-      className={`petwalk-badge ${className}`}
+    <View
+      style={[
+        styles.badge,
+        variant === 'green' && styles.badgeGreen,
+        variant === 'muted' && styles.badgeMuted,
+        variant === 'warning' && styles.badgeWarning,
+        variant === 'solidGreen' && styles.badgeSolidGreen,
+        style,
+      ]}
     >
-      {icon && <span style={{ display: 'inline-flex' }}>{icon}</span>}
-      {children}
-    </span>
+      {typeof children === 'string' ? (
+        <Text
+          style={[
+            styles.text,
+            variant === 'green' && styles.textGreen,
+            variant === 'muted' && styles.textMuted,
+            variant === 'warning' && styles.textWarning,
+            variant === 'solidGreen' && styles.textSolidGreen,
+          ]}
+        >
+          {children}
+        </Text>
+      ) : (
+        children
+      )}
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  badge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: TOKENS.borderRadius.badge,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  badgeGreen: {
+    backgroundColor: TOKENS.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.primaryMint,
+  },
+  badgeMuted: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  badgeWarning: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  badgeSolidGreen: {
+    backgroundColor: TOKENS.colors.primarySubtle,
+  },
+  text: {
+    fontSize: TOKENS.fontSize.sm,
+    fontWeight: '600',
+  },
+  textGreen: {
+    color: TOKENS.colors.primaryDark,
+  },
+  textMuted: {
+    color: TOKENS.colors.textMuted,
+  },
+  textWarning: {
+    color: '#B45309',
+  },
+  textSolidGreen: {
+    color: TOKENS.colors.primary,
+    fontWeight: '700',
+  },
+});

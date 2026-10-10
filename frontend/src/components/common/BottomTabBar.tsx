@@ -1,16 +1,11 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 하단 5개 탭 내비게이션 바 (BottomTabBar)
- * 
- * 디자인 규격:
- * - 5개 탭: [홈, 산책, (+ 플로팅 FAB), 커뮤니티, 마이]
- * - 중앙 플로팅 버튼: 48x48px 그라디언트 및 -18px 플로팅 마진
- * - 높이: 80px, 배경 #FFFFFF, 상단 보더 #F0F5F2, 그림자
+ * React Native 하단 5개 탭 바 컴포넌트 (BottomTabBar)
  */
 
 import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
-import { HomeIcon, MapIcon, UsersIcon, UserIcon } from './Icons';
 
 export type TabKey = '홈' | '산책' | '액션' | '커뮤니티' | '마이';
 
@@ -18,114 +13,105 @@ export interface BottomTabBarProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   onActionPress?: () => void;
-  style?: React.CSSProperties;
 }
+
+const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
+  { key: '홈', label: '홈', icon: '🏠' },
+  { key: '산책', label: '산책', icon: '🗺️' },
+  { key: '액션', label: '', icon: '🐾' },
+  { key: '커뮤니티', label: '커뮤니티', icon: '👥' },
+  { key: '마이', label: '마이', icon: '🐶' },
+];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onTabChange,
   onActionPress,
-  style,
 }) => {
   return (
-    <div
-      style={{
-        height: '80px',
-        background: TOKENS.colors.surface,
-        borderTop: `1px solid ${TOKENS.colors.border}`,
-        display: 'flex',
-        alignItems: 'flex-start',
-        padding: '10px 8px 0',
-        flexShrink: 0,
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.05)',
-        position: 'relative',
-        zIndex: 50,
-        ...style,
-      }}
-    >
-      {/* 1. 홈 탭 */}
-      <button
-        onClick={() => onTabChange('홈')}
-        style={tabButtonStyle}
-      >
-        <HomeIcon active={activeTab === '홈'} />
-        <span style={getTabLabelStyle(activeTab === '홈')}>홈</span>
-      </button>
+    <View style={styles.container}>
+      {TABS.map((tab) => {
+        if (tab.key === '액션') {
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              activeOpacity={0.85}
+              onPress={onActionPress || (() => onTabChange('산책'))}
+              style={styles.actionButton}
+            >
+              <Text style={styles.actionIcon}>{tab.icon}</Text>
+            </TouchableOpacity>
+          );
+        }
 
-      {/* 2. 산책 탭 */}
-      <button
-        onClick={() => onTabChange('산책')}
-        style={tabButtonStyle}
-      >
-        <MapIcon active={activeTab === '산책'} />
-        <span style={getTabLabelStyle(activeTab === '산책')}>산책</span>
-      </button>
-
-      {/* 3. 중앙 액션 FAB (+) */}
-      <button
-        onClick={onActionPress || (() => onTabChange('액션'))}
-        style={{
-          ...tabButtonStyle,
-          paddingTop: 0,
-        }}
-      >
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '16px',
-            background: `linear-gradient(135deg, ${TOKENS.colors.primary}, ${TOKENS.colors.primaryDark})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(16,185,129,0.40)',
-            marginTop: '-18px',
-            transition: 'transform 0.1s ease',
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </div>
-      </button>
-
-      {/* 4. 커뮤니티 탭 */}
-      <button
-        onClick={() => onTabChange('커뮤니티')}
-        style={tabButtonStyle}
-      >
-        <UsersIcon active={activeTab === '커뮤니티'} />
-        <span style={getTabLabelStyle(activeTab === '커뮤니티')}>커뮤니티</span>
-      </button>
-
-      {/* 5. 마이페이지 탭 */}
-      <button
-        onClick={() => onTabChange('마이')}
-        style={tabButtonStyle}
-      >
-        <UserIcon active={activeTab === '마이'} />
-        <span style={getTabLabelStyle(activeTab === '마이')}>마이</span>
-      </button>
-    </div>
+        const isActive = activeTab === tab.key;
+        return (
+          <TouchableOpacity
+            key={tab.key}
+            activeOpacity={0.7}
+            onPress={() => onTabChange(tab.key)}
+            style={styles.tabItem}
+          >
+            <Text style={styles.tabIcon}>{tab.icon}</Text>
+            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 };
 
-const tabButtonStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '4px',
-  background: 'none',
-  border: 'none',
-  cursor: 'pointer',
-  padding: '0',
-};
-
-const getTabLabelStyle = (isActive: boolean): React.CSSProperties => ({
-  fontSize: '10px',
-  fontWeight: isActive ? TOKENS.fontWeight.bold : TOKENS.fontWeight.regular,
-  color: isActive ? TOKENS.colors.primary : TOKENS.colors.textMuted,
-  letterSpacing: '-0.2px',
+const styles = StyleSheet.create({
+  container: {
+    height: 72,
+    backgroundColor: TOKENS.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: TOKENS.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  tabIcon: {
+    fontSize: 20,
+  },
+  tabLabel: {
+    fontSize: 11,
+    color: TOKENS.colors.textMuted,
+    fontWeight: '500',
+  },
+  tabLabelActive: {
+    color: TOKENS.colors.primary,
+    fontWeight: '700',
+  },
+  actionButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: TOKENS.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -24,
+    shadowColor: TOKENS.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  actionIcon: {
+    fontSize: 24,
+  },
 });

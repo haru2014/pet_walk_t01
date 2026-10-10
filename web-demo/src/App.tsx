@@ -10,6 +10,8 @@ import { LocalStorageService } from './services/storage';
 import { BackupService } from './services/backupService';
 import { FeedbackContextService, FeedbackSummaryPayload } from './services/feedbackContext';
 import { STORAGE_KEYS, WalkRecord } from './types/storage';
+import { RouteMapView } from './components/map/RouteMapView';
+import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './services/sampleRoute';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('마이');
@@ -181,7 +183,25 @@ export default function App() {
           </div>
         </div>
 
-        {activeTab === '마이' ? (
+        {activeTab === '산책' && (
+          /* ========================================================
+             [산책 탭] 코스 프리뷰 지도 & 구간별 Polyline (US-C1)
+             ======================================================== */
+          <div>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontSize: '13px', color: TOKENS.colors.textMuted, marginBottom: '2px' }}>AI 추천 안심 코스</p>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: TOKENS.colors.textMain, margin: 0 }}>{profile.name}와 걷는 순환 코스 🗺️</h2>
+            </div>
+            <RouteMapView
+              route={SAMPLE_ROUTE}
+              stepPins={SAMPLE_STEP_PINS}
+              speedKmH={profile.speedKmH}
+              onStart={() => showAlert('🐾 산책을 시작합니다! (Phase 4: GPS/음성 안내 연동 예정)')}
+            />
+          </div>
+        )}
+
+        {activeTab === '마이' && (
           /* ========================================================
              [마이 탭] 반려견 프로필 관리 & JSON 백업/복원 (US-A2)
              ======================================================== */
@@ -373,7 +393,9 @@ export default function App() {
               </div>
             </CardWrapper>
           </div>
-        ) : (
+        )}
+
+        {(activeTab === '홈' || activeTab === '커뮤니티' || activeTab === '액션') && (
           /* ========================================================
              [홈/산책 탭] 홈 미리보기
              ======================================================== */
@@ -400,7 +422,7 @@ export default function App() {
                   <StatusBadge>⏱ 30분 산책</StatusBadge>
                   <StatusBadge>🌿 폭신한 길</StatusBadge>
                 </div>
-                <GradientButton size="sm">산책 시작 →</GradientButton>
+                <GradientButton size="sm" onClick={() => setActiveTab('산책')}>산책 시작 →</GradientButton>
               </div>
             </CardWrapper>
 
@@ -421,7 +443,7 @@ export default function App() {
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}
-        onActionPress={() => setActiveTab('마이')}
+        onActionPress={() => setActiveTab('산책')}
       />
     </div>
   );

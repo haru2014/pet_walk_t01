@@ -1,79 +1,88 @@
 /**
  * [편안하개 - PetWalk]
- * 시그니처 에메랄드 그라디언트 버튼 (GradientButton)
- * 
- * 디자인 규격:
- * - 그라디언트: linear-gradient(135deg, #10B981, #087F5B)
- * - 텍스트: #FFFFFF, Bold
- * - 라운딩: 14px
- * - 섀도우: 0 4px 12px rgba(16,185,129,0.35)
+ * React Native 시그니처 버튼 (GradientButton)
  */
 
 import React, { ReactNode } from 'react';
+import { Text, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 
 export interface GradientButtonProps {
   children: ReactNode;
-  onClick?: () => void;
+  onPress?: () => void;
   fullWidth?: boolean;
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
-  style?: React.CSSProperties;
-  className?: string;
+  style?: ViewStyle;
 }
 
 export const GradientButton: React.FC<GradientButtonProps> = ({
   children,
-  onClick,
+  onPress,
   fullWidth = false,
   size = 'md',
   disabled = false,
   style,
-  className = '',
 }) => {
-  const getSizePadding = (): string => {
-    switch (size) {
-      case 'sm':
-        return '6px 12px';
-      case 'lg':
-        return '14px 24px';
-      case 'md':
-      default:
-        return '9px 16px';
-    }
-  };
-
-  const buttonStyle: React.CSSProperties = {
-    background: disabled
-      ? '#D1D5DB'
-      : `linear-gradient(135deg, ${TOKENS.colors.primary}, ${TOKENS.colors.primaryDark})`,
-    color: TOKENS.colors.textWhite,
-    fontWeight: TOKENS.fontWeight.bold,
-    fontSize: size === 'lg' ? '15px' : '13px',
-    border: 'none',
-    borderRadius: `${TOKENS.borderRadius.button}px`,
-    padding: getSizePadding(),
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    width: fullWidth ? '100%' : 'auto',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px',
-    whiteSpace: 'nowrap',
-    letterSpacing: '-0.2px',
-    boxShadow: disabled ? 'none' : '0 4px 12px rgba(16,185,129,0.35)',
-    transition: 'transform 0.1s ease, box-shadow 0.1s ease',
-    ...style,
-  };
-
   return (
-    <button
+    <TouchableOpacity
+      activeOpacity={0.8}
       disabled={disabled}
-      onClick={disabled ? undefined : onClick}
-      style={buttonStyle}
-      className={`petwalk-button-primary ${className}`}
+      onPress={disabled ? undefined : onPress}
+      style={[
+        styles.button,
+        size === 'sm' && styles.sizeSm,
+        size === 'lg' && styles.sizeLg,
+        fullWidth && styles.fullWidth,
+        disabled && styles.disabled,
+        style,
+      ]}
     >
-      {children}
-    </button>
+      {typeof children === 'string' ? (
+        <Text style={[styles.text, size === 'lg' && styles.textLg]}>{children}</Text>
+      ) : (
+        children
+      )}
+    </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: TOKENS.colors.primary,
+    borderRadius: TOKENS.borderRadius.button,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: TOKENS.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  sizeSm: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  sizeLg: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  fullWidth: {
+    width: '100%',
+  },
+  disabled: {
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  text: {
+    color: TOKENS.colors.textWhite,
+    fontSize: TOKENS.fontSize.md,
+    fontWeight: '700',
+  },
+  textLg: {
+    fontSize: TOKENS.fontSize.lg,
+  },
+});
