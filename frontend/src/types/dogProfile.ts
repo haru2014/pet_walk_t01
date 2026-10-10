@@ -13,6 +13,8 @@ export interface DogProfile {
   weightKg: number;
   jointCareLevel: JointCareLevel;
   speedKmH: number;
+  preference?: string;
+  avatarUrl?: string;
   photoUri?: string;
   createdAt: string;
   updatedAt: string;

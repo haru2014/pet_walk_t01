@@ -243,7 +243,7 @@ test_case/test_walk_tracking_and_feedback.py .........                   [100%]
 ```
 
 ```bash
-# 모바일 프론트엔드 단위 테스트 실행 (Vitest 9개 테스트 100% Pass)
+# 모바일 프론트엔드 단위 테스트 실행 (Vitest 14개 테스트 100% Pass)
 cd frontend && npm test
 ```
 
@@ -267,14 +267,19 @@ pet_walk_t01/
 ├── agent/                                     # LangGraph ReAct Walk Planning Agent 코어
 │   ├── __init__.py                            # 에이전트 패키지 초기화
 │   └── walk_planning_agent.py                 # 의도 파싱, 제약 보정, 후보 경로 생성 및 브리핑 오케스트레이션
-├── frontend/                                  # 📱 [공식 모바일 앱] React Native / Expo SDK 프로젝트
-│   ├── App.tsx                                # SafeAreaView 기반 모바일 메인 애플리케이션 (5개 탭)
+├── frontend/                                  # 📱 [공식 모바일 앱] React Native / Expo SDK 프로젝트 (목업 Screen 01~04 반영)
+│   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~04 유기적 네비게이션)
 │   ├── app.json                               # Expo 앱 매니페스트 및 설정
 │   └── src/
 │       ├── theme/tokens.ts                    # 디자인 시스템 토큰 (모바일 규격)
-│       ├── types/                             # DogProfile, Route, Storage DTO
-│       ├── services/                          # AsyncStorage, expo-speech TTS, 거리 연산
-│       └── components/                        # CardWrapper, GradientButton, RouteMapView
+│       ├── types/                             # DogProfile, Route, Storage, WalkSettings DTO
+│       ├── services/                          # AsyncStorage, expo-speech TTS, 거리/속도 연산
+│       └── components/
+│           ├── home/                          # Screen-01: HomeDogCard, GoldenTimeWidget, AiPlannerBanner, RecentWalkCard
+│           ├── profile/                       # Screen-02: DogSelectionView (다견 선택 & 신규 등록)
+│           ├── walk/                          # Screen-03/04: WalkSettingsView, CourseRecommendationView
+│           ├── map/                           # RouteMapView (3색 지도), RouteReasonCard (3대 지표)
+│           └── common/                        # CardWrapper, GradientButton, BottomTabBar
 ├── web-demo/                                  # 🌐 [웹 프로토타입 데모] React + Vite 브라우저 시뮬레이터
 │   ├── src/                                   # 기존 웹 프로토타입 코드베이스 보존
 │   └── package.json                           # 브라우저 전용 실행 스크립트
