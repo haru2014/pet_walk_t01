@@ -45,6 +45,7 @@ export function calculateOsmTiles(
   coords: readonly LonLat[],
   project: (coord: LonLat) => { x: number; y: number },
   zoom: number = 15,
+  provider: 'carto' | 'osm' = 'carto',
 ): readonly MapTile[] {
   if (coords.length === 0) return [];
 
@@ -72,11 +73,14 @@ export function calculateOsmTiles(
       const nw = project([nwLon, nwLat]);
       const se = project([seLon, seLat]);
 
-      // CartoDB Voyager 타일 (OSM 기반, 밝고 깔끔한 보행로/공원 시인성 최적화)
-      const url = `https://a.basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}.png`;
+      // osm: 워터마크 없는 공식 OpenStreetMap 독일/글로벌 타일, carto: CartoDB 타일
+      const url =
+        provider === 'osm'
+          ? `https://tile.openstreetmap.de/${zoom}/${tx}/${ty}.png`
+          : `https://a.basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}.png`;
 
       tiles.push({
-        key: `tile_${zoom}_${tx}_${ty}`,
+        key: `tile_${provider}_${zoom}_${tx}_${ty}`,
         url,
         x: nw.x,
         y: nw.y,

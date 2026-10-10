@@ -39,4 +39,16 @@ describe('osmTileService (OpenStreetMap Web Mercator 타일 연산)', () => {
     expect(tiles[0].url).toContain('https://a.basemaps.cartocdn.com/rastertiles/voyager/15/');
     expect(tiles[0].width).toBeGreaterThan(0);
   });
+
+  it('provider가 osm일 때 공식 OSM 타일 URL을 반환해야 한다', () => {
+    const coords: LonLat[] = [
+      [127.0374, 37.5443],
+      [127.0419, 37.5441],
+    ];
+    const project = ([lon, lat]: LonLat) => ({ x: lon * 10, y: lat * 10 });
+
+    const tiles = calculateOsmTiles(coords, project, 16, 'osm');
+    expect(tiles.length).toBeGreaterThan(0);
+    expect(tiles[0].url).toContain('https://tile.openstreetmap.de/16/');
+  });
 });

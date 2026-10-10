@@ -53,7 +53,12 @@ def health_check():
     return {"status": "ok", "mode": "live"}
 
 
-@app.post("/api/v1/walk/plan")
+@app.post(
+    "/api/v1/walk/plan",
+    responses={
+        500: {"description": "LangGraph AI Agent 오케스트레이션 내부 오류"}
+    },
+)
 def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
     dog_name = req.get("dog_name", "아이")
