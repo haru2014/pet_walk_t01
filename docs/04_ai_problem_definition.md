@@ -1,7 +1,8 @@
 # 🧠 [편안하개] AI 문제 정의서 (AI Problem Definition)
 
 > **프로젝트 명칭**: 편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼)  
-> **기준 문서**: [`03_편안하개_Agile_User_Stories.md`](file:///d:/cody/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md), [`02_편안하개_Team_building.md`](file:///d:/cody/pet_walk_t01/docs/02_편안하개_Team_building.md)  
+> **기준 문서**: [`03_편안하개_Agile_User_Stories.md`](03_편안하개_Agile_User_Stories.md), [`02_편안하개_Team_building.md`](02_편안하개_Team_building.md), [`05_편안하개_프로젝트_수행계획서_일정.md`](05_편안하개_프로젝트_수행계획서_일정.md)  
+
 > **작성 일자**: 2026-10-06  
 > **문서 목적**: 편안하개 프로젝트에서 AI 기술(LLM Agent, Multimodal Vision, 다요소 공간 스코어링, 지능형 피드백 보정)을 통해 해결하고자 하는 핵심 문제 영역과 기술적 솔루션을 정의한다.
 
@@ -49,11 +50,12 @@ flowchart TD
 
 | 문제 번호 | 해결 대상 핵심 문제 (Problem) | AI 기반 솔루션 및 기술 접근 (AI Solution) | 연계 애자일 스토리 |
 |:---:|---|---|:---:|
-| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64) |
-| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94) |
-| **문제 3** | **관절 충격(계단/급경사) 및 고온 노면 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• 무장애길: OSM `steps` 하드 회피 + DEM 15도 미만 경사 제어<br>• 지면온도: 기상청 단기예보·노면 연동 지면온도 추정 및 고온(>35℃) 회피<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L98-L112)<br>[`US-B2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L114-L127)<br>[`US-B3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L129-L142) |
-| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **[Phase 2 차기 고도화] Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L308-L323)<br>[`US-D2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L325-L343)<br>*(Phase 2)* |
-| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L209-L222)<br>[`US-E3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L236-L250)<br>[`US-G2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L267-L281) |
+| **문제 1** | **복잡한 자연어 산책 요구와 다차원 제약 조건의 구조화 괴리** | **LangGraph ReAct Walk Planning Agent**<br>• 자연어 의도 파싱 및 Pydantic Strict 스키마 추출<br>• 로컬 프로필 결합 및 무상태(Stateless) 맥락 주입 | [`US-A1`](03_편안하개_Agile_User_Stories.md) |
+| **문제 2** | **체급·노령견 맞춤 보행 속도 모델링 및 시간 오차 수렴** | **체급별 적응형 시간-거리 환산 모델**<br>• 소형/중형/대형/노령견 표준 속도 상수 적용<br>• 목표 시간 대비 $\pm 15\%$ 오차 수렴 웨이포인트 튜닝 | [`US-A3`](03_편안하개_Agile_User_Stories.md) |
+| **문제 3** | **관절 충격(계단/급경사) 및 고온 노면 노출 없는 안심 순환 경로 부재** | **다요소 공간 분석 & Candidate Route Scorer**<br>• 무장애길: OSM `steps` 하드 회피 + DEM 15도 미만 경사 제어<br>• 지면온도: 기상청 단기예보·노면 연동 지면온도 추정 및 고온(>35℃) 회피<br>• 다요소 100점 만점 최적 후보 선정 | [`US-B1`](03_편안하개_Agile_User_Stories.md)<br>[`US-B2`](03_편안하개_Agile_User_Stories.md)<br>[`US-B3`](03_편안하개_Agile_User_Stories.md) |
+| **문제 4** | **정적 지도의 결측치(현장 턱·장애물·공원 안내판 출입 금지 구역)** | **[Phase 2 차기 고도화] Gemini Cascading Vision AI Pipeline**<br>• Gemini Flash 체인 기반 현장 턱/장애물 분석<br>• `ParkBoardInspector`: 공원 안내도 비전 판독 및 반려견 금지 구역 JSON 추출<br>• 현장 위험 10배 비용 격리 및 3초 이내 동적 우회로 재산출 | [`US-D1`](03_편안하개_Agile_User_Stories.md)<br>[`US-D2`](03_편안하개_Agile_User_Stories.md)<br>*(Phase 2)* |
+| **문제 5** | **개인화 추천의 필요성과 프라이버시 침해(자택 동선 유출) 간의 상충** | **Local-First & Stateless Adaptive Feedback AI**<br>• 상세 궤적·자택 좌표는 모바일 `AsyncStorage` 전용 보관<br>• 최근 3회 피드백 페이로드 기반 무상태 프롬프트 가중치 보정<br>• 커뮤니티 공유 시 출발지 200m 공간 지터링 마스킹 | [`US-E1`](03_편안하개_Agile_User_Stories.md)<br>[`US-E3`](03_편안하개_Agile_User_Stories.md)<br>[`US-G2`](03_편안하개_Agile_User_Stories.md) |
+
 
 ---
 
@@ -206,17 +208,18 @@ flowchart LR
 
 ## 📊 5. AI 기능 정량적 성공 지표 및 검증 기준 (DoD 정합)
 
-편안하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`test_case/`](file:///d:/cody/pet_walk_t01/test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
+편안하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`test_case/`](../test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
 
 | 검증 영역 | 정량 목표 지표 | 검증 방식 및 테스트 모듈 |
 |---|:---:|---|
-| **자연어 의도 파싱** | **정확도 85% 이상** | 테스트 질의 10종 대상 Pydantic 스키마 변환 단위 테스트 ([`test_walk_plan_agent_schema.py`](file:///d:/cody/pet_walk_t01/test_case/test_walk_plan_agent_schema.py)) |
-| **목표 시간 수렴도** | **목표 시간의 $\pm 15\%$ 이내** | 체급별 속도 상수 환산 및 10개 좌표 샘플 순환 코스 시간 오차 검증 ([`test_loop_target_duration.py`](file:///d:/cody/pet_walk_t01/test_case/test_loop_target_duration.py)) |
+| **자연어 의도 파싱** | **정확도 85% 이상** | 테스트 질의 10종 대상 Pydantic 스키마 변환 단위 테스트 ([`test_walk_plan_agent_schema.py`](../test_case/test_walk_plan_agent_schema.py)) |
+| **목표 시간 수렴도** | **목표 시간의 $\pm 15\%$ 이내** | 체급별 속도 상수 환산 및 10개 좌표 샘플 순환 코스 시간 오차 검증 ([`test_loop_target_duration.py`](../test_case/test_loop_target_duration.py)) |
 | **후보 경로 생성 속도** | **1.5초 이내** | Routing Adapter 후보 순환 경로 3종 수집 레이턴시 벤치마크 |
-| **비전 위험물/안내판 판독** | **성공률 85% 이상** | 현장 장애물 및 안내판 이미지 20장 대상 Structured JSON 응답 검증 ([`test_vision_safety_inspector.py`](file:///d:/cody/pet_walk_t01/test_case/test_vision_safety_inspector.py)) |
+| **비전 위험물/안내판 판독** | **성공률 85% 이상** | 현장 장애물 및 안내판 이미지 20장 대상 Structured JSON 응답 검증 ([`test_vision_safety_inspector.py`](../test_case/test_vision_safety_inspector.py)) |
 | **동적 우회 재탐색 속도** | **3.0초 이내** | 위험 좌표 주입 시 가중치 10배 격리 및 안전 우회로 재산출 E2E 테스트 |
-| **핸즈프리 음성 브리핑** | **회전 30m 전 알림** | 백그라운드 GPS 위치와 OSRM 스텝 매칭 실기기 타이밍 검증 ([`test_mobile_and_voice_navigation.py`](file:///d:/cody/pet_walk_t01/test_case/test_mobile_and_voice_navigation.py)) |
-| **프라이버시 무결성** | **서버 전송 0건 / 200m 마스킹** | 자택 좌표 서버 미전송 보장 및 커뮤니티 공간 절단 알고리즘 검증 ([`test_api_contracts.py`](file:///d:/cody/pet_walk_t01/test_case/test_api_contracts.py)) |
+| **핸즈프리 음성 브리핑** | **회전 30m 전 알림** | 백그라운드 GPS 위치와 OSRM 스텝 매칭 실기기 타이밍 검증 ([`test_mobile_and_voice_navigation.py`](../test_case/test_mobile_and_voice_navigation.py)) |
+| **프라이버시 무결성** | **서버 전송 0건 / 200m 마스킹** | 자택 좌표 서버 미전송 보장 및 커뮤니티 공간 절단 알고리즘 검증 ([`test_api_contracts.py`](../test_case/test_api_contracts.py)) |
+
 
 ---
 

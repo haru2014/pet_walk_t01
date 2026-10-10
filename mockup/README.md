@@ -20,7 +20,7 @@ graph LR
 
 ## 1. 01_walk_planner.jpg (대화형 산책 플래너 & 시간/노면 선택)
 
-![01_walk_planner](file:///d:/cody/편안하개/docs/screens/01_walk_planner.jpg)
+![01_walk_planner](./01_walk_planner.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 맞춤형 산책 플래너 (Walk Planner Screen)
@@ -35,7 +35,7 @@ graph LR
 
 ## 2. 02_route_preview.jpg (지도 기반 안심 순환 경로 프리뷰)
 
-![02_route_preview](file:///d:/cody/편안하개/docs/screens/02_route_preview.jpg)
+![02_route_preview](./02_route_preview.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 안심 순환 경로 프리뷰 (Route Preview Screen)
@@ -54,7 +54,7 @@ graph LR
 
 ## 3. 03_pocket_mode.jpg (주머니 보관 초절전 다크 포켓 모드)
 
-![03_pocket_mode](file:///d:/cody/편안하개/docs/screens/03_pocket_mode.jpg)
+![03_pocket_mode](./03_pocket_mode.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 초절전 다크 포켓 락스크린 (Dark Pocket Mode Screen)
@@ -69,7 +69,7 @@ graph LR
 
 ## 4. 04_vision_inspection.jpg (공원 종합안내판 비전 판독 및 제약 도출 - Phase 2)
 
-![04_vision_inspection](file:///d:/cody/편안하개/docs/screens/04_vision_inspection.jpg)
+![04_vision_inspection](./04_vision_inspection.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 공원 종합안내판 비전 인스펙터 (Park Board Vision Inspector - Phase 2)
@@ -86,7 +86,7 @@ graph LR
 
 ## 5. 05_walk_report.jpg (산책 완료 체크인 & 안심 리포트)
 
-![05_walk_report](file:///d:/cody/편안하개/docs/screens/05_walk_report.jpg)
+![05_walk_report](./05_walk_report.jpg)
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 완주 체크인 및 산책 리포트 (Walk Completion & Check-In Report)
@@ -103,7 +103,8 @@ graph LR
 
 ## 6. 06_community_enrichment.jpg (완주 후기 사진 비전 검증 및 지도 영구 보강 - Phase 2)
 
-![06_community_enrichment](file:///d:/cody/편안하개/docs/screens/06_community_enrichment.jpg)
+![06_community_enrichment](./06_community_enrichment.jpg)
+
 
 ### 📌 화면 개요 및 목적
 * **화면명**: 커뮤니티 노면 제보 검증 및 지도 보강 (Community Surface Enrichment - Phase 2)

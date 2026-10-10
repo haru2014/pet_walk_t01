@@ -4,9 +4,15 @@
 
 본 문서는 **편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 기록·공유 플랫폼)**의 핵심 요구사항을 애자일 사용자 스토리(User Story), 인수 조건(Acceptance Criteria), 완료 정의(Definition of Done, DoD) 체계로 상세 정의한 엔지니어링 표준 산출물이다.
 
-* **스프린트 주기**: 총 5주 (Sprint 1: Week 1~2, Sprint 2: Week 3~4, Hardening & Final Demo: Week 5)
+* **프로젝트 수행 일정 및 마일스톤 체계** (상세: [`05_편안하개_프로젝트_수행계획서_일정.md`](05_편안하개_프로젝트_수행계획서_일정.md)):
+  - **1주차 (10/12 ~ 10/18)**: 프로젝트 킥오프 & Sprint 1 코어 기반 구축
+  - **2주차 (10/19 ~ 10/25)**: Sprint 2 핵심 차별화 기능 결합 & 백그라운드 내비게이션
+  - **3주차 (10/26 ~ 10/30)**: 기능 통합 & **개발 마감 (Code Freeze: 10월 30일 금, EAS Build 테스터용 APK 1회 패키징 완료)**
+  - **4주차 (10/31 ~ 11/07)**: **집중 테스트와 보완 (5인 실사용자 필드 산책 CBT, EAS Update 무선 OTA 실시간 핫픽스)**
+  - **최종 마감 (11/08 일)**: 프로젝트 최종 제출 마감
 * **스토리 포인트 산정 기준**: 피보나치 수열(1, 2, 3, 5, 8 pt) 적용 (1 pt ≈ 순수 개발 공수 약 4~5시간 기준)
 * **총 개발 규모 (MVP)**: **15개 핵심 스토리, 총 62 Story Points, 총 298 Hours** (5인 팀 완수)
+
 * **기술 스택 & 아키텍처 원칙**:
   - **Client**: React Native (Expo SDK 51+), `expo-location` + Android Foreground Service (백그라운드 위치 추적), `expo-speech` (TTS 음성 안내).
   - **Deploy**: EAS Build (단 1회 APK 배포) + EAS Update (`expo-updates` 무선 무점검 OTA 실시간 핫픽스).
