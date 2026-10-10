@@ -1,21 +1,35 @@
 /**
  * [편안하개 - PetWalk]
- * 코스 프리뷰 지도 뷰 (Phase 3, US-C1)
- * Polyline + 마커 + 범례 + 선택된 스텝 안내 + 요약 카드를 조합한다.
+ * 모바일 코스 프리뷰 지도 뷰 (Phase 3, US-C1)
+ *
+ * react-native-svg 기반의 벡터 경로 렌더러와 react-native-maps 호환 인터페이스
+ * 3색 Polyline (완만 초록 / 일반 파랑 / 주의 주황), 발자국 마커, 스텝 핀, 범례
  */
 
 import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import Svg, { Polyline, Circle, G, Text as SvgText, Rect, Path, Defs, Pattern } from 'react-native-svg';
 import { TOKENS } from '../../theme/tokens';
-import { LonLat, RouteFeatureCollection, RouteStepPin } from '../../types/route';
-import { buildCourseSummary, createProjector } from '../../services/routeGeometry';
-import { RoutePolylineRenderer, SEGMENT_STYLES } from './RoutePolylineRenderer';
-import { PawMarker, StepPin } from './CustomMarkers';
+import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature, SegmentType } from '../../types/route';
+import { buildCourseSummary } from '../../services/routeGeometry';
 import { CourseSummaryCard } from './CourseSummaryCard';
 
-const MAP_WIDTH = 350;
-const MAP_HEIGHT = 420;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MAP_WIDTH = Math.min(SCREEN_WIDTH - 40, 360);
+const MAP_HEIGHT = 380;
 
-const LEGEND: ReadonlyArray<{ type: 'safe' | 'normal' | 'caution'; label: string }> = [
+const SEGMENT_COLORS: Record<SegmentType, string> = {
+  safe: TOKENS.colors.routeSafe,
+  normal: TOKENS.colors.routeNormal,
+  caution: TOKENS.colors.routeCaution,
+};
+
+interface LegendItem {
+  readonly type: SegmentType;
+  readonly label: string;
+}
+
+const LEGEND: readonly LegendItem[] = [
   { type: 'safe', label: '완만/그늘' },
   { type: 'normal', label: '일반 보도' },
   { type: 'caution', label: '주의 구간' },
@@ -26,102 +40,250 @@ export interface RouteMapViewProps {
   readonly stepPins: readonly RouteStepPin[];
   readonly speedKmH: number;
   readonly onStart?: () => void;
+  readonly onPinSelect?: (instruction: string) => void;
 }
 
-export const RouteMapView: React.FC<RouteMapViewProps> = ({ route, stepPins, speedKmH, onStart }) => {
+export const RouteMapView: React.FC<RouteMapViewProps> = ({
+  route,
+  stepPins,
+  speedKmH,
+  onStart,
+  onPinSelect,
+}) => {
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
   const allCoords = useMemo<LonLat[]>(
-    () => route.features.flatMap((f) => [...f.geometry.coordinates]),
+    () => route.features.flatMap((f: RouteSegmentFeature) => [...f.geometry.coordinates]),
     [route],
   );
-  const project = useMemo(
-    () => createProjector(allCoords, { width: MAP_WIDTH, height: MAP_HEIGHT, padding: 44 }),
-    [allCoords],
-  );
+
   const summary = useMemo(() => buildCourseSummary(route, speedKmH), [route, speedKmH]);
+
+  // 좌표 투영 계산
+  const project = useMemo(() => {
+    if (allCoords.length === 0) return () => ({ x: 0, y: 0 });
+
+    const lons = allCoords.map((c: LonLat) => c[0]);
+    const lats = allCoords.map((c: LonLat) => c[1]);
+    const minLon = Math.min(...lons);
+    const maxLon = Math.max(...lons);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    const padding = 40;
+    const innerW = MAP_WIDTH - padding * 2;
+    const innerH = MAP_HEIGHT - padding * 2;
+    const lonSpan = Math.max(maxLon - minLon, 1e-9);
+    const latSpan = Math.max(maxLat - minLat, 1e-9);
+
+    const scale = Math.min(innerW / lonSpan, innerH / latSpan);
+    const offsetX = padding + (innerW - lonSpan * scale) / 2;
+    const offsetY = padding + (innerH - latSpan * scale) / 2;
+
+    return ([lon, lat]: LonLat) => ({
+      x: offsetX + (lon - minLon) * scale,
+      y: offsetY + (maxLat - lat) * scale,
+    });
+  }, [allCoords]);
 
   if (allCoords.length === 0) return null;
 
-  const start = project(allCoords[0]);
-  const selectedPin = stepPins.find((p) => p.id === selectedPinId) ?? null;
+  const startPt = project(allCoords[0]);
+  const selectedPin = stepPins.find((p: RouteStepPin) => p.id === selectedPinId);
+
+  const handlePinPress = (pin: RouteStepPin) => {
+    setSelectedPinId(pin.id);
+    onPinSelect?.(pin.instruction);
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-      <div
-        style={{
-          position: 'relative',
-          borderRadius: `${TOKENS.borderRadius.card}px`,
-          overflow: 'hidden',
-          border: `1px solid ${TOKENS.colors.border}`,
-          background: 'linear-gradient(160deg, #EAF6EF 0%, #F4F8F5 55%, #E6F1EA 100%)',
-        }}
-      >
-        <svg
-          width="100%"
-          viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-          role="img"
-          aria-label="산책 코스 지도 프리뷰"
-          style={{ display: 'block' }}
-        >
-          {/* 지도 배경 그리드 */}
-          <defs>
-            <pattern id="map-grid" width="35" height="35" patternUnits="userSpaceOnUse">
-              <path d="M 35 0 L 0 0 0 35" fill="none" stroke="#D5E6DB" strokeWidth="0.8" />
-            </pattern>
-          </defs>
-          <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#map-grid)" />
+    <View style={styles.container}>
+      {/* 지도 캔버스 영역 */}
+      <View style={styles.mapCanvas}>
+        <Svg width={MAP_WIDTH} height={MAP_HEIGHT}>
+          <Defs>
+            <Pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <Path d="M 30 0 L 0 0 0 30" fill="none" stroke="#D5E6DB" strokeWidth="0.8" />
+            </Pattern>
+          </Defs>
+          <Rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="url(#grid)" />
 
-          <RoutePolylineRenderer route={route} project={project} />
+          {/* 1. 3색 Polyline 렌더링 */}
+          {route.features.map((feature: RouteSegmentFeature) => {
+            const color = SEGMENT_COLORS[feature.properties.segmentType];
+            const startCoord = feature.geometry.coordinates[0];
+            const segKey = `seg_${feature.properties.segmentType}_${startCoord[0]}_${startCoord[1]}`;
+            const pointsStr = feature.geometry.coordinates
+              .map((c: LonLat) => {
+                const pt = project(c);
+                return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+              })
+              .join(' ');
 
-          {stepPins.map((pin) => (
-            <StepPin
-              key={pin.id}
-              pin={pin}
-              project={project}
-              selected={pin.id === selectedPinId}
-              onSelect={setSelectedPinId}
-            />
-          ))}
+            return (
+              <G key={segKey}>
+                {/* 화이트 케이싱 */}
+                <Polyline
+                  points={pointsStr}
+                  fill="none"
+                  stroke="#FFFFFF"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.9}
+                />
+                {/* 컬러 라인 */}
+                <Polyline
+                  points={pointsStr}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </G>
+            );
+          })}
 
-          {/* 순환 코스: 출발=도착 동일 지점 */}
-          <PawMarker x={start.x} y={start.y} label="출발/도착" />
-        </svg>
+          {/* 2. 회전 및 주의 스텝 핀 */}
+          {stepPins.map((pin: RouteStepPin) => {
+            const pt = project(pin.position);
+            const isCaution = pin.kind === 'caution';
+            const color = isCaution ? TOKENS.colors.routeCaution : TOKENS.colors.routeNormal;
+            const isSelected = pin.id === selectedPinId;
 
-        {/* 범례 */}
-        <div
-          style={{
-            position: 'absolute', top: '10px', left: '10px',
-            background: 'rgba(255,255,255,0.92)', borderRadius: '12px',
-            padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: '3px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          }}
-        >
-          {LEGEND.map((item) => (
-            <div key={item.type} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: TOKENS.colors.textMain }}>
-              <span style={{ width: '16px', height: '4px', borderRadius: '2px', background: SEGMENT_STYLES[item.type].color }} />
-              {item.label}
-            </div>
-          ))}
-        </div>
+            return (
+              <G
+                key={pin.id}
+                onPress={() => handlePinPress(pin)}
+              >
+                <Circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? 14 : 11}
+                  fill={color}
+                  stroke="#FFFFFF"
+                  strokeWidth="2.5"
+                />
+                <SvgText
+                  x={pt.x}
+                  y={pt.y + 4}
+                  textAnchor="middle"
+                  fontSize={isSelected ? "13" : "11"}
+                  fontWeight="bold"
+                  fill="#FFFFFF"
+                >
+                  {isCaution ? '!' : '↱'}
+                </SvgText>
+              </G>
+            );
+          })}
 
-        {/* 선택된 스텝 안내 */}
+          {/* 3. 출발/도착 발자국 원형 마커 */}
+          <G>
+            <Circle cx={startPt.x} cy={startPt.y} r={18} fill={TOKENS.colors.primary} opacity={0.2} />
+            <Circle cx={startPt.x} cy={startPt.y} r={13} fill={TOKENS.colors.primary} stroke="#FFFFFF" strokeWidth="2.5" />
+            <SvgText
+              x={startPt.x}
+              y={startPt.y - 18}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="bold"
+              fill={TOKENS.colors.primaryDark}
+            >
+              출발/도착
+            </SvgText>
+          </G>
+        </Svg>
+
+        {/* 범례 오버레이 */}
+        <View style={styles.legend}>
+          {LEGEND.map((item: LegendItem) => {
+            return (
+              <View key={item.type} style={styles.legendItem}>
+                <View style={[styles.legendBar, { backgroundColor: SEGMENT_COLORS[item.type] }]} />
+                <Text style={styles.legendLabel}>{item.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 스텝 안내 브리핑 배너 */}
         {selectedPin && (
-          <div
-            style={{
-              position: 'absolute', bottom: '10px', left: '10px', right: '10px',
-              background: TOKENS.colors.textMain, color: '#FFF', borderRadius: '12px',
-              padding: '8px 12px', fontSize: '12px', textAlign: 'center',
-            }}
-          >
-            🔊 {selectedPin.instruction}
-          </div>
+          <View style={styles.briefingBanner}>
+            <Text style={styles.briefingText}>🔊 {selectedPin.instruction}</Text>
+          </View>
         )}
-      </div>
+      </View>
 
-      <div style={{ marginTop: '12px' }}>
+      {/* 코스 요약 카드 */}
+      <View style={styles.summaryWrapper}>
         <CourseSummaryCard summary={summary} onStart={onStart} />
-      </div>
-    </div>
+      </View>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'column',
+  },
+  mapCanvas: {
+    borderRadius: TOKENS.borderRadius.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    backgroundColor: '#F0F7F3',
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  legend: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendBar: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+  },
+  legendLabel: {
+    fontSize: 10,
+    color: TOKENS.colors.textMain,
+    fontWeight: '500',
+  },
+  briefingBanner: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: TOKENS.colors.textMain,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  briefingText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  summaryWrapper: {
+    marginTop: 12,
+  },
+});

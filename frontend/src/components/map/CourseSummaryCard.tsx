@@ -1,56 +1,96 @@
 /**
  * [편안하개 - PetWalk]
- * 코스 요약 바텀시트 카드 (Phase 3, US-C1)
- * 하단 엄지 영역(Thumb Zone) 배치: 거리/시간/최대 경사/그늘 비율 + "산책 시작" 버튼
+ * 모바일 코스 요약 바텀시트 카드 (Phase 3, US-C1)
  */
 
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { CourseSummary } from '../../types/route';
 import { GradientButton } from '../common/GradientButton';
 import { StatusBadge } from '../common/StatusBadge';
 
 export interface CourseSummaryCardProps {
-  readonly summary: CourseSummary;
-  readonly onStart?: () => void;
+  summary: CourseSummary;
+  onStart?: () => void;
 }
 
 export const CourseSummaryCard: React.FC<CourseSummaryCardProps> = ({ summary, onStart }) => {
   const slopeVariant = summary.maxSlopePercent > 8 ? 'warning' : 'green';
 
   return (
-    <div
-      style={{
-        background: TOKENS.colors.surface,
-        borderRadius: `${TOKENS.borderRadius.card}px ${TOKENS.borderRadius.card}px 0 0`,
-        boxShadow: '0 -6px 24px rgba(0,0,0,0.08)',
-        padding: '10px 18px 16px',
-      }}
-    >
-      {/* 바텀시트 핸들 */}
-      <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: '#D1D5DB', margin: '0 auto 12px' }} />
+    <View style={styles.card}>
+      <View style={styles.handle} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px' }}>
-        <div>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: TOKENS.colors.textMain }}>
-            {summary.totalDistanceKm.toFixed(2)}
-          </span>
-          <span style={{ fontSize: '13px', color: TOKENS.colors.textMuted, marginLeft: '3px' }}>km</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: TOKENS.colors.textMain, marginLeft: '14px' }}>
-            {summary.estimatedMinutes}
-          </span>
-          <span style={{ fontSize: '13px', color: TOKENS.colors.textMuted, marginLeft: '3px' }}>분</span>
-        </div>
-      </div>
+      <View style={styles.statsRow}>
+        <View style={styles.statGroup}>
+          <Text style={styles.statNumber}>{summary.totalDistanceKm.toFixed(2)}</Text>
+          <Text style={styles.statUnit}>km</Text>
+          <Text style={[styles.statNumber, { marginLeft: 16 }]}>{summary.estimatedMinutes}</Text>
+          <Text style={styles.statUnit}>분</Text>
+        </View>
+      </View>
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
-        <StatusBadge variant={slopeVariant}>⛰ 최대 경사 {summary.maxSlopePercent}%</StatusBadge>
-        <StatusBadge>🌳 그늘 {summary.shadeRatioPercent}%</StatusBadge>
-      </div>
+      <View style={styles.badgeRow}>
+        <StatusBadge variant={slopeVariant}>
+          {`⛰ 최대 경사 ${summary.maxSlopePercent}%`}
+        </StatusBadge>
+        <StatusBadge>
+          {`🌳 그늘 ${summary.shadeRatioPercent}%`}
+        </StatusBadge>
+      </View>
 
-      <GradientButton fullWidth size="lg" onClick={onStart}>
+      <GradientButton fullWidth size="lg" onPress={onStart}>
         산책 시작 →
       </GradientButton>
-    </div>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: TOKENS.colors.surface,
+    borderTopLeftRadius: TOKENS.borderRadius.card,
+    borderTopRightRadius: TOKENS.borderRadius.card,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 10,
+  },
+  statGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statNumber: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: TOKENS.colors.textMain,
+  },
+  statUnit: {
+    fontSize: 13,
+    color: TOKENS.colors.textMuted,
+    marginLeft: 3,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+});

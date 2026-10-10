@@ -1,6 +1,6 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 데모용 샘플 코스 (서버 응답 GeoJSON 목업)
+ * Phase 3 데모용 샘플 코스 (서버 응답 GeoJSON 목업)
  * 좌표: [lon, lat] (서울숲 인근 순환 루프)
  */
 
@@ -64,7 +64,7 @@ export const SAMPLE_ROUTE: RouteFeatureCollection = {
 };
 
 export const SAMPLE_STEP_PINS: readonly RouteStepPin[] = [
-  { id: 'turn_1', kind: 'turn', position: [127.0399, 37.5459], instruction: '50m 앞 완만한 길입니다. 우회전하세요' },
-  { id: 'turn_2', kind: 'turn', position: [127.0419, 37.5441], instruction: '우측 보행로로 진입하세요' },
-  { id: 'caution_1', kind: 'caution', position: [127.0414, 37.5434], instruction: '전방 높은 턱 주의 구간입니다. 서행하세요' },
+  { id: 'turn_1', kind: 'turn', position: [127.0399, 37.5459], instruction: '우회전하세요' },
+  { id: 'turn_2', kind: 'turn', position: [127.0419, 37.5441], instruction: '우회전하세요' },
+  { id: 'caution_1', kind: 'caution', position: [127.0414, 37.5434], instruction: '높은 턱 주의 구간입니다. 서행하세요' },
 ];

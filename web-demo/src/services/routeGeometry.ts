@@ -1,10 +1,10 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 경로 기하 연산 서비스 (Phase 3, US-C1)
+ * 경로 기하 연산 서비스 (Phase 3, US-C1)
  *
- * - Haversine 대원 거리 계산
+ * - Haversine 거리 계산
  * - GeoJSON 기반 코스 요약 지표 산출
- * - 경위도 바운딩 박스 및 중심 좌표 계산 (react-native-maps 뷰포트용)
+ * - 경위도 → SVG 뷰포트 투영 (지도 SDK 없이 경량 렌더링)
  */
 
 import {
@@ -15,11 +15,15 @@ import {
 
 const EARTH_RADIUS_M = 6371000;
 
-export interface RegionBounds {
-  latitude: number;
-  longitude: number;
-  latitudeDelta: number;
-  longitudeDelta: number;
+export interface ProjectedPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface MapViewport {
+  readonly width: number;
+  readonly height: number;
+  readonly padding: number;
 }
 
 /** 두 [lon, lat] 좌표 간 대원 거리(m) */
@@ -78,14 +82,11 @@ export function buildCourseSummary(
   };
 }
 
-/**
- * react-native-maps MapView Region 계산 (중심점 + delta)
- */
-export function calculateRegionBounds(coords: readonly LonLat[], paddingFactor = 1.3): RegionBounds {
-  if (coords.length === 0) {
-    return { latitude: 37.5443, longitude: 127.0374, latitudeDelta: 0.01, longitudeDelta: 0.01 };
-  }
-
+/** 전체 좌표 바운딩 박스를 기준으로 SVG 투영 함수를 생성한다. (x=lon, y=lat 반전) */
+export function createProjector(
+  coords: readonly LonLat[],
+  viewport: MapViewport,
+): (p: LonLat) => ProjectedPoint {
   const lons = coords.map((c) => c[0]);
   const lats = coords.map((c) => c[1]);
   const minLon = Math.min(...lons);
@@ -93,15 +94,20 @@ export function calculateRegionBounds(coords: readonly LonLat[], paddingFactor =
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
 
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLon = (minLon + maxLon) / 2;
-  const latDelta = Math.max((maxLat - minLat) * paddingFactor, 0.005);
-  const lonDelta = Math.max((maxLon - minLon) * paddingFactor, 0.005);
+  // 위도에 따른 경도 길이 보정 (등장방형 근사)
+  const midLatRad = (((minLat + maxLat) / 2) * Math.PI) / 180;
+  const lonSpan = Math.max((maxLon - minLon) * Math.cos(midLatRad), 1e-9);
+  const latSpan = Math.max(maxLat - minLat, 1e-9);
 
-  return {
-    latitude: centerLat,
-    longitude: centerLon,
-    latitudeDelta: latDelta,
-    longitudeDelta: lonDelta,
-  };
+  const innerW = viewport.width - viewport.padding * 2;
+  const innerH = viewport.height - viewport.padding * 2;
+  const scale = Math.min(innerW / lonSpan, innerH / latSpan);
+
+  const offsetX = viewport.padding + (innerW - lonSpan * scale) / 2;
+  const offsetY = viewport.padding + (innerH - latSpan * scale) / 2;
+
+  return ([lon, lat]) => ({
+    x: offsetX + (lon - minLon) * Math.cos(midLatRad) * scale,
+    y: offsetY + (maxLat - lat) * scale,
+  });
 }

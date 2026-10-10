@@ -1,6 +1,8 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 경로 기하 연산 단위 테스트 (Vitest)
+ * 경로 기하 및 요약 산출 단위 테스트 (Phase 3, US-C1)
+ *
+ * 대상: frontend/src/services/routeGeometry.ts
  */
 
 import { describe, it, expect } from 'vitest';
@@ -8,7 +10,7 @@ import {
   haversineMeters,
   polylineLengthMeters,
   buildCourseSummary,
-  calculateRegionBounds,
+  createProjector,
 } from './routeGeometry';
 import { RouteFeatureCollection, LonLat } from '../types/route';
 import { SAMPLE_ROUTE } from './sampleRoute';
@@ -33,6 +35,7 @@ describe('routeGeometry - haversineMeters', () => {
     const p1: LonLat = [0, 0];
     const p2: LonLat = [0, 1];
     const distM = haversineMeters(p1, p2);
+    // 1도 ≈ 111,195m
     expect(distM).toBeGreaterThan(111000);
     expect(distM).toBeLessThan(112000);
   });
@@ -70,22 +73,26 @@ describe('routeGeometry - buildCourseSummary', () => {
       maxSlopePercent: 0,
       shadeRatioPercent: 0,
     });
+
+    const invalidSpeed = buildCourseSummary(SAMPLE_ROUTE, 0);
+    expect(invalidSpeed.estimatedMinutes).toBe(0);
   });
 
   it('샘플 코스의 요약 지표(거리, 소요시간, 최대 경사, 그늘 비율)를 정확히 산출해야 한다', () => {
+    // 말티즈 기준 권장 속도 2.2 km/h
     const summary = buildCourseSummary(SAMPLE_ROUTE, 2.2);
 
     expect(summary.totalDistanceKm).toBeGreaterThan(0.8);
     expect(summary.totalDistanceKm).toBeLessThan(1.5);
     expect(summary.estimatedMinutes).toBeGreaterThan(15);
-    expect(summary.maxSlopePercent).toBe(7.8);
+    expect(summary.maxSlopePercent).toBe(7.8); // caution 세그먼트의 7.8%
     expect(summary.shadeRatioPercent).toBeGreaterThan(0);
     expect(summary.shadeRatioPercent).toBeLessThanOrEqual(100);
   });
 
   it('반려견 보행 속도가 빠를수록 예상 소요시간이 감소해야 한다 (US-A3 연계)', () => {
-    const seniorDogSpeed = 2.2;
-    const largeDogSpeed = 4.2;
+    const seniorDogSpeed = 2.2; // 노령견 (2.2 km/h)
+    const largeDogSpeed = 4.2;  // 대형견 (4.2 km/h)
 
     const seniorSummary = buildCourseSummary(SAMPLE_ROUTE, seniorDogSpeed);
     const largeSummary = buildCourseSummary(SAMPLE_ROUTE, largeDogSpeed);
@@ -95,16 +102,35 @@ describe('routeGeometry - buildCourseSummary', () => {
   });
 });
 
-describe('routeGeometry - calculateRegionBounds', () => {
-  it('좌표 목록의 중심점 및 delta를 올바르게 계산해야 한다', () => {
+describe('routeGeometry - createProjector', () => {
+  it('모든 좌표가 지정된 뷰포트 내부 영역으로 정상 투영되어야 한다', () => {
     const coords: LonLat[] = [
       [127.0374, 37.5443],
+      [127.0399, 37.5459],
       [127.0419, 37.5441],
+      [127.0406, 37.5430],
     ];
-    const region = calculateRegionBounds(coords);
-    expect(region.latitude).toBeCloseTo(37.5442, 3);
-    expect(region.longitude).toBeCloseTo(127.03965, 3);
-    expect(region.latitudeDelta).toBeGreaterThan(0);
-    expect(region.longitudeDelta).toBeGreaterThan(0);
+    const viewport = { width: 350, height: 420, padding: 40 };
+    const project = createProjector(coords, viewport);
+
+    for (const pt of coords) {
+      const { x, y } = project(pt);
+      expect(x).toBeGreaterThanOrEqual(viewport.padding - 1);
+      expect(x).toBeLessThanOrEqual(viewport.width - viewport.padding + 1);
+      expect(y).toBeGreaterThanOrEqual(viewport.padding - 1);
+      expect(y).toBeLessThanOrEqual(viewport.height - viewport.padding + 1);
+    }
+  });
+
+  it('위도가 높을수록 화면 y 좌표는 작아야 한다 (지도 좌표계 반전)', () => {
+    const coords: LonLat[] = [
+      [127.0, 37.50],
+      [127.0, 37.55],
+    ];
+    const project = createProjector(coords, { width: 300, height: 300, padding: 20 });
+    const pSouth = project([127.0, 37.50]);
+    const pNorth = project([127.0, 37.55]);
+
+    expect(pNorth.y).toBeLessThan(pSouth.y);
   });
 });
