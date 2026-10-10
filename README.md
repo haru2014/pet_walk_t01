@@ -4,15 +4,16 @@
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Stateless-009688.svg)](https://fastapi.tiangolo.com/)
-[![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2051-61DAFB.svg)](https://expo.dev/)
-[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-94%2F94%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/test_case/README.md)
+[![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
+[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-100%2F100%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/test_case/README.md)
+[![Mobile Tests](https://img.shields.io/badge/Mobile%20Tests-9%2F9%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## ⚡ 빠른 데모 실행 가이드 (Quick Demo Guide)
 
-웹 브라우저를 통해 **프론트엔드 인터랙티브 프로토타입**과 **6대 핵심 시나리오 목업 갤러리**를 바로 실행하여 체험할 수 있습니다.
+웹 브라우저 및 모바일 환경을 통해 **모바일 네이티브 앱**, **웹 프로토타입 데모**, **6대 핵심 시나리오 목업 갤러리**를 바로 실행하여 체험할 수 있습니다.
 
 ### 1️⃣ 모바일 앱 실행 가이드 (React Native / Expo SDK)
 편안하개는 스마트폰을 주머니에 넣은 채 산책할 수 있는 **모바일 네이티브 앱**입니다. Expo를 통해 실제 스마트폰(Expo Go 앱) 또는 에뮬레이터에서 즉시 구동할 수 있습니다.
@@ -40,7 +41,7 @@ npm run dev
 
 ---
 
-### 2️⃣ 6대 핵심 시나리오 인터랙티브 목업 갤러리 (HTML)
+### 3️⃣ 6대 핵심 시나리오 인터랙티브 목업 갤러리 (HTML)
 고대비 야외 시인성 및 한 손 조작 Thumb Zone이 적용된 6대 사용자 여정 화면(산책 플래너, 지도, 음성 내비, 피드백 등)을 한눈에 확인할 수 있습니다.
 
 ```bash
@@ -53,7 +54,7 @@ open mockup/index.html
 
 ---
 
-### 3️⃣ TDD 핵심 엔진 전수 검증 (94개 테스트 100% Pass)
+### 4️⃣ TDD 핵심 엔진 전수 검증 (100개 테스트 100% Pass)
 ```bash
 python -m pytest test_case/ -v
 ```
@@ -217,27 +218,33 @@ graph LR
 
 ### 7.1 테스트 스위트 구성 및 실행 결과
 ```bash
-# 전체 TDD 테스트 스위트 실행 (88개 테스트 100% Pass)
+# 전체 TDD 테스트 스위트 실행 (100개 테스트 100% Pass)
 python -m pytest test_case/ -v
 ```
 
 ```text
 ============================= test session starts =============================
-platform win32 -- Python 3.11.x / pytest-9.x
+platform win32 -- Python 3.14.x / pytest-9.x
 rootdir: d:\cody\pet_walk_t01
-collected 88 items
+collected 100 items
 
-test_case/test_walk_plan_agent_schema.py ............                     [ 13%]
-test_case/test_loop_target_duration.py ........                           [ 22%]
-test_case/test_surface_cost_model.py .............                        [ 37%]
-test_case/test_mobile_and_voice_navigation.py ......                      [ 44%]
-test_case/test_vision_safety_inspector.py ...........                     [ 56%]
-test_case/test_walk_tracking_and_feedback.py ...........                  [ 69%]
-test_case/test_thermal_and_parking.py ......                              [ 76%]
-test_case/test_api_contracts.py .........                                 [ 86%]
-test_case/test_phase2_extended_features.py ............                   [100%]
+test_case/test_api_contracts.py ...                                      [  3%]
+test_case/test_langgraph_walk_agent.py ......                            [  9%]
+test_case/test_loop_target_duration.py ............                      [ 21%]
+test_case/test_mobile_and_voice_navigation.py ........                   [ 29%]
+test_case/test_phase2_extended_features.py ..........                    [ 39%]
+test_case/test_surface_cost_model.py ....................                [ 59%]
+test_case/test_thermal_and_parking.py ......                             [ 65%]
+test_case/test_vision_safety_inspector.py .............                  [ 78%]
+test_case/test_walk_plan_agent_schema.py .............                   [ 91%]
+test_case/test_walk_tracking_and_feedback.py .........                   [100%]
 
-============================= 88 passed in 0.48s ==============================
+============================ 100 passed in 0.54s ==============================
+```
+
+```bash
+# 모바일 프론트엔드 단위 테스트 실행 (Vitest 9개 테스트 100% Pass)
+cd frontend && npm test
 ```
 
 ### 7.2 엄격한 품질 가드레일 (Enforced Guardrails)
@@ -255,15 +262,31 @@ pet_walk_t01/
 ├── docs/                                      # 프로젝트 기획 및 엔지니어링 문서
 │   ├── 02_편안하개_Team_building.md            # 5인 팀 R&R 및 4대 기술 엔지니어링 전략
 │   ├── 03_편안하개_Agile_User_Stories.md       # 8대 에픽(A~H), 18개 사용자 스토리 및 DoD 명세서
-│   └── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
+│   ├── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
+│   └── 05_편안하개_Member4_모바일_구현계획서.md # Member 4 모바일 전담 6단계 구현 계획서
+├── agent/                                     # LangGraph ReAct Walk Planning Agent 코어
+│   ├── __init__.py                            # 에이전트 패키지 초기화
+│   └── walk_planning_agent.py                 # 의도 파싱, 제약 보정, 후보 경로 생성 및 브리핑 오케스트레이션
+├── frontend/                                  # 📱 [공식 모바일 앱] React Native / Expo SDK 프로젝트
+│   ├── App.tsx                                # SafeAreaView 기반 모바일 메인 애플리케이션 (5개 탭)
+│   ├── app.json                               # Expo 앱 매니페스트 및 설정
+│   └── src/
+│       ├── theme/tokens.ts                    # 디자인 시스템 토큰 (모바일 규격)
+│       ├── types/                             # DogProfile, Route, Storage DTO
+│       ├── services/                          # AsyncStorage, expo-speech TTS, 거리 연산
+│       └── components/                        # CardWrapper, GradientButton, RouteMapView
+├── web-demo/                                  # 🌐 [웹 프로토타입 데모] React + Vite 브라우저 시뮬레이터
+│   ├── src/                                   # 기존 웹 프로토타입 코드베이스 보존
+│   └── package.json                           # 브라우저 전용 실행 스크립트
 ├── mockup/                                    # 예상 사용 시나리오 스크린 갤러리 및 UI 목업
 │   ├── index.html                             # 인터랙티브 스크린 뷰어 웹 애플리케이션
-│   ├── README.md                              # 6대 화면 상세 기능 및 UX 명세서
 │   └── 01_walk_planner.jpg ~ 06_...jpg        # 핵심 사용자 여정 화면 고화질 목업
+├── PawTrail Screen-02 ~ 04/                   # Figma Make 기반 React 모바일 스크린 프로토타입
 ├── UI_design/                                 # 앱 디자인 무드보드 및 에셋
-├── test_case/                                 # TDD 종합 테스트 스위트 (88개 테스트 전수 Pass)
+├── test_case/                                 # 🧪 TDD 종합 테스트 스위트 (100개 테스트 전수 Pass)
 │   ├── README.md                              # TDD 스위트 구조 및 실행 가이드
 │   ├── conftest.py                            # 5인 CBT 프로필, OSM 네트워크, GeoJSON Fixture
+│   ├── test_langgraph_walk_agent.py           # [1번 코어] LangGraph ReAct 전주기 오케스트레이션
 │   ├── test_walk_plan_agent_schema.py         # [US-A1, A2, E3] 자연어 파싱, 프로필, 피드백 보정
 │   ├── test_loop_target_duration.py          # [US-A3] 보행 속도 모델 및 순환 루프 수렴 검증
 │   ├── test_surface_cost_model.py             # [US-B1~B4] 계단 회피, DEM 경사, 그늘, 스코어러
@@ -273,8 +296,8 @@ pet_walk_t01/
 │   ├── test_thermal_and_parking.py            # [US-F1, G1] 기상청 지면열 추정, P&R 주차장 필터
 │   ├── test_api_contracts.py                  # [US-G2] 200m 공간 마스킹 및 REST API Contract
 │   └── test_phase2_extended_features.py       # [Phase 2] 긴급 귀환, 다견, 헥사곤 점령, 즐겨찾기
-├── backend/                                   # FastAPI 백엔드 애플리케이션 (구현 대상)
-├── frontend/                                  # React Native Expo 모바일 앱 (구현 대상)
+├── .github/workflows/                         # GitHub Actions CI 파이프라인
+│   └── ci.yml                                 # pytest(100개) + mobile vitest(9개) & tsc 자동 검증
 ├── .gemini/                                   # Gemini Code Assist 전역 지침 및 코딩 룰
 │   ├── GEMINI.md                              # 코딩 어시스턴트 핵심 준수 지침
 │   ├── coding_rule.md                         # SonarLint 및 정적 분석 통합 코딩 컨벤션
