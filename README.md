@@ -30,14 +30,13 @@ npx expo start
 
 ---
 
-### 2️⃣ 웹 브라우저 프로토타입 데모 (`web-demo`)
-웹 브라우저에서 빠른 인터랙티브 동작을 확인하고 싶다면 분리된 웹 데모를 실행할 수 있습니다.
+### 2️⃣ 웹 브라우저 데모 (`frontend` 단일 소스 Expo Web)
+단일 코드베이스(`frontend`)로 모바일 앱과 브라우저 데모를 동시에 제공합니다. 브라우저에서도 반응형 모바일 쉘(Phone Mockup) 형태로 즉시 체험할 수 있습니다.
 
 ```bash
-cd web-demo
-npm install
-npm run dev
-# 접속 URL: http://localhost:5173
+cd frontend
+npm run web
+# 접속 URL: http://localhost:8081 (웹 브라우저에서 모바일 쉘 뷰로 즉시 실행)
 ```
 
 ---
@@ -284,8 +283,8 @@ pet_walk_t01/
 ├── agent/                                     # LangGraph ReAct Walk Planning Agent 코어
 │   ├── __init__.py                            # 에이전트 패키지 초기화
 │   └── walk_planning_agent.py                 # 의도 파싱, 제약 보정, 후보 경로 생성 및 브리핑 오케스트레이션
-├── frontend/                                  # 📱 [공식 모바일 앱] React Native / Expo SDK 프로젝트 (목업 Screen 01~04 반영)
-│   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~04 유기적 네비게이션)
+├── frontend/                                  # 📱 [공식 모바일 앱 & 웹 데모] React Native / Expo SDK 57 (모바일 + Expo Web 단일화)
+│   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~04 및 반응형 모바일 쉘 뷰)
 │   ├── app.json                               # Expo 앱 매니페스트 및 설정
 │   └── src/
 │       ├── theme/tokens.ts                    # 디자인 시스템 토큰 (모바일 규격)
@@ -297,9 +296,6 @@ pet_walk_t01/
 │           ├── walk/                          # Screen-03/04: WalkSettingsView, CourseRecommendationView
 │           ├── map/                           # RouteMapView (3색 지도), RouteReasonCard (3대 지표)
 │           └── common/                        # CardWrapper, GradientButton, BottomTabBar
-├── web-demo/                                  # 🌐 [웹 프로토타입 데모] React + Vite 브라우저 시뮬레이터
-│   ├── src/                                   # 기존 웹 프로토타입 코드베이스 보존
-│   └── package.json                           # 브라우저 전용 실행 스크립트
 ├── mockup/                                    # 예상 사용 시나리오 스크린 갤러리 및 UI 목업
 │   ├── index.html                             # 인터랙티브 스크린 뷰어 웹 애플리케이션
 │   ├── 01_walk_planner.jpg ~ 06_...jpg        # 핵심 사용자 여정 화면 고화질 목업
