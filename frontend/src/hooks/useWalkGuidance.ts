@@ -108,5 +108,6 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     TTSNavigationService.speak(REROUTE_MESSAGE);
   }, []);
 
-  return { route, status, stats, start, stop, applyReroute };
+  return { route, status, stats, start, stop, applyReroute, getTrackBuffer };
 }
+

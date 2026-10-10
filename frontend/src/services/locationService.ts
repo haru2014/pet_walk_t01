@@ -47,13 +47,14 @@ function pushLocations(locations: readonly Location.LocationObject[]): void {
   }
 }
 
-TaskManager.defineTask(WALK_LOCATION_TASK, async ({ data, error }) => {
+TaskManager.defineTask(WALK_LOCATION_TASK, ({ data, error }) => {
   if (error) {
     console.warn('[locationService] 백그라운드 위치 오류:', error.message);
-    return;
+    return Promise.resolve();
   }
   const { locations } = (data ?? { locations: [] }) as { locations: Location.LocationObject[] };
   pushLocations(locations);
+  return Promise.resolve();
 });
 
 const TRACKING_OPTIONS = {

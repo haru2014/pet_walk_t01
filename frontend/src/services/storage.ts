@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, WalkRecord } from '../types/storage';
+import { STORAGE_KEYS, WalkRecord, WalkFeedback } from '../types/storage';
 
 export class LocalStorageService {
   static async getItem<T>(key: string): Promise<T | null> {
@@ -47,6 +47,18 @@ export class LocalStorageService {
     const history = await this.getWalkHistory();
     history.unshift(record);
     const trimmed = history.slice(0, 100);
-    return await this.setItem(STORAGE_KEYS.WALK_HISTORY, trimmed);
+    return this.setItem(STORAGE_KEYS.WALK_HISTORY, trimmed);
+  }
+
+  static async updateWalkFeedback(
+    recordId: string,
+    feedback: WalkFeedback
+  ): Promise<boolean> {
+    const history = await this.getWalkHistory();
+    const updated = history.map((rec) =>
+      rec.id === recordId ? { ...rec, feedback } : rec
+    );
+    return this.setItem(STORAGE_KEYS.WALK_HISTORY, updated);
   }
 }
+
