@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../theme/tokens';
-import { WalkRecord, WalkFeedback } from '../types/storage';
+import { WalkRecord, WalkFeedback, SlopeFeedbackLevel } from '../types/storage';
 import { QuickFeedbackModal } from '../components/feedback/QuickFeedbackModal';
 
 export interface WalkReportScreenProps {
@@ -16,6 +16,13 @@ export interface WalkReportScreenProps {
   dogName: string;
   onSaveFeedback: (feedback: WalkFeedback) => void;
   onGoHome: () => void;
+}
+
+function getSlopeRatingLabel(rating?: SlopeFeedbackLevel): string {
+  if (rating === 'gentle') return '🌿 완만/평지 (관절 편안)';
+  if (rating === 'moderate') return '🚶 적당함';
+  if (rating === 'steep') return '⛰️ 가파름 (다음 코스 자동 완화)';
+  return '';
 }
 
 export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
@@ -96,7 +103,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
               </Text>
               {Boolean(record.feedback.slopeRating) && (
                 <Text style={styles.feedbackSlopeText}>
-                  경사도: {record.feedback.slopeRating === 'gentle' ? '🌿 완만/평지 (관절 편안)' : record.feedback.slopeRating === 'moderate' ? '🚶 적당함' : '⛰️ 가파름 (다음 코스 자동 완화)'}
+                  경사도: {getSlopeRatingLabel(record.feedback.slopeRating)}
                 </Text>
               )}
               <View style={styles.feedbackTagsWrap}>
