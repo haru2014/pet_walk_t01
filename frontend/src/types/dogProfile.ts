@@ -46,3 +46,31 @@ export function getJointCareLabel(level: JointCareLevel): string {
     case 2: return '관절 집중 안심 케어 (적극보호)';
   }
 }
+
+export const DEFAULT_DOGS: readonly DogProfile[] = [
+  {
+    id: 'dog_choco',
+    name: '초코',
+    breed: '말티즈',
+    ageYears: 3,
+    weightKg: 4.2,
+    jointCareLevel: 1,
+    speedKmH: 2.5,
+    preference: '30분 산책 선호',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'dog_kong',
+    name: '콩이',
+    breed: '푸들',
+    ageYears: 5,
+    weightKg: 5.8,
+    jointCareLevel: 2,
+    speedKmH: 2.2,
+    preference: '천천히 걷는 산책 선호',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
