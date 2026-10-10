@@ -22,8 +22,10 @@ export class FeedbackContextService {
 
     for (const record of recent) {
       if (!record.feedback) continue;
-      const tags = record.feedback.tags || [];
-      if (tags.some((t) => t.includes('경사') || t.includes('가팔'))) {
+      const fb = record.feedback;
+      const tags = fb.tags || [];
+      const isSteep = fb.slopeRating === 'steep' || tags.some((t) => t.includes('경사') || t.includes('가팔'));
+      if (isSteep) {
         slopeDissatisfaction += 1;
       }
       if (tags.some((t) => t.includes('그늘'))) {

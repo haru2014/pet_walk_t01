@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LocalStorageService } from './storage';
+import { FeedbackContextService } from './feedbackContext';
 import { WalkRecord, WalkFeedback, STORAGE_KEYS } from '../types/storage';
 
 // In-Memory AsyncStorage Mocking
@@ -130,6 +131,25 @@ describe('Phase 5 - 3초 원터치 피드백 메타데이터 바인딩 (US-E2)',
     expect(history).toHaveLength(1);
     expect(history[0].id).toBe('walk_existing');
     expect(history[0].feedback).toBeUndefined();
+  });
+
+  it('경사도 체감 3단계 평가(steep) 제출 시 AI 오프셋(-1.5%) 및 불만족 카운트가 정상 반영되어야 한다', async () => {
+    const record = createSampleRecord('walk_steep');
+    await LocalStorageService.appendWalkRecord(record);
+
+    const feedback: WalkFeedback = {
+      comfortScore: 3,
+      slopeRating: 'steep',
+      tags: ['가파름'],
+    };
+
+    const updated = await LocalStorageService.updateWalkFeedback('walk_steep', feedback);
+    expect(updated).toBe(true);
+
+    const context = await FeedbackContextService.buildRecentFeedbackContext();
+    expect(context.slope_dissatisfaction_count).toBe(1);
+    expect(context.recommended_max_slope_offset).toBe(-1.5);
+    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('최대 경사도를 1.5% 더 완화');
   });
 });
 
