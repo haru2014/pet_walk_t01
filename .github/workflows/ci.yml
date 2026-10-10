@@ -61,5 +61,8 @@ jobs:
       - name: 프론트엔드 의존성 설치
         run: npm ci
 
+      - name: 프론트엔드 단위 테스트 (vitest)
+        run: npm test
+
       - name: 프론트엔드 빌드 및 타입 검사
         run: npm run build
