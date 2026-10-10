@@ -5,8 +5,9 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Stateless-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
-[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-100%2F100%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/test_case/README.md)
-[![Mobile Tests](https://img.shields.io/badge/Mobile%20Tests-9%2F9%20Passed-brightgreen.svg)](file:///d:/코디세이/pet_walk_t01/frontend)
+[![TDD 100% Pass](https://img.shields.io/badge/TDD%20Tests-100%2F100%20Passed-brightgreen.svg)](test_case/README.md)
+[![Mobile Tests](https://img.shields.io/badge/Mobile%20Tests-31%2F31%20Passed-brightgreen.svg)](frontend)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -68,7 +69,8 @@ python -m pytest test_case/ -v
 3. [4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
 4. [시스템 아키텍처 (System Architecture)](#-4-시스템-아키텍처-system-architecture)
 5. [핵심 사용자 여정 및 화면 시나리오 (User Journey & Screens)](#-5-핵심-사용자-여정-및-화면-시나리오-user-journey--screens)
-6. [5인 팀 R&R 및 애자일 스펙 (Team Roles & Agile Backlog)](#-6-5인-팀-rr-및-애자일-스펙-team-roles--agile-backlog)
+6. [5인 팀 R&R, 프로젝트 마일스톤 및 애자일 스펙 (Team Roles, Milestones & Backlog)](#-6-5인-팀-rr-및-애자일-스펙-team-roles--agile-backlog)
+
 7. [TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
 8. [프로젝트 디렉터리 구조 (Directory Structure)](#-8-프로젝트-디렉터리-구조-directory-structure)
 9. [시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
@@ -107,11 +109,12 @@ flowchart TD
 
 > [!IMPORTANT]
 > **5대 핵심 해결 영역**
-> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L50-L64)).
-> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L80-L94)).
-> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + 15도 미만 무장애 완만경사 + 기상·노면 연동 지면온도 추정 및 고온 노면 회피 ➔ 100점 만점 최적 코스 도출 ([`US-B1~B3`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L96-L142)).
-> 4. **현장 시각 위험 분석 & 동적 우회 (Phase 2 차기 고도화)**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L308-L343)).
-> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L209-L222), [`US-G2`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md#L267-L281)).
+> 1. **자연어 산책 의도 정밀 구조화**: *"9살 노령 말티즈라 계단 피하고 완만한 길로 20분만"* ➔ LangGraph ReAct Agent가 Pydantic V2 Strict Schema로 변환 ([`US-A1`](docs/03_편안하개_Agile_User_Stories.md)).
+> 2. **체급·연령별 적응형 시간-거리 환산**: 소형(2.8), 중형(3.6), 대형(4.2), 노령견(2.2 km/h) 보행 속도 모델 기반 목표 시간 $\pm 15\%$ 수렴 순환 루프 생성 ([`US-A3`](docs/03_편안하개_Agile_User_Stories.md)).
+> 3. **다요소 과학 라우팅 & 종합 채점**: OSM 계단 완전 배제 + 15도 미만 무장애 완만경사 + 기상·노면 연동 지면온도 추정 및 고온 노면 회피 ➔ 100점 만점 최적 코스 도출 ([`US-B1~B3`](docs/03_편안하개_Agile_User_Stories.md)).
+> 4. **현장 시각 위험 분석 & 동적 우회 (Phase 2 차기 고도화)**: Gemini Cascading Vision Pipeline으로 높은 턱 및 공원 종합안내판 판독, 위험 링크 10배 격리 후 3초 이내 대안 우회로 재탐색 ([`US-D1~D2`](docs/03_편안하개_Agile_User_Stories.md)).
+> 5. **프라이버시 바이 디자인(Local-First)**: 자택 좌표 및 상세 GPS 트랙은 모바일 `AsyncStorage` 전용 보관, 커뮤니티 공유 시 출발/도착지 200m 공간 지터링 마스킹 ([`US-E1`](docs/03_편안하개_Agile_User_Stories.md), [`US-G2`](docs/03_편안하개_Agile_User_Stories.md)).
+
 
 ---
 
@@ -175,7 +178,7 @@ graph TB
 
 ## 📱 5. 핵심 사용자 여정 및 화면 시나리오 (User Journey & Screens)
 
-편안하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](file:///d:/코디세이/pet_walk_t01/mockup/index.html))
+편안하개는 사전 계획부터 보행, 완주, 커뮤니티 보강까지 끊김 없는 사용자 여정을 제공합니다. (인터랙티브 웹 갤러리: [`mockup/index.html`](mockup/index.html))
 
 ```mermaid
 graph LR
@@ -189,18 +192,19 @@ graph LR
 
 | 시나리오 화면 | 화면 명칭 | 연계 스토리 | 핵심 기능 및 UX 특징 |
 |:---:|---|:---:|---|
-| **01** | **맞춤형 산책 플래너**<br/>([`01_walk_planner.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/01_walk_planner.jpg)) | `US-A1`<br>`US-A2`<br>`US-A3` | • 반려견 활성 프로필 카드 ('코코', 관절 안심 케어 집중)<br>• 자연어 질의 입력창 (*"관절 안심 케어가 필요한 코코 25분 폭신한 길"*)<br>• 10~90분 시간 슬라이더 및 선호 노면 선택 칩(흙길, 잔디길, 탄성포장) |
-| **02** | **안심 순환 경로 프리뷰**<br/>([`02_route_preview.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/02_route_preview.jpg)) | `US-B1~B3`<br>`US-C1` | • 노면/온도별 색상 분기 Polyline (🌿 안심/저온: `#10B981`, 🟤 흙길: `#92400E`, ⚠️ 고온주의: `#F97316`)<br>• 바텀시트: 총 1.4km, 예상 25분, 폭신한 길 비율 **82%** 표시<br>• 네이버/카카오 지도 원터치 외부 네비게이션 딥링크 제공 |
-| **03** | **초절전 다크 포켓 모드**<br/>([`03_pocket_mode.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/03_pocket_mode.jpg)) | `US-C2`<br>`US-E1` | • Screen Wake Lock & OLED True Black (`#000000`) 배터리 극소화<br>• 주머니 오터치 방지 '밀어서 잠금 해제(Slide to Unlock)' 엄지 조작<br>• 실시간 HUD(시간, 거리, 속도) 및 백그라운드 TTS 음성 브리핑 연동 |
-| **04** | **공원안내판 비전 인스펙터 (Phase 2)**<br/>([`04_vision_inspection.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/04_vision_inspection.jpg)) | `US-D1`<br>`US-D2`<br>*(Phase 2)* | • 공원 입구 오프라인 종합안내도 촬영 ➔ Gemini Flash 구조화 파싱<br>• 비포장 흙길 산책로 녹색 식별, 반려견 출입 금지 구역 붉은색 차단<br>• 금지구역 라우팅 격리 및 흙길 우선 경유 대안 순환로 즉시 수립 |
-| **05** | **완주 체크인 & 안심 리포트**<br/>([`05_walk_report.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/05_walk_report.jpg)) | `US-E2`<br>`US-E3` | • 선호 노면 달성률 게이지 (폭신한 길 85% 달성)<br>• 3초 원터치 체감 피드백(별점) 수집 ➔ 다음 산책 무상태 경사도 보정 반영<br>• 나만의 안심 코스 즐겨찾기(`@pet_walk:favorites`) 로컬 저장 |
-| **06** | **커뮤니티 안심 공유 피드**<br/>([`06_community_enrichment.jpg`](file:///d:/코디세이/pet_walk_t01/mockup/06_community_enrichment.jpg)) | `US-G2` | • 출발지/도착지 **반경 200m 공간 지터링 및 절단**으로 자택 위치 완벽 은폐<br>• 검증된 동네 산책로 코스 공유 및 현장 위험 제보 등록 |
+| **01** | **맞춤형 산책 플래너**<br/>([`01_walk_planner.jpg`](mockup/01_walk_planner.jpg)) | `US-A1`<br>`US-A2`<br>`US-A3` | • 반려견 활성 프로필 카드 ('코코', 관절 안심 케어 집중)<br>• 자연어 질의 입력창 (*"관절 안심 케어가 필요한 코코 25분 폭신한 길"*)<br>• 10~90분 시간 슬라이더 및 선호 노면 선택 칩(흙길, 잔디길, 탄성포장) |
+| **02** | **안심 순환 경로 프리뷰**<br/>([`02_route_preview.jpg`](mockup/02_route_preview.jpg)) | `US-B1~B3`<br>`US-C1` | • 노면/온도별 색상 분기 Polyline (🌿 안심/저온: `#10B981`, 🟤 흙길: `#92400E`, ⚠️ 고온주의: `#F97316`)<br>• 바텀시트: 총 1.4km, 예상 25분, 폭신한 길 비율 **82%** 표시<br>• 네이버/카카오 지도 원터치 외부 네비게이션 딥링크 제공 |
+| **03** | **초절전 다크 포켓 모드**<br/>([`03_pocket_mode.jpg`](mockup/03_pocket_mode.jpg)) | `US-C2`<br>`US-E1` | • Screen Wake Lock & OLED True Black (`#000000`) 배터리 극소화<br>• 주머니 오터치 방지 '밀어서 잠금 해제(Slide to Unlock)' 엄지 조작<br>• 실시간 HUD(시간, 거리, 속도) 및 백그라운드 TTS 음성 브리핑 연동 |
+| **04** | **공원안내판 비전 인스펙터 (Phase 2)**<br/>([`04_vision_inspection.jpg`](mockup/04_vision_inspection.jpg)) | `US-D1`<br>`US-D2`<br>*(Phase 2)* | • 공원 입구 오프라인 종합안내도 촬영 ➔ Gemini Flash 구조화 파싱<br>• 비포장 흙길 산책로 녹색 식별, 반려견 출입 금지 구역 붉은색 차단<br>• 금지구역 라우팅 격리 및 흙길 우선 경유 대안 순환로 즉시 수립 |
+| **05** | **완주 체크인 & 안심 리포트**<br/>([`05_walk_report.jpg`](mockup/05_walk_report.jpg)) | `US-E2`<br>`US-E3` | • 선호 노면 달성률 게이지 (폭신한 길 85% 달성)<br>• 3초 원터치 체감 피드백(별점) 수집 ➔ 다음 산책 무상태 경사도 보정 반영<br>• 나만의 안심 코스 즐겨찾기(`@pet_walk:favorites`) 로컬 저장 |
+| **06** | **커뮤니티 안심 공유 피드**<br/>([`06_community_enrichment.jpg`](mockup/06_community_enrichment.jpg)) | `US-G2` | • 출발지/도착지 **반경 200m 공간 지터링 및 절단**으로 자택 위치 완벽 은폐<br>• 검증된 동네 산책로 코스 공유 및 현장 위험 제보 등록 |
+
 
 ---
 
 ## 👥 6. 5인 팀 R&R 및 애자일 스펙 (Team Roles & Agile Backlog)
 
-편안하개 프로젝트는 5인 전담 R&R과 **15개 핵심 애자일 사용자 스토리 (총 62 Story Points / 298 Hours, Phase 2 확장 별도)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md), [`06_편안하개_프로젝트_수행계획서_일정.md`](docs/06_편안하개_프로젝트_수행계획서_일정.md))
+편안하개 프로젝트는 5인 전담 R&R과 **15개 핵심 애자일 사용자 스토리 (총 62 Story Points / 298 Hours, Phase 2 확장 별도)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md), [`05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md))
 
 | 번호 | 역할 명칭 (포지션) | 담당 팀원 | 핵심 R&R 및 주요 산출물 | 연계 사용자 스토리 |
 |:---:|---|:---:|---|:---:|
@@ -210,11 +214,22 @@ graph LR
 | **4번** | **앱 / 모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | **김승현** | • React Native Expo 모바일 앱 구축, Android Foreground Service GPS<br>• `expo-speech` 백그라운드 음성 브리핑, Local-First `AsyncStorage` | `US-A2`, `US-C1`, `US-C2`, `US-E1`, `US-E2`, `US-E3`, `US-H1`<br>*(Phase 2: US-D2)* |
 | **5번** | **UI / 화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | **김정님** | • 핵심 시나리오 UI/UX 화면 개발, 고대비 시인성 토큰 적용<br>• 웰니스 카피라이팅 가드레일 준수, EAS Update 배포 및 5인 CBT 총괄 | `US-A2`, `US-A3`, `US-C1`, `US-E2`, `US-F1`, `US-G1`, `US-G2`, `US-H1` |
 
+### 📅 6.1 프로젝트 주요 마일스톤 (수행계획서 정합)
+> 상세 타임라인: [`05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md)
+
+| 마일스톤 단계 | 일정 | 주요 목표 및 산출물 | 책임 |
+|---|:---:|---|:---:|
+| **프로젝트 킥오프** | **10월 12일 (월)** | • 5인 팀원별 전담 업무 착수 및 스프린트 1 가동<br>• 기획/아키텍처/TDD 환경 기반 코어 개발 돌입 | 5인 전원 |
+| **개발 마감 (Code Freeze)** | **10월 30일 (금)** | • 전 기능 구현 완료 (AI, GIS, 서버, 앱, UI)<br>• EAS Build 테스터용 APK 1회 패키징 완료 | 5인 전원 |
+| **집중 테스트와 보완 (Test & Refine)** | **10월 31일 (토) ~ 11월 7일 (토)** | • 최소 5인 실사용자 필드 산책 현장 테스트(CBT)<br>• 주머니 속 핸즈프리 음성 안내 및 계단 회피 체감 검증<br>• EAS Update (`expo-updates`) 무선 OTA 실시간 핫픽스 및 보완<br>• 피드백 수집 기반 가중치 미세 튜닝 및 완성도 극대화 | Lead: 김정님(UI/QA)<br>& 5인 전원 |
+| **최종 제출 마감 (Final Submission)** | **11월 8일 (일)** | • 프로젝트 최종 산출물 및 GitHub 코드베이스 제출<br>• 최종 발표 PPT 및 데모 시연 영상 제출 | Lead: 조현정(팀장)<br>& 5인 전원 |
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)
 
-본 프로젝트는 **TDD(Test-Driven Development) 및 ATDD(인수 테스트 주도 개발)**를 기반으로 구축되었으며, 18개 핵심 스토리 및 Phase 2 확장 백로그의 모든 인수 조건(Acceptance Criteria)과 완료 정의(DoD)를 테스트 코드로 100% 사전 검증합니다. (상세 가이드: [`test_case/README.md`](file:///d:/cody/pet_walk_t01/test_case/README.md))
+본 프로젝트는 **TDD(Test-Driven Development) 및 ATDD(인수 테스트 주도 개발)**를 기반으로 구축되었으며, 18개 핵심 스토리 및 Phase 2 확장 백로그의 모든 인수 조건(Acceptance Criteria)과 완료 정의(DoD)를 테스트 코드로 100% 사전 검증합니다. (상세 가이드: [`test_case/README.md`](test_case/README.md))
+
 
 ### 7.1 테스트 스위트 구성 및 실행 결과
 ```bash
@@ -225,8 +240,9 @@ python -m pytest test_case/ -v
 ```text
 ============================= test session starts =============================
 platform win32 -- Python 3.14.x / pytest-9.x
-rootdir: d:\cody\pet_walk_t01
+rootdir: .
 collected 100 items
+
 
 test_case/test_api_contracts.py ...                                      [  3%]
 test_case/test_langgraph_walk_agent.py ......                            [  9%]
@@ -243,9 +259,10 @@ test_case/test_walk_tracking_and_feedback.py .........                   [100%]
 ```
 
 ```bash
-# 모바일 프론트엔드 단위 테스트 실행 (Vitest 14개 테스트 100% Pass)
+# 모바일 프론트엔드 단위 테스트 실행 (Vitest 31개 테스트 100% Pass)
 cd frontend && npm test
 ```
+
 
 ### 7.2 엄격한 품질 가드레일 (Enforced Guardrails)
 1. **웰니스 카피라이팅 (Zero Medical Slang)**: 앱 UI, DTO, 테스트 코드 전역에서 '슬개골 탈구' 등 임상적 질병 공포 유발 단어를 배제하고, '관절 안심 케어', '폭신한 길' 등 순화된 웰니스 단어만을 사용하도록 자동 검사합니다.
