@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
 } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { DogProfile } from '../../types/dogProfile';

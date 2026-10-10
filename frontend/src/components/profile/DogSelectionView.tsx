@@ -187,7 +187,7 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
                 style={styles.textInput}
               />
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>나이 (살)</Text>
                   <TextInput
@@ -198,6 +198,15 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
                   />
                 </View>
                 <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>체중 (kg)</Text>
+                  <TextInput
+                    value={weightKg}
+                    onChangeText={setWeightKg}
+                    keyboardType="numeric"
+                    style={styles.textInput}
+                  />
+                </View>
+                <View style={{ flex: 1.2 }}>
                   <Text style={styles.inputLabel}>견종</Text>
                   <TextInput
                     value={breed}
