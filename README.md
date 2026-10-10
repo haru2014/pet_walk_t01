@@ -280,8 +280,8 @@ pet_walk_t01/
 │   └── package.json                           # 브라우저 전용 실행 스크립트
 ├── mockup/                                    # 예상 사용 시나리오 스크린 갤러리 및 UI 목업
 │   ├── index.html                             # 인터랙티브 스크린 뷰어 웹 애플리케이션
-│   └── 01_walk_planner.jpg ~ 06_...jpg        # 핵심 사용자 여정 화면 고화질 목업
-├── PawTrail Screen-02 ~ 04/                   # Figma Make 기반 React 모바일 스크린 프로토타입
+│   ├── 01_walk_planner.jpg ~ 06_...jpg        # 핵심 사용자 여정 화면 고화질 목업
+│   └── PawTrail Screen-01 ~ 04/               # Figma Make 기반 개별 모바일 스크린 UI 목업 (홈/선택/추천/이유)
 ├── UI_design/                                 # 앱 디자인 무드보드 및 에셋
 ├── test_case/                                 # 🧪 TDD 종합 테스트 스위트 (100개 테스트 전수 Pass)
 │   ├── README.md                              # TDD 스위트 구조 및 실행 가이드
