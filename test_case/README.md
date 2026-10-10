@@ -6,10 +6,11 @@
 
 ---
 
-## 📂 테스트 스위트 구조 및 사용자 스토리 매핑 (총 9개 테스트 모듈, 94개 테스트 100% Pass)
+## 📂 테스트 스위트 구조 및 사용자 스토리 매핑 (총 10개 테스트 모듈, 100개 테스트 100% Pass)
 
 | 테스트 파일명 | 대상 에픽 & 사용자 스토리 (Story ID) | 주요 검증 내용 (인수 조건 & DoD 연계) |
 |---|:---:|---|
+| [`test_langgraph_walk_agent.py`](./test_langgraph_walk_agent.py) | **[1번 R&R 코어]<br>US-A1, A3, B1~B3, E3** | • **[LangGraph ReAct 오케스트레이션]**: StateGraph 노드(`parse_intent`, `calibrate_constraints`, `generate_candidates`, `score_and_rank`, `synthesize_briefing`) 워크플로우 컴파일 및 전주기 실행 검증<br>• 노령견/소형견/대형견 체급별 속도 모델링 및 $\pm 15\%$ 수렴도 검증<br>• Candidate Route Scorer 100점 채점 및 웰니스 카피라이팅 가드레일(질병 용어 0건) 음성 브리핑 검증 |
 | [`test_walk_plan_agent_schema.py`](./test_walk_plan_agent_schema.py) | **[Epic A] US-A1, US-A2<br>[Epic E] US-E3** | • **[US-A1]**: 자연어 발화 의도 파싱(`TargetDuration`, `AvoidStairs`, `SlopePreference`, `ShadePriority`) Pydantic V2 엄격 검증 및 불명확 질의 안전 Fallback<br>• **[US-A2]**: Local-First `AsyncStorage` 프로필 영속화, JSON 내보내기/가져오기 백업/복원 무결성, 웰니스 카피라이팅 가드레일 (질병 단어 검출 0건)<br>• **[US-E3]**: 로컬 누적 피드백(경사 불만족 등) 전달 시 무상태(Stateless)로 최대 허용 경사도 1~2% 하향 보정 |
 | [`test_loop_target_duration.py`](./test_loop_target_duration.py) | **[Epic A] US-A3** | • **[US-A3]**: 표준 보행 속도 모델(소형 2.8, 중형 3.6, 대형 4.2, 노령 2.2 km/h) 기반 목표 거리 환산($D = V \times T$)<br>• 10~90분 슬라이더(기본 권장 15~60분) 입력 유효성 검증<br>• 순환(Loop) 경로 목표 거리 대비 **오차 ±15% 이내 수렴 및 2개 이상 루프 후보 생성** 검증 |
 | [`test_surface_cost_model.py`](./test_surface_cost_model.py) | **[Epic B] US-B1, US-B2, US-B3** | • **[US-B1]**: OSM 보행망 `highway=steps` 링크 하드 회피(Hard Constraint) 및 무장애길 메타데이터 투명 반환<br>• **[US-B2]**: DEM 고도 및 기상청 연동 지면온도 추정 모델 기반 고온(>35℃) 노면 회피 라우팅<br>• **[US-B3]**: Candidate Route Scorer 다요소 종합 채점(계단 배제, 완만 경사, 지면온도 안전, 거리 적합도) 및 최적 코스 선정<br>• OSM 보행망 속성 결합 및 공원 폴리곤 기반 노면 출처 투명성 검증 |
@@ -29,13 +30,16 @@
 python -m pip install -r requirements.txt
 ```
 
-### 2. 전체 테스트 스위트 실행 (94개 테스트 전수 100% Pass)
+### 2. 전체 테스트 스위트 실행 (100개 테스트 전수 100% Pass)
 ```bash
 python -m pytest test_case/ -v
 ```
 
 ### 3. 모듈별 단위 테스트 실행
 ```bash
+# [1번 코어 R&R] LangGraph ReAct Walk Planning Agent 전주기 오케스트레이션
+python -m pytest test_case/test_langgraph_walk_agent.py -v
+
 # [Epic A & E] AI 의도 파싱, Local-First 프로필, 무상태 피드백 보정
 python -m pytest test_case/test_walk_plan_agent_schema.py -v
 
