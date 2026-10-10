@@ -200,7 +200,7 @@ graph LR
 
 ## 👥 6. 5인 팀 R&R 및 애자일 스펙 (Team Roles & Agile Backlog)
 
-편안하개 프로젝트는 5인 전담 R&R과 **15개 핵심 애자일 사용자 스토리 (총 62 Story Points / 298 Hours, Phase 2 확장 별도)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](file:///d:/코디세이/pet_walk_t01/docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md))
+편안하개 프로젝트는 5인 전담 R&R과 **15개 핵심 애자일 사용자 스토리 (총 62 Story Points / 298 Hours, Phase 2 확장 별도)** 체계로 운영됩니다. (상세 명세: [`02_편안하개_Team_building.md`](docs/02_편안하개_Team_building.md), [`03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md), [`06_편안하개_프로젝트_수행계획서_일정.md`](docs/06_편안하개_프로젝트_수행계획서_일정.md))
 
 | 번호 | 역할 명칭 (포지션) | 담당 팀원 | 핵심 R&R 및 주요 산출물 | 연계 사용자 스토리 |
 |:---:|---|:---:|---|:---:|
