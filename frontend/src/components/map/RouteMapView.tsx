@@ -7,11 +7,12 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable, Image } from 'react-native';
 import Svg, { Polyline, Circle, G, Text as SvgText, Rect, Path, Defs, Pattern } from 'react-native-svg';
 import { TOKENS } from '../../theme/tokens';
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature, SegmentType } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
+import { calculateOsmTiles } from '../../services/osmTileService';
 import { CourseSummaryCard } from './CourseSummaryCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -63,22 +64,15 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   const project = useMemo(() => {
     if (allCoords.length === 0) return () => ({ x: 0, y: 0 });
 
-    const lons = allCoords.map((c: LonLat) => c[0]);
-    const lats = allCoords.map((c: LonLat) => c[1]);
-    const minLon = Math.min(...lons);
-    const maxLon = Math.max(...lons);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
+    const lons = allCoords.map((c: LonLat) => c[0]), lats = allCoords.map((c: LonLat) => c[1]);
+    const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
 
     const padding = 40;
-    const innerW = MAP_WIDTH - padding * 2;
-    const innerH = MAP_HEIGHT - padding * 2;
-    const lonSpan = Math.max(maxLon - minLon, 1e-9);
-    const latSpan = Math.max(maxLat - minLat, 1e-9);
-
+    const innerW = MAP_WIDTH - padding * 2, innerH = MAP_HEIGHT - padding * 2;
+    const lonSpan = Math.max(maxLon - minLon, 1e-9), latSpan = Math.max(maxLat - minLat, 1e-9);
     const scale = Math.min(innerW / lonSpan, innerH / latSpan);
-    const offsetX = padding + (innerW - lonSpan * scale) / 2;
-    const offsetY = padding + (innerH - latSpan * scale) / 2;
+    const offsetX = padding + (innerW - lonSpan * scale) / 2, offsetY = padding + (innerH - latSpan * scale) / 2;
 
     return ([lon, lat]: LonLat) => ({
       x: offsetX + (lon - minLon) * scale,
@@ -90,6 +84,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 
   const startPt = project(allCoords[0]);
   const selectedPin = stepPins.find((p: RouteStepPin) => p.id === selectedPinId);
+  const tiles = useMemo(() => calculateOsmTiles(allCoords, project, 15), [allCoords, project]);
 
   const handlePinPress = (pin: RouteStepPin) => {
     setSelectedPinId(pin.id);
@@ -100,6 +95,18 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     <View style={styles.container}>
       {/* 지도 캔버스 영역 */}
       <View style={styles.mapCanvas}>
+        {/* 실제 OpenStreetMap 도로/공원 배경 타일 레이어 */}
+        <View style={StyleSheet.absoluteFill}>
+          {tiles.map((tile) => (
+            <Image
+              key={tile.key}
+              source={{ uri: tile.url }}
+              style={[styles.osmTile, { left: tile.x, top: tile.y, width: tile.width, height: tile.height }]}
+              resizeMode="cover"
+            />
+          ))}
+        </View>
+
         <Svg width={MAP_WIDTH} height={MAP_HEIGHT}>
           <Defs>
             <Pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
@@ -208,13 +215,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  pinTouchTarget: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    zIndex: 10,
-  },
+  osmTile: { position: 'absolute', opacity: 0.9 },
+  pinTouchTarget: { position: 'absolute', width: 32, height: 32, borderRadius: 16, zIndex: 10 },
   legend: {
     position: 'absolute',
     top: 10,
@@ -234,14 +236,8 @@ const styles = StyleSheet.create({
   legendBar: { width: 14, height: 4, borderRadius: 2 },
   legendLabel: { fontSize: 10, color: TOKENS.colors.textMain, fontWeight: '500' },
   briefingBanner: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: TOKENS.colors.textMain,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    position: 'absolute', bottom: 10, left: 10, right: 10,
+    backgroundColor: TOKENS.colors.textMain, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12,
   },
   briefingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   summaryWrapper: { marginTop: 12 },

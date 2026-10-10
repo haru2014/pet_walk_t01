@@ -5,7 +5,7 @@
  * 지도 프리뷰, 3대 안심 지표(경사/노면/그늘), 추천 사유 카드, 대체 코스 선택
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { TOKENS } from '../../theme/tokens';
 import { DogProfile } from '../../types/dogProfile';
 import {
@@ -39,13 +40,26 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onStartWalk,
   onPinSelect,
 }) => {
-  const [courses] = useState<readonly RecommendedCourse[]>(
+  const [courses, setCourses] = useState<readonly RecommendedCourse[]>(
     DEFAULT_RECOMMENDED_COURSES
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    void requestWalkPlan(dog, preferences).then((res) => {
+      if (!isMounted) return;
+      setPlanResult(res);
+      if (res.courses.length > 0) setCourses(res.courses);
+    });
+    return () => { isMounted = false; };
+  }, [dog, preferences]);
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
+  const activeRoute = planResult?.route ?? SAMPLE_ROUTE;
+  const activePins = planResult?.stepPins ?? SAMPLE_STEP_PINS;
 
   // 조건 태그 목록
   const conditionLabels: string[] = [
@@ -78,6 +92,15 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* 듀얼 모드 상태 뱃지 (Live API vs 오프라인 Mock) */}
+        <View style={styles.dualModeBar}>
+          <View style={[styles.dualModeBadge, planResult?.isLiveServer ? styles.badgeLive : styles.badgeOffline]}>
+            <Text style={[styles.dualModeText, planResult?.isLiveServer ? styles.textLive : styles.textOffline]}>
+              {planResult?.isLiveServer ? '🌐 실시간 AI 서버 연결됨' : '🌿 로컬 안심 모드 (오프라인)'}
+            </Text>
+          </View>
+        </View>
+
         {/* 상단 안내 */}
         <View style={styles.titleSection}>
           <View style={styles.sparkleBadge}>
@@ -103,8 +126,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         {/* 인터랙티브 지도 프리뷰 (Phase 3) */}
         <View style={styles.mapWrapper}>
           <RouteMapView
-            route={SAMPLE_ROUTE}
-            stepPins={SAMPLE_STEP_PINS}
+            route={activeRoute}
+            stepPins={activePins}
             speedKmH={dog.speedKmH}
             onStart={() => onStartWalk(currentCourse)}
             onPinSelect={onPinSelect}
