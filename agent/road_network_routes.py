@@ -5,7 +5,10 @@
 """
 
 import json
+import threading
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Tuple, Optional
 
 V1_ROAD_ALIGNED_COORDS: List[List[float]] = [[126.978395, 37.5663], [126.978395, 37.566294], [126.978411, 37.566293], [126.978415, 37.566381], [126.97847, 37.566362], [126.978521, 37.566348], [126.978563, 37.56634], [126.978656, 37.566322], [126.978907, 37.566273], [126.978982, 37.566259], [126.979011, 37.566253], [126.979142, 37.566246], [126.979142, 37.56625], [126.979148, 37.566364], [126.979196, 37.566899], [126.979198, 37.566998], [126.979224, 37.567499], [126.979226, 37.567534], [126.979166, 37.567534], [126.97919, 37.568122], [126.979209, 37.568633], [126.979218, 37.568868], [126.979276, 37.568866], [126.979335, 37.568862], [126.979353, 37.568886], [126.979384, 37.568904], [126.979396, 37.568908], [126.979399, 37.568909], [126.979402, 37.568929], [126.979404, 37.568962], [126.979412, 37.569018], [126.979529, 37.569009], [126.980049, 37.568969], [126.980052, 37.568986], [126.980088, 37.568983], [126.980092, 37.569003], [126.980168, 37.568997], [126.980184, 37.569072], [126.980193, 37.569143], [126.980602, 37.569128], [126.981323, 37.569101], [126.981355, 37.569098], [126.981863, 37.569066], [126.982466, 37.568986], [126.982881, 37.568927], [126.983002, 37.56892], [126.983052, 37.568917], [126.983289, 37.568892], [126.983338, 37.568884], [126.983449, 37.568868], [126.983442, 37.568811], [126.983416, 37.568732], [126.98318, 37.568762], [126.983176, 37.568751], [126.983101, 37.568759], [126.983097, 37.568725], [126.982989, 37.568739], [126.982983, 37.568697], [126.982972, 37.568625], [126.982949, 37.568615], [126.982935, 37.568601], [126.982803, 37.568605], [126.982798, 37.568527], [126.982806, 37.567981], [126.982791, 37.567501], [126.982774, 37.566887], [126.982762, 37.56679], [126.982756, 37.566725], [126.982752, 37.566633], [126.98276, 37.566224], [126.982759, 37.566087], [126.982799, 37.566086], [126.982759, 37.566087], [126.982748, 37.565975], [126.982735, 37.565879], [126.982568, 37.565881], [126.98248, 37.565887], [126.982417, 37.565889], [126.982351, 37.56587], [126.982321, 37.565851], [126.982289, 37.565829], [126.982224, 37.56578], [126.982158, 37.565827], [126.982087, 37.565868], [126.981899, 37.565885], [126.981628, 37.565885], [126.981554, 37.565886], [126.981477, 37.565886], [126.980643, 37.565888], [126.980527, 37.565889], [126.980445, 37.565888], [126.979984, 37.56589], [126.97981, 37.56589], [126.979723, 37.565892], [126.979724, 37.565967], [126.97919, 37.565969], [126.978905, 37.56589], [126.978978, 37.56601], [126.979033, 37.566107], [126.979096, 37.566175], [126.979142, 37.566246], [126.979011, 37.566253], [126.978982, 37.566259], [126.978907, 37.566273], [126.978656, 37.566322], [126.978563, 37.56634], [126.978521, 37.566348], [126.97847, 37.566362], [126.978415, 37.566381], [126.978411, 37.566293], [126.978395, 37.566294], [126.978395, 37.5663]]
@@ -192,13 +195,71 @@ V3_ROAD_STEPS: List[Dict[str, Any]] = [
 ]
 
 
+# ------------------------------------------------------------------------------
+# [3번 서버] OSRM 응답 TTL 캐시 (US-A3 지연 목표 1.5초)
+#   - 같은 경유점 조합은 10분간 재사용 → 반복 요청은 외부 호출 없이 즉시 응답
+#   - 실패(None)는 캐시하지 않아 다음 요청에서 재시도
+# ------------------------------------------------------------------------------
+OSRM_DEFAULT_TIMEOUT_SECONDS = 1.2   # 전체 /walk/plan 응답 1.5초 목표에 맞춘 외부 호출 상한
+OSRM_CACHE_TTL_SECONDS = 600.0
+_OSRM_CACHE: Dict[Tuple, Tuple[float, Tuple[List[List[float]], float, float]]] = {}
+_OSRM_CACHE_LOCK = threading.Lock()
+
+
+def _osrm_cache_key(waypoints: List[Tuple[float, float]]) -> Tuple:
+    return tuple((round(lat, 6), round(lon, 6)) for lat, lon in waypoints)
+
+
+def clear_osrm_cache() -> None:
+    """테스트/운영 점검용 캐시 초기화."""
+    with _OSRM_CACHE_LOCK:
+        _OSRM_CACHE.clear()
+
+
+def osrm_cache_size() -> int:
+    with _OSRM_CACHE_LOCK:
+        return len(_OSRM_CACHE)
+
+
 def fetch_osrm_foot_route(
     waypoints: List[Tuple[float, float]],
-    timeout_seconds: float = 1.8
+    timeout_seconds: float = OSRM_DEFAULT_TIMEOUT_SECONDS,
+    use_cache: bool = True,
 ) -> Optional[Tuple[List[List[float]], float, float]]:
-    """OpenStreetMap Public OSRM Foot Routing Engine을 호출하여 실제 보행로 좌표열 수신."""
+    """OpenStreetMap Public OSRM Foot Routing Engine을 호출하여 실제 보행로 좌표열 수신 (10분 TTL 캐시)."""
     if len(waypoints) < 2:
         return None
+
+    key = _osrm_cache_key(waypoints)
+    now = time.monotonic()
+    if use_cache:
+        with _OSRM_CACHE_LOCK:
+            hit = _OSRM_CACHE.get(key)
+            if hit and now - hit[0] < OSRM_CACHE_TTL_SECONDS:
+                return hit[1]
+
+    result = _fetch_osrm_foot_route_uncached(waypoints, timeout_seconds)
+    if result is not None and use_cache:
+        with _OSRM_CACHE_LOCK:
+            _OSRM_CACHE[key] = (now, result)
+    return result
+
+
+def fetch_osrm_foot_routes_parallel(
+    waypoint_sets: List[List[Tuple[float, float]]],
+    timeout_seconds: float = OSRM_DEFAULT_TIMEOUT_SECONDS,
+) -> List[Optional[Tuple[List[List[float]], float, float]]]:
+    """여러 경유점 세트를 동시에 OSRM 에 질의 (순차 3회 ≈ 3초 → 병렬 ≈ 1회분)."""
+    if not waypoint_sets:
+        return []
+    with ThreadPoolExecutor(max_workers=max(1, len(waypoint_sets))) as pool:
+        return list(pool.map(lambda w: fetch_osrm_foot_route(w, timeout_seconds), waypoint_sets))
+
+
+def _fetch_osrm_foot_route_uncached(
+    waypoints: List[Tuple[float, float]],
+    timeout_seconds: float,
+) -> Optional[Tuple[List[List[float]], float, float]]:
     try:
         pts_str = ';'.join(f'{lon:.6f},{lat:.6f}' for lat, lon in waypoints)
         url = f'https://routing.openstreetmap.de/routed-foot/route/v1/foot/{pts_str}?overview=full&geometries=geojson'

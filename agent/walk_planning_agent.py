@@ -9,6 +9,7 @@ r"""[US-A1, US-A3, US-B1~B3, US-E3] LangGraph ReAct Walk Planning Agent Orchestr
 """
 
 import math
+from concurrent.futures import ThreadPoolExecutor
 import re
 from typing import List, Dict, Any, Optional, Literal, Tuple, TypedDict, Annotated
 from pydantic import BaseModel, Field, ValidationError
@@ -325,7 +326,7 @@ GENERAL_GRID_DELTAS: Dict[int, Tuple[float, float]] = {
 def _generate_seoul_center_loop(variant: int) -> tuple[List[List[float]], List[Dict[str, Any]]]:
     """서울 도심 권역 실시간 OSRM 또는 고정밀 보행 도로망 노드 루프 반환."""
     cfg = SEOUL_VARIANT_CONFIG.get(variant, SEOUL_VARIANT_CONFIG[3])
-    live_res = fetch_osrm_foot_route(cfg["waypoints"], timeout_seconds=1.5)
+    live_res = fetch_osrm_foot_route(cfg["waypoints"])
     if live_res and len(live_res[0]) >= 10:
         return live_res[0], cfg["steps"]
     return cfg["fallback"], cfg["steps"]
@@ -345,7 +346,7 @@ def _generate_general_grid_loop(
         (origin_lat + d_lat, origin_lon + d_lon),
         (origin_lat, origin_lon + d_lon),
         (origin_lat, origin_lon),
-    ], timeout_seconds=1.2)
+    ])
     if live_res and len(live_res[0]) >= 8:
         coords = live_res[0]
         dist = live_res[1]
@@ -382,6 +383,16 @@ def _generate_road_aligned_loop(
     return _generate_general_grid_loop(origin_lat, origin_lon, variant)
 
 
+def _generate_loops_parallel(
+    origin_lat: float,
+    origin_lon: float,
+    variants: Tuple[int, ...] = (1, 2, 3),
+) -> List[tuple[List[List[float]], List[Dict[str, Any]]]]:
+    """후보 variant 별 도로망 루프를 스레드 병렬로 생성 (각 호출은 내부적으로 OSRM TTL 캐시 사용)."""
+    with ThreadPoolExecutor(max_workers=len(variants)) as pool:
+        return list(pool.map(lambda v: _generate_road_aligned_loop(origin_lat, origin_lon, v), variants))
+
+
 def mock_generate_loop_candidates(
     origin_lat: float,
     origin_lon: float,
@@ -391,10 +402,13 @@ def mock_generate_loop_candidates(
     max_slope_allowed: float,
     preferred_surfaces: List[str]
 ) -> List[RouteCandidate]:
-    """[US-A3, US-B1] Routing API Adapter 실제 도로망 추종 순환 루프 후보 3종 생성기."""
-    c1_coords, c1_steps = _generate_road_aligned_loop(origin_lat, origin_lon, variant=1)
-    c2_coords, c2_steps = _generate_road_aligned_loop(origin_lat, origin_lon, variant=2)
-    c3_coords, c3_steps = _generate_road_aligned_loop(origin_lat, origin_lon, variant=3)
+    """[US-A3, US-B1] Routing API Adapter 실제 도로망 추종 순환 루프 후보 3종 생성기.
+
+    세 후보의 OSRM 호출을 동시에 보내 순차 대기(≈3초)를 1회분(≈1초)으로 줄인다 (지연 목표 1.5초).
+    """
+    (c1_coords, c1_steps), (c2_coords, c2_steps), (c3_coords, c3_steps) = _generate_loops_parallel(
+        origin_lat, origin_lon, variants=(1, 2, 3)
+    )
 
     # 후보 1: 최적 무장애 흙길·수변 그늘길 루프 (모전교~광통교~광교~을지로1가)
     c1 = RouteCandidate(
