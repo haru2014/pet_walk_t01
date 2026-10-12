@@ -10,6 +10,10 @@ import pytest
 from typing import List
 
 from agent.surface_slope_evaluator import (
+    MAX_WALKABLE_SLOPE_PERCENT,
+    apply_barrier_free_constraints,
+    exclude_steep_links,
+    filter_links_avoiding_stairs,
     estimate_elevation_m,
     calculate_segment_slope_percent,
     classify_segment_risk,
@@ -150,3 +154,64 @@ class TestSurfaceSlopeEvaluator:
         # 서울숲 평지 산책로의 경우 safe 등급 세그먼트가 최소 1개 이상 존재해야 함
         types = [f["properties"]["segmentType"] for f in geojson["features"]]
         assert "safe" in types
+
+
+class TestBarrierFreeConstraints:
+    """[US-B1] 무장애길 하드 제약: 계단 배제 및 15도(약 26.8%) 이상 급경사 배제."""
+
+    def test_slope_limit_equals_15_degrees(self):
+        """한계 경사도가 tan(15°) x 100 = 약 26.8% 인지 검증."""
+        assert MAX_WALKABLE_SLOPE_PERCENT == pytest.approx(26.8, abs=0.05)
+
+    def test_stairs_links_are_removed_and_reported(self, mock_osm_network_links):
+        """계단 링크가 제거되고, 제거된 계단의 수와 위치(id)가 메타데이터로 전달되는지 검증."""
+        filtered, meta = filter_links_avoiding_stairs(mock_osm_network_links)
+        assert all(l["highway"] != "steps" for l in filtered)
+        assert len(filtered) == len(mock_osm_network_links) - 1
+        assert meta["has_stairs"] is False
+        assert meta["stairs_avoidance_applied"] is True
+        assert meta["removed_stairs_count"] == 1
+        assert meta["removed_stairs_link_ids"] == ["link-steps-01"]
+
+    def test_no_stairs_reports_zero_removed(self):
+        """계단이 없는 네트워크에서는 제거 수 0, 링크는 그대로 유지되는지 검증."""
+        links = [{"id": "a", "highway": "footway", "length_m": 10.0}]
+        filtered, meta = filter_links_avoiding_stairs(links)
+        assert filtered == links
+        assert meta["removed_stairs_count"] == 0
+        assert meta["removed_stairs_link_ids"] == []
+
+    def test_steep_links_over_15_degrees_are_excluded(self):
+        """26.8% 이상은 제외하고, 그 미만(급경사 11.2% 포함)은 유지하는지 경계값으로 검증."""
+        links = [
+            {"id": "gentle", "slope_percent": 2.0},
+            {"id": "steep-but-walkable", "slope_percent": 11.2},
+            {"id": "just-below", "slope_percent": 26.7},
+            {"id": "at-limit", "slope_percent": MAX_WALKABLE_SLOPE_PERCENT},
+            {"id": "too-steep", "slope_percent": 40.0},
+        ]
+        kept, meta = exclude_steep_links(links)
+        assert [l["id"] for l in kept] == ["gentle", "steep-but-walkable", "just-below"]
+        assert meta["excluded_steep_count"] == 2
+        assert meta["excluded_steep_link_ids"] == ["at-limit", "too-steep"]
+        assert meta["max_slope_limit_percent"] == 26.8
+
+    def test_missing_slope_is_treated_as_flat(self):
+        """slope_percent 가 없는 링크는 0% 로 보고 유지하는지 검증."""
+        kept, meta = exclude_steep_links([{"id": "no-slope"}])
+        assert [l["id"] for l in kept] == ["no-slope"]
+        assert meta["excluded_steep_count"] == 0
+
+    def test_apply_barrier_free_constraints_combines_both(self, mock_osm_network_links):
+        """계단 배제와 급경사 배제가 함께 적용되고 메타데이터가 합쳐지는지 검증."""
+        links = mock_osm_network_links + [
+            {"id": "link-cliff", "highway": "path", "length_m": 20.0, "slope_percent": 35.0},
+        ]
+        result, meta = apply_barrier_free_constraints(links)
+        ids = [l["id"] for l in result]
+        assert "link-steps-01" not in ids
+        assert "link-cliff" not in ids
+        assert "link-steep-01" in ids  # 11.2% 는 15도 미만이므로 유지
+        assert meta["is_barrier_free"] is True
+        assert meta["removed_stairs_count"] == 1
+        assert meta["excluded_steep_count"] == 1
