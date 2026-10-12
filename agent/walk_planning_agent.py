@@ -128,6 +128,17 @@ def get_standard_speed_kmh(weight_kg: float, age_years: int, joint_care_level: i
 # ==============================================================================
 
 def _extract_target_duration(query_str: str) -> Optional[int]:
+    """자연어 발화에서 목표 산책 시간(분) 추출 (10~90분 클램핑)."""
+    # 1. 1시간 반, 한시간 30분 등 복합 표현
+    if re.search(r"(?:1\s*시간|한\s*시간)\s*(?:반|30\s*분)", query_str):
+        return 90
+    # 2. 1시간, 한시간 등 60분 표현
+    if re.search(r"(?:1\s*시간|한\s*시간|한시간)", query_str):
+        return 60
+    # 3. 반시간 (30분)
+    if "반시간" in query_str:
+        return 30
+    # 4. 숫자 + 분/min 정규식
     match = re.search(r"(\d{1,3})\s*(?:분|min)", query_str)
     if match:
         dur = int(match.group(1))
@@ -155,20 +166,32 @@ def _extract_preferred_surfaces(query_str: str) -> List[AllowedSurface]:
         surfaces.append("dirt")
     if "잔디" in query_str:
         surfaces.append("grass")
-    if "탄성" in query_str or "우레탄" in query_str:
+    if "탄성" in query_str or "우레탄" in query_str or "폭신" in query_str:
         surfaces.append("rubber")
     return surfaces
 
 
 def parse_natural_language_walk_query(user_query: str) -> WalkIntent:
-    """[US-A1] 자연어 발화에서 시간, 계단, 경사, 그늘, 노면 의도 엔티티 파싱."""
+    """[US-A1] 자연어 발화에서 시간, 계단, 경사, 그늘, 노면 의도 엔티티 파싱 및 불명확 질의 Fallback."""
     if not user_query or not user_query.strip():
         return build_fallback_walk_intent()
 
-    intent = WalkIntent()
     query_str = user_query.strip()
-
     duration = _extract_target_duration(query_str)
+
+    # 산책 의도 핵심 키워드 유무 확인
+    intent_keywords = [
+        "계단", "경사", "완만", "평지", "언덕", "가파른", "그늘", "시원한",
+        "더워", "낮", "햇빛", "햇볕", "흙", "잔디", "탄성", "우레탄",
+        "폭신", "아스팔트", "시간", "분", "min"
+    ]
+    has_intent_keywords = any(k in query_str for k in intent_keywords)
+
+    # 시간도 없고 의도 키워드도 전무한 불명확 질의(예: '안녕', '???')는 안전 기본값 Fallback
+    if duration is None and not has_intent_keywords:
+        return build_fallback_walk_intent()
+
+    intent = WalkIntent()
     if duration is not None:
         intent.target_duration_minutes = duration
 

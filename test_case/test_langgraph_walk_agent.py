@@ -199,3 +199,115 @@ class TestCandidateRouteScorerMultiFactorBreakdown:
         assert scored.thermal_score == 20.0
         assert scored.distance_score == 20.0
         assert scored.total_score == 100.0
+
+
+class TestNaturalLanguageWalkIntentParser:
+    """[US-A1] 자연어 파서 상세 케이스 검증 (다양한 한국어 시간 표현, 노면, 계단, 모호 질의)."""
+
+    def test_korean_hour_expressions(self):
+        """'1시간', '한시간 반', '반시간' 등 자연스러운 한국어 시간 표현 엔티티 추출 검증."""
+        intent_1h = parse_natural_language_walk_query("오늘 날씨 좋아서 1시간 동안 산책할래")
+        assert intent_1h.target_duration_minutes == 60
+
+        intent_half_h = parse_natural_language_walk_query("가볍게 반시간만 돌고 오자")
+        assert intent_half_h.target_duration_minutes == 30
+
+        intent_90m = parse_natural_language_walk_query("오늘은 여유 있어서 한시간 반 코스로 가자")
+        assert intent_90m.target_duration_minutes == 90
+
+    def test_surface_and_stairs_extraction(self):
+        """'폭신한 흙길', '계단 절대 피해' 등 표면/제약조건 추출 검증."""
+        intent = parse_natural_language_walk_query("계단 없는 폭신한 흙길과 잔디로 30분 코스 찾아줘")
+        assert intent.avoid_stairs is True
+        assert intent.target_duration_minutes == 30
+        assert "dirt" in intent.preferred_surfaces or "grass" in intent.preferred_surfaces
+
+    def test_meaningless_query_fallback(self):
+        """산책 의도 키워드가 전무한 불명확 질의 입력 시 안전 기본 프리셋 반환 검증."""
+        intent_greeting = parse_natural_language_walk_query("안녕하세요")
+        assert intent_greeting.target_duration_minutes == 20
+        assert intent_greeting.avoid_stairs is True
+        assert intent_greeting.extraction_confidence == 0.60
+
+
+class TestDogSpeedModelAndDistanceFormula:
+    """[US-A3] 체급별(소형/중형/대형/노령견) 표준 보행 속도 상수 및 거리 환산 검증."""
+
+    def test_speed_constants_by_dog_type(self):
+        """체중, 연령, 관절케어 수준에 따른 정확한 속도 상수 반환 검증."""
+        # 1. 소형견 (체중 < 10kg, 성견, 케어 0~1) -> 2.8 km/h
+        assert get_standard_speed_kmh(weight_kg=4.5, age_years=3, joint_care_level=1) == 2.8
+
+        # 2. 중형견 (10kg <= 체중 < 25kg, 성견, 케어 0~1) -> 3.6 km/h
+        assert get_standard_speed_kmh(weight_kg=14.0, age_years=4, joint_care_level=0) == 3.6
+
+        # 3. 대형견 (체중 >= 25kg, 성견, 케어 0~1) -> 4.2 km/h
+        assert get_standard_speed_kmh(weight_kg=32.0, age_years=3, joint_care_level=0) == 4.2
+
+        # 4. 노령견 (age >= 8) -> 2.2 km/h
+        assert get_standard_speed_kmh(weight_kg=4.5, age_years=9, joint_care_level=0) == 2.2
+
+        # 5. 관절 안심 케어 수준 2 이상 -> 2.2 km/h
+        assert get_standard_speed_kmh(weight_kg=15.0, age_years=3, joint_care_level=2) == 2.2
+
+    def test_distance_formula_conversion(self):
+        """D = V * T 환산 공식 검증 (예: 3.6 km/h로 30분 산책 시 1,800m)."""
+        speed_kmh = 3.6
+        duration_min = 30
+        target_dist_m = round((speed_kmh * 1000.0 / 60.0) * duration_min, 1)
+        assert target_dist_m == 1800.0
+
+
+class TestPydanticV2StrictSchemaValidation:
+    """Pydantic V2 Strict Schema 검증 오류 핸들링."""
+
+    def test_walk_intent_out_of_bounds_validation(self):
+        """산책 목표 시간이 허용 범위(10~90분)를 벗어나면 ValidationError 발생 검증."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            WalkIntent(target_duration_minutes=5)  # 최소 10분 미만
+
+        with pytest.raises(ValidationError):
+            WalkIntent(target_duration_minutes=120)  # 최대 90분 초과
+
+    def test_client_dog_context_validation(self):
+        """반려견 프로필 필수 필드 및 제약조건 검증."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ClientDogContext(weight_kg=-2.0)  # 음수 체중 불가
+
+        with pytest.raises(ValidationError):
+            ClientDogContext(age_years=-1)  # 음수 연령 불가
+
+
+class TestFastApiAgentIntegration:
+    """FastAPI 엔드포인트와 LangGraph Walk Planning Agent 결합 검증."""
+
+    def test_plan_endpoint_with_custom_user_query(self):
+        """POST /api/v1/walk/plan 엔드포인트에 자연어 질의와 체급 프로필 전달 시 정상 처리 검증."""
+        from fastapi.testclient import TestClient
+        from main import app
+
+        client = TestClient(app)
+        payload = {
+            "dog_name": "맥스",
+            "breed": "골든 리트리버",
+            "weight_kg": 32.0,
+            "age_years": 3,
+            "user_query": "맥스와 45분 동안 계단 없는 완만한 그늘길 걷고 싶어요",
+            "origin_lat": 37.5665,
+            "origin_lon": 126.9780
+        }
+
+        resp = client.post("/api/v1/walk/plan", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert "courses" in data
+        assert len(data["courses"]) >= 1
+        best_course = data["courses"][0]
+        assert best_course["stairsCount"] == "0회"
+        assert "맥스" in data["summary"] or "골든 리트리버" in data["summary"]
+

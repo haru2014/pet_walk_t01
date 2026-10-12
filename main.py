@@ -207,12 +207,19 @@ def plan_walk_route(req: Dict[str, Any]):
     origin_lat = req.get("origin_lat", 37.5665)
     origin_lon = req.get("origin_lon", 126.9780)
 
-    user_query = f"{dog_name}와 {target_duration}분 동안 폭신한 길 위주로 걷고 싶어요."
+    user_query = (
+        req.get("user_query")
+        or req.get("prompt")
+        or req.get("query")
+        or f"{dog_name}와 {target_duration}분 동안 폭신한 길 위주로 걷고 싶어요."
+    )
 
     client_dog = {
         "dog_id": req.get("dog_id", "dog_default"),
         "name": dog_name,
-        "breed": "반려견",
+        "breed": req.get("breed", "반려견"),
+        "age_years": req.get("age_years", 4),
+        "weight_kg": req.get("weight_kg", 4.0),
         "speed_kmh": req.get("speed_kmh", 2.8),
         "joint_care_level": req.get("joint_care_level", 1),
     }
@@ -251,6 +258,7 @@ def plan_walk_route(req: Dict[str, Any]):
             "step_pins": step_pins,
             "course_plans": course_plans,
             "briefing": agent_result.briefing_message,
+            "summary": agent_result.briefing_message,
             "score": agent_result.best_score,
             "is_live_server": True,
         }
