@@ -2,7 +2,7 @@
 
 사용자의 실제 출발 좌표와 목표 거리에서 원형 웨이포인트를 만들고,
 OSRM 보행 라우팅(Footway) 결과의 실측 거리가 목표에서 벗어나면 웨이포인트 반경을 보정한다.
-3개 대안 코스(방향별)는 병렬로 질의하여 응답 지연을 줄인다.
+3개 대안 코스(방향별)는 병렬로 질의하고, 각 코스의 반경 보정도 배율 3종을 동시에 질의해 응답 지연(목표 ≤1.5초)을 줄인다.
 
 오프라인(OSRM 실패) 시에는 서울광장 인근 한정 정적 도로망 좌표 또는
 목표 거리에 맞춘 직사각형 폴백을 사용한다. 직사각형 폴백은 건물을 관통할 수 있는 임시 대체 수단이다.
@@ -41,8 +41,12 @@ LOOP_WAYPOINT_COUNT = 6
 DISTANCE_TOLERANCE = 0.10  # 이 오차 이내이면 보정 종료 (인수 조건 ±15% 에 여유 확보)
 MAX_REFINEMENTS = 2
 SCALE_LIMITS = (0.4, 2.5)
-OSRM_TIMEOUT_S = 1.5
-PLAN_TIME_BUDGET_S = 3.0
+# [3번 서버] 지연 목표 ≤1.5초: OSRM 1회 상한 1.2초, 후보 생성 전체 예산 1.3초.
+#   첫 라운드는 반경 배율 3종을 '동시에' 질의해(투기적 병렬) 순차 보정 2~3회(≈1초×N)를 1회분으로 압축한다.
+#   추가 보정은 남은 예산이 직전 라운드 소요 시간 이상일 때만 수행한다.
+OSRM_TIMEOUT_S = 1.2
+PLAN_TIME_BUDGET_S = 1.3
+SPECULATIVE_SCALES: Tuple[float, ...] = (0.8, 1.0, 1.25)
 MAX_BACKTRACK_RATIO = 0.15
 MAX_CLOSURE_GAP_M = 15.0
 STATIC_MATCH_RADIUS_M = 300.0
@@ -106,21 +110,49 @@ def _plan_live(
     variant: int,
     deadline: float,
 ) -> Optional[LoopPlan]:
-    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다."""
+    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다.
+
+    1라운드: 반경 배율 SPECULATIVE_SCALES 를 병렬 질의 → 유효 루프 중 목표 거리 오차 최소를 채택.
+    2라운드~: 오차가 허용치보다 크고, 남은 예산이 직전 라운드 소요 시간 이상일 때만 단일 보정 질의.
+    """
     loop_length = target_distance_m / DETOUR_FACTOR
     best: Optional[Tuple[List[List[float]], float]] = None
-    for _ in range(MAX_REFINEMENTS + 1):
-        waypoints = build_loop_waypoints(origin_lat, origin_lon, loop_length, VARIANT_BEARINGS[variant])
+
+    def evaluate(length_m: float) -> Optional[Tuple[List[List[float]], float, float]]:
+        waypoints = build_loop_waypoints(origin_lat, origin_lon, length_m, VARIANT_BEARINGS[variant])
         coords = _route_waypoints(waypoints)
         if coords is None:
+            return None
+        measured = polyline_length_m(coords)
+        return coords, measured, abs(measured - target_distance_m) / target_distance_m
+
+    scales: Tuple[float, ...] = SPECULATIVE_SCALES
+    for _ in range(MAX_REFINEMENTS + 1):
+        round_started = time.monotonic()
+        lengths = [loop_length * sc for sc in scales]
+        if len(lengths) == 1:
+            results = [evaluate(lengths[0])]
+        else:
+            with ThreadPoolExecutor(max_workers=len(lengths)) as pool:
+                results = list(pool.map(evaluate, lengths))
+        round_elapsed = time.monotonic() - round_started
+
+        anchor: Optional[Tuple[float, float]] = None  # (사용한 loop_length, 실측 길이) — 다음 보정 기준
+        for length_m, res in zip(lengths, results):
+            if res is None:
+                continue
+            coords, measured, error = res
+            if anchor is None or error < abs(anchor[1] - target_distance_m) / target_distance_m:
+                anchor = (length_m, measured)
+            if _is_valid_loop(coords) and (best is None or error < best[1]):
+                best = (coords, error)
+        if anchor is None:
             break
-        length = polyline_length_m(coords)
-        error = abs(length - target_distance_m) / target_distance_m
-        if _is_valid_loop(coords) and (best is None or error < best[1]):
-            best = (coords, error)
-        if error <= DISTANCE_TOLERANCE or time.monotonic() >= deadline:
+        if (best is not None and best[1] <= DISTANCE_TOLERANCE) or time.monotonic() + round_elapsed > deadline:
             break
-        loop_length *= min(max(target_distance_m / length, SCALE_LIMITS[0]), SCALE_LIMITS[1])
+        loop_length = anchor[0] * min(max(target_distance_m / anchor[1], SCALE_LIMITS[0]), SCALE_LIMITS[1])
+        scales = (1.0,)
+
     if best is None or best[1] > DISTANCE_TOLERANCE + 0.05:
         return None
     return _to_plan(best[0], "osrm_live")
