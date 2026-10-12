@@ -103,20 +103,47 @@ def filter_links_avoiding_stairs(
     return filtered, metadata
 
 
+def _slope_magnitude(link: Dict[str, Any]) -> Optional[float]:
+    """링크의 경사 크기(%, 절댓값)를 반환한다. 확인할 수 없는 값은 None 이다.
+
+    None, 숫자가 아닌 값(문자열 등), NaN, 무한대는 '경사 미확인'으로 본다.
+    내리막(음수)도 오르막과 같은 크기의 위험이므로 절댓값으로 비교한다.
+    """
+    value = link.get("slope_percent")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if math.isnan(value) or math.isinf(value):
+        return None
+    return abs(float(value))
+
+
 def exclude_steep_links(
     links: Sequence[Dict[str, Any]],
     max_slope_percent: float = MAX_WALKABLE_SLOPE_PERCENT,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """[US-B1] 경사도가 한계(기본 15도 = 약 26.8%) 이상인 링크를 후보에서 배제한다.
 
-    slope_percent 값이 없는 링크는 0% 로 보고 유지한다.
+    경사를 확인할 수 없는 링크는 배제하지 않고 유지하되, slope_unknown_* 메타데이터로
+    보고한다. 호출 측은 이 링크를 '검증된 무장애길'로 안내하면 안 된다.
     """
-    kept = [l for l in links if l.get("slope_percent", 0.0) < max_slope_percent]
-    excluded = [l for l in links if l.get("slope_percent", 0.0) >= max_slope_percent]
+    kept: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+    unknown: List[Dict[str, Any]] = []
+    for link in links:
+        slope = _slope_magnitude(link)
+        if slope is None:
+            unknown.append(link)
+            kept.append(link)
+        elif slope >= max_slope_percent:
+            excluded.append(link)
+        else:
+            kept.append(link)
     metadata = {
         "max_slope_limit_percent": round(max_slope_percent, 1),
         "excluded_steep_count": len(excluded),
         "excluded_steep_link_ids": [l.get("id") for l in excluded],
+        "slope_unknown_count": len(unknown),
+        "slope_unknown_link_ids": [l.get("id") for l in unknown],
     }
     return kept, metadata
 
@@ -125,10 +152,15 @@ def apply_barrier_free_constraints(
     links: Sequence[Dict[str, Any]],
     max_slope_percent: float = MAX_WALKABLE_SLOPE_PERCENT,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """[US-B1] 계단 배제와 급경사 배제를 순서대로 적용하고 메타데이터를 합쳐 반환한다."""
+    """[US-B1] 계단 배제와 급경사 배제를 순서대로 적용하고 메타데이터를 합쳐 반환한다.
+
+    is_barrier_free 는 남은 링크가 있고 모든 링크의 경사가 확인된 경우에만 True 이다.
+    경사 미확인 링크가 하나라도 있거나 남은 링크가 없으면 False 이다.
+    """
     no_stairs, stairs_meta = filter_links_avoiding_stairs(links)
     barrier_free, slope_meta = exclude_steep_links(no_stairs, max_slope_percent)
-    return barrier_free, {**stairs_meta, **slope_meta, "is_barrier_free": True}
+    verified = bool(barrier_free) and slope_meta["slope_unknown_count"] == 0
+    return barrier_free, {**stairs_meta, **slope_meta, "is_barrier_free": verified}
 
 
 # ==============================================================================

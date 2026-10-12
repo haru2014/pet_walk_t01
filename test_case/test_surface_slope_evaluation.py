@@ -196,11 +196,82 @@ class TestBarrierFreeConstraints:
         assert meta["excluded_steep_link_ids"] == ["at-limit", "too-steep"]
         assert meta["max_slope_limit_percent"] == 26.8
 
-    def test_missing_slope_is_treated_as_flat(self):
-        """slope_percent 가 없는 링크는 0% 로 보고 유지하는지 검증."""
+    @pytest.mark.parametrize(
+        "bad_value",
+        [None, float("nan"), float("inf"), "12", True],
+        ids=["None", "NaN", "inf", "문자열", "bool"],
+    )
+    def test_unknown_slope_is_kept_but_reported(self, bad_value):
+        """경사를 확인할 수 없는 값은 오류 없이 유지하되 미확인으로 보고하는지 검증."""
+        kept, meta = exclude_steep_links([{"id": "bad", "slope_percent": bad_value}])
+        assert [l["id"] for l in kept] == ["bad"]
+        assert meta["excluded_steep_count"] == 0
+        assert meta["slope_unknown_count"] == 1
+        assert meta["slope_unknown_link_ids"] == ["bad"]
+
+    def test_missing_slope_key_is_reported_as_unknown(self):
+        """slope_percent 키가 없는 링크도 평지가 아니라 미확인으로 보고하는지 검증."""
         kept, meta = exclude_steep_links([{"id": "no-slope"}])
         assert [l["id"] for l in kept] == ["no-slope"]
-        assert meta["excluded_steep_count"] == 0
+        assert meta["slope_unknown_link_ids"] == ["no-slope"]
+
+    def test_downhill_negative_slope_uses_magnitude(self):
+        """내리막(음수) 급경사도 크기로 비교해 제외되는지 검증."""
+        links = [
+            {"id": "down-steep", "slope_percent": -30.0},
+            {"id": "down-gentle", "slope_percent": -3.0},
+        ]
+        kept, meta = exclude_steep_links(links)
+        assert [l["id"] for l in kept] == ["down-gentle"]
+        assert meta["excluded_steep_link_ids"] == ["down-steep"]
+
+    def test_no_link_disappears_from_both_lists(self):
+        """어떤 값이 들어와도 모든 링크가 유지/제외/미확인 중 하나로 집계되는지 검증."""
+        values = [2.0, 30.0, None, float("nan"), -40.0, "x"]
+        links = [{"id": f"l{i}", "slope_percent": v} for i, v in enumerate(values)]
+        kept, meta = exclude_steep_links(links)
+        assert len(kept) + meta["excluded_steep_count"] == len(links)
+
+    def test_original_order_is_preserved(self):
+        """유지되는 링크의 원래 순서가 바뀌지 않는지 검증."""
+        links = [
+            {"id": "a", "slope_percent": 1.0},
+            {"id": "b", "slope_percent": None},
+            {"id": "c", "slope_percent": 2.0},
+        ]
+        kept, _ = exclude_steep_links(links)
+        assert [l["id"] for l in kept] == ["a", "b", "c"]
+
+    def test_barrier_free_false_when_slope_unknown(self):
+        """경사 미확인 링크가 있으면 무장애길(검증됨)로 표시하지 않는지 검증."""
+        links = [
+            {"id": "ok", "highway": "footway", "slope_percent": 2.0},
+            {"id": "unknown", "highway": "footway"},
+        ]
+        result, meta = apply_barrier_free_constraints(links)
+        assert [l["id"] for l in result] == ["ok", "unknown"]
+        assert meta["is_barrier_free"] is False
+        assert meta["slope_unknown_link_ids"] == ["unknown"]
+
+    def test_barrier_free_true_only_when_all_slopes_verified(self):
+        """모든 링크의 경사가 확인되고 한계 미만이면 True 인지 검증."""
+        links = [{"id": "ok", "highway": "footway", "slope_percent": 2.0}]
+        _, meta = apply_barrier_free_constraints(links)
+        assert meta["is_barrier_free"] is True
+        assert meta["slope_unknown_count"] == 0
+
+    def test_barrier_free_false_when_no_links_remain(self):
+        """남은 링크가 없으면(빈 입력, 전부 제외) 무장애길로 표시하지 않는지 검증."""
+        _, empty_meta = apply_barrier_free_constraints([])
+        assert empty_meta["is_barrier_free"] is False
+
+        only_hazards = [
+            {"id": "s", "highway": "steps", "slope_percent": 5.0},
+            {"id": "cliff", "highway": "path", "slope_percent": 40.0},
+        ]
+        result, meta = apply_barrier_free_constraints(only_hazards)
+        assert result == []
+        assert meta["is_barrier_free"] is False
 
     def test_apply_barrier_free_constraints_combines_both(self, mock_osm_network_links):
         """계단 배제와 급경사 배제가 함께 적용되고 메타데이터가 합쳐지는지 검증."""
