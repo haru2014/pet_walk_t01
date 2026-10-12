@@ -4,8 +4,16 @@
 핵심 데이터 모델과 테스트 환경을 구성합니다.
 """
 
+import os
+
 import pytest
 from typing import Dict, Any, List
+
+# [3번 서버] 테스트는 항상 인메모리/mock 모드로 돈다.
+# 로컬 .env 에 실제 Supabase 키가 있어도 테스트 데이터가 운영 DB 에 쓰이지 않도록,
+# main.py 의 load_dotenv() 보다 먼저 빈 값으로 고정한다 (load_dotenv 는 이미 있는 값을 덮어쓰지 않음).
+for _var in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "GEMINI_API_KEY", "ORS_API_KEY"):
+    os.environ[_var] = ""
 
 
 @pytest.fixture
