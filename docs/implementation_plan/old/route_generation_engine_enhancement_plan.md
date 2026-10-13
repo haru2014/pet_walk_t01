@@ -3,7 +3,7 @@
 > **문서 버전**: v1.0  
 > **작성 일자**: 2026년 10월 12일  
 > **작성자**: 편안하개 엔지니어링 팀 (Lead: **1번 조현정**, **3번 노희선**, **4번 김승현**, **2번 전황진**)  
-> **기반 문서**: [`docs/03_편안하개_Agile_User_Stories.md`](/docs/03_편안하개_Agile_User_Stories.md), [`agent/walk_planning_agent.py`](/agent/walk_planning_agent.py), [`agent/road_network_routes.py`](/agent/road_network_routes.py)  
+> **기반 문서**: [`docs/03_편안하개_Agile_User_Stories.md`](file:///d:/코디세이/pet_walk_t01/docs/03_편안하개_Agile_User_Stories.md), [`backend/agent/walk_planning_agent.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/walk_planning_agent.py), [`backend/agent/road_network_routes.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/road_network_routes.py)  
 > **대상 사용자 스토리**: **US-A1, US-A3, US-B1, US-B2, US-B3, US-C1**
 
 ---
@@ -68,7 +68,7 @@ graph TD
 ### Step 1. 지오메트리 기반 실제 거리/시간 산출 및 API 파라미터 바인딩 정규화
 
 #### 1.1 지오메트리 실측 계산기 모듈 구축
-- **파일**: [`agent/road_network_routes.py`](/agent/road_network_routes.py), [`agent/walk_planning_agent.py`](/agent/walk_planning_agent.py)
+- **파일**: [`backend/agent/road_network_routes.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/road_network_routes.py), [`backend/agent/walk_planning_agent.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/walk_planning_agent.py)
 - **내용**:
   - `geojson_coordinates`의 연속된 좌표 쌍에 대해 정밀 구면 거리(Haversine Formula)를 누적 계산하는 `calculate_polyline_distance_m(coords)` 함수 도입.
   - 반려견의 체급/연령 맞춤 속도($V_{\text{dog}}$, m/min)를 적용하여 소요 시간을 역산:
@@ -77,7 +77,7 @@ graph TD
   - 턴바이턴 각 단계의 `distance_m` 합계가 전체 코스 길이와 일치하도록 보정.
 
 #### 1.2 `main.py` 요청 DTO 파라미터 유실 제거
-- **파일**: [`main.py`](/main.py)
+- **파일**: [`backend/main.py`](file:///d:/코디세이/pet_walk_t01/backend/main.py)
 - **내용**:
   - 클라이언트가 전달한 `breed`, `age_years`, `weight_kg`, `speed_kmh`, `joint_care_level`이 `run_walk_planning_agent`의 `client_dog_context`로 온전하게 전달되도록 바인딩 로직 수정.
   - 하드코딩된 `breed="반려견"` 제거.
@@ -87,7 +87,7 @@ graph TD
 ### Step 2. 출발지 기반 동적 웨이포인트 루프 생성 엔진 (OSRM 비동기 병렬화)
 
 #### 2.1 다방향 순환 웨이포인트 생성 알고리즘
-- **파일**: [`agent/road_network_routes.py`](/agent/road_network_routes.py)
+- **파일**: [`backend/agent/road_network_routes.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/road_network_routes.py)
 - **내용**:
   - 사용자의 임의 출발지 $(lat_0, lon_0)$와 목표 거리 $D_{\text{target}}$에 대해, 목표 순환 반경 $R \approx \frac{D_{\text{target}}}{2.8 \pi}$를 산출.
   - 3가지 서로 다른 테마의 순환 웨이포인트 세트 생성:
@@ -104,7 +104,7 @@ graph TD
 ### Step 3. 지오메트리 무결성(폐곡선, 왕복률 15% 이하, ±15% 오차) 자동 테스트 구축
 
 #### 3.1 신규 테스트 모듈 작성
-- **파일**: `test_case/test_route_geometry_validation.py`
+- **파일**: `backend/test_case/test_route_geometry_validation.py`
 - **테스트 케이스**:
   1. `test_route_loop_closure`:
      - 모든 후보 경로의 출발점과 도착점 간 거리 $\le 15\text{m}$ (순환 폐곡선 보장).
@@ -120,9 +120,9 @@ graph TD
 ### Step 4. 건물 관통 방지(Building Avoidance) 공간 교차 회귀 테스트 체계
 
 #### 4.1 공간 기하 검증 모듈 구축
-- **파일**: `test_case/test_building_avoidance.py`
+- **파일**: `backend/test_case/test_building_avoidance.py`
 - **내용**:
-  - 주요 테스트 권역(서울광장/시청 일대, 강남역 일대, 성수동 서울숲 일대)의 실제 OSM 건물 외곽선 폴리곤 캐시 픽스처(`fixtures/building_polygons_*.json`) 마련.
+  - 주요 테스트 권역(서울광장/시청 일대, 강남역 일대, 성수동 서울숲 일대)의 실제 OSM 건물 외곽선 폴리곤 캐시 픽스처(`backend/fixtures/building_polygons_*.json`) 마련.
   - 생성된 산책 경로의 모든 선분(LineSegment)과 건물 폴리곤 간의 2D 선분 교차(Intersection) 및 중점 포함(Point-in-Polygon) 검사 수행.
   - **인수 기준**: 보행 전용 통로/필로티로 공식 지정된 링크를 제외하고, 건물 외벽을 사선으로 관통하는 링크 비율 **0.0% 검증**.
 
@@ -131,7 +131,7 @@ graph TD
 ### Step 5. 무결성 도로망 오프라인 폴백 아키텍처 (직선 격자 퇴출)
 
 #### 5.1 사각형 직선 폴백(`_generate_general_grid_loop`) 완전 제거
-- **파일**: [`agent/walk_planning_agent.py`](/agent/walk_planning_agent.py)
+- **파일**: [`backend/agent/walk_planning_agent.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/walk_planning_agent.py)
 - **개선안**:
   - OSRM 네트워크 단절 또는 타임아웃 발생 시, 기존의 "빌딩을 관통하는 직사각형 좌표" 생성을 영구 중단.
   - **대체 전략**:
@@ -143,7 +143,7 @@ graph TD
 ### Step 6. OSM 태그(계단, 노면, 경사) 및 DEM 연계 실시간 지표 평가 파이프라인
 
 #### 6.1 실제 보행 환경 속성 평가 모듈 연동
-- **파일**: [`agent/walk_planning_agent.py`](/agent/walk_planning_agent.py), `agent/surface_slope_evaluator.py` (신설)
+- **파일**: [`backend/agent/walk_planning_agent.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/walk_planning_agent.py), `backend/agent/surface_slope_evaluator.py` (신설)
 - **내용**:
   - OSRM Step Annotation 또는 Overpass Way 태그를 파싱하여:
     - 계단 여부: `highway=steps` 링크 포함 여부 실측 검증 (`has_stairs`).

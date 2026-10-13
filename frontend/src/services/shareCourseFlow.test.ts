@@ -1,0 +1,107 @@
+/**
+ * [편안하개 - PetWalk]
+ * 완주 리포트 코스 공유 연계 플로우 단위 테스트 (US-G2, T1-2)
+ *
+ * - 완주 기록(gpsTrack) 좌표 추출 및 [lon, lat] 튜플 변환
+ * - gpsTrack 비어있을 때의 안전한 폴백 좌표 처리
+ * - shareCommunityCourse API 호출 및 200m 공간 보호 플로우 검증
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { shareCommunityCourse } from './communityApi';
+import { WalkRecord } from '../types/storage';
+
+describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('WalkRecord의 gpsTrack 좌표가 [lon, lat] 형태의 폴리라인으로 올바르게 변환되어 공유된다', async () => {
+    const mockRecord: WalkRecord = {
+      id: 'walk_test_01',
+      dogId: 'dog_choco',
+      startedAt: '2026-10-13T10:00:00Z',
+      completedAt: '2026-10-13T10:30:00Z',
+      durationMinutes: 30,
+      totalDistanceKm: 1.5,
+      averageSpeedKmH: 3.0,
+      safeSurfaceRatio: 0.9,
+      gpsTrack: [
+        { lat: 37.544, lon: 127.038, timestamp: 1000 },
+        { lat: 37.545, lon: 127.040, timestamp: 2000 },
+        { lat: 37.543, lon: 127.039, timestamp: 3000 },
+      ],
+    };
+
+    let capturedBody: any = null;
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
+      if (init && init.body) {
+        capturedBody = JSON.parse(init.body as string);
+      }
+      return {
+        ok: true,
+        json: async () => ({ status: 'success', course_id: 'shared_123', is_supabase: true }),
+      } as Response;
+    });
+
+    const coords: [number, number][] = mockRecord.gpsTrack.map((p) => [p.lon, p.lat]);
+    const res = await shareCommunityCourse('성산근린공원 안심 코스', coords, 5);
+
+    expect(res.success).toBe(true);
+    expect(res.is_supabase).toBe(true);
+    expect(capturedBody).toBeDefined();
+    expect(capturedBody.course_title).toBe('성산근린공원 안심 코스');
+    expect(capturedBody.raw_coordinates).toEqual([
+      [127.038, 37.544],
+      [127.040, 37.545],
+      [127.039, 37.543],
+    ]);
+    expect(capturedBody.satisfaction_rating).toBe(5);
+  });
+
+  it('gpsTrack이 비어있는 경우 기본 안전 좌표로 폴백되어 전송된다', async () => {
+    const emptyRecord: WalkRecord = {
+      id: 'walk_test_empty',
+      dogId: 'dog_choco',
+      startedAt: '2026-10-13T10:00:00Z',
+      completedAt: '2026-10-13T10:20:00Z',
+      durationMinutes: 20,
+      totalDistanceKm: 1.0,
+      averageSpeedKmH: 3.0,
+      safeSurfaceRatio: 0.85,
+      gpsTrack: [],
+    };
+
+    let capturedBody: any = null;
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
+      if (init && init.body) {
+        capturedBody = JSON.parse(init.body as string);
+      }
+      return {
+        ok: true,
+        json: async () => ({ status: 'success', course_id: 'fallback_1', is_supabase: false }),
+      } as Response;
+    });
+
+    const fallbackCoords: [number, number][] =
+      emptyRecord.gpsTrack.length > 0
+        ? emptyRecord.gpsTrack.map((p) => [p.lon, p.lat])
+        : [[127.038, 37.544], [127.040, 37.545], [127.039, 37.543]];
+
+    const res = await shareCommunityCourse('기본 안심 코스', fallbackCoords, 4);
+
+    expect(res.success).toBe(true);
+    expect(capturedBody.raw_coordinates).toHaveLength(3);
+    expect(capturedBody.course_title).toBe('기본 안심 코스');
+    expect(capturedBody.satisfaction_rating).toBe(4);
+  });
+
+  it('서버 통신 실패 또는 타임아웃 발생 시 오프라인 모드로 안전하게 완료 처리된다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network offline'));
+
+    const res = await shareCommunityCourse('오프라인 산책 코스', [[127.0, 37.5]], 5);
+
+    expect(res.success).toBe(true);
+    expect(res.is_supabase).toBe(false);
+  });
+});

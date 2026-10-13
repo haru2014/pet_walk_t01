@@ -7,7 +7,7 @@
  * - 전체화면 상세 경로 모달 및 '이 코스로 산책 시작' 원터치 연동
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -75,7 +74,8 @@ function buildRouteFromMaskedPolyline(coords: readonly (readonly [number, number
 function buildPinsFromCoords(coords: readonly (readonly [number, number])[]): readonly RouteStepPin[] {
   if (coords.length === 0) return [];
   const startPos: LonLat = [coords[0][0], coords[0][1]];
-  const endPos: LonLat = [coords[coords.length - 1][0], coords[coords.length - 1][1]];
+  const lastCoord = coords.at(-1) ?? coords[0];
+  const endPos: LonLat = [lastCoord[0], lastCoord[1]];
   return [
     { id: 'pin_start', kind: 'turn', position: startPos, instruction: '이웃 공유 코스 출발점 (200m 안심 보호)' },
     { id: 'pin_end', kind: 'caution', position: endPos, instruction: '코스 도착 지점' },

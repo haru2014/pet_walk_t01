@@ -15,18 +15,21 @@ import { BackupService } from '../services/backupService';
 import { BookmarkListView } from '../components/bookmark/BookmarkListView';
 import { BookmarkedRoute } from '../types/bookmark';
 import { DataResetCard } from '../components/privacy/DataResetCard';
+import { FeedbackSummaryPayload } from '../services/feedbackContext';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
+  feedbackSummary?: FeedbackSummaryPayload | null;
   onSaveDog: (fields: Partial<DogProfile>) => void;
   onInjectFeedback: (dissatisfied: boolean) => void;
+  onResetFeedback?: () => void;
   onStartBookmark: (bookmark: BookmarkedRoute) => void;
   onResetData?: () => Promise<void>;
   onOpenOnboarding?: () => void;
 }
 
 export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
-  dog, onSaveDog, onInjectFeedback, onStartBookmark, onResetData, onOpenOnboarding,
+  dog, feedbackSummary, onSaveDog, onInjectFeedback, onResetFeedback, onStartBookmark, onResetData, onOpenOnboarding,
 }) => {
   const [resetCount, setResetCount] = useState(0);
   return (
@@ -127,23 +130,40 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         <Text style={styles.backupDesc}>
           실제 산책을 돌지 않고도 가상의 보행 피드백을 즉시 주입하여, AI 에이전트가 다음 산책로 추천 시 경사도를 자동으로 낮추어 관절 안심 코스로 보정하는 기능을 테스트합니다.
         </Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        {feedbackSummary && (
+          <View style={styles.simStatusBadge}>
+            <Text style={styles.simStatusText}>
+              📊 현재 적용 상태: 최근 {feedbackSummary.recent_walk_count}회 분석 · 경사 불만족 {feedbackSummary.slope_dissatisfaction_count}회 (최대 경사도 보정치: {feedbackSummary.recommended_max_slope_offset}%)
+            </Text>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
           <TouchableOpacity
             onPress={() => onInjectFeedback(true)}
-            style={[styles.simButton, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}
+            style={[styles.simButton, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5', flex: 1, minWidth: 140 }]}
           >
             <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>
-              + 가상 "언덕/경사 부담" 피드백 주입
+              + 가상 "언덕/경사 부담" 주입
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onInjectFeedback(false)}
-            style={[styles.simButton, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+            style={[styles.simButton, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', flex: 1, minWidth: 140 }]}
           >
             <Text style={{ color: '#065F46', fontSize: 12, fontWeight: '600' }}>
-              + 가상 "완만하고 편안함" 피드백 주입
+              + 가상 "완만하고 편안함" 주입
             </Text>
           </TouchableOpacity>
+          {onResetFeedback && (
+            <TouchableOpacity
+              onPress={onResetFeedback}
+              style={[styles.simButton, { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB', width: '100%', flex: undefined }]}
+            >
+              <Text style={{ color: '#4B5563', fontSize: 12, fontWeight: '600' }}>
+                ↺ 피드백 초기화 (0회로 리셋)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </CardWrapper>
 
@@ -245,5 +265,20 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMuted,
     lineHeight: 16,
     marginTop: 4,
+  },
+  simStatusBadge: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  simStatusText: {
+    fontSize: 11,
+    color: TOKENS.colors.textMain,
+    fontWeight: '600',
+    lineHeight: 16,
   },
 });

@@ -128,11 +128,11 @@ export default function App() {
   };
 
   const handleStartWalk = (course?: RecommendedCourse, plan?: CoursePlan) =>
-    beginWalk(course?.name ?? '편안한 숲길 코스', plan, course && plan ? createBookmark(course, plan, activeDog.name) : null);
+    void beginWalk(course?.name ?? '편안한 숲길 코스', plan, course && plan ? createBookmark(course, plan, activeDog.name) : null);
 
   /** US-29: 즐겨찾기 코스를 서버 재탐색 없이 저장된 경로로 즉시 산책 시작 */
   const handleStartBookmark = (bm: BookmarkedRoute) =>
-    beginWalk(bm.title, { route: bm.routeGeoJson, stepPins: bm.stepPins }, bm);
+    void beginWalk(bm.title, { route: bm.routeGeoJson, stepPins: bm.stepPins }, bm);
 
   /** US-G2: 이웃 커뮤니티 공유 코스로 산책 시작 */
   const handleStartCommunityWalk = (
@@ -140,7 +140,7 @@ export default function App() {
     route: RouteFeatureCollection,
     stepPins: readonly RouteStepPin[],
   ) => {
-    beginWalk(title, { route, stepPins: [...stepPins] }, null);
+    void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
   const handleStopWalkAndReport = async () => {
@@ -192,18 +192,37 @@ export default function App() {
       startedAt: new Date(Date.now() - 1800000).toISOString(), completedAt: new Date().toISOString(),
       durationMinutes: 28, totalDistanceKm: 1.4, averageSpeedKmH: activeDog.speedKmH, safeSurfaceRatio: 0.85, gpsTrack: [],
       feedback: {
-        comfortScore: dissatisfied ? 2 : 5, tags: dissatisfied ? ['경사가 가팔랐어요'] : ['완만해요', '그늘많아요'],
+        comfortScore: dissatisfied ? 2 : 5,
+        slopeRating: dissatisfied ? 'steep' : 'gentle',
+        tags: dissatisfied ? ['경사가 가팔랐어요'] : ['완만해요', '그늘많아요'],
         comment: dissatisfied ? '계단과 언덕이 조금 힘들었어요' : '발이 편하고 좋았어요',
       },
     };
     await LocalStorageService.appendWalkRecord(sampleWalk);
-    setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
-    Alert.alert(
-      '시연용 가상 피드백 반영',
-      dissatisfied
-        ? '⚠️ 가상의 직전 산책에 "언덕/경사 부담" 피드백이 주입되었습니다. 다음 산책로 추천 시 AI가 완만한 코스 위주로 자동 보정합니다.'
-        : '👍 가상의 직전 산책에 "완만한 길 만족" 피드백이 주입되었습니다.',
-    );
+    const updated = await FeedbackContextService.buildRecentFeedbackContext();
+    setFeedbackSummary(updated);
+    const msg = dissatisfied
+      ? `⚠️ 가상의 직전 산책에 "언덕/경사 부담" 피드백이 주입되었습니다.\n(현재 경사 불만족: ${updated.slope_dissatisfaction_count}회, 최대 경사도 보정치: ${updated.recommended_max_slope_offset}%)`
+      : `👍 가상의 직전 산책에 "완만한 길 만족" 피드백이 주입되었습니다.\n(현재 경사 불만족: ${updated.slope_dissatisfaction_count}회, 최대 경사도 보정치: ${updated.recommended_max_slope_offset}%)`;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(`[시연용 피드백 반영]\n${msg}`);
+    } else {
+      Alert.alert('시연용 가상 피드백 반영', msg);
+    }
+  };
+
+  const handleResetFeedback = async () => {
+    const history = await LocalStorageService.getWalkHistory();
+    const resetHistory = history.map((rec) => ({ ...rec, feedback: undefined }));
+    await LocalStorageService.setItem(STORAGE_KEYS.WALK_HISTORY, resetHistory);
+    const updated = await FeedbackContextService.buildRecentFeedbackContext();
+    setFeedbackSummary(updated);
+    const msg = '피드백 통계가 기본 상태(0회)로 초기화되었습니다.';
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(`[알림]\n${msg}`);
+    } else {
+      Alert.alert('알림', msg);
+    }
   };
 
   return (
@@ -216,6 +235,7 @@ export default function App() {
           <WalkReportScreen
             record={completedRecord} dogName={activeDog.name} bookmarkCandidate={walkBookmark}
             onSaveFeedback={handleSaveReportFeedback} onGoHome={() => { setSubScreen('main'); setActiveTab('홈'); }}
+            onGoToCommunity={() => { setSubScreen('main'); setActiveTab('커뮤니티'); }}
           />
         )}
         {subScreen === 'dog_selection' && (
@@ -232,7 +252,7 @@ export default function App() {
         )}
         {subScreen === 'course_recommend' && (
           <CourseRecommendationView
-            dog={activeDog} preferences={preferences} onBack={() => setSubScreen('walk_settings')}
+            dog={activeDog} preferences={preferences} feedback={feedbackSummary} onBack={() => setSubScreen('walk_settings')}
             onStartWalk={handleStartWalk} onPinSelect={TTSNavigationService.speak}
           />
         )}
@@ -255,7 +275,7 @@ export default function App() {
               )}
               {activeTab === '산책' && (
                 <WalkTabScreen
-                  dog={activeDog} preferences={preferences} onBack={() => setActiveTab('홈')}
+                  dog={activeDog} preferences={preferences} feedbackSummary={feedbackSummary} onBack={() => setActiveTab('홈')}
                   onStartWalk={handleStartWalk} onPinSelect={TTSNavigationService.speak}
                 />
               )}
@@ -267,8 +287,8 @@ export default function App() {
               )}
               {activeTab === '마이' && (
                 <MyProfileTabScreen
-                  dog={activeDog} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
-                  onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
+                  dog={activeDog} feedbackSummary={feedbackSummary} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
+                  onResetFeedback={handleResetFeedback} onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
                   onOpenOnboarding={() => setSubScreen('onboarding')}
                 />
               )}

@@ -22,6 +22,7 @@ import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile } from '../../types/dogProfile';
 import { RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
+import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { RouteReasonCard } from '../map/RouteReasonCard';
 import { AlternativeCourseList } from './AlternativeCourseList';
 import { CourseInfoCard } from './CourseInfoCard';
@@ -30,6 +31,7 @@ import { PlanSourceBadge } from './PlanSourceBadge';
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
   preferences?: WalkPreferences;
+  feedback?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onStartWalk: (course: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect?: (instruction: string) => void;
@@ -38,25 +40,26 @@ export interface CourseRecommendationViewProps {
 export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> = ({
   dog,
   preferences,
+  feedback,
   onBack,
   onStartWalk,
   onPinSelect,
 }) => {
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
-    generateAdaptiveCourses(dog, preferences)
+    generateAdaptiveCourses(dog, preferences, feedback)
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    void requestWalkPlan(dog, preferences).then((res) => {
+    void requestWalkPlan(dog, preferences, feedback).then((res) => {
       if (!isMounted) return;
       setPlanResult(res);
       if (res.courses.length > 0) setCourses(res.courses);
     });
     return () => { isMounted = false; };
-  }, [dog, preferences]);
+  }, [dog, preferences, feedback]);
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
   const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
@@ -83,7 +86,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     () => (currentCourse ? createBookmark(currentCourse, plan, dog.name) : null),
     [currentCourse, plan, dog.name],
   );
-  const conditionLabels = useMemo(() => buildAdaptiveConditionLabels(dog, preferences), [dog, preferences]);
+  const conditionLabels = useMemo(() => {
+    const base = buildAdaptiveConditionLabels(dog, preferences);
+    if (feedback && feedback.recommended_max_slope_offset < 0) {
+      base.push(`경사 완화 ${Math.abs(feedback.recommended_max_slope_offset)}% 적용`);
+    }
+    return base;
+  }, [dog, preferences, feedback]);
 
   return (
     <View style={styles.container}>

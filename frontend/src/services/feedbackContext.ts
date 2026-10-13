@@ -17,7 +17,8 @@ export class FeedbackContextService {
     const history = await LocalStorageService.getWalkHistory();
     const recent = history.slice(0, 5);
 
-    let slopeDissatisfaction = 0;
+    let steepCount = 0;
+    let gentleCount = 0;
     let shadePreference = 0;
 
     for (const record of recent) {
@@ -25,19 +26,25 @@ export class FeedbackContextService {
       const fb = record.feedback;
       const tags = fb.tags || [];
       const isSteep = fb.slopeRating === 'steep' || tags.some((t) => t.includes('경사') || t.includes('가팔'));
+      const isGentle = fb.slopeRating === 'gentle' || tags.some((t) => t.includes('완만') || t.includes('편안'));
+
       if (isSteep) {
-        slopeDissatisfaction += 1;
+        steepCount += 1;
+      } else if (isGentle) {
+        gentleCount += 1;
       }
       if (tags.some((t) => t.includes('그늘'))) {
         shadePreference += 1;
       }
     }
 
-    const slopeOffset = slopeDissatisfaction > 0 ? -(slopeDissatisfaction * 1.5) : 0;
+    // 순 경사 불만족 횟수: 완만/편안함 피드백 시 불만족이 단계적으로 상쇄 및 회복됨
+    const netSlopeDissatisfaction = Math.max(0, steepCount - gentleCount);
+    const slopeOffset = netSlopeDissatisfaction > 0 ? -(netSlopeDissatisfaction * 1.5) : 0;
 
     return {
       recent_walk_count: recent.length,
-      slope_dissatisfaction_count: slopeDissatisfaction,
+      slope_dissatisfaction_count: netSlopeDissatisfaction,
       shade_preference_count: shadePreference,
       recommended_max_slope_offset: Math.round(slopeOffset * 10) / 10,
     };

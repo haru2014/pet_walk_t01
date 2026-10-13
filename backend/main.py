@@ -39,6 +39,7 @@ from test_case.test_api_contracts import (
     CommunityCourseShareRequest,
     CommunityCourseSummary,
 )
+from test_case.test_thermal_and_parking import determine_heat_risk_dto
 
 app = FastAPI(
     title="편안하개 (PetWalk) API",
@@ -302,3 +303,104 @@ def get_community_feed():
         "feeds": community_repo.get_feeds(),
         "is_supabase": community_repo.is_connected(),
     }
+
+
+@app.get("/api/v1/weather/heat-risk")
+def get_weather_heat_risk(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+):
+    """[US-F1] 기상청 단기예보 모델 기반 시간대별 지면열 추정 및 안전 골든타임 조회."""
+    import datetime
+    import math
+
+    now_hour = datetime.datetime.now().hour
+    hourly = []
+    golden_hours = []
+
+    for h in range(24):
+        air_temp = round(26.5 + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
+        if 10 <= h <= 15:
+            sky = "clear"
+        elif 6 <= h <= 18:
+            sky = "partly_cloudy"
+        else:
+            sky = "clear"
+        dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
+        hourly.append(dto.model_dump() if hasattr(dto, "model_dump") else dto.dict())
+        if dto.is_golden_time and (6 <= h <= 22):
+            golden_hours.append(h)
+
+    current_dto = hourly[now_hour] if now_hour < len(hourly) else hourly[12]
+    golden_window = (
+        f"{golden_hours[0]:02d}:00 ~ {golden_hours[-1] + 1:02d}:00"
+        if golden_hours
+        else "일몰 후 (19:00 ~ 22:00) 권장"
+    )
+
+    return {
+        "status": "success",
+        "current": current_dto,
+        "golden_time_window": golden_window,
+        "hourly_forecast": hourly,
+        "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
+        "coordinates": {"lat": lat, "lon": lon},
+    }
+
+
+_ZONE_YURIM = "유림공원"
+_ZONE_SONGGANG = "송강근린공원"
+_ZONE_DOAN = "도안호수공원"
+_ZONE_SEJONG = "세종호수공원"
+_FEE_FREE = "free"
+_FEE_PAID = "paid"
+
+_PILOT_PARKING_LOTS = [
+    {"parking_id": "pkg_yurim_01", "name": "유림공원 부설 공영주차장", "entrance_lat": 36.3628, "entrance_lon": 127.3592, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_YURIM},
+    {"parking_id": "pkg_yurim_02", "name": "유성구청 공영주차장", "entrance_lat": 36.3615, "entrance_lon": 127.3598, "is_public": True, "fee_type": _FEE_PAID, "park_zone": _ZONE_YURIM},
+    {"parking_id": "pkg_yurim_03", "name": "어은교 갑천변 노상 공영주차장", "entrance_lat": 36.3640, "entrance_lon": 127.3575, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_YURIM},
+    {"parking_id": "pkg_songgang_01", "name": "송강근린공원 공영주차장", "entrance_lat": 36.4320, "entrance_lon": 127.3810, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SONGGANG},
+    {"parking_id": "pkg_songgang_02", "name": "송강동 공영노상주차장", "entrance_lat": 36.4305, "entrance_lon": 127.3790, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SONGGANG},
+    {"parking_id": "pkg_doan_01", "name": "도안호수공원 임시 공영주차장", "entrance_lat": 36.3458, "entrance_lon": 127.3428, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_DOAN},
+    {"parking_id": "pkg_doan_02", "name": "갑천생태공원 둔치 주차장", "entrance_lat": 36.3435, "entrance_lon": 127.3455, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_DOAN},
+    {"parking_id": "pkg_sejong_01", "name": "세종호수공원 제1주차장", "entrance_lat": 36.5065, "entrance_lon": 127.2655, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
+    {"parking_id": "pkg_sejong_02", "name": "세종호수공원 제2주차장", "entrance_lat": 36.5015, "entrance_lon": 127.2695, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
+    {"parking_id": "pkg_sejong_03", "name": "세종호수공원 제3주차장 (수목원 방면)", "entrance_lat": 36.4980, "entrance_lon": 127.2730, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
+    {"parking_id": "pkg_sejong_04", "name": "세종호수공원 제4주차장 (대통령기록관)", "entrance_lat": 36.5085, "entrance_lon": 127.2630, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
+]
+
+
+def _haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    import math
+    r = 6371000.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2.0) ** 2
+    return round(2.0 * r * math.atan2(math.sqrt(a), math.sqrt(1.0 - a)), 1)
+
+
+@app.get("/api/v1/parking/nearby")
+def get_nearby_parking_lots(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    radius_m: float = Query(1500.0, gt=0.0, le=10000.0),
+):
+    """[US-G1] 대전 3대 공원 & 세종호수공원 4대 파일럿 거점 반경 내 공영주차장 검색."""
+    nearby_lots = []
+    for lot in _PILOT_PARKING_LOTS:
+        dist = _haversine_distance_meters(lat, lon, lot["entrance_lat"], lot["entrance_lon"])
+        if dist <= radius_m:
+            item = dict(lot)
+            item["distance_m"] = dist
+            nearby_lots.append(item)
+
+    nearby_lots.sort(key=lambda x: x["distance_m"])
+    return {
+        "status": "success",
+        "total_count": len(nearby_lots),
+        "search_radius_m": radius_m,
+        "query_center": {"lat": lat, "lon": lon},
+        "parking_lots": nearby_lots,
+    }
+

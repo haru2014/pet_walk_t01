@@ -79,8 +79,8 @@ export async function requestWalkPlan(
   }
 
   // 🛡️ 오프라인 / 데모용 무중단 자동 폴백
-  const fallbackCourses = generateAdaptiveCourses(dog, preferences);
-  const fallbackBriefing = generateAdaptiveBriefing(dog, preferences);
+  const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback);
+  const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
   return {
     isLiveServer: false,
     courses: fallbackCourses,

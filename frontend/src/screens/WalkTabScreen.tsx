@@ -12,11 +12,13 @@ import { DogProfile } from '../types/dogProfile';
 import { WalkPreferences, RecommendedCourse } from '../types/walkSettings';
 import { CourseRecommendationView } from '../components/walk/CourseRecommendationView';
 import { CoursePlan } from '../types/bookmark';
+import { FeedbackSummaryPayload } from '../services/feedbackContext';
 import { AppIcon } from '../components/common/AppIcon';
 
 export interface WalkTabScreenProps {
   dog: DogProfile;
   preferences: WalkPreferences;
+  feedbackSummary?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onStartWalk: (course?: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect: (instruction: string) => void;
@@ -25,6 +27,7 @@ export interface WalkTabScreenProps {
 export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
   dog,
   preferences,
+  feedbackSummary,
   onBack,
   onStartWalk,
   onPinSelect,
@@ -39,6 +42,7 @@ export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
       <CourseRecommendationView
         dog={dog}
         preferences={preferences}
+        feedback={feedbackSummary}
         onBack={onBack}
         onStartWalk={onStartWalk}
         onPinSelect={onPinSelect}

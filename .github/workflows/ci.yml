@@ -17,6 +17,9 @@ jobs:
   backend-test:
     name: Backend Unit Tests (pytest)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: 코드 체크아웃
@@ -27,6 +30,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: backend/requirements.txt
 
       - name: 백엔드 의존성 패키지 설치
         run: |

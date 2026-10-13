@@ -1,0 +1,10 @@
+{
+  "description": "This AI-powered app offers personalized walking routes for dogs, considering their needs and the environment, ensuring a comfortable and enjoyable experience.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
