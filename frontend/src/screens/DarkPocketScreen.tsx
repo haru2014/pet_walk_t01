@@ -11,6 +11,7 @@ import { TOKENS } from '../theme/tokens';
 import { WalkStats } from '../hooks/useWalkGuidance';
 import { SlideToUnlock } from '../components/common/SlideToUnlock';
 import { formatElapsed } from '../services/walkFormat';
+import { AppIcon } from '../components/common/AppIcon';
 
 export interface DarkPocketScreenProps {
   readonly dogName: string;
@@ -30,7 +31,7 @@ const HudItem: React.FC<{ value: string; unit: string; label: string }> = ({ val
 
 export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({ dogName, stats, onUnlock }) => (
   <View style={styles.container}>
-    <Text style={styles.title}>🐾 {dogName}와 안심 산책 중</Text>
+    <View style={styles.titleRow}><AppIcon name="paw" size={20} color={TOKENS.colors.pocketHud} /><Text style={styles.title}>{dogName}와 안심 산책 중</Text></View>
     <Text style={styles.subtitle}>화면이 꺼져도 음성으로 안내해요</Text>
 
     <View style={styles.hud}>
@@ -59,6 +60,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   subtitle: {
     color: TOKENS.colors.pocketHudSubtle,
     opacity: 0.7,

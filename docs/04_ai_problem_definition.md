@@ -208,17 +208,17 @@ flowchart LR
 
 ## 📊 5. AI 기능 정량적 성공 지표 및 검증 기준 (DoD 정합)
 
-편안하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`test_case/`](../test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
+편안하개 AI 엔진은 정성적인 기대치에 의존하지 않고, 전체 TDD 테스트 스위트([`backend/test_case/`](../backend/test_case/README.md))를 통해 검증된 정량 지표를 준수합니다.
 
 | 검증 영역 | 정량 목표 지표 | 검증 방식 및 테스트 모듈 |
 |---|:---:|---|
-| **자연어 의도 파싱** | **정확도 85% 이상** | 테스트 질의 10종 대상 Pydantic 스키마 변환 단위 테스트 ([`test_walk_plan_agent_schema.py`](../test_case/test_walk_plan_agent_schema.py)) |
-| **목표 시간 수렴도** | **목표 시간의 $\pm 15\%$ 이내** | 체급별 속도 상수 환산 및 10개 좌표 샘플 순환 코스 시간 오차 검증 ([`test_loop_target_duration.py`](../test_case/test_loop_target_duration.py)) |
+| **자연어 의도 파싱** | **정확도 85% 이상** | 테스트 질의 10종 대상 Pydantic 스키마 변환 단위 테스트 ([`test_walk_plan_agent_schema.py`](../backend/test_case/test_walk_plan_agent_schema.py)) |
+| **목표 시간 수렴도** | **목표 시간의 $\pm 15\%$ 이내** | 체급별 속도 상수 환산 및 10개 좌표 샘플 순환 코스 시간 오차 검증 ([`test_loop_target_duration.py`](../backend/test_case/test_loop_target_duration.py)) |
 | **후보 경로 생성 속도** | **1.5초 이내** | Routing Adapter 후보 순환 경로 3종 수집 레이턴시 벤치마크 |
-| **비전 위험물/안내판 판독** | **성공률 85% 이상** | 현장 장애물 및 안내판 이미지 20장 대상 Structured JSON 응답 검증 ([`test_vision_safety_inspector.py`](../test_case/test_vision_safety_inspector.py)) |
+| **비전 위험물/안내판 판독** | **성공률 85% 이상** | 현장 장애물 및 안내판 이미지 20장 대상 Structured JSON 응답 검증 ([`test_vision_safety_inspector.py`](../backend/test_case/test_vision_safety_inspector.py)) |
 | **동적 우회 재탐색 속도** | **3.0초 이내** | 위험 좌표 주입 시 가중치 10배 격리 및 안전 우회로 재산출 E2E 테스트 |
-| **핸즈프리 음성 브리핑** | **회전 30m 전 알림** | 백그라운드 GPS 위치와 OSRM 스텝 매칭 실기기 타이밍 검증 ([`test_mobile_and_voice_navigation.py`](../test_case/test_mobile_and_voice_navigation.py)) |
-| **프라이버시 무결성** | **서버 전송 0건 / 200m 마스킹** | 자택 좌표 서버 미전송 보장 및 커뮤니티 공간 절단 알고리즘 검증 ([`test_api_contracts.py`](../test_case/test_api_contracts.py)) |
+| **핸즈프리 음성 브리핑** | **회전 30m 전 알림** | 백그라운드 GPS 위치와 OSRM 스텝 매칭 실기기 타이밍 검증 ([`test_mobile_and_voice_navigation.py`](../backend/test_case/test_mobile_and_voice_navigation.py)) |
+| **프라이버시 무결성** | **서버 전송 0건 / 200m 마스킹** | 자택 좌표 서버 미전송 보장 및 커뮤니티 공간 절단 알고리즘 검증 ([`test_api_contracts.py`](../backend/test_case/test_api_contracts.py)) |
 
 
 ---

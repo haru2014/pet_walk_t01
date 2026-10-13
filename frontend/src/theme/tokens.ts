@@ -11,13 +11,15 @@ export const TOKENS = {
     // 1. 기본 배경 및 표면
     background: '#F8FAF9',        // 전체 화면 배경 (Soft Mint Gray)
     surface: '#FFFFFF',           // 기본 카드/모달 서피스
-    border: '#F0F5F2',            // 기본 디바이더 및 보더
+    border: '#E8EDEA',            // UI_design 공통 보더
+    borderSoft: '#F0F5F2',        // 카드의 부드러운 외곽선
     borderSubtle: '#E8EDEA',
 
     // 2. 브랜드 컬러 (Brand Greens)
     primary: '#10B981',           // 메인 에메랄드 그린
     primaryDark: '#087F5B',       // 다크 에메랄드
-    primaryLight: '#ECFDF5',      // 연한 민트 배경 (뱃지/칩)
+    primaryLight: '#D1FAE5',      // UI_design 기본 연민트
+    primaryWash: '#ECFDF5',       // 배너·넓은 면적의 아주 연한 민트
     primaryMint: '#A7F3D0',       // 민트 보더 (칩/하이라이트)
     primarySubtle: '#D1FAE5',
 
@@ -31,12 +33,20 @@ export const TOKENS = {
     routeNormal: '#3B82F6',       // 🏢 일반 보도 / 아스팔트
     routeCaution: '#F97316',      // ⚠️ 급경사, 높은 턱 주의 구간
 
-    // 5. 초절전 다크 포켓 모드 (US-C2)
+    // 5. UI_design 지도 캔버스 색상
+    mapGround: '#F2F5F0',
+    mapPark: '#DAECD9',
+    mapWater: '#DCEFF0',
+    mapRoad: '#FFFFFF',
+    mapRoadEdge: '#E7EBE7',
+    mapLabel: '#799084',
+
+    // 6. 초절전 다크 포켓 모드 (US-C2)
     pocketBg: '#000000',          // True Black OLED 절전 배경
     pocketHud: '#10B981',         // HUD 네온 그린
     pocketHudSubtle: '#34D399',
 
-    // 6. 상태 알림
+    // 7. 상태 알림
     success: '#10B981',
     warning: '#F59E0B',
     error: '#EF4444',

@@ -25,6 +25,9 @@ export function useLocationConsent(): LocationConsentController {
 
     setVisible(true);
     return new Promise<boolean>((resolve) => {
+      if (resolverRef.current) {
+        resolverRef.current(false);
+      }
       resolverRef.current = resolve;
     });
   }, []);

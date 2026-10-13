@@ -15,18 +15,21 @@ import { BackupService } from '../services/backupService';
 import { BookmarkListView } from '../components/bookmark/BookmarkListView';
 import { BookmarkedRoute } from '../types/bookmark';
 import { DataResetCard } from '../components/privacy/DataResetCard';
+import { FeedbackSummaryPayload } from '../services/feedbackContext';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
+  feedbackSummary?: FeedbackSummaryPayload | null;
   onSaveDog: (fields: Partial<DogProfile>) => void;
   onInjectFeedback: (dissatisfied: boolean) => void;
+  onResetFeedback?: () => void;
   onStartBookmark: (bookmark: BookmarkedRoute) => void;
   onResetData?: () => Promise<void>;
   onOpenOnboarding?: () => void;
 }
 
 export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
-  dog, onSaveDog, onInjectFeedback, onStartBookmark, onResetData, onOpenOnboarding,
+  dog, feedbackSummary, onSaveDog, onInjectFeedback, onResetFeedback, onStartBookmark, onResetData, onOpenOnboarding,
 }) => {
   const [resetCount, setResetCount] = useState(0);
   return (
@@ -94,7 +97,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
       </CardWrapper>
 
       {/* 내 보관함 (즐겨찾기 안심 코스) */}
-      <BookmarkListView key={resetCount} onStartBookmark={onStartBookmark} />
+      <BookmarkListView key={resetCount} onStartBookmark={onStartBookmark} dogSpeedKmH={dog.speedKmH} />
 
       {/* 반려견 프로필 파일 보관 및 복원 */}
       <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
@@ -121,29 +124,46 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         </TouchableOpacity>
       </CardWrapper>
 
-      {/* 산책 체감 피드백 테스트 */}
+      {/* AI 경로 보정 시뮬레이터 (개발/시연용 가상 피드백) */}
       <CardWrapper variant="flat">
-        <Text style={styles.cardHeaderTitle}>🧪 산책 체감 피드백 테스트</Text>
+        <Text style={styles.cardHeaderTitle}>🧪 [시연/테스트] AI 산책로 보정 시뮬레이터</Text>
         <Text style={styles.backupDesc}>
-          보행 후 체감 피드백에 따라 AI가 다음 추천 경로를 자동으로 보정하는 기능을 테스트합니다.
+          실제 산책을 돌지 않고도 가상의 보행 피드백을 즉시 주입하여, AI 에이전트가 다음 산책로 추천 시 경사도를 자동으로 낮추어 관절 안심 코스로 보정하는 기능을 테스트합니다.
         </Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        {feedbackSummary && (
+          <View style={styles.simStatusBadge}>
+            <Text style={styles.simStatusText}>
+              📊 현재 적용 상태: 최근 {feedbackSummary.recent_walk_count}회 분석 · 경사 불만족 {feedbackSummary.slope_dissatisfaction_count}회 (최대 경사도 보정치: {feedbackSummary.recommended_max_slope_offset}%)
+            </Text>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
           <TouchableOpacity
             onPress={() => onInjectFeedback(true)}
-            style={[styles.simButton, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}
+            style={[styles.simButton, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5', flex: 1, minWidth: 140 }]}
           >
             <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>
-              + 가파른 길 피드백
+              + 가상 "언덕/경사 부담" 주입
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onInjectFeedback(false)}
-            style={[styles.simButton, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+            style={[styles.simButton, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', flex: 1, minWidth: 140 }]}
           >
             <Text style={{ color: '#065F46', fontSize: 12, fontWeight: '600' }}>
-              + 완만한 길 피드백
+              + 가상 "완만하고 편안함" 주입
             </Text>
           </TouchableOpacity>
+          {onResetFeedback && (
+            <TouchableOpacity
+              onPress={onResetFeedback}
+              style={[styles.simButton, { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB', width: '100%', flex: undefined }]}
+            >
+              <Text style={{ color: '#4B5563', fontSize: 12, fontWeight: '600' }}>
+                ↺ 피드백 초기화 (0회로 리셋)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </CardWrapper>
 
@@ -245,5 +265,20 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMuted,
     lineHeight: 16,
     marginTop: 4,
+  },
+  simStatusBadge: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  simStatusText: {
+    fontSize: 11,
+    color: TOKENS.colors.textMain,
+    fontWeight: '600',
+    lineHeight: 16,
   },
 });

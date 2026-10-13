@@ -12,10 +12,13 @@ import { DogProfile } from '../types/dogProfile';
 import { WalkPreferences, RecommendedCourse } from '../types/walkSettings';
 import { CourseRecommendationView } from '../components/walk/CourseRecommendationView';
 import { CoursePlan } from '../types/bookmark';
+import { FeedbackSummaryPayload } from '../services/feedbackContext';
+import { AppIcon } from '../components/common/AppIcon';
 
 export interface WalkTabScreenProps {
   dog: DogProfile;
   preferences: WalkPreferences;
+  feedbackSummary?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onStartWalk: (course?: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect: (instruction: string) => void;
@@ -24,6 +27,7 @@ export interface WalkTabScreenProps {
 export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
   dog,
   preferences,
+  feedbackSummary,
   onBack,
   onStartWalk,
   onPinSelect,
@@ -32,12 +36,13 @@ export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionSubtitle}>AI 추천 안심 코스</Text>
-        <Text style={styles.sectionTitle}>{dog.name}와 걷는 순환 코스 🗺️</Text>
+        <View style={styles.sectionTitleRow}><Text style={styles.sectionTitle}>{dog.name}와 걷는 순환 코스</Text><AppIcon name="map" size={20} color={TOKENS.colors.primaryDark} /></View>
       </View>
 
       <CourseRecommendationView
         dog={dog}
         preferences={preferences}
+        feedback={feedbackSummary}
         onBack={onBack}
         onStartWalk={onStartWalk}
         onPinSelect={onPinSelect}
@@ -63,4 +68,5 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMain,
     letterSpacing: -0.5,
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

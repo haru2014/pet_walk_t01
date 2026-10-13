@@ -17,6 +17,7 @@ import {
   Alert,
 } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 import { DogProfile, JointCareLevel, calculateRecommendedSpeedKmH } from '../../types/dogProfile';
 
 export interface DogSelectionViewProps {
@@ -85,7 +86,7 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
           onPress={onBack}
           style={styles.backButton}
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>강아지 선택</Text>
         <View style={styles.headerPlaceholder} />
@@ -113,7 +114,7 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
               >
                 {/* 아바타 */}
                 <View style={[styles.avatarBox, isSelected && styles.avatarBoxSelected]}>
-                  <Text style={styles.avatarEmoji}>🐶</Text>
+                  <AppIcon name="pawOutline" size={28} color={TOKENS.colors.primaryDark} />
                 </View>
 
                 {/* 정보 */}
@@ -280,11 +281,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 26,
-    color: TOKENS.colors.textMain,
-    fontWeight: '300',
-  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -354,9 +350,6 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primarySubtle,
     borderWidth: 2,
     borderColor: TOKENS.colors.primary,
-  },
-  avatarEmoji: {
-    fontSize: 28,
   },
   dogInfo: {
     flex: 1,

@@ -10,6 +10,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 
 export interface RouteReasonCardProps {
   reasonText: string;
@@ -28,7 +29,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
     <View style={styles.card}>
       {/* 헤더 */}
       <View style={styles.headerRow}>
-        <Text style={styles.sparkleIcon}>✨</Text>
+        <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
         <Text style={styles.headerTitle}>왜 이 코스를 추천했을까요?</Text>
       </View>
 
@@ -36,7 +37,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
       <View style={styles.metricsGrid}>
         {/* 지표 1: 완만 경사 */}
         <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>⛰️</Text>
+          <View style={styles.metricIcon}><AppIcon name="mountain" size={20} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.metricLabel}>완만한 경사</Text>
           <Text style={styles.metricValue}>최대 {maxSlopePercent}%</Text>
           <Text style={styles.metricSub}>관절 무리 없는 평지 위주</Text>
@@ -44,7 +45,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
 
         {/* 지표 2: 폭신 노면 */}
         <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>🌿</Text>
+          <View style={styles.metricIcon}><AppIcon name="soft" size={20} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.metricLabel}>폭신한 노면</Text>
           <Text style={styles.metricValue}>{softSurfacePercent}%</Text>
           <Text style={styles.metricSub}>흙길·잔디로 발바닥 안심</Text>
@@ -52,7 +53,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
 
         {/* 지표 3: 그늘 구간 */}
         <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>🌳</Text>
+          <View style={styles.metricIcon}><AppIcon name="shade" size={20} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.metricLabel}>시원한 그늘</Text>
           <Text style={styles.metricValue}>{shadePercent}%</Text>
           <Text style={styles.metricSub}>자외선 차단 및 저온 유지</Text>
@@ -69,7 +70,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: TOKENS.colors.primaryWash,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
     borderRadius: TOKENS.borderRadius.card,
@@ -86,9 +87,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 14,
-  },
-  sparkleIcon: {
-    fontSize: 16,
   },
   headerTitle: {
     fontSize: 14,
@@ -107,10 +105,9 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E6F4EA',
+    borderColor: TOKENS.colors.borderSoft,
   },
   metricIcon: {
-    fontSize: 16,
     marginBottom: 4,
   },
   metricLabel: {

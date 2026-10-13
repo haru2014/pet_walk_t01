@@ -15,6 +15,7 @@ import {
   TextInput,
 } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 import { DogProfile } from '../../types/dogProfile';
 import {
   EnvironmentId,
@@ -100,7 +101,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           onPress={onBack}
           style={styles.backButton}
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>산책 설정</Text>
         <View style={styles.headerPlaceholder} />
@@ -118,7 +119,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         {/* AI 안내 배너 */}
         <View style={styles.aiBanner}>
           <View style={styles.aiBannerHeader}>
-            <Text style={styles.aiSparkleIcon}>✨</Text>
+            <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
             <Text style={styles.aiBannerTitle}>오늘의 산책, AI에게 맡겨보세요</Text>
           </View>
           <Text style={styles.aiBannerBody}>
@@ -179,7 +180,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   ]}
                 >
                   <View style={styles.envCardTop}>
-                    <Text style={styles.envIcon}>{option.icon}</Text>
+                    <AppIcon name={option.icon} size={24} color={isSelected ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
                     {isSelected && (
                       <View style={styles.envCheckCircle}>
                         <Text style={styles.envCheckMark}>✓</Text>
@@ -221,7 +222,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                 isListening && styles.micButtonActive,
               ]}
             >
-              <Text style={styles.micIcon}>{isListening ? '🛑' : '🎙️'}</Text>
+              <AppIcon name="mic" size={20} color={isListening ? TOKENS.colors.textWhite : TOKENS.colors.textMuted} />
             </TouchableOpacity>
           </View>
           {isListening && (
@@ -249,7 +250,10 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           onPress={handleSubmit}
           style={styles.submitButton}
         >
-          <Text style={styles.submitButtonText}>✨ AI 산책 코스 찾아보기</Text>
+          <View style={styles.submitButtonContent}>
+            <AppIcon name="sparkle" size={18} color={TOKENS.colors.textWhite} />
+            <Text style={styles.submitButtonText}>AI 산책 코스 찾아보기</Text>
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -276,11 +280,6 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 26,
-    color: TOKENS.colors.textMain,
-    fontWeight: '300',
   },
   headerTitle: {
     fontSize: 16,
@@ -312,7 +311,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   aiBanner: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: TOKENS.colors.primaryWash,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
     borderRadius: TOKENS.borderRadius.card,
@@ -324,9 +323,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 6,
-  },
-  aiSparkleIcon: {
-    fontSize: 16,
   },
   aiBannerTitle: {
     fontSize: 14,
@@ -402,16 +398,13 @@ const styles = StyleSheet.create({
   },
   envCardSelected: {
     borderColor: TOKENS.colors.primary,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: TOKENS.colors.primaryLight,
   },
   envCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 6,
-  },
-  envIcon: {
-    fontSize: 18,
   },
   envCheckCircle: {
     width: 18,
@@ -471,9 +464,6 @@ const styles = StyleSheet.create({
   micButtonActive: {
     backgroundColor: TOKENS.colors.primary,
     borderColor: TOKENS.colors.primary,
-  },
-  micIcon: {
-    fontSize: 16,
   },
   listeningNotice: {
     fontSize: 11,
@@ -536,5 +526,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });

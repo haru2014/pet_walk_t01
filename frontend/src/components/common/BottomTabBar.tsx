@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon, AppIconName } from './AppIcon';
 
 export type TabKey = '홈' | '산책' | '액션' | '커뮤니티' | '마이';
 
@@ -15,12 +16,12 @@ export interface BottomTabBarProps {
   onActionPress?: () => void;
 }
 
-const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
-  { key: '홈', label: '홈', icon: '🏠' },
-  { key: '산책', label: '산책', icon: '🗺️' },
-  { key: '액션', label: '', icon: '🐾' },
-  { key: '커뮤니티', label: '커뮤니티', icon: '👥' },
-  { key: '마이', label: '마이', icon: '🐶' },
+const TABS: Array<{ key: TabKey; label: string; icon: AppIconName | null }> = [
+  { key: '홈', label: '홈', icon: 'home' },
+  { key: '산책', label: '산책', icon: 'map' },
+  { key: '액션', label: '', icon: null },
+  { key: '커뮤니티', label: '커뮤니티', icon: 'users' },
+  { key: '마이', label: '마이', icon: 'user' },
 ];
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
@@ -39,7 +40,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
               onPress={onActionPress || (() => onTabChange('산책'))}
               style={styles.actionButton}
             >
-              <Text style={styles.actionIcon}>{tab.icon}</Text>
+              <AppIcon name="plus" size={22} color={TOKENS.colors.textWhite} strokeWidth={2.2} />
             </TouchableOpacity>
           );
         }
@@ -52,7 +53,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             onPress={() => onTabChange(tab.key)}
             style={styles.tabItem}
           >
-            <Text style={styles.tabIcon}>{tab.icon}</Text>
+            {tab.icon && <AppIcon name={tab.icon} size={22} color={isActive ? TOKENS.colors.primary : TOKENS.colors.textMuted} />}
             <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
               {tab.label}
             </Text>
@@ -85,9 +86,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  tabIcon: {
-    fontSize: 20,
-  },
   tabLabel: {
     fontSize: 11,
     color: TOKENS.colors.textMuted,
@@ -110,8 +108,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
-  },
-  actionIcon: {
-    fontSize: 24,
   },
 });

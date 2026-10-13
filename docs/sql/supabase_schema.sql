@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- 편안하개 (PetWalk) Supabase 스키마 v1  (3번 노희선 · 서버)
--- 기준: agent/supabase_repository.py, agent/hazard_service.py 가 insert/select 하는 컬럼명과 1:1 일치.
+-- 기준: backend/agent/supabase_repository.py, backend/agent/hazard_service.py 가 insert/select 하는 컬럼명과 1:1 일치.
 -- 적용: Supabase 대시보드 > SQL Editor > New query > 전체 붙여넣기 > Run
 -- 재실행 안전 (IF NOT EXISTS / DROP POLICY IF EXISTS)
 -- ==============================================================================

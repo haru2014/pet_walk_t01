@@ -10,16 +10,16 @@ export interface WalkEnvironmentOption {
   id: EnvironmentId;
   label: string;
   detail: string;
-  icon: string;
+  icon: EnvironmentId;
 }
 
 export const WALK_ENVIRONMENTS: readonly WalkEnvironmentOption[] = [
-  { id: 'soft', label: '폭신한 길', detail: '잔디·흙길 등', icon: '🌿' },
-  { id: 'shade', label: '그늘이 많은 길', detail: '햇빛을 피해 걷기', icon: '🌳' },
-  { id: 'stairs', label: '계단 피하기', detail: '계단이 적은 경로', icon: '🚶' },
-  { id: 'traffic', label: '차가 적은 길', detail: '차량 통행이 적은 경로', icon: '🚗' },
-  { id: 'quiet', label: '조용한 길', detail: '복잡하지 않은 경로', icon: '🍃' },
-  { id: 'rest', label: '쉬어가기 좋은 길', detail: '휴식 공간이 있는 경로', icon: '🪑' },
+  { id: 'soft', label: '폭신한 길', detail: '잔디·흙길 등', icon: 'soft' },
+  { id: 'shade', label: '그늘이 많은 길', detail: '햇빛을 피해 걷기', icon: 'shade' },
+  { id: 'stairs', label: '계단 피하기', detail: '계단이 적은 경로', icon: 'stairs' },
+  { id: 'traffic', label: '차가 적은 길', detail: '차량 통행이 적은 경로', icon: 'traffic' },
+  { id: 'quiet', label: '조용한 길', detail: '복잡하지 않은 경로', icon: 'quiet' },
+  { id: 'rest', label: '쉬어가기 좋은 길', detail: '휴식 공간이 있는 경로', icon: 'rest' },
 ];
 
 export interface WalkPreferences {

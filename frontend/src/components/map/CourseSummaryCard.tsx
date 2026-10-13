@@ -9,6 +9,7 @@ import { TOKENS } from '../../theme/tokens';
 import { CourseSummary } from '../../types/route';
 import { GradientButton } from '../common/GradientButton';
 import { StatusBadge } from '../common/StatusBadge';
+import { AppIcon } from '../common/AppIcon';
 
 export interface CourseSummaryCardProps {
   summary: CourseSummary;
@@ -33,16 +34,21 @@ export const CourseSummaryCard: React.FC<CourseSummaryCardProps> = ({ summary, o
 
       <View style={styles.badgeRow}>
         <StatusBadge variant={slopeVariant}>
-          {`⛰ 최대 경사 ${summary.maxSlopePercent}%`}
+          <View style={styles.badgeContent}><AppIcon name="mountain" size={13} color={slopeVariant === 'warning' ? TOKENS.colors.routeCaution : TOKENS.colors.primaryDark} /><Text style={[styles.badgeText, slopeVariant === 'warning' && styles.badgeWarningText]}>최대 경사 {summary.maxSlopePercent}%</Text></View>
         </StatusBadge>
         <StatusBadge>
-          {`🌳 그늘 ${summary.shadeRatioPercent}%`}
+          <View style={styles.badgeContent}><AppIcon name="shade" size={13} color={TOKENS.colors.primaryDark} /><Text style={styles.badgeText}>그늘 {summary.shadeRatioPercent}%</Text></View>
         </StatusBadge>
       </View>
 
-      <GradientButton fullWidth size="lg" onPress={onStart}>
-        산책 시작 →
-      </GradientButton>
+      {onStart && (
+        <GradientButton fullWidth size="lg" onPress={onStart}>
+          <View style={styles.startButtonContent}>
+            <Text style={styles.startButtonText}>산책 시작</Text>
+            <AppIcon name="chevronRight" size={18} color={TOKENS.colors.textWhite} />
+          </View>
+        </GradientButton>
+      )}
     </View>
   );
 };
@@ -93,4 +99,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     flexWrap: 'wrap',
   },
+  badgeContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badgeText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.primaryDark },
+  badgeWarningText: { color: TOKENS.colors.routeCaution },
+  startButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  startButtonText: { color: TOKENS.colors.textWhite, fontSize: 15, fontWeight: '700' },
 });

@@ -23,4 +23,7 @@ export interface BookmarkedRoute {
   routeGeoJson: RouteFeatureCollection;
   stepPins: readonly RouteStepPin[];
   savedAt: string;
+  landmarkCode?: string;
+  landmarkName?: string;
+  regionName?: string;
 }

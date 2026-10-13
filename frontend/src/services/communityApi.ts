@@ -6,6 +6,8 @@
  * - 서버 미가동/오프라인 환경 시 로컬 안심 피드로 0.1초 무중단 자동 폴백
  */
 
+import { detectLandmarkCategory } from './landmarkTagger';
+
 export interface CommunityFeedItem {
   readonly course_id: string;
   readonly title: string;
@@ -14,6 +16,9 @@ export interface CommunityFeedItem {
   readonly duration_min: number;
   readonly rating: number;
   readonly is_origin_masked: boolean;
+  readonly landmark_code?: string;
+  readonly landmark_name?: string;
+  readonly region_name?: string;
 }
 
 export interface CommunityFeedResponse {
@@ -31,6 +36,9 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     duration_min: 26,
     rating: 4.9,
     is_origin_masked: true,
+    landmark_code: 'LM_SEONGSAN',
+    landmark_name: '성산근린공원',
+    region_name: '서울시 마포구',
   },
   {
     course_id: 'feed_2',
@@ -40,15 +48,33 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     duration_min: 22,
     rating: 5.0,
     is_origin_masked: true,
+    landmark_code: 'LM_SEOUL_FOREST',
+    landmark_name: '서울숲 공원',
+    region_name: '서울시 성동구',
   },
   {
     course_id: 'feed_3',
+    title: '서울시청 & 덕수궁 돌담길 완만 산책',
+    masked_polyline: [[126.978, 37.566], [126.979, 37.567], [126.979, 37.569]],
+    distance_m: 1250,
+    duration_min: 20,
+    rating: 4.9,
+    is_origin_masked: true,
+    landmark_code: 'LM_CITY_HALL',
+    landmark_name: '서울시청 · 청계천',
+    region_name: '서울시 중구',
+  },
+  {
+    course_id: 'feed_4',
     title: '응봉산 완만 그늘 산책로',
     masked_polyline: [[127.034, 37.548], [127.036, 37.550], [127.038, 37.549]],
     distance_m: 2100,
     duration_min: 34,
     rating: 4.7,
     is_origin_masked: true,
+    landmark_code: 'LM_SEOUL_FOREST',
+    landmark_name: '서울숲 · 응봉산',
+    region_name: '서울시 성동구',
   },
 ];
 
@@ -64,8 +90,19 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
 
     if (res.ok) {
       const data = await res.json();
+      const rawFeeds: CommunityFeedItem[] = data.feeds || DEFAULT_FEEDS;
+      const enrichedFeeds = rawFeeds.map((feed) => {
+        if (feed.landmark_code && feed.region_name) return feed;
+        const meta = detectLandmarkCategory(feed.masked_polyline, feed.title);
+        return {
+          ...feed,
+          landmark_code: feed.landmark_code || meta.landmarkCode,
+          landmark_name: feed.landmark_name || meta.landmarkName,
+          region_name: feed.region_name || meta.regionName,
+        };
+      });
       return {
-        feeds: data.feeds || DEFAULT_FEEDS,
+        feeds: enrichedFeeds,
         is_supabase: Boolean(data.is_supabase),
       };
     }

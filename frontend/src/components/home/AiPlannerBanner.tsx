@@ -8,6 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 
 export interface AiPlannerBannerProps {
   onPress?: () => void;
@@ -26,7 +27,7 @@ export const AiPlannerBanner: React.FC<AiPlannerBannerProps> = ({
     >
       <View style={styles.content}>
         <View style={styles.titleRow}>
-          <Text style={styles.sparkleIcon}>✨</Text>
+          <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
           <Text style={styles.title}>오늘 어디로 산책할까요?</Text>
         </View>
 
@@ -38,7 +39,7 @@ export const AiPlannerBanner: React.FC<AiPlannerBannerProps> = ({
       </View>
 
       <View style={styles.arrowCircle}>
-        <Text style={styles.arrowText}>→</Text>
+        <AppIcon name="chevronRight" size={20} color={TOKENS.colors.textWhite} />
       </View>
     </TouchableOpacity>
   );
@@ -46,7 +47,7 @@ export const AiPlannerBanner: React.FC<AiPlannerBannerProps> = ({
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: TOKENS.colors.primaryWash,
     borderRadius: TOKENS.borderRadius.card,
     padding: 18,
     borderWidth: 1,
@@ -70,9 +71,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 8,
-  },
-  sparkleIcon: {
-    fontSize: 15,
   },
   title: {
     fontSize: 14,
@@ -113,11 +111,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 3,
-  },
-  arrowText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: -2,
   },
 });

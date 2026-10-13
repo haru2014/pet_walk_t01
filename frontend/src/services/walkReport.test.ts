@@ -151,6 +151,23 @@ describe('Phase 5 - 3초 원터치 피드백 메타데이터 바인딩 (US-E2)',
     expect(context.recommended_max_slope_offset).toBe(-1.5);
     expect(FeedbackContextService.generateBriefingNotice(context)).toContain('최대 경사도를 1.5% 더 완화');
   });
+
+  it('완만/평지(gentle) 피드백 추가 시 불만족 카운트가 상쇄되고 보정치가 정상 회복되어야 한다', async () => {
+    // 이전 steep 기록이 있는 상태에서 gentle 산책 기록 추가
+    const gentleRecord = createSampleRecord('walk_gentle');
+    gentleRecord.feedback = {
+      comfortScore: 5,
+      slopeRating: 'gentle',
+      tags: ['완만해요'],
+    };
+    await LocalStorageService.appendWalkRecord(gentleRecord);
+
+    const context = await FeedbackContextService.buildRecentFeedbackContext();
+    // 1건 steep - 1건 gentle = 0건 순 불만족 (회복)
+    expect(context.slope_dissatisfaction_count).toBe(0);
+    expect(context.recommended_max_slope_offset).toBe(0);
+    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('최적의 표준 평지 코스');
+  });
 });
 
 describe('Phase 5 - 인포그래픽 통계 지표 및 웰니스 카피라이팅 원칙 검증', () => {

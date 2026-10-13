@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  cardSelected: { borderColor: TOKENS.colors.primary, backgroundColor: '#F0FDF4' },
+  cardSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
   name: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
   meta: { fontSize: 12, color: TOKENS.colors.textMuted },
   radio: {

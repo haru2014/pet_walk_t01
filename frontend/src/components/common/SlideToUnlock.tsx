@@ -8,6 +8,7 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from './AppIcon';
 
 const HANDLE_SIZE = 56;
 const UNLOCK_RATIO = 0.85;
@@ -50,7 +51,7 @@ export const SlideToUnlock: React.FC<SlideToUnlockProps> = ({
         {...panResponder.panHandlers}
         style={[styles.handle, { transform: [{ translateX }] }]}
       >
-        <Text style={styles.handleIcon}>🐾</Text>
+        <AppIcon name="paw" size={26} color={TOKENS.colors.textWhite} />
       </Animated.View>
     </View>
   );
@@ -79,8 +80,5 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.pocketHud,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  handleIcon: {
-    fontSize: 24,
   },
 });

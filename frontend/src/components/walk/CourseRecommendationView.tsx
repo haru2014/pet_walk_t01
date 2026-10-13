@@ -16,10 +16,13 @@ import {
 } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById } from '../../services/sampleRoute';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 import { CoursePlan } from '../../types/bookmark';
+import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile } from '../../types/dogProfile';
 import { RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
+import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { RouteReasonCard } from '../map/RouteReasonCard';
 import { AlternativeCourseList } from './AlternativeCourseList';
 import { CourseInfoCard } from './CourseInfoCard';
@@ -28,6 +31,7 @@ import { PlanSourceBadge } from './PlanSourceBadge';
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
   preferences?: WalkPreferences;
+  feedback?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onStartWalk: (course: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect?: (instruction: string) => void;
@@ -36,52 +40,65 @@ export interface CourseRecommendationViewProps {
 export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> = ({
   dog,
   preferences,
+  feedback,
   onBack,
   onStartWalk,
   onPinSelect,
 }) => {
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
-    generateAdaptiveCourses(dog, preferences)
+    generateAdaptiveCourses(dog, preferences, feedback)
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    void requestWalkPlan(dog, preferences).then((res) => {
+    void requestWalkPlan(dog, preferences, feedback).then((res) => {
       if (!isMounted) return;
       setPlanResult(res);
       if (res.courses.length > 0) setCourses(res.courses);
     });
     return () => { isMounted = false; };
-  }, [dog, preferences]);
+  }, [dog, preferences, feedback]);
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
+  const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
   const activePlan = useMemo(() => {
-    if (planResult?.coursePlans && currentCourse?.id && planResult.coursePlans[currentCourse.id]) {
-      return planResult.coursePlans[currentCourse.id];
+    if (candidatePlan) {
+      return candidatePlan;
     }
-    const isLiveFirstCourse = Boolean(planResult?.isLiveServer && selectedCourseIndex === 0);
-    return getCoursePlanById(
-      currentCourse?.id,
-      isLiveFirstCourse && planResult ? planResult : undefined,
-    );
-  }, [currentCourse?.id, planResult, selectedCourseIndex]);
+    // 서버 버전이 per-course plan을 주지 않는 경우 첫 후보는 서버 응답
+    // GeoJSON을 사용한다. getCoursePlanById의 정적 ID 매핑이 이를 덮지 않게 한다.
+    if (planResult?.isLiveServer && selectedCourseIndex === 0) {
+      return { route: planResult.route, stepPins: planResult.stepPins };
+    }
+    return getCoursePlanById(currentCourse?.id);
+  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex]);
 
   const activeRoute = activePlan.route;
   const activePins = activePlan.stepPins;
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
+  const activeSummary = useMemo(
+    () => buildCourseSummary(activeRoute, dog.speedKmH),
+    [activeRoute, dog.speedKmH],
+  );
   const bookmarkCandidate = useMemo(
     () => (currentCourse ? createBookmark(currentCourse, plan, dog.name) : null),
     [currentCourse, plan, dog.name],
   );
-  const conditionLabels = useMemo(() => buildAdaptiveConditionLabels(dog, preferences), [dog, preferences]);
+  const conditionLabels = useMemo(() => {
+    const base = buildAdaptiveConditionLabels(dog, preferences);
+    if (feedback && feedback.recommended_max_slope_offset < 0) {
+      base.push(`경사 완화 ${Math.abs(feedback.recommended_max_slope_offset)}% 적용`);
+    }
+    return base;
+  }, [dog, preferences, feedback]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity activeOpacity={0.7} onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>‹</Text>
+          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>추천 산책 코스</Text>
         <View style={styles.headerPlaceholder} />
@@ -92,7 +109,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
         <View style={styles.titleSection}>
           <View style={styles.sparkleBadge}>
-            <Text style={styles.sparkleIcon}>✨</Text>
+            <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
           </View>
           <Text style={styles.mainTitle}>
             {dog.name}에게 맞는 산책 코스를{'\n'}찾았어요.
@@ -112,6 +129,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
         <View style={styles.mapWrapper}>
           <RouteMapView
+            key={currentCourse.id}
             route={activeRoute}
             stepPins={activePins}
             speedKmH={dog.speedKmH}
@@ -120,7 +138,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           />
         </View>
 
-        <CourseInfoCard course={currentCourse} rank={selectedCourseIndex + 1} bookmark={bookmarkCandidate} />
+        <CourseInfoCard course={currentCourse} summary={activeSummary} rank={selectedCourseIndex + 1} bookmark={bookmarkCandidate} />
 
         <RouteReasonCard
           reasonText={currentCourse.reason}
@@ -154,7 +172,6 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.surface,
   },
   backButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backIcon: { fontSize: 26, color: TOKENS.colors.textMain, fontWeight: '300' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: TOKENS.colors.textMain, letterSpacing: -0.3 },
   headerPlaceholder: { width: 36 },
   scrollContent: { padding: 20, paddingBottom: 110 },
@@ -168,7 +185,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  sparkleIcon: { fontSize: 16 },
   mainTitle: { fontSize: 22, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5, marginBottom: 6, lineHeight: 28 },
   subTitle: { fontSize: 13, color: TOKENS.colors.textMuted, lineHeight: 18 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },

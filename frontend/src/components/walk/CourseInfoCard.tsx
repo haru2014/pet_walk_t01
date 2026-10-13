@@ -8,25 +8,28 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon, AppIconName } from '../common/AppIcon';
 import { RecommendedCourse } from '../../types/walkSettings';
+import { CourseSummary } from '../../types/route';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 
 export interface CourseInfoCardProps {
   readonly course: RecommendedCourse;
+  readonly summary: CourseSummary;
   readonly rank: number;
   readonly bookmark: BookmarkedRoute | null;
 }
 
-const StatBox: React.FC<{ icon: string; label: string; value: string }> = ({ icon, label, value }) => (
+const StatBox: React.FC<{ icon: AppIconName; label: string; value: string }> = ({ icon, label, value }) => (
   <View style={styles.statBox}>
-    <Text style={styles.statIcon}>{icon}</Text>
+    <View style={styles.statIcon}><AppIcon name={icon} size={18} color={TOKENS.colors.primaryDark} /></View>
     <Text style={styles.statLabel}>{label}</Text>
     <Text style={styles.statValue}>{value}</Text>
   </View>
 );
 
-export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, rank, bookmark }) => (
+export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, summary, rank, bookmark }) => (
   <View style={styles.card}>
     <View style={styles.header}>
       <Text style={styles.name}>{course.name}</Text>
@@ -38,12 +41,12 @@ export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, rank, bo
       </View>
     </View>
     <Text style={styles.stats}>
-      {course.distanceKm} · 약 {course.estimatedMinutes}분
+      {summary.totalDistanceKm.toFixed(2)} km · 약 {summary.estimatedMinutes}분
     </Text>
     <View style={styles.statsRow}>
-      <StatBox icon="🌿" label="폭신한 길" value={course.softRatio} />
-      <StatBox icon="🌳" label="그늘 구간" value={course.shadeLevel} />
-      <StatBox icon="🚶" label="계단" value={course.stairsCount} />
+      <StatBox icon="soft" label="폭신한 길" value={course.softRatio} />
+      <StatBox icon="shade" label="그늘 구간" value={course.shadeLevel} />
+      <StatBox icon="stairs" label="계단" value={course.stairsCount} />
     </View>
   </View>
 );
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
   stats: { fontSize: 13, color: TOKENS.colors.textMuted, marginBottom: 14 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: TOKENS.colors.border, paddingTop: 12, gap: 8 },
   statBox: { flex: 1, alignItems: 'center' },
-  statIcon: { fontSize: 16, marginBottom: 2 },
+  statIcon: { marginBottom: 2 },
   statLabel: { fontSize: 11, color: TOKENS.colors.textMuted, marginBottom: 2 },
   statValue: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
 });

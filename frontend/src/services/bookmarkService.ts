@@ -11,6 +11,8 @@ import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
 import { RecommendedCourse } from '../types/walkSettings';
 import { RouteFeatureCollection } from '../types/route';
 
+import { detectLandmarkCategory } from './landmarkTagger';
+
 export const MAX_BOOKMARKS = 30;
 
 /** 경로를 식별하는 가벼운 지문 (좌표 개수 + 시작/끝 좌표) */
@@ -30,6 +32,7 @@ export function createBookmark(
   now: Date = new Date(),
 ): BookmarkedRoute {
   const distance = Number.parseFloat(course.distanceKm);
+  const landmarkInfo = detectLandmarkCategory(plan.route, course.name);
   return {
     id: `bm_${course.id}_${routeFingerprint(plan.route)}`,
     title: course.name,
@@ -42,6 +45,9 @@ export function createBookmark(
     routeGeoJson: plan.route,
     stepPins: plan.stepPins,
     savedAt: now.toISOString(),
+    landmarkCode: landmarkInfo.landmarkCode,
+    landmarkName: landmarkInfo.landmarkName,
+    regionName: landmarkInfo.regionName,
   };
 }
 

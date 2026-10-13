@@ -15,6 +15,7 @@ import { GoldenTimeWidget } from '../components/home/GoldenTimeWidget';
 import { AiPlannerBanner } from '../components/home/AiPlannerBanner';
 import { RecentWalkCard } from '../components/home/RecentWalkCard';
 import { FeedbackContextService, FeedbackSummaryPayload } from '../services/feedbackContext';
+import { AppIcon } from '../components/common/AppIcon';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -36,7 +37,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* 환영 인사 */}
       <View style={styles.greetingSection}>
         <Text style={styles.greetingSub}>오늘도 편안하게,</Text>
-        <Text style={styles.greetingMain}>우리 아이와 걸어요. 🐾</Text>
+        <View style={styles.greetingMainRow}><Text style={styles.greetingMain}>우리 아이와 걸어요.</Text><AppIcon name="paw" size={20} color={TOKENS.colors.primary} /></View>
       </View>
 
       {/* 메인 반려견 카드 (Screen-01) */}
@@ -107,6 +108,7 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMain,
     letterSpacing: -0.5,
   },
+  greetingMainRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardHeaderTitle: {
     fontSize: 14,
     fontWeight: '700',

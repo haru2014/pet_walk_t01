@@ -3,19 +3,99 @@
  * 모바일 커뮤니티 탭 화면 (US-G2)
  *
  * 동네 이웃 안심 코스 공유 피드 및 출발/도착지 200m 공간 마스킹 보호
- * Supabase PostgreSQL 영구 연동 및 오프라인 자동 폴백 듀얼 모드 지원
+ * - 카드 터치 시 인라인 미니 지도(RouteMapView) 아코디언 펼치기
+ * - 전체화면 상세 경로 모달 및 '이 코스로 산책 시작' 원터치 연동
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+} from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { CardWrapper } from '../components/common/CardWrapper';
 import { fetchCommunityFeeds, CommunityFeedItem } from '../services/communityApi';
+import { RouteMapView } from '../components/map/RouteMapView';
+import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
+import { LandmarkCategoryCode } from '../types/landmarkCategory';
 
-export const CommunityTabScreen: React.FC = () => {
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+export interface CommunityTabScreenProps {
+  readonly onStartCommunityWalk?: (
+    title: string,
+    route: RouteFeatureCollection,
+    stepPins: readonly RouteStepPin[],
+  ) => void;
+  readonly dogSpeedKmH?: number;
+}
+
+/** 이웃이 공유한 마스킹 좌표열을 3대 안심 등급 GeoJSON FeatureCollection 규격으로 변환 */
+function buildRouteFromMaskedPolyline(coords: readonly (readonly [number, number])[]): RouteFeatureCollection {
+  const safeCoords: LonLat[] = coords.map((c) => [c[0], c[1]]);
+  if (safeCoords.length < 2) {
+    const single: LonLat = safeCoords[0] || [127.038, 37.544];
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 2.0, shaded: true },
+          geometry: { type: 'LineString', coordinates: [single, [single[0] + 0.001, single[1] + 0.001]] },
+        },
+      ],
+    };
+  }
+
+  const mid = Math.max(1, Math.floor(safeCoords.length / 2));
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 2.1, shaded: true },
+        geometry: { type: 'LineString', coordinates: safeCoords.slice(0, mid + 1) },
+      },
+      {
+        type: 'Feature',
+        properties: { segmentType: 'normal', maxSlopePercent: 4.2, shaded: false },
+        geometry: { type: 'LineString', coordinates: safeCoords.slice(mid) },
+      },
+    ],
+  };
+}
+
+/** 코스 출발/도착 안내 핀 생성 */
+function buildPinsFromCoords(coords: readonly (readonly [number, number])[]): readonly RouteStepPin[] {
+  if (coords.length === 0) return [];
+  const startPos: LonLat = [coords[0][0], coords[0][1]];
+  const lastCoord = coords.at(-1) ?? coords[0];
+  const endPos: LonLat = [lastCoord[0], lastCoord[1]];
+  return [
+    { id: 'pin_start', kind: 'turn', position: startPos, instruction: '이웃 공유 코스 출발점 (200m 안심 보호)' },
+    { id: 'pin_end', kind: 'caution', position: endPos, instruction: '코스 도착 지점' },
+  ];
+}
+
+export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
+  onStartCommunityWalk,
+  dogSpeedKmH = 2.8,
+}) => {
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>([]);
   const [isSupabase, setIsSupabase] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 1번 인터랙션: 카드 아코디언 확장 선택 ID
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+
+  // 2번 인터랙션: 전체화면 상세 경로 모달 대상
+  const [modalFeed, setModalFeed] = useState<CommunityFeedItem | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<LandmarkCategoryCode>('ALL');
 
   const loadFeeds = async () => {
     setIsLoading(true);
@@ -29,10 +109,36 @@ export const CommunityTabScreen: React.FC = () => {
     void loadFeeds();
   }, []);
 
+  const handleToggleAccordion = (courseId: string) => {
+    setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
+  };
+
+  const handleStartWalkFromFeed = (feed: CommunityFeedItem) => {
+    const route = buildRouteFromMaskedPolyline(feed.masked_polyline);
+    const pins = buildPinsFromCoords(feed.masked_polyline);
+    if (onStartCommunityWalk) {
+      onStartCommunityWalk(feed.title, route, pins);
+    }
+    setModalFeed(null);
+  };
+
+  const CATEGORY_CHIPS: readonly { code: LandmarkCategoryCode; label: string }[] = [
+    { code: 'ALL', label: '전체' },
+    { code: 'LM_SEOUL_FOREST', label: '🌳 서울숲 · 성동' },
+    { code: 'LM_CITY_HALL', label: '🏛️ 시청 · 중구' },
+    { code: 'LM_SEONGSAN', label: '🌲 성산공원 · 마포' },
+    { code: 'LM_GANGNAM', label: '🏙️ 강남역 · 강남' },
+  ];
+
+  const filteredFeeds =
+    selectedCategory === 'ALL'
+      ? feeds
+      : feeds.filter((f) => f.landmark_code === selectedCategory);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionSubtitle}>동네 안심 산책로 공유</Text>
+        <Text style={styles.sectionSubtitle}>동네 이웃 안심 산책로 공유</Text>
         <Text style={styles.sectionTitle}>커뮤니티 코스 피드 👥</Text>
       </View>
 
@@ -58,40 +164,187 @@ export const CommunityTabScreen: React.FC = () => {
         <Text style={styles.cardHeaderTitle}>🔒 자택 위치 안심 보호 (출발·도착지 200m)</Text>
         <Text style={styles.cardBodyText}>
           이웃 보호자들이 공유한 안심 산책 코스입니다. 집 위치 노출을 방지하기 위해
-          출발지와 도착지 반경 200m 구간은 자동으로 가림 처리(블러링)됩니다.
+          출발지와 도착지 반경 200m 구간은 자동으로 가림 처리(블러링)된 안전 경로만 표시됩니다.
         </Text>
       </CardWrapper>
 
+      {/* 행정구역 및 랜드마크 필터 칩 바 */}
+      <View style={styles.filterChipContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipScroll}>
+          {CATEGORY_CHIPS.map((chip) => {
+            const isSelected = selectedCategory === chip.code;
+            return (
+              <TouchableOpacity
+                key={chip.code}
+                activeOpacity={0.75}
+                onPress={() => setSelectedCategory(chip.code)}
+                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {/* 공유된 안심 코스 피드 목록 */}
       <Text style={styles.feedListTitle}>
-        이웃들이 공유한 안심 산책로 ({feeds.length}개)
+        이웃들이 공유한 안심 산책로 ({filteredFeeds.length}개)
       </Text>
 
-      {feeds.map((feed) => (
-        <CardWrapper key={feed.course_id} variant="elevated" style={styles.feedCard}>
-          <View style={styles.feedHeader}>
-            <Text style={styles.feedTitle}>{feed.title}</Text>
-            {feed.is_origin_masked && (
-              <View style={styles.maskedChip}>
-                <Text style={styles.maskedChipText}>🔒 집 위치 보호됨</Text>
+      {filteredFeeds.map((feed) => {
+        const isExpanded = expandedCourseId === feed.course_id;
+        const feedRoute = buildRouteFromMaskedPolyline(feed.masked_polyline);
+        const feedPins = buildPinsFromCoords(feed.masked_polyline);
+
+        return (
+          <CardWrapper key={feed.course_id} variant="elevated" style={styles.feedCard}>
+            {/* 카드 상단 클릭 시 아코디언 토글 */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => handleToggleAccordion(feed.course_id)}
+            >
+              {/* 랜드마크 및 행정구역 뱃지 행 */}
+              <View style={styles.landmarkRow}>
+                {feed.landmark_name && (
+                  <View style={styles.landmarkChip}>
+                    <Text style={styles.landmarkChipText}>
+                      📍 {feed.landmark_name} · {feed.region_name}
+                    </Text>
+                  </View>
+                )}
+                {feed.is_origin_masked && (
+                  <View style={styles.maskedChip}>
+                    <Text style={styles.maskedChipText}>🔒 200m 보호</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.feedHeader}>
+                <Text style={styles.feedTitle}>{feed.title}</Text>
+              </View>
+              <View style={styles.feedMetaRow}>
+                <Text style={styles.feedMetaText}>
+                  📏 {(feed.distance_m / 1000).toFixed(1)}km · ⏱️ 약 {feed.duration_min}분
+                </Text>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.feedRating}>⭐ {feed.rating.toFixed(1)}</Text>
+                  <Text style={styles.chevronText}>{isExpanded ? ' ▲ 경로 접기' : ' ▼ 경로 지도 보기'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* 1번 방안: 카드 내부 인라인 미니 경로 지도 아코디언 펼침 */}
+            {isExpanded && (
+              <View style={styles.expandedContent}>
+                <View style={styles.divider} />
+
+                <Text style={styles.previewNotice}>
+                  🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길)
+                </Text>
+
+                <View style={styles.miniMapContainer}>
+                  <RouteMapView
+                    route={feedRoute}
+                    stepPins={feedPins}
+                    speedKmH={dogSpeedKmH}
+                  />
+                </View>
+
+                {/* 2번 방안 혼합: 바로 산책 시작 및 큰 화면 모달 버튼 */}
+                <View style={styles.actionButtonGroup}>
+                  {onStartCommunityWalk && (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleStartWalkFromFeed(feed)}
+                      style={styles.startWalkButton}
+                    >
+                      <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setModalFeed(feed)}
+                    style={styles.fullScreenButton}
+                  >
+                    <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
+          </CardWrapper>
+        );
+      })}
+
+      {/* 2번 방안: 전체화면 코스 상세 모달 팝업 */}
+      {modalFeed && (
+        <Modal
+          visible={Boolean(modalFeed)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setModalFeed(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalSubtitle}>이웃 공유 안심 산책로</Text>
+                  <Text style={styles.modalTitle}>{modalFeed.title}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setModalFeed(null)}
+                  style={styles.closeBtn}
+                >
+                  <Text style={styles.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalMetaBar}>
+                <Text style={styles.modalMetaItem}>📏 {(modalFeed.distance_m / 1000).toFixed(1)}km</Text>
+                <Text style={styles.modalMetaItem}>⏱️ 약 {modalFeed.duration_min}분</Text>
+                <Text style={styles.modalMetaItem}>⭐ {modalFeed.rating.toFixed(1)} 만족도</Text>
+                <Text style={styles.modalProtectedBadge}>🔒 200m 안심 마스킹</Text>
+              </View>
+
+              <View style={styles.modalMapWrapper}>
+                <RouteMapView
+                  route={buildRouteFromMaskedPolyline(modalFeed.masked_polyline)}
+                  stepPins={buildPinsFromCoords(modalFeed.masked_polyline)}
+                  speedKmH={dogSpeedKmH}
+                />
+              </View>
+
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setModalFeed(null)}
+                  style={styles.modalCancelBtn}
+                >
+                  <Text style={styles.modalCancelText}>닫기</Text>
+                </TouchableOpacity>
+                {onStartCommunityWalk && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => handleStartWalkFromFeed(modalFeed)}
+                    style={styles.modalConfirmBtn}
+                  >
+                    <Text style={styles.modalConfirmText}>🐾 산책 시작하기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </View>
-          <View style={styles.feedMetaRow}>
-            <Text style={styles.feedMetaText}>
-              📏 {(feed.distance_m / 1000).toFixed(1)}km · ⏱️ 약 {feed.duration_min}분
-            </Text>
-            <Text style={styles.feedRating}>⭐ {feed.rating.toFixed(1)}</Text>
-          </View>
-        </CardWrapper>
-      ))}
+        </Modal>
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
+  scrollContent: { paddingBottom: 32 },
   sectionHeader: { marginBottom: 12 },
   sectionSubtitle: { fontSize: 13, color: TOKENS.colors.textMuted },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },
@@ -106,13 +359,140 @@ const styles = StyleSheet.create({
   refreshText: { fontSize: 11, color: TOKENS.colors.textMuted },
   cardHeaderTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
   cardBodyText: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 18, marginTop: 6 },
+  filterChipContainer: { marginBottom: 12 },
+  filterChipScroll: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
+  filterChip: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: TOKENS.colors.primary,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: TOKENS.colors.textMuted,
+  },
+  filterChipTextActive: {
+    color: TOKENS.colors.primaryDark,
+    fontWeight: '700',
+  },
   feedListTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
-  feedCard: { marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14 },
+  feedCard: { marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  landmarkChip: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  landmarkChipText: { fontSize: 11, color: '#1D4ED8', fontWeight: '700' },
   feedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   feedTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
   maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
   maskedChipText: { fontSize: 10, color: '#16A34A', fontWeight: '700' },
   feedMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   feedMetaText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '500' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   feedRating: { fontSize: 12, color: TOKENS.colors.primaryDark, fontWeight: '700' },
+  chevronText: { fontSize: 11, color: TOKENS.colors.primary, fontWeight: '600' },
+  divider: { height: 1, backgroundColor: TOKENS.colors.border, marginVertical: 12 },
+  expandedContent: { marginTop: 4 },
+  previewNotice: { fontSize: 11, color: TOKENS.colors.textMuted, marginBottom: 8, fontWeight: '600' },
+  miniMapContainer: {
+    borderRadius: TOKENS.borderRadius.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 4,
+  },
+  actionButtonGroup: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  startWalkButton: {
+    flex: 2,
+    backgroundColor: TOKENS.colors.primary,
+    paddingVertical: 10,
+    borderRadius: TOKENS.borderRadius.button,
+    alignItems: 'center',
+  },
+  startWalkButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  fullScreenButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 10,
+    borderRadius: TOKENS.borderRadius.button,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  fullScreenButtonText: { color: '#334155', fontSize: 12, fontWeight: '600' },
+
+  // 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  modalSubtitle: { fontSize: 12, color: TOKENS.colors.textMuted },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: TOKENS.colors.textMain, marginTop: 2 },
+  closeBtn: { padding: 4 },
+  closeBtnText: { fontSize: 18, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  modalMetaBar: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
+  modalMetaItem: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  modalProtectedBadge: {
+    fontSize: 10,
+    color: '#16A34A',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontWeight: '700',
+  },
+  modalMapWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalActionRow: { flexDirection: 'row', gap: 10 },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: TOKENS.borderRadius.button,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  modalConfirmBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: TOKENS.borderRadius.button,
+    backgroundColor: TOKENS.colors.primary,
+    alignItems: 'center',
+  },
+  modalConfirmText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 });

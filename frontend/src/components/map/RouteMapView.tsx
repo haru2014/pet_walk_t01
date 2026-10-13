@@ -7,15 +7,28 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable, Image, TouchableOpacity } from 'react-native';
-import Svg, { Polyline, Circle, G, Text as SvgText } from 'react-native-svg';
+import { View, Text, StyleSheet, Dimensions, Pressable, Image, TouchableOpacity, Platform } from 'react-native';
+import NativeSvg, { Polyline as NativePolyline, Circle as NativeCircle, G as NativeG, Text as NativeSvgText } from 'react-native-svg';
 import { TOKENS } from '../../theme/tokens';
+
+const isWeb = Platform.OS === 'web';
+const cleanWebProps = ({ accessible, style, ...props }: any) => {
+  const flat = Array.isArray(style) ? StyleSheet.flatten(style) : style;
+  return flat ? { style: flat, ...props } : props;
+};
+
+const Svg: React.ComponentType<any> = isWeb ? (props: any) => <svg {...cleanWebProps(props)} /> : NativeSvg;
+const Polyline: React.ComponentType<any> = isWeb ? (props: any) => <polyline {...cleanWebProps(props)} /> : NativePolyline;
+const Circle: React.ComponentType<any> = isWeb ? (props: any) => <circle {...cleanWebProps(props)} /> : NativeCircle;
+const G: React.ComponentType<any> = isWeb ? (props: any) => <g {...cleanWebProps(props)} /> : NativeG;
+const SvgText: React.ComponentType<any> = isWeb ? (props: any) => <text {...cleanWebProps(props)} /> : NativeSvgText;
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
 import { calculateOsmTiles } from '../../services/osmTileService';
 import { CourseSummaryCard } from './CourseSummaryCard';
 import { RealOsmWebView } from './RealOsmWebView';
 import { RouteMapLegend, SEGMENT_COLORS } from './RouteMapLegend';
+import { AppIcon } from '../common/AppIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_WIDTH = Math.min(SCREEN_WIDTH - 40, 360);
@@ -71,17 +84,19 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           style={[styles.modeTab, mapMode === 'course' && styles.modeTabActive]}
           onPress={() => setMapMode('course')}
         >
-          <Text style={[styles.modeTabText, mapMode === 'course' && styles.modeTabTextActive]}>
-            🧭 안심 코스 뷰
-          </Text>
+          <View style={styles.modeTabContent}>
+            <AppIcon name="map" size={15} color={mapMode === 'course' ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
+            <Text style={[styles.modeTabText, mapMode === 'course' && styles.modeTabTextActive]}>안심 코스 뷰</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modeTab, mapMode === 'real_osm' && styles.modeTabActive]}
           onPress={() => setMapMode('real_osm')}
         >
-          <Text style={[styles.modeTabText, mapMode === 'real_osm' && styles.modeTabTextActive]}>
-            🗺️ 실제 OSM 지도
-          </Text>
+          <View style={styles.modeTabContent}>
+            <AppIcon name="map" size={15} color={mapMode === 'real_osm' ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
+            <Text style={[styles.modeTabText, mapMode === 'real_osm' && styles.modeTabTextActive]}>실제 OSM 지도</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -202,6 +217,7 @@ const styles = StyleSheet.create({
   modeTabTextActive: {
     color: TOKENS.colors.primaryDark,
   },
+  modeTabContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   mapCanvas: {
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
@@ -209,7 +225,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
-    backgroundColor: '#F0F7F3',
+    backgroundColor: TOKENS.colors.mapGround,
     position: 'relative',
     alignSelf: 'center',
   },

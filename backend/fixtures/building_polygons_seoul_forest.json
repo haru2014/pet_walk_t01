@@ -1,0 +1,55 @@
+{
+  "type": "FeatureCollection",
+  "name": "seoul_forest_buildings",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "bld_sf_acro_forest", "name": "아크로 서울포레스트", "building": "residential" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [127.0435, 37.5440],
+            [127.0448, 37.5440],
+            [127.0448, 37.5452],
+            [127.0435, 37.5452],
+            [127.0435, 37.5440]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "bld_sf_galleria_foret", "name": "갤러리아 포레", "building": "residential" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [127.0410, 37.5455],
+            [127.0425, 37.5455],
+            [127.0425, 37.5468],
+            [127.0410, 37.5468],
+            [127.0410, 37.5455]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "bld_sf_d_tower", "name": "디타워 서울숲", "building": "commercial" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [127.0445, 37.5455],
+            [127.0456, 37.5455],
+            [127.0456, 37.5465],
+            [127.0445, 37.5465],
+            [127.0445, 37.5455]
+          ]
+        ]
+      }
+    }
+  ]
+}

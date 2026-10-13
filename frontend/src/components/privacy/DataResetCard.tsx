@@ -9,6 +9,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CardWrapper } from '../common/CardWrapper';
 import { confirmAction } from '../../services/confirm';
+import { AppIcon } from '../common/AppIcon';
+import { TOKENS } from '../../theme/tokens';
 
 export interface DataResetCardProps {
   onReset: () => Promise<void>;
@@ -40,7 +42,7 @@ export const DataResetCard: React.FC<DataResetCardProps> = ({ onReset, onComplet
 
   return (
     <CardWrapper variant="flat" style={styles.card}>
-      <Text style={styles.title}>🔒 개인정보 보호 및 전체 기록 삭제</Text>
+      <View style={styles.titleRow}><AppIcon name="lock" size={17} color={styles.title.color} /><Text style={styles.title}>개인정보 보호 및 전체 기록 삭제</Text></View>
       <Text style={styles.description}>
         스마트폰에 저장된 모든 기록(반려견 프로필, 산책 이력, 찜한 코스, 위치 설정)을 깨끗하게 삭제합니다.
       </Text>
@@ -57,9 +59,10 @@ export const DataResetCard: React.FC<DataResetCardProps> = ({ onReset, onComplet
         onPress={() => void handlePressReset()}
         style={[styles.resetButton, isResetting && styles.buttonDisabled]}
       >
-        <Text style={styles.buttonText}>
-          {isResetting ? '기록 삭제 중...' : '🗑️ 저장된 모든 기록 삭제하기'}
-        </Text>
+        <View style={styles.buttonContent}>
+          {!isResetting && <AppIcon name="trash" size={16} color={TOKENS.colors.textWhite} />}
+          <Text style={styles.buttonText}>{isResetting ? '기록 삭제 중...' : '저장된 모든 기록 삭제하기'}</Text>
+        </View>
       </TouchableOpacity>
     </CardWrapper>
   );
@@ -77,6 +80,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#991B1B',
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   description: {
     fontSize: 12,
     color: '#7F1D1D',
@@ -85,9 +89,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   messageBox: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: TOKENS.colors.primaryWash,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: TOKENS.colors.primaryMint,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -114,4 +118,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  buttonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
 });

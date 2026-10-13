@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 
 export interface RecentWalkCardProps {
   onPress?: () => void;
@@ -38,7 +39,7 @@ export const RecentWalkCard: React.FC<RecentWalkCardProps> = ({
       >
         <View style={styles.leftGroup}>
           <View style={styles.iconBox}>
-            <Text style={styles.icon}>🐾</Text>
+            <AppIcon name="paw" size={22} color={TOKENS.colors.primary} />
           </View>
           <View>
             <Text style={styles.cardTitle}>{title}</Text>
@@ -48,7 +49,7 @@ export const RecentWalkCard: React.FC<RecentWalkCardProps> = ({
           </View>
         </View>
 
-        <Text style={styles.arrow}>›</Text>
+        <AppIcon name="chevronRight" size={20} color={TOKENS.colors.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -103,9 +104,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    fontSize: 20,
-  },
   cardTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -115,10 +113,5 @@ const styles = StyleSheet.create({
   cardMeta: {
     fontSize: 12,
     color: TOKENS.colors.textMuted,
-  },
-  arrow: {
-    fontSize: 22,
-    color: TOKENS.colors.textMuted,
-    fontWeight: '400',
   },
 });

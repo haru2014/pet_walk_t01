@@ -6,11 +6,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
 import { hapticLight, hapticSuccess } from '../../services/haptics';
+import { AppIcon } from '../common/AppIcon';
 
 export interface BookmarkToggleButtonProps {
   readonly bookmark: BookmarkedRoute | null;
@@ -50,7 +51,10 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
       accessibilityLabel={saved ? '즐겨찾기 해제' : '즐겨찾기 저장'}
       style={[styles.button, saved && styles.buttonSaved]}
     >
-      <Text style={[styles.text, saved && styles.textSaved]}>{saved ? '❤️ 저장됨' : '🤍 찜하기'}</Text>
+      <View style={styles.content}>
+        <AppIcon name="heart" size={14} color={saved ? TOKENS.colors.primary : TOKENS.colors.textMuted} filled={saved} />
+        <Text style={[styles.text, saved && styles.textSaved]}>{saved ? '저장됨' : '찜하기'}</Text>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -67,4 +71,5 @@ const styles = StyleSheet.create({
   buttonSaved: { borderColor: TOKENS.colors.primaryMint, backgroundColor: TOKENS.colors.primaryLight },
   text: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMuted },
   textSaved: { color: TOKENS.colors.primaryDark },
+  content: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

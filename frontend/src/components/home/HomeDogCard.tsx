@@ -9,6 +9,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { DogProfile } from '../../types/dogProfile';
+import { AppIcon } from '../common/AppIcon';
 
 export interface HomeDogCardProps {
   profile: DogProfile;
@@ -31,7 +32,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
         {/* 원형 아바타 */}
         <View style={styles.avatarWrapper}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarIcon}>🐶</Text>
+            <AppIcon name="pawOutline" size={30} color={TOKENS.colors.primaryDark} />
           </View>
           <View style={styles.onlineBadge} />
         </View>
@@ -45,7 +46,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
             </View>
             <Text style={styles.changeNotice}>변경 ▾</Text>
           </View>
-          <Text style={styles.subtitle}>오늘 산책 준비됐어요 ☀️</Text>
+          <View style={styles.subtitleRow}><Text style={styles.subtitle}>오늘 산책 준비됐어요</Text><AppIcon name="sun" size={14} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.breedText}>
             {profile.breed} · {profile.ageYears}살 · {profile.speedKmH} km/h
           </Text>
@@ -56,10 +57,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
       <View style={styles.actionRow}>
         <View style={styles.chipsContainer}>
           <View style={styles.chip}>
-            <Text style={styles.chipText}>⏱ 30분 산책</Text>
+            <View style={styles.chipContent}><AppIcon name="clock" size={13} color={TOKENS.colors.primaryDark} /><Text style={styles.chipText}>30분 산책</Text></View>
           </View>
           <View style={styles.chip}>
-            <Text style={styles.chipText}>🌿 폭신한 길 우선</Text>
+            <View style={styles.chipContent}><AppIcon name="soft" size={13} color={TOKENS.colors.primaryDark} /><Text style={styles.chipText}>폭신한 길 우선</Text></View>
           </View>
         </View>
 
@@ -68,7 +69,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
           onPress={onStartWalk}
           style={styles.startButton}
         >
-          <Text style={styles.startButtonText}>산책 시작 →</Text>
+          <View style={styles.startButtonContent}><Text style={styles.startButtonText}>산책 시작</Text><AppIcon name="chevronRight" size={16} color={TOKENS.colors.textWhite} /></View>
         </TouchableOpacity>
       </View>
     </View>
@@ -107,9 +108,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2.5,
     borderColor: TOKENS.colors.primary,
-  },
-  avatarIcon: {
-    fontSize: 30,
   },
   onlineBadge: {
     position: 'absolute',
@@ -158,6 +156,7 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMuted,
     lineHeight: 18,
   },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breedText: {
     fontSize: 11,
     color: TOKENS.colors.textMuted,
@@ -189,6 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
+  chipContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   startButton: {
     backgroundColor: TOKENS.colors.primary,
     paddingHorizontal: 16,
@@ -206,4 +206,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
   },
+  startButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 });

@@ -8,6 +8,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { AppIcon } from '../common/AppIcon';
 
 export interface GoldenTimeWidgetProps {
   currentTimeLabel?: string;
@@ -29,7 +30,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.icon}>🌤️</Text>
+        <AppIcon name="sun" size={20} color={TOKENS.colors.primaryDark} />
         <Text style={styles.title}>산책하기 좋은 시간</Text>
       </View>
       <Text style={styles.subText}>지금은 지면 온도가 적절하고 편안한 시간이에요.</Text>
@@ -74,9 +75,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 4,
-  },
-  icon: {
-    fontSize: 16,
   },
   title: {
     fontSize: 15,
