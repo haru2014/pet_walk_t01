@@ -291,8 +291,8 @@ def _plan_variant(
     origin_mode: str = "park",
 ) -> LoopPlan:
     """공원 모드 시 정밀 공원 보행로(1순위) → 실시간 OSRM → 정적 서울 도로망 → 오프라인 도로망 그래프 → 비상 폴백 순으로 후보 1개를 생성한다."""
-    # 🌟 공원 모드일 때만 대전 3대 공원 & 세종호수공원 실제 OSM 보행로 적용 (공원 내 산책 90% 이상 보장)
-    if origin_mode == "park":
+    # 🌟 공원 모드 또는 P&R 주차장 모드일 때 대전 3대 공원 & 세종호수공원 실제 OSM 보행로 적용
+    if origin_mode in ("park", "parking_pnr"):
         pilot_plan = _plan_static_pilot_park(origin_lat, origin_lon, variant)
         if pilot_plan is not None:
             return pilot_plan

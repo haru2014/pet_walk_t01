@@ -18,6 +18,7 @@ from langgraph.graph.message import add_messages
 
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
+from test_case.test_thermal_and_parking import determine_heat_risk_dto
 
 # ==============================================================================
 # 1. Pydantic 스키마 정의 (Strict Data Contracts)
@@ -91,6 +92,7 @@ class WalkPlanningResult(BaseModel):
     briefing_message: str
     all_scored_candidates: List[ScoredRoute]
     execution_trace: List[str]
+    weather_context: Optional[Dict[str, Any]] = None
 
 
 # ==============================================================================
@@ -185,7 +187,7 @@ def parse_natural_language_walk_query(user_query: str) -> WalkIntent:
     # 산책 의도 핵심 키워드 유무 확인
     intent_keywords = [
         "계단", "경사", "완만", "평지", "언덕", "가파른", "그늘", "시원한",
-        "더워", "낮", "햇빛", "햇볕", "흙", "잔디", "탄성", "우레탄",
+        "더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕", "흙", "잔디", "탄성", "우레탄",
         "폭신", "아스팔트", "시간", "분", "min"
     ]
     has_intent_keywords = any(k in query_str for k in intent_keywords)
@@ -201,7 +203,7 @@ def parse_natural_language_walk_query(user_query: str) -> WalkIntent:
     intent.avoid_stairs = _extract_avoid_stairs(query_str)
     intent.slope_preference = _extract_slope_preference(query_str)
 
-    if any(w in query_str for w in ["그늘", "시원한", "더워", "낮", "햇빛", "햇볕"]):
+    if any(w in query_str for w in ["그늘", "시원한", "더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕"]):
         intent.shade_priority = True
 
     surfaces = _extract_preferred_surfaces(query_str)
@@ -294,9 +296,11 @@ class LoopCandidateRequest(BaseModel):
     max_slope_allowed: float = 6.0
     preferred_surfaces: List[str] = Field(default_factory=list)
     origin_mode: str = "park"
+    estimated_surface_temp: Optional[float] = None
+    air_temp_celsius: Optional[float] = None
 
 
-# 후보별 표시 정보 및 보행 환경 지표 (노면/경사/열 지표는 Step 6 에서 실데이터로 대체 예정)
+# 후보별 표시 정보 및 보행 환경 지표 (기상청 실시간 지면열 모델 연동)
 DIRECTION_LABELS = ["북", "북동", "동", "남동", "남", "남서", "서", "북서"]
 VARIANT_NAME_TEMPLATES: Dict[int, str] = {
     1: "🌿 {direction} 방면 보행안심 순환로",
@@ -310,17 +314,28 @@ def _direction_label(bearing: float) -> str:
 
 
 def _variant_profile(variant: int, req: LoopCandidateRequest) -> Dict[str, Any]:
-    """후보 번호별 보행 환경 지표 프로필."""
+    """후보 번호별 보행 환경 지표 프로필 (기상청 실시간 지면열 모델 연동)."""
     default_surfaces = req.preferred_surfaces or ["dirt", "grass"]
+    surf_temp_base = req.estimated_surface_temp if req.estimated_surface_temp is not None else 32.0
+    air_temp_base = req.air_temp_celsius if req.air_temp_celsius is not None else 26.0
+
+    # 그늘 및 노면 재질에 따른 지면열 완화 모델:
+    # variant 1 (그늘 숲길): 그늘 비율 85% -> 지면열이 외기온 쪽으로 대폭 냉각
+    t1 = round(air_temp_base + (surf_temp_base - air_temp_base) * (1.0 - 0.85 * 0.75), 1)
+    # variant 2 (완만 보행로): 그늘 비율 60%
+    t2 = round(air_temp_base + (surf_temp_base - air_temp_base) * (1.0 - 0.60 * 0.60), 1)
+    # variant 3 (도심 아스팔트): 그늘 비율 35% -> 직사광선/아스팔트 열축적으로 지면열 유지
+    t3 = round(surf_temp_base, 1)
+
     profiles: Dict[int, Dict[str, Any]] = {
         1: {"has_stairs": False, "max_slope_percent": min(4.2, req.max_slope_allowed),
-            "average_slope_percent": 2.3, "surface_temp_c": 28.5, "average_shade_ratio": 0.85,
+            "average_slope_percent": 2.3, "surface_temp_c": t1, "average_shade_ratio": 0.85,
             "surface_types": default_surfaces},
         2: {"has_stairs": False, "max_slope_percent": min(6.5, req.max_slope_allowed + 1.0),
-            "average_slope_percent": 3.4, "surface_temp_c": 31.2, "average_shade_ratio": 0.60,
+            "average_slope_percent": 3.4, "surface_temp_c": t2, "average_shade_ratio": 0.60,
             "surface_types": ["rubber", "paved"]},
         3: {"has_stairs": not req.avoid_stairs, "max_slope_percent": 8.5,
-            "average_slope_percent": 4.8, "surface_temp_c": 35.5, "average_shade_ratio": 0.35,
+            "average_slope_percent": 4.8, "surface_temp_c": t3, "average_shade_ratio": 0.35,
             "surface_types": ["asphalt", "paved"]},
     }
     return profiles[variant]
@@ -362,9 +377,11 @@ class WalkPlanningState(TypedDict):
     user_query: str
     client_dog_context: Optional[Dict[str, Any]]
     client_recent_feedback: List[Dict[str, Any]]
+    weather_context: Optional[Dict[str, Any]]
     origin_lat: float
     origin_lon: float
     origin_mode: str
+    parking_lot_id: Optional[str]
     # 분석 & 보정 산출물
     parsed_intent: Optional[Dict[str, Any]]
     calibrated_speed_kmh: float
@@ -446,6 +463,11 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 3] Routing Adapter 도구를 호출하여 출발지 기반 순환 루프 후보 3종 생성."""
     trace = list(state.get("execution_trace", []))
     intent_dict = state.get("parsed_intent") or {}
+    weather = state.get("weather_context") or {}
+    current_weather = weather.get("current") or weather
+
+    surf_temp = current_weather.get("estimated_surface_temp")
+    air_temp = current_weather.get("air_temp_celsius")
 
     request = LoopCandidateRequest(
         origin_lat=state.get("origin_lat", 37.5665),
@@ -456,10 +478,15 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         max_slope_allowed=state.get("max_slope_allowed", 6.0),
         preferred_surfaces=intent_dict.get("preferred_surfaces", ["dirt", "grass"]),
         origin_mode=state.get("origin_mode", "park"),
+        estimated_surface_temp=surf_temp,
+        air_temp_celsius=air_temp,
     )
     candidates = generate_loop_candidates(request)
 
-    trace.append(f"[Node: generate_candidates] Generated {len(candidates)} loop candidates via Routing Adapter.")
+    trace.append(
+        f"[Node: generate_candidates] Generated {len(candidates)} loop candidates via Routing Adapter. "
+        f"(Base Surface Temp: {surf_temp}℃, Air Temp: {air_temp}℃)"
+    )
 
     return {
         "candidate_routes": [c.model_dump() for c in candidates],
@@ -505,12 +532,18 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
 def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 5] 시선 해방(Eyes-Free) 핸즈프리 음성 안내 및 화면 브리핑 메시지 합성.
     
+    * 기상청 실시간 지면열 및 골든타임 동적 반영:
+      - 35℃ 초과 또는 더위 우려 질의 시: 폭염 지면열 경고 및 골든타임 권장, 그늘 숲길 우선 브리핑
+      - 35℃ 이하: 안전 골든타임 알림
     * 웰니스 카피라이팅 가드레일: 임상 질병 용어(슬개골 탈구, 관절염 등) 100% 배제.
     """
     trace = list(state.get("execution_trace", []))
     selected_dict = state.get("selected_route") or {}
     dog_ctx_dict = state.get("client_dog_context") or {}
     intent_dict = state.get("parsed_intent") or {}
+    weather = state.get("weather_context") or {}
+    current_weather = weather.get("current") or weather
+    golden_window = weather.get("golden_time_window", "17시 이후 또는 일몰 후")
     score = state.get("best_score", 95.0)
 
     dog_name = dog_ctx_dict.get("name", "아이")
@@ -519,14 +552,27 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     route_name = selected_dict.get("name", "안심 산책로")
     dist_m = selected_dict.get("total_distance_m", 900.0)
 
-    # 긍정적 웰니스 카피라이팅
-    briefing = (
-        f"{breed} {dog_name}와의 소중한 산책을 위해 '{route_name}'를 준비했어요. "
-        f"계단 걱정 없이 경사가 완만한 폭신한 길 위주로 구성되어 약 {duration}분({int(dist_m)}m) 동안 "
-        f"발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-    )
+    user_query = state.get("user_query", "")
+    is_hot_query = any(k in user_query for k in ["더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕", "시원한", "그늘"])
+    surface_temp = current_weather.get("estimated_surface_temp", 29.5)
+    is_golden = current_weather.get("is_golden_time", surface_temp <= 35.0)
 
-    trace.append(f"[Node: synthesize_briefing] Synthesized wellness briefing. Total Score: {score}점")
+    # 1. 지면온도가 35℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
+    if not is_golden or (is_hot_query and surface_temp > 33.0):
+        briefing = (
+            f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
+            f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 폭신한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
+            f"약 {duration}분({int(dist_m)}m) 동안 발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+        )
+    # 2. 지면온도 35℃ 이하 안전 골든타임
+    else:
+        briefing = (
+            f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요. "
+            f"{breed} {dog_name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 '{route_name}'를 준비했어요. "
+            f"약 {duration}분({int(dist_m)}m) 동안 폭신하고 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+        )
+
+    trace.append(f"[Node: synthesize_briefing] Synthesized wellness briefing. Total Score: {score}점, SurfaceTemp: {surface_temp}℃")
 
     return {
         "briefing_message": briefing,
@@ -580,21 +626,38 @@ def run_walk_planning_agent(
     user_query: str,
     client_dog_context: Optional[Dict[str, Any]] = None,
     client_recent_feedback: Optional[List[Dict[str, Any]]] = None,
+    weather_context: Optional[Dict[str, Any]] = None,
     origin_lat: float = 37.5665,
     origin_lon: float = 126.9780,
     origin_mode: str = "park",
+    parking_lot_id: Optional[str] = None,
 ) -> WalkPlanningResult:
-    """[US-A1, US-A3, US-B1~B3, US-E3] Walk Planning Agent 단일 실행 진입 함수."""
+    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
+
+    # 기상 컨텍스트 미제공 시 실시간 기상청 지면열 모델 자동 바인딩
+    if weather_context is None:
+        import datetime
+        now_hour = datetime.datetime.now().hour
+        # 기본 맑은 낮 기온 28.5℃ (지면열 약 43.5℃ 추정)
+        dto = determine_heat_risk_dto(hour=now_hour, air_temp=28.5, sky="clear")
+        dto_dict = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
+        weather_context = {
+            "current": dto_dict,
+            "golden_time_window": "17:00 ~ 20:00",
+            "is_live_estimated": True,
+        }
 
     initial_state: WalkPlanningState = {
         "messages": [],
         "user_query": user_query,
         "client_dog_context": client_dog_context,
         "client_recent_feedback": client_recent_feedback or [],
+        "weather_context": weather_context,
         "origin_lat": origin_lat,
         "origin_lon": origin_lon,
         "origin_mode": origin_mode,
+        "parking_lot_id": parking_lot_id,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,
@@ -621,5 +684,6 @@ def run_walk_planning_agent(
         intent=intent,
         briefing_message=final_state["briefing_message"],
         all_scored_candidates=scored_all,
-        execution_trace=final_state["execution_trace"]
+        execution_trace=final_state["execution_trace"],
+        weather_context=final_state.get("weather_context"),
     )

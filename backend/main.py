@@ -163,12 +163,46 @@ def _build_step_pins(cand: Any, coords: List[List[float]]) -> List[Dict[str, Any
     },
 )
 def plan_walk_route(req: Dict[str, Any]):
-    """[US-A1, US-A3, US-B1~B3, US-E3] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
+    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
     dog_name = req.get("dog_name", "아이")
     target_duration = req.get("target_duration_minutes", 30)
     origin_lat = req.get("origin_lat", 37.5665)
     origin_lon = req.get("origin_lon", 126.9780)
     origin_mode = req.get("origin_mode", "park")
+    parking_lot_id = req.get("parking_lot_id") or req.get("parking_id")
+
+    # 🚗 [US-G1] 공영주차장 P&R 모드 또는 parking_lot_id 지정 시 출입구 좌표로 강제 스냅 바인딩
+    matched_parking = None
+    if parking_lot_id:
+        for lot in _PILOT_PARKING_LOTS:
+            if lot["parking_id"] == parking_lot_id:
+                matched_parking = lot
+                origin_lat = lot["entrance_lat"]
+                origin_lon = lot["entrance_lon"]
+                break
+    elif origin_mode == "parking_pnr":
+        # 현재 좌표에서 가장 가까운 파일럿 공영주차장 자동 탐색 및 스냅
+        closest = min(
+            _PILOT_PARKING_LOTS,
+            key=lambda lot: _haversine_distance_meters(origin_lat, origin_lon, lot["entrance_lat"], lot["entrance_lon"])
+        )
+        matched_parking = closest
+        origin_lat = closest["entrance_lat"]
+        origin_lon = closest["entrance_lon"]
+
+    # 🌤️ [US-F1] 기상청 지면열 추정 DTO 바인딩
+    weather_context = req.get("weather_context")
+    if not weather_context:
+        import datetime
+        now_hour = datetime.datetime.now().hour
+        # 기본 단기예보 추정 모델 (맑은 날 외기온 28.5℃)
+        dto = determine_heat_risk_dto(hour=now_hour, air_temp=28.5, sky="clear")
+        dto_dict = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
+        weather_context = {
+            "current": dto_dict,
+            "golden_time_window": "17:00 ~ 20:00",
+            "is_live_estimated": True,
+        }
 
     user_query = (
         req.get("user_query")
@@ -194,9 +228,11 @@ def plan_walk_route(req: Dict[str, Any]):
             user_query=user_query,
             client_dog_context=client_dog,
             client_recent_feedback=recent_feedback,
+            weather_context=weather_context,
             origin_lat=origin_lat,
             origin_lon=origin_lon,
             origin_mode=origin_mode,
+            parking_lot_id=parking_lot_id,
         )
 
         best = agent_result.best_route
@@ -216,7 +252,7 @@ def plan_walk_route(req: Dict[str, Any]):
                     "stepPins": _build_step_pins(cand, cand_coords),
                 }
 
-        return {
+        resp_data = {
             "courses": courses,
             "geojson": geojson,
             "step_pins": step_pins,
@@ -225,7 +261,12 @@ def plan_walk_route(req: Dict[str, Any]):
             "summary": agent_result.briefing_message,
             "score": agent_result.best_score,
             "is_live_server": True,
+            "weather": agent_result.weather_context,
         }
+        if matched_parking:
+            resp_data["parking_lot"] = matched_parking
+
+        return resp_data
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

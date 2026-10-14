@@ -44,18 +44,27 @@ def match_pilot_park_loop(
     variant: int = 1,
     max_radius_m: float = 2500.0,
 ) -> Optional[Tuple[List[List[float]], str]]:
-    """출발 좌표가 대전/세종 4대 거점 공원 2.5km 반경 내에 있을 때, 실제 OSM 보행로 루프 반환."""
+    """출발 좌표가 대전/세종 4대 거점 공원 2.5km 반경 내에 있을 때, 가장 가까운 실제 OSM 보행로 루프 반환."""
+    candidates = []
     for park_key, (c_lat, c_lon, park_name) in PILOT_PARK_CENTERS.items():
         dist = _haversine_m(origin_lat, origin_lon, c_lat, c_lon)
         if dist <= max_radius_m:
-            base_coords = PILOT_PARK_COORDS_MAP[park_key]
-            if variant == 2:
-                # 역방향 순환
-                return (list(reversed(base_coords)), f"{park_name} (역방향 둘레길)")
-            elif variant == 3:
-                # 절반 지점 시작 순환 (방향 다변화)
-                half = len(base_coords) // 2
-                shifted = base_coords[half:] + base_coords[:half] + [base_coords[half]]
-                return (shifted, f"{park_name} (수변 생태 연계 코스)")
-            return (base_coords, park_name)
-    return None
+            candidates.append((dist, park_key, park_name))
+
+    if not candidates:
+        return None
+
+    # 반경 내 가장 가까운 파일럿 공원 선택
+    candidates.sort(key=lambda x: x[0])
+    _, best_key, best_name = candidates[0]
+    base_coords = PILOT_PARK_COORDS_MAP[best_key]
+
+    if variant == 2:
+        # 역방향 순환
+        return (list(reversed(base_coords)), f"{best_name} (역방향 둘레길)")
+    elif variant == 3:
+        # 절반 지점 시작 순환 (방향 다변화)
+        half = len(base_coords) // 2
+        shifted = base_coords[half:] + base_coords[:half] + [base_coords[half]]
+        return (shifted, f"{best_name} (수변 생태 연계 코스)")
+    return (base_coords, best_name)
