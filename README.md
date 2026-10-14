@@ -6,12 +6,14 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-156%2F156%20Passed-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-81%2F81%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-255%2F255%20Passed-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-141%2F141%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
+## 테스트용 앱 다운로드 주소
+https://expo.dev/artifacts/eas/5vER01pLSzWqzEo_viUhWrzpcIYVr7gU31nb0vRBLig.apk
 
 ## ⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)
 
@@ -23,6 +25,7 @@ graph LR
     FE <-->|REST API v1| BE["⚡ FastAPI AI Backend (:8000)"]
     BE <--> Agent["🤖 LangGraph ReAct Walk Agent"]
     BE <--> GIS["🗺️ OSM 보행망 / DEM / SunCalc"]
+    BE <--> KMA["☀️ 기상청 단기예보 & 지면온도"]
     BE <--> Supa[("🌐 Supabase Cloud / Mock Fallback")]
 ```
 
@@ -59,7 +62,7 @@ py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 #### 3) 서버 정상 가동 확인 및 API 문서 접속
-- **서버 기본 주소**: `http://localhost:8000`
+- **서버 기본 주소**: `http://localhost:8000` (IPv6 지연 방지 시 `http://127.0.0.1:8000`)
 - **인터랙티브 Swagger UI (API 문서 및 즉시 테스트)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Redoc 대안 API 문서**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 - **헬스체크 엔드포인트**: [http://localhost:8000/health](http://localhost:8000/health)
@@ -68,9 +71,15 @@ py -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 | HTTP 메서드 | 엔드포인트 URI | 기능 설명 |
 | :---: | :--- | :--- |
 | `GET` | `/health` | 서버 가동 상태 및 Supabase 연동 모드(Live / Fallback) 확인 |
-| `POST` | `/api/v1/walk/plan` | 반려견 프로필, 선호 환경, 피드백 기반 **LangGraph ReAct AI 순환 코스 생성** |
+| `POST` | `/api/v1/walk/plan` | 반려견 프로필, 선호 환경, 피드백, 거점 모드 기반 **AI 순환 코스 생성** |
+| `POST` | `/api/v1/walk/reroute` | 돌발 위험 지점 감지 시 3초 이내 임시 차단 및 **동적 안전 우회로 재탐색** |
+| `POST` | `/api/v1/surface/inspect` | 현장 위험물/공원안내판 사진 **AI 비전 판독 (Pydantic DTO)** |
+| `POST` | `/api/v1/hazards` | 현장 위험 제보 등록 (Supabase / 인메모리 듀얼 모드) |
+| `GET` | `/api/v1/hazards` | 현위치 반경 내 활성 위험 제보 조회 |
+| `GET` | `/api/v1/weather/heat-risk` | 기상청 단기예보 격자 연동 **실시간 지면열 추정 및 골든타임** |
+| `GET` | `/api/v1/parking/nearby` | 대전 3대 공원 & 세종호수공원 등 **파일럿 거점 공영주차장 P&R 검색** |
 | `GET` | `/api/v1/community/feed` | 이웃 안심 코스 공유 피드 조회 (**200m 자택 마스킹 자동 적용**) |
-| `POST` | `/api/v1/community/share` | 신규 완주 코스 공유 등록 (출발·도착지 200m 자동 블러링) |
+| `POST` | `/api/v1/community/share` | 신규 완주 코스 공유 등록 (출발·도착지 200m 자동 블러링 & 노드 스냅) |
 
 ---
 
@@ -121,11 +130,11 @@ open mockup/index.html
 백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.
 
 ```bash
-# 1. 백엔드 Pytest 전수 검증 (156개 테스트 100% Pass)
+# 1. 백엔드 Pytest 전수 검증 (255개 테스트 100% Pass)
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (18개 파일, 81개 테스트 100% Pass)
+# 2. 프론트엔드 Vitest 단위 테스트 (28개 파일, 141개 테스트 100% Pass)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -344,25 +353,36 @@ graph LR
 #### 1) 종합 품질 검증 지표
 | 구분 | 검증 항목 | 달성 지표 | 상태 | 세부 내용 |
 | :--- | :--- | :---: | :---: | :--- |
-| **Backend** | Pytest TDD 스위트 | **103 / 103** | `PASS` | LangGraph ReAct, GIS 비용 함수, 200m 마스킹 전수 통과 |
-| **Frontend** | Vitest 단위 테스트 | **70 / 70** | `PASS` | 14개 테스트 파일 전원 통과 (북마크, 위치동의, 온보딩, 리포트) |
+| **Backend** | Pytest TDD 스위트 | **255 / 255** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
+| **Frontend** | Vitest 단위 테스트 | **141 / 141** | `PASS` | 28개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹) |
 | **Frontend** | TypeScript 컴파일 검사 | **0 Errors** | `PASS` | `tsc --noEmit` 완벽 무결성 통과 (Strict Mode) |
 | **Code Quality** | SonarLint 단일 파일 줄수 | **100% 준수** | `PASS` | 모든 신규/수정 파일 250줄 이하 가드레일 엄수 (`App.tsx` 249줄) |
 | **UX & Copy** | 전문 용어 순화 가드레일 | **100% 완료** | `PASS` | 스토리 번호(`US-xx`) 및 개발자 용어 전면 배제, 웰니스 어휘 적용 |
-| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` + `mobile-app-ci` 통과 시 자동 머지 파이프라인 |
+| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (255) + `mobile-app-ci` (141) 통과 시 자동 머지 파이프라인 |
 
 #### 2) 최근 완성된 주요 기능 구현 내용
-1. **나만의 안심 코스 즐겨찾기(Bookmark) 보관함 (US-29)**:
-   - 마음에 든 산책 코스를 로컬 `@편안하개:bookmarked_routes`에 원터치 저장 (햅틱 피드백 연동).
-   - 서버 재호출 없이 저장된 GeoJSON 경로와 안내 핀으로 0.1초 만에 즉시 내비게이션/다크 포켓 모드 재진입.
-2. **위치 정보 수집 동의 및 Local-First 투명 고지 (US-23)**:
-   - 산책 시작 직전 프라이버시 3대 안심 약속(음성 안내 한정, 서버 미전송, 200m 마스킹) 팝업 모달 제공.
-   - 마이 페이지 내 2단계 확인을 통한 기기 로컬 데이터 영구 삭제(`clearAll()`) 탑재.
-3. **신규 견주 시선 해방 온보딩 가이드 (US-21)**:
-   - 3단계 인터랙티브 슬라이드(완만길, 시선 해방, 프라이버시) 온보딩 위저드 탑재.
-   - 마이 페이지에서 언제든 "📖 앱 이용 가이드 다시 보기"로 재호출 가능.
-4. **AI 산책 코스 동적 피드백 루프**:
-   - 완주 후 수집된 불만족 피드백(경사도, 계단)이 다음 코스 생성 시 최대 경사도 한계치에 실시간 보정 반영.
+1. **대전 3대 공원 & 세종 2대 공원 5대 파일럿 실증 거점 연동**:
+   - 대전(유림공원, 송강근린공원, 도안호수공원) 및 세종(세종호수공원, 세종중앙공원) 실제 OSM 정밀 보행망 탑재.
+   - 공원 선택 시 공원 내부 산책 비율 **90% 이상** 집중 가중치 코스 우선 생성.
+2. **산책 경로 생성 기준 이원화 (`origin_mode`)**:
+   - `current_location`(사용자 현위치 주변 순환)과 `pilot_park`(지정한 공원 중심/내부 산책) 두 가지 경로 탐색 모드 지원.
+3. **기상청 단기예보 실시간 연동 (KMA Weather Client & Grid Converter)**:
+   - 위경도-기상청 격자(X, Y) 실시간 좌표 변환 및 기온, 하늘상태, 강수확률 연동.
+   - 경험적 지면열 수지식 기반 지면온도 추정 및 시간대별 산책 골든타임 알림 (1시간 클라이언트 캐싱).
+4. **AI 음성 가이드 보이스 프로필 4종 & 스마트 돌발 짖음 감지 자동 음소거/복구**:
+   - 4대 맞춤형 AI 보이스 프로필(`calm_female`, `bright_female`, `calm_male`, `friendly_male`) 및 독립 볼륨 슬라이더 제공.
+   - 73dB 이상 돌발 소음/짖음 감지 시 즉시 음성 안내 일시 차단(Ducking) 후 3초 뒤 자동 복구 (Auto-Resume).
+   - 산책 중 긴급 상황 시 한 손으로 터치 가능한 다크 포켓 내 56px 대형 긴급 원터치 음소거 버튼 구축.
+5. **팀장 컨펌 4단계 온보딩 플로우 & 회원가입 약관/개인정보 처리방침**:
+   - 1단계(가입 & 필수 약관 동의) → 2단계(반려견 프로필 등록) → 3단계(산책 시작 시점 위치 동의) → 4단계(현위치 기반 주변 인기 코스/산책견 탐색 지도 진입)로 사용자 이탈 방지.
+6. **산책 시간 15분 단위 세분화 & 무제한 자유 산책 모드**:
+   - 15~120분+ 슬라이더 및 직접 분 입력 지원, 목표 시간 도달 후에도 누적 기록이 유지되는 '자유 산책 모드' 탑재.
+7. **한 손 원터치 배변 마킹 FAB (US-18)**:
+   - 산책 중 한 손 Thumb Zone 52px 원터치 플로팅 버튼(💩 대변 / 💧 소변), 햅틱 진동(60ms), 완주 리포트 타임라인 표출.
+8. **나만의 안심 코스 즐겨찾기(Bookmark) 보관함 (US-29)**:
+   - 마음에 든 코스를 로컬 `@편안하개:bookmarked_routes`에 원터치 저장, 서버 재호출 없이 0.1초 만에 즉시 재산책.
+9. **OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 구현 계획 수립**:
+   - 구글 맵 종속성 및 API 키 유출 위험을 원천 차단하고 100% 무료 오픈소스 GPU 가속 벡터 지도 도입 계획 확립.
 
 ---
 
@@ -373,7 +393,7 @@ graph LR
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
 ```bash
-# 전체 백엔드 TDD 테스트 스위트 실행 (20개 파일, 156개 테스트 100% Pass)
+# 전체 백엔드 TDD 테스트 스위트 실행 (21개 파일, 255개 테스트 100% Pass)
 python -m pytest
 # 또는: cd backend && pytest test_case/ -v
 ```
@@ -382,34 +402,37 @@ python -m pytest
 ============================= test session starts =============================
 platform win32 -- Python 3.14.x / pytest-9.x
 rootdir: d:\코디세이\pet_walk_t01, configfile: pytest.ini, testpaths: backend/test_case
-collected 156 items
+collected 255 items
 
-backend/test_case/test_api_contracts.py ...                                   [  1%]
-backend/test_case/test_building_avoidance.py ...........                      [  8%]
-backend/test_case/test_eas_update_ota.py ..                                   [ 10%]
-backend/test_case/test_hazard_service.py .....                                 [ 13%]
-backend/test_case/test_langgraph_walk_agent.py ......                         [ 17%]
-backend/test_case/test_loop_target_duration.py ............                   [ 25%]
-backend/test_case/test_mobile_and_voice_navigation.py ........                [ 30%]
-backend/test_case/test_offline_walk_network.py ........                        [ 35%]
-backend/test_case/test_phase2_extended_features.py ..........                 [ 41%]
-backend/test_case/test_road_network_routes.py ......                          [ 45%]
-backend/test_case/test_route_geometry_validation.py .............             [ 53%]
-backend/test_case/test_spatial_masking.py ...                                 [ 55%]
-backend/test_case/test_supabase_repository.py ...                             [ 57%]
-backend/test_case/test_surface_cost_model.py ....................             [ 70%]
-backend/test_case/test_surface_slope_evaluation.py .....                      [ 73%]
-backend/test_case/test_thermal_and_parking.py ......                          [ 77%]
-backend/test_case/test_vision_safety_inspector.py .............               [ 85%]
-backend/test_case/test_walk_plan_agent_schema.py .............                [ 94%]
-backend/test_case/test_walk_plan_latency.py ........                          [ 99%]
-backend/test_case/test_walk_tracking_and_feedback.py ..                      [100%]
+backend\test_case\test_api_contracts.py ...                              [  1%]
+backend\test_case\test_building_avoidance.py .....                       [  3%]
+backend\test_case\test_kma_grid_converter.py ........................... [ 13%]
+............                                                             [ 18%]
+backend\test_case\test_kma_weather_client.py ........................... [ 29%]
+.........                                                                [ 32%]
+backend\test_case\test_langgraph_walk_agent.py ......                    [ 34%]
+backend\test_case\test_loop_target_duration.py ............              [ 39%]
+backend\test_case\test_mobile_and_voice_navigation.py ........           [ 42%]
+backend\test_case\test_origin_mode.py ...                                [ 43%]
+backend\test_case\test_phase2_extended_features.py ..........            [ 47%]
+backend\test_case\test_rest_api_v1_endpoints.py ..................       [ 54%]
+backend\test_case\test_route_geometry_validation.py .............        [ 60%]
+backend\test_case\test_spatial_masking.py ...                            [ 61%]
+backend\test_case\test_supabase_repository.py ...                        [ 62%]
+backend\test_case\test_surface_cost_model.py ....................        [ 70%]
+backend\test_case\test_surface_slope_evaluation.py ..................... [ 78%]
+.                                                                        [ 78%]
+backend\test_case\test_thermal_and_parking.py ......                     [ 81%]
+backend\test_case\test_vision_safety_inspector.py .............          [ 86%]
+backend\test_case\test_walk_plan_agent_schema.py .............           [ 91%]
+backend\test_case\test_walk_plan_latency.py .............                [ 96%]
+backend\test_case\test_walk_tracking_and_feedback.py .........           [100%]
 
-============================ 156 passed in 6.29s ==============================
+============================ 255 passed in 6.94s ==============================
 ```
 
 ```bash
-# 모바일 프론트엔드 Vitest 단위 테스트 실행 (18개 파일, 81개 테스트 100% Pass)
+# 모바일 프론트엔드 Vitest 단위 테스트 실행 (28개 파일, 141개 테스트 100% Pass)
 cd frontend && npm test
 ```
 
@@ -433,6 +456,11 @@ cd frontend && npm test
 | [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md) | 8대 에픽(A~H), 18개 애자일 사용자 스토리 명세서 및 인수 조건(DoD) | 백로그 / 기능 명세 |
 | [`docs/04_ai_problem_definition.md`](docs/04_ai_problem_definition.md) | AI 문제 정의서 (아키텍처, 5대 핵심 문제, 성공 지표 및 평가 기준) | AI 문제 정의 |
 | [`docs/05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md) | 프로젝트 전체 일정, 주차별 R&R, 간트 차트 및 4단계 마일스톤 수행계획 | 마일스톤 / 일정 |
+| [`docs/06_편안하개_Project_Proposal.md`](docs/06_편안하개_Project_Proposal.md) | 편안하개 프로젝트 제안서 및 핵심 솔루션 개요 | 프로젝트 제안 |
+| [`docs/07_편한하개_API_list.md`](docs/07_편한하개_API_list.md) | 전체 REST API 및 Supabase 엔드포인트 규격, 실데이터 명세서 | API 규격서 |
+| [`docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md`](docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md) | OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 도입 계획서 | 지도 엔진 계획 |
+| [`docs/reports/10월13일_작업결과보고서.md`](docs/reports/10월13일_작업결과보고서.md) | 10월 13일 핵심 엔지니어링 및 기능 구현 결과보고서 | 진척 결과보고서 |
+| [`docs/reports/구현현황보고서.md`](docs/reports/구현현황보고서.md) | 편안하개 실데이터 기반 스프린트 진척 및 종합 현황 분석 보고서 | 진척 현황분석 |
 | [`docs/implementation_plan/조현정_향후_구현계획.md`](docs/implementation_plan/조현정_향후_구현계획.md) | 1번 조현정(팀장 / PM & AI Agent Lead) 향후 주차별 구현 계획서 | PM / AI 코어 |
 | [`docs/implementation_plan/전황진_향후_구현계획.md`](docs/implementation_plan/전황진_향후_구현계획.md) | 2번 전황진(데이터 / AI & Spatial Data Engineer) 향후 주차별 구현 계획서 | GIS / 공간데이터 |
 | [`docs/implementation_plan/노희선_향후_구현계획.md`](docs/implementation_plan/노희선_향후_구현계획.md) | 3번 노희선(서버 / Backend & Spatial Routing Lead) 향후 주차별 구현 계획서 | 서버 / REST API |
@@ -453,8 +481,13 @@ pet_walk_t01/
 │   ├── 02_편안하개_Team_building.md            # 5인 팀 R&R 및 4대 기술 엔지니어링 전략
 │   ├── 03_편안하개_Agile_User_Stories.md       # 8대 에픽(A~H), 18개 사용자 스토리 및 DoD 명세서
 │   ├── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
-│   ├── 05_편안하개_Member4_모바일_구현계획서.md # 멤버4 모바일 전담 6단계 구현 계획서
 │   ├── 05_편안하개_프로젝트_수행계획서_일정.md # 프로젝트 수행 기간, 간트 차트 및 마일스톤
+│   ├── 06_편안하개_Project_Proposal.md         # 프로젝트 제안서
+│   ├── 07_편한하개_API_list.md                 # 전체 REST API 규격서 및 구현 현황
+│   ├── 08_OpenFreeMap_MapLibre_배경지도_구현계획서.md # OpenFreeMap+MapLibre 벡터 지도 계획
+│   ├── reports/                               # 📊 프로젝트 공식 현황 및 작업 결과 보고서
+│   │   ├── 10월13일_작업결과보고서.md            # 10월 13일 핵심 구현 작업 결과보고서
+│   │   └── 구현현황보고서.md                   # 스프린트 진척 및 종합 구현 현황 분석
 │   ├── implementation_plan/                   # 멤버별 향후 상세 구현 계획서 (주차별/단계별)
 │   │   ├── 조현정_향후_구현계획.md                # 1번 조현정 (팀장 / PM & AI 코어)
 │   │   ├── 전황진_향후_구현계획.md                # 2번 전황진 (데이터 / GIS & 열환경)
@@ -474,13 +507,17 @@ pet_walk_t01/
 │   ├── agent/                                 # 🤖 LangGraph ReAct Walk Planning Agent 코어
 │   │   ├── walk_planning_agent.py             # 의도 파싱, 제약 보정, 후보 경로 생성 및 브리핑
 │   │   ├── loop_route_planner.py              # OSRM 순환 루프 1.5초 캐시 생성기
+│   │   ├── pilot_park_routes.py               # 대전·세종 5대 공원 실증 보행망 정밀 라우팅
 │   │   ├── surface_slope_evaluator.py         # 무장애 노면 및 DEM 경사도 3색 평가기
 │   │   ├── building_geometry.py               # 건물 관통 방지 검증 모듈
 │   │   ├── spatial_masking.py                 # 200m 교차로 스냅 마스킹 모듈
 │   │   ├── supabase_repository.py             # Supabase 클라우드 저장소 (Dual-Mode)
 │   │   └── hazard_service.py                  # 위험 제보 및 동적 우회 서비스
+│   ├── services/                              # ☀️ 기상청 및 공공 데이터 클라이언트 서비스
+│   │   ├── kma_grid_converter.py              # 위경도 <-> 기상청 격자(X, Y) 양방향 변환기
+│   │   └── kma_weather_client.py              # 기상청 단기예보 실시간 수집 및 캐시 클라이언트
 │   ├── fixtures/                              # 테스트용 서울시 건물 외곽선 GeoJSON
-│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (156개 Pytest 전수 Pass)
+│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (255개 Pytest 전수 Pass)
 ├── frontend/                                  # 📱 [Expo 모바일 앱 & 웹] React Native / Expo SDK 57
 │   ├── README.md                              # 프론트엔드 모바일 아키텍처 및 실행 가이드
 │   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~05 통합 라우팅)
@@ -489,7 +526,7 @@ pet_walk_t01/
 │   ├── package.json                           # React Native, Expo, Vitest 의존성
 │   └── src/                                   # components, screens, services, theme, hooks, types
 └── .github/workflows/                         # GitHub Actions CI 파이프라인
-    └── ci.yml                                 # pytest(156개) + mobile vitest(81개) & tsc 자동 머지
+    └── ci.yml                                 # pytest(255개) + mobile vitest(141개) & tsc 자동 머지
 ```
 
 ---
@@ -524,7 +561,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # 5. 브라우저에서 Swagger UI 접속하여 실시간 API 테스트
 # URL: http://localhost:8000/docs
 
-# 6. 백엔드 156개 전수 단위 테스트 실행
+# 6. 백엔드 255개 전수 단위 테스트 실행
 pytest test_case/ -v
 ```
 
@@ -562,14 +599,14 @@ npm run ota:update
 ### 9.4 의존성 설치 및 TDD/단위 테스트 실행
 
 ```bash
-# 백엔드 Pytest 전수 검증 (156개 테스트 100% Pass)
+# 백엔드 Pytest 전수 검증 (255개 테스트 100% Pass)
 # 방법 1) 루트에서 바로 실행 (pytest.ini 기반 backend/test_case 자동 탐색)
 python -m pytest
 
 # 방법 2) backend 폴더로 이동 후 실행
 cd backend && pytest test_case/ -v
 
-# 프론트엔드 Vitest 단위 테스트 (81개 테스트 100% Pass)
+# 프론트엔드 Vitest 단위 테스트 (141개 테스트 100% Pass)
 cd frontend && npm test
 
 # 프론트엔드 TypeScript 무결성 검증 (0 Errors)

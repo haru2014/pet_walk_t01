@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon, AppIconName } from './AppIcon';
 
 export type TabKey = '홈' | '산책' | '액션' | '커뮤니티' | '마이';
@@ -29,8 +30,10 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   onTabChange,
   onActionPress,
 }) => {
+  const { colors } = useAppTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
       {TABS.map((tab) => {
         if (tab.key === '액션') {
           return (
@@ -38,9 +41,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
               key={tab.key}
               activeOpacity={0.85}
               onPress={onActionPress || (() => onTabChange('산책'))}
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
             >
-              <AppIcon name="plus" size={22} color={TOKENS.colors.textWhite} strokeWidth={2.2} />
+              <AppIcon name="plus" size={22} color={colors.textWhite} strokeWidth={2.2} />
             </TouchableOpacity>
           );
         }
@@ -53,8 +56,20 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             onPress={() => onTabChange(tab.key)}
             style={styles.tabItem}
           >
-            {tab.icon && <AppIcon name={tab.icon} size={22} color={isActive ? TOKENS.colors.primary : TOKENS.colors.textMuted} />}
-            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+            {tab.icon && (
+              <AppIcon
+                name={tab.icon}
+                size={22}
+                color={isActive ? colors.primary : colors.textMuted}
+              />
+            )}
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: isActive ? colors.primary : colors.textMuted },
+                isActive && styles.tabLabelActive,
+              ]}
+            >
               {tab.label}
             </Text>
           </TouchableOpacity>

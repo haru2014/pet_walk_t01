@@ -9,9 +9,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
+import { themeManager, useAppTheme } from './src/theme/themeManager';
 import { BottomTabBar, TabKey } from './src/components/common/BottomTabBar';
 import { DogProfile, DEFAULT_DOGS, calculateRecommendedSpeedKmH } from './src/types/dogProfile';
 import { WalkPreferences, RecommendedCourse } from './src/types/walkSettings';
@@ -19,7 +20,9 @@ import { LocalStorageService } from './src/services/storage';
 import { FeedbackContextService, FeedbackSummaryPayload } from './src/services/feedbackContext';
 import { STORAGE_KEYS, WalkRecord, WalkFeedback } from './src/types/storage';
 import { TTSNavigationService } from './src/services/ttsNavigation';
-import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './src/services/sampleRoute';
+import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanById, getCoursePlanByParkId } from './src/services/sampleRoute';
+import { requestWalkPlan } from './src/services/api';
+import { generateAdaptiveCourses } from './src/services/courseAdaptivePlanner';
 import { useWalkGuidance } from './src/hooks/useWalkGuidance';
 import { BookmarkedRoute, CoursePlan } from './src/types/bookmark';
 import { RouteFeatureCollection, RouteStepPin } from './src/types/route';
@@ -29,6 +32,8 @@ import { ConsentService } from './src/services/consentService';
 import { LocationConsentModal } from './src/components/common/LocationConsentModal';
 import { OnboardingService } from './src/services/onboardingService';
 import { OnboardingWizard } from './src/components/onboarding/OnboardingWizard';
+import { SupabaseService } from './src/services/supabaseService';
+import { LandingAuthModal } from './src/components/auth/LandingAuthModal';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { WalkTabScreen } from './src/screens/WalkTabScreen';
@@ -39,10 +44,12 @@ import { WalkReportScreen } from './src/screens/WalkReportScreen';
 import { DogSelectionView } from './src/components/profile/DogSelectionView';
 import { WalkSettingsView } from './src/components/walk/WalkSettingsView';
 import { CourseRecommendationView } from './src/components/walk/CourseRecommendationView';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
 export default function App() {
+  const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
   const [dogs, setDogs] = useState<DogProfile[]>([...DEFAULT_DOGS]);
@@ -55,12 +62,15 @@ export default function App() {
 
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummaryPayload | null>(null);
   const [completedRecord, setCompletedRecord] = useState<WalkRecord | null>(null);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
   const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
   const [walkBookmark, setWalkBookmark] = useState<BookmarkedRoute | null>(null);
   const consent = useLocationConsent();
 
   useEffect(() => {
     async function loadData() {
+      void themeManager.init();
+      void SupabaseService.initSession();
       const saved = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
       if (saved) {
         setDogs((prev) => (prev.some((d) => d.id === saved.id) ? prev.map((d) => (d.id === saved.id ? saved : d)) : [saved, ...prev]));
@@ -87,7 +97,10 @@ export default function App() {
     await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, newDog);
   };
 
-  const handleCompleteOnboarding = async () => {
+  const handleCompleteOnboarding = async (registeredDog?: DogProfile) => {
+    if (registeredDog) {
+      await handleAddDog(registeredDog);
+    }
     await OnboardingService.markOnboardingCompleted();
     setSubScreen('main');
   };
@@ -130,6 +143,32 @@ export default function App() {
   const handleStartWalk = (course?: RecommendedCourse, plan?: CoursePlan) =>
     void beginWalk(course?.name ?? '편안한 숲길 코스', plan, course && plan ? createBookmark(course, plan, activeDog.name) : null);
 
+  /**
+   * 1. 홈 화면 "산책 시작" 버튼 클릭 시:
+   * AI가 생성한 추천 경로 1에 따라 즉시 산책을 시작 (Screen-04 거치지 않고 직행)
+   */
+  const handleStartTopCourse = async () => {
+    try {
+      const planRes = await requestWalkPlan(activeDog, preferences, feedbackSummary);
+      const courses = planRes.courses.length > 0
+        ? planRes.courses
+        : generateAdaptiveCourses(activeDog, preferences, feedbackSummary);
+      const topCourse = courses[0];
+      const candidatePlan = topCourse?.id ? planRes.coursePlans?.[topCourse.id] : undefined;
+      const plan: CoursePlan = candidatePlan
+        ?? (planRes.isLiveServer ? { route: planRes.route, stepPins: planRes.stepPins } : undefined)
+        ?? getCoursePlanById(topCourse?.id, getCoursePlanByParkId(preferences?.pilotParkId));
+
+      handleStartWalk(topCourse, plan);
+    } catch (err) {
+      console.warn('[App] 실시간 AI 추천 코스 생성 중 오류 발생, 로컬 안전 코스로 즉시 폴백합니다:', err);
+      const fallbackCourses = generateAdaptiveCourses(activeDog, preferences, feedbackSummary);
+      const topCourse = fallbackCourses[0];
+      const plan = getCoursePlanById(topCourse?.id, getCoursePlanByParkId(preferences?.pilotParkId));
+      handleStartWalk(topCourse, plan);
+    }
+  };
+
   /** US-29: 즐겨찾기 코스를 서버 재탐색 없이 저장된 경로로 즉시 산책 시작 */
   const handleStartBookmark = (bm: BookmarkedRoute) =>
     void beginWalk(bm.title, { route: bm.routeGeoJson, stepPins: bm.stepPins }, bm);
@@ -154,8 +193,19 @@ export default function App() {
       totalDistanceKm: distKm > 0 ? distKm : 1.2,
       averageSpeedKmH: walk.stats.speedKmH > 0 ? walk.stats.speedKmH : activeDog.speedKmH,
       safeSurfaceRatio: 0.88, gpsTrack,
+      poopCount: walk.poopCount,
+      poopEvents: walk.poopEvents,
     };
     await LocalStorageService.appendWalkRecord(newRecord);
+    void SupabaseService.createWalkRecord({
+      id: newRecord.id,
+      dog_id: activeDog.id,
+      started_at: newRecord.startedAt,
+      ended_at: newRecord.completedAt,
+      distance_m: newRecord.totalDistanceKm * 1000,
+      duration_min: newRecord.durationMinutes,
+      is_public: false,
+    });
     await walk.stop();
     setCompletedRecord(newRecord);
     setSubScreen('report');
@@ -227,10 +277,29 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={[styles.safeArea, subScreen === 'pocket' && styles.safeAreaPocket]}>
-        <StatusBar barStyle={subScreen === 'pocket' ? 'light-content' : 'dark-content'} backgroundColor={subScreen === 'pocket' ? TOKENS.colors.pocketBg : TOKENS.colors.background} />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          { backgroundColor: colors.background },
+          subScreen === 'pocket' && styles.safeAreaPocket,
+        ]}
+      >
+        <StatusBar
+          barStyle={subScreen === 'pocket' || theme === 'dark' ? 'light-content' : 'dark-content'}
+          backgroundColor={subScreen === 'pocket' ? colors.pocketBg : colors.background}
+        />
         {subScreen === 'onboarding' && <OnboardingWizard onComplete={handleCompleteOnboarding} />}
-        {subScreen === 'pocket' && <DarkPocketScreen dogName={activeDog.name} stats={walk.stats} onUnlock={handlePocketUnlock} />}
+        {subScreen === 'pocket' && (
+          <DarkPocketScreen
+            dogName={activeDog.name}
+            stats={walk.stats}
+            targetMinutes={preferences.durationMinutes}
+            isFreeWalk={preferences.isFreeWalk}
+            onUnlock={handlePocketUnlock}
+            onMarkPoop={walk.markPoop}
+            poopCount={walk.poopCount}
+          />
+        )}
         {subScreen === 'report' && completedRecord && (
           <WalkReportScreen
             record={completedRecord} dogName={activeDog.name} bookmarkCandidate={walkBookmark}
@@ -258,45 +327,73 @@ export default function App() {
         )}
         {subScreen === 'main' && (
           <View style={styles.mainContainer}>
-            <View style={styles.header}>
-              <View style={styles.logoGroup}><View style={styles.logoBadge}><Text style={styles.logoIcon}>🐾</Text></View><Text style={styles.appTitle}>편안하개</Text></View>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+              <View style={styles.logoGroup}>
+                <View style={[styles.logoBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.logoIcon}>🐾</Text>
+                </View>
+                <Text style={[styles.appTitle, { color: colors.textMain }]}>편안하개</Text>
+              </View>
               <View style={styles.headerActions}>
-                <TouchableOpacity onPress={() => Alert.alert('알림', '새로운 소식이 없습니다.')} style={styles.iconBtn}><Text style={styles.iconText}>🔔</Text></TouchableOpacity>
-                <TouchableOpacity onPress={() => setSubScreen('dog_selection')} style={styles.iconBtn}><Text style={styles.iconText}>⋯</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => Alert.alert('알림', '새로운 소식이 없습니다.')} style={styles.iconBtn}>
+                  <Text style={[styles.iconText, { color: colors.textMain }]}>🔔</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSubScreen('dog_selection')} style={styles.iconBtn}>
+                  <Text style={[styles.iconText, { color: colors.textMain }]}>⋯</Text>
+                </TouchableOpacity>
               </View>
             </View>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-              {activeTab === '홈' && (
-                <HomeScreen
-                  dog={activeDog} feedbackSummary={feedbackSummary}
-                  onPressProfile={() => setSubScreen('dog_selection')} onStartWalk={() => setSubScreen('course_recommend')}
-                  onOpenPlanner={() => setSubScreen('walk_settings')}
-                />
-              )}
-              {activeTab === '산책' && (
-                <WalkTabScreen
-                  dog={activeDog} preferences={preferences} feedbackSummary={feedbackSummary} onBack={() => setActiveTab('홈')}
-                  onStartWalk={handleStartWalk} onPinSelect={TTSNavigationService.speak}
-                />
-              )}
-              {activeTab === '커뮤니티' && (
-                <CommunityTabScreen
-                  onStartCommunityWalk={handleStartCommunityWalk}
-                  dogSpeedKmH={activeDog.speedKmH}
-                />
-              )}
-              {activeTab === '마이' && (
-                <MyProfileTabScreen
-                  dog={activeDog} feedbackSummary={feedbackSummary} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
-                  onResetFeedback={handleResetFeedback} onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
-                  onOpenOnboarding={() => setSubScreen('onboarding')}
-                />
-              )}
-            </ScrollView>
-            <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} onActionPress={() => setSubScreen('walk_settings')} />
+            <View style={styles.tabContentContainer}>
+              <ErrorBoundary>
+                {activeTab === '홈' && (
+                  <HomeScreen
+                    dog={activeDog} feedbackSummary={feedbackSummary}
+                    onPressProfile={() => setSubScreen('dog_selection')}
+                    onStartWalk={handleStartTopCourse}
+                    onOpenPlanner={() => setSubScreen('walk_settings')}
+                  />
+                )}
+                {activeTab === '산책' && (
+                  <WalkTabScreen
+                    dog={activeDog} preferences={preferences} feedbackSummary={feedbackSummary} onBack={() => setActiveTab('홈')}
+                    onStartWalk={handleStartWalk} onPinSelect={TTSNavigationService.speak}
+                  />
+                )}
+                {activeTab === '커뮤니티' && (
+                  <CommunityTabScreen
+                    onStartCommunityWalk={handleStartCommunityWalk}
+                    dogSpeedKmH={activeDog.speedKmH}
+                  />
+                )}
+                {activeTab === '마이' && (
+                  <MyProfileTabScreen
+                    dog={activeDog} feedbackSummary={feedbackSummary} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
+                    onResetFeedback={handleResetFeedback} onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
+                    onOpenOnboarding={() => setSubScreen('onboarding')}
+                    onOpenAuthModal={() => setAuthModalVisible(true)}
+                  />
+                )}
+              </ErrorBoundary>
+            </View>
+            <BottomTabBar
+              activeTab={activeTab}
+              onTabChange={(tab) => {
+                if (tab === '산책') {
+                  setSubScreen('walk_settings');
+                } else {
+                  setActiveTab(tab);
+                }
+              }}
+              onActionPress={() => setSubScreen('walk_settings')}
+            />
           </View>
         )}
         <LocationConsentModal controller={consent} />
+        <LandingAuthModal
+          visible={authModalVisible}
+          onClose={() => setAuthModalVisible(false)}
+          onFinish={handleAddDog}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -311,5 +408,6 @@ const styles = StyleSheet.create({
   logoBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: TOKENS.colors.primary, alignItems: 'center', justifyContent: 'center' },
   logoIcon: { fontSize: 16 }, appTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain, letterSpacing: -0.3 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 }, iconBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  iconText: { fontSize: 18, color: TOKENS.colors.textMain }, scrollContent: { padding: 20, paddingBottom: 24 },
+  iconText: { fontSize: 18, color: TOKENS.colors.textMain },
+  tabContentContainer: { flex: 1, padding: 16, paddingBottom: 8 },
 });

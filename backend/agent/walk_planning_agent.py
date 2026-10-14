@@ -293,6 +293,7 @@ class LoopCandidateRequest(BaseModel):
     avoid_stairs: bool = True
     max_slope_allowed: float = 6.0
     preferred_surfaces: List[str] = Field(default_factory=list)
+    origin_mode: str = "park"
 
 
 # 후보별 표시 정보 및 보행 환경 지표 (노면/경사/열 지표는 Step 6 에서 실데이터로 대체 예정)
@@ -330,7 +331,12 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
 
     거리와 소요 시간은 생성된 좌표열의 실측값에서 계산한다.
     """
-    plans = plan_loop_candidates(req.origin_lat, req.origin_lon, req.target_distance_m)
+    plans = plan_loop_candidates(
+        req.origin_lat,
+        req.origin_lon,
+        req.target_distance_m,
+        origin_mode=req.origin_mode,
+    )
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
         direction = _direction_label(VARIANT_BEARINGS[variant])
@@ -358,6 +364,7 @@ class WalkPlanningState(TypedDict):
     client_recent_feedback: List[Dict[str, Any]]
     origin_lat: float
     origin_lon: float
+    origin_mode: str
     # 분석 & 보정 산출물
     parsed_intent: Optional[Dict[str, Any]]
     calibrated_speed_kmh: float
@@ -448,6 +455,7 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         avoid_stairs=intent_dict.get("avoid_stairs", True),
         max_slope_allowed=state.get("max_slope_allowed", 6.0),
         preferred_surfaces=intent_dict.get("preferred_surfaces", ["dirt", "grass"]),
+        origin_mode=state.get("origin_mode", "park"),
     )
     candidates = generate_loop_candidates(request)
 
@@ -573,7 +581,8 @@ def run_walk_planning_agent(
     client_dog_context: Optional[Dict[str, Any]] = None,
     client_recent_feedback: Optional[List[Dict[str, Any]]] = None,
     origin_lat: float = 37.5665,
-    origin_lon: float = 126.9780
+    origin_lon: float = 126.9780,
+    origin_mode: str = "park",
 ) -> WalkPlanningResult:
     """[US-A1, US-A3, US-B1~B3, US-E3] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
@@ -585,6 +594,7 @@ def run_walk_planning_agent(
         "client_recent_feedback": client_recent_feedback or [],
         "origin_lat": origin_lat,
         "origin_lon": origin_lon,
+        "origin_mode": origin_mode,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

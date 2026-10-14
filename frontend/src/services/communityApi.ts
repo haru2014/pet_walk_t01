@@ -26,7 +26,7 @@ export interface CommunityFeedResponse {
   readonly is_supabase?: boolean;
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
   {
     course_id: 'feed_1',

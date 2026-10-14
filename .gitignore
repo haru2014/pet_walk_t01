@@ -19,5 +19,8 @@ build/
 scratch/
 docs/05_편안하개_Member4_모바일_구현계획서.md
 error/*.png
+error/*.jpg
 # Python virtualenv
 .venv/
+
+docs/잡다한것

@@ -168,6 +168,7 @@ def plan_walk_route(req: Dict[str, Any]):
     target_duration = req.get("target_duration_minutes", 30)
     origin_lat = req.get("origin_lat", 37.5665)
     origin_lon = req.get("origin_lon", 126.9780)
+    origin_mode = req.get("origin_mode", "park")
 
     user_query = (
         req.get("user_query")
@@ -195,6 +196,7 @@ def plan_walk_route(req: Dict[str, Any]):
             client_recent_feedback=recent_feedback,
             origin_lat=origin_lat,
             origin_lon=origin_lon,
+            origin_mode=origin_mode,
         )
 
         best = agent_result.best_route

@@ -12,8 +12,11 @@ import {
   RecommendedCourse,
   WALK_ENVIRONMENTS,
   WalkPreferences,
+  formatDurationLabel,
 } from '../types/walkSettings';
 import { FeedbackSummaryPayload } from './feedbackContext';
+
+import { getPilotParkById } from '../types/pilotParks';
 
 interface CourseBuilderContext {
   readonly dog: DogProfile;
@@ -22,6 +25,7 @@ interface CourseBuilderContext {
   readonly envs: readonly EnvironmentId[];
   readonly envSummary: string;
   readonly feedback?: FeedbackSummaryPayload | null;
+  readonly pilotParkId?: string;
 }
 
 /** 환경 ID 목록을 친근한 한국어 요약 문구로 결합한다. */
@@ -41,7 +45,7 @@ function calculateDistanceKm(speedKmH: number, minutes: number): string {
 
 /** 코스 1: 최우선 선호 조건을 정밀 반영한 최적 안심 코스 (목표 시간 100%) */
 function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { dog, targetMinutes, speed, envs, envSummary, feedback } = ctx;
+  const { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId } = ctx;
   const hasSoft = envs.includes('soft');
   const hasShade = envs.includes('shade');
   const hasStairs = envs.includes('stairs');
@@ -54,9 +58,36 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? ` · 최근 경사도 피드백(${slopeOffset}%) 반영 완화 코스`
     : '';
 
+  const park = getPilotParkById(pilotParkId);
+
+  let courseId = 'course_1';
+  let courseName = hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스';
+  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
+
+  if (pilotParkId === 'yurim') {
+    courseId = 'course_yurim';
+    courseName = '유림공원 갑천변 흙길 루프';
+    reason = `${park.defaultParkingName} 출발, 갑천 둔치 폭신한 흙길과 그늘을 우선 반영한 안심 순환로예요.${feedbackReason}`;
+  } else if (pilotParkId === 'sejong') {
+    courseId = 'course_sejong';
+    courseName = '세종호수공원 은빛해변 완만길';
+    reason = `${park.defaultParkingName} 출발, 수상무대섬과 광폭 보행데크 중심의 계단 0개 평지 코스예요.${feedbackReason}`;
+  } else if (pilotParkId === 'songgang') {
+    courseId = 'course_songgang';
+    courseName = '송강근린공원 솔밭 숲길 루프';
+    reason = `${park.defaultParkingName} 출발, 울창한 솔잎 그늘과 잔디마당을 잇는 평온한 흙길이에요.${feedbackReason}`;
+  } else if (pilotParkId === 'doan') {
+    courseId = 'course_doan';
+    courseName = '도안호수공원 갑천 생태데크길';
+    reason = `${park.defaultParkingName} 출발, 갑천 생태습지 수변 데크를 잇는 경사 1.1% 평탄길이에요.${feedbackReason}`;
+  } else if (pilotParkId === 'seoul_forest') {
+    courseName = '서울숲 숲길 & 호수 둘레길';
+    reason = `서울숲 공영주차장 출발, 중앙호수와 숲길을 감싸는 성동구 대표 안심 힐링 코스예요.${feedbackReason}`;
+  }
+
   return {
-    id: 'course_1',
-    name: hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스',
+    id: courseId,
+    name: courseName,
     distanceKm: calculateDistanceKm(speed, targetMinutes),
     estimatedMinutes: targetMinutes,
     softRatio: hasSoft ? '78%' : '55%',
@@ -65,13 +96,13 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     maxSlopePercent,
     shadePercent: hasShade ? 68 : 45,
     softSurfacePercent: hasSoft ? 84 : 60,
-    reason: `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`,
+    reason,
   };
 }
 
 /** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 90%) */
 function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { targetMinutes, speed, envs, feedback } = ctx;
+  const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
   const minutes = Math.max(10, Math.round(targetMinutes * 0.9));
   const features: string[] = [];
   if (envs.includes('rest')) features.push('쉬어갈 벤치');
@@ -83,9 +114,12 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.2, +(2.8 + slopeOffset * 0.2).toFixed(1))
     : 2.8;
 
+  const park = getPilotParkById(pilotParkId);
+  const parkCourseName = pilotParkId ? `${park.shortName} 둘레 한바퀴` : '공원 한바퀴 코스';
+
   return {
     id: 'course_2',
-    name: '공원 한바퀴 코스',
+    name: parkCourseName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,
     softRatio: '68%',
@@ -94,13 +128,13 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
-    reason: `${detail}를 중심으로 호수 둘레를 여유롭게 산책할 수 있어요.`,
+    reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
   };
 }
 
 /** 코스 3: 조용한 주택가 및 골목 안심 코스 (목표 시간 약 110%) */
 function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { targetMinutes, speed, envs, feedback } = ctx;
+  const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
   const minutes = Math.round(targetMinutes * 1.1);
   const hasQuiet = envs.includes('quiet');
   const features: string[] = [];
@@ -112,9 +146,15 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.5, +(3.2 + slopeOffset * 0.2).toFixed(1))
     : 3.2;
 
+  const park = getPilotParkById(pilotParkId);
+  let residentialName = hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스';
+  if (pilotParkId) {
+    residentialName = `${park.shortName} 외곽 안심길`;
+  }
+
   return {
     id: 'course_3',
-    name: hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스',
+    name: residentialName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,
     softRatio: envs.includes('soft') ? '58%' : '48%',
@@ -139,8 +179,9 @@ export function generateAdaptiveCourses(
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const speed = dog.speedKmH > 0 ? dog.speedKmH : 2.8;
   const envSummary = buildEnvironmentSummaryText(envs);
+  const pilotParkId = preferences?.pilotParkId;
 
-  const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback };
+  const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId };
 
   return [
     buildForestCourse(ctx),
@@ -155,13 +196,22 @@ export function generateAdaptiveBriefing(
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
 ): string {
+  const isFree = preferences?.isFreeWalk;
   const targetMinutes = preferences?.durationMinutes ?? 30;
+  const timeDesc = isFree ? '자유 산책' : `${formatDurationLabel(targetMinutes)}`;
   const envs = preferences?.environments ?? [];
   const envSummary = buildEnvironmentSummaryText(envs);
-  const feedbackNote = feedback && feedback.recommended_max_slope_offset < 0
-    ? ` (최근 피드백: 경사도 ${Math.abs(feedback.recommended_max_slope_offset)}% 완화)`
-    : '';
-  return `${dog.name}를 위한 ${targetMinutes}분 맞춤 코스예요. (${envSummary} 반영${feedbackNote})`;
+  const isCurrent = preferences?.originMode === 'current_location';
+  const park = getPilotParkById(preferences?.pilotParkId);
+  let parkNote = '[현재 위치 기반] ';
+  if (!isCurrent && preferences?.pilotParkId) {
+    parkNote = `[${park.shortName}] `;
+  }
+  let feedbackNote = '';
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    feedbackNote = ` (최근 피드백: 경사도 ${Math.abs(feedback.recommended_max_slope_offset)}% 완화)`;
+  }
+  return `${parkNote}${dog.name}를 위한 ${timeDesc} 맞춤 코스예요. (${envSummary} 반영${feedbackNote})`;
 }
 
 /** 사용자 선택 조건을 상단 태그 칩 문구 배열로 동적 변환한다. */
@@ -169,14 +219,20 @@ export function buildAdaptiveConditionLabels(
   dog: DogProfile,
   preferences?: WalkPreferences,
 ): string[] {
+  const isFree = preferences?.isFreeWalk;
   const minutes = preferences?.durationMinutes ?? 30;
-  const durationLabel = minutes === 60 ? '1시간' : `${minutes}분`;
+  const durationLabel = formatDurationLabel(minutes, isFree);
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
 
   const labelMap = new Map(WALK_ENVIRONMENTS.map((e) => [e.id, e.label]));
   const envLabels = envs.map((id) => labelMap.get(id)).filter(Boolean) as string[];
 
+  const isCurrent = preferences?.originMode === 'current_location';
+  let parkLabel = ['📍 현위치 기반'];
+  if (!isCurrent && preferences?.pilotParkId) {
+    parkLabel = [getPilotParkById(preferences.pilotParkId).badgeLabel];
+  }
   const customTextLabel = preferences?.requestText?.trim() ? ['직접 요청 반영'] : [];
 
-  return [dog.name, durationLabel, ...envLabels, ...customTextLabel];
+  return [dog.name, ...parkLabel, durationLabel, ...envLabels, ...customTextLabel];
 }
