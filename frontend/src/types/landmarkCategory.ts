@@ -5,6 +5,8 @@
 
 export type LandmarkCategoryCode =
   | 'ALL'
+  | 'LM_SEJONG'
+  | 'LM_YURIM'
   | 'LM_CITY_HALL'
   | 'LM_SEOUL_FOREST'
   | 'LM_GANGNAM'
@@ -21,6 +23,22 @@ export interface LandmarkMetadata {
 }
 
 export const LANDMARK_DEFINITIONS: Record<Exclude<LandmarkCategoryCode, 'ALL'>, LandmarkMetadata> = {
+  LM_SEJONG: {
+    landmarkCode: 'LM_SEJONG',
+    landmarkName: '세종호수공원',
+    regionCode: 'SEJONG',
+    regionName: '세종특별자치시',
+    badgeLabel: '세종호수공원',
+    icon: '🏞️',
+  },
+  LM_YURIM: {
+    landmarkCode: 'LM_YURIM',
+    landmarkName: '대전 유림공원',
+    regionCode: 'DAEJEON_YUSEONG',
+    regionName: '대전시 유성구',
+    badgeLabel: '유림공원 · 대전',
+    icon: '🌿',
+  },
   LM_CITY_HALL: {
     landmarkCode: 'LM_CITY_HALL',
     landmarkName: '서울시청 · 청계천',

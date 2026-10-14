@@ -15,30 +15,44 @@ import { useAppTheme } from '../theme/themeManager';
 import { DogProfile } from '../types/dogProfile';
 import { HomeDogCard } from '../components/home/HomeDogCard';
 import { GoldenTimeWidget } from '../components/home/GoldenTimeWidget';
-import { RecentWalkCard } from '../components/home/RecentWalkCard';
 import { FeedbackContextService, FeedbackSummaryPayload } from '../services/feedbackContext';
 import { AppIcon } from '../components/common/AppIcon';
 import { fetchHeatRiskForecast } from '../services/weatherApi';
 import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
+import { WeeklyWalkReportCard } from '../components/home/WeeklyWalkReportCard';
+import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 
 export interface HomeScreenProps {
   dog: DogProfile;
+  dogs?: readonly DogProfile[];
+  selectedDogId?: string;
+  onSelectDog?: (dogId: string) => void;
+  onAddDog?: () => void;
   feedbackSummary: FeedbackSummaryPayload | null;
   onPressProfile: () => void;
   onStartWalk: () => void;
   onOpenPlanner: () => void;
+  onOpenStats?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   dog,
+  dogs,
+  selectedDogId,
+  onSelectDog,
+  onAddDog,
   feedbackSummary,
   onPressProfile,
   onStartWalk,
   onOpenPlanner,
+  onOpenStats,
 }) => {
   const { colors } = useAppTheme();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
+    WalkStatisticsService.getWeeklyStats([])
+  );
   const [recentStats, setRecentStats] = useState({
     title: '오늘의 산책',
     distanceKm: 2.4,
@@ -53,6 +67,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     });
     void LocalStorageService.getWalkHistory().then((history) => {
       if (!isMounted || history.length === 0) return;
+      setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
       const todayStr = new Date().toISOString().slice(0, 10);
       const todayList = history.filter((r) => r.completedAt.slice(0, 10) === todayStr);
 
@@ -87,14 +102,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, []);
 
-  const currentTemp = typeof weather?.current_surface_temp === 'number'
-    ? weather.current_surface_temp
-    : 24;
-
-  const goldenNotice = weather
-    ? `현재 ${currentTemp.toFixed(0)}℃ · ${weather.notice ?? '산책 추천 시간대 (지면온도 적정)'}`
-    : '현재 15:30 · 산책 추천 시간대 (지면온도 적정)';
-
   return (
     <View style={styles.container}>
       {/* 1. 환영 인사 (02_home_screen.png 원형 복원) */}
@@ -106,54 +113,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
       </View>
 
-      {/* 2. 메인 반려견 카드 (초코 상태, 프리셋 칩, 산책 시작 버튼) */}
+      {/* 2. 메인 반려견 카드 / 다견 슬라이더 (좌우 스와이프 페이징 연동) */}
       <HomeDogCard
         profile={dog}
+        dogs={dogs}
+        selectedDogId={selectedDogId}
+        onSelectDog={onSelectDog}
+        onAddDog={onAddDog}
         onPressProfile={onPressProfile}
         onStartWalk={onStartWalk}
       />
 
       {/* 3. 산책하기 좋은 시간 (지면온도 골든타임 위젯 실데이터 연동) */}
-      <GoldenTimeWidget
-        currentTimeLabel={new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-        startTimeLabel="14:00"
-        endTimeLabel="17:00"
-        progressPercent={Math.min(100, Math.max(0, Math.round(((currentTemp - 15) / 25) * 100)))}
-        statusNotice={goldenNotice}
+      <GoldenTimeWidget weather={weather} />
+
+      {/* 4. 이번 주 산책 달성도 & 직전 완주 통계 통합 위젯 (터치 시 통계 화면으로 이동) */}
+      <WeeklyWalkReportCard
+        stats={weeklyStats}
+        recentWalk={recentStats}
+        onPress={onOpenStats || onOpenPlanner}
+        onPressRecent={onOpenStats || onStartWalk}
       />
 
-      {/* 4. '산책' 버튼 (누르면 '산책 설정' 페이지로 이동) */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={onOpenPlanner}
-        style={[styles.walkNavButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      >
-        <View style={styles.walkNavContent}>
-          <View style={[styles.walkNavIconBadge, { backgroundColor: colors.primaryLight }]}>
-            <AppIcon name="paw" size={16} color={colors.primaryDark} />
-          </View>
-          <View style={styles.walkNavTextWrap}>
-            <Text style={[styles.walkNavTitle, { color: colors.textMain }]}>산책</Text>
-            <Text style={[styles.walkNavSub, { color: colors.textMuted }]}>원하는 시간·공원·노면 조건 설정</Text>
-          </View>
-          <Text style={[styles.walkNavArrow, { color: colors.primary }]}>➔</Text>
-        </View>
-      </TouchableOpacity>
-
-      {/* 5. 최근 산책 요약 카드 ("오늘의 산책 / 2.4 km · 38분") */}
-      <RecentWalkCard
-        title={recentStats.title}
-        distanceKm={recentStats.distanceKm}
-        durationMinutes={recentStats.durationMinutes}
-        safeRatioPercent={recentStats.safeRatioPercent}
-        onPress={onStartWalk}
-      />
-
-      {/* (선택) 최근 피드백 AI 보정 브리핑 (간결한 1줄) */}
+      {/* (선택) 최근 피드백 AI 보정 브리핑 (전체 메시지 가독성 확보) */}
       {feedbackSummary && feedbackSummary.recent_walk_count > 0 && (
         <View style={[styles.feedbackBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-          <AppIcon name="sparkle" size={13} color={colors.primaryDark} />
-          <Text style={[styles.feedbackText, { color: colors.primaryDark }]} numberOfLines={1}>
+          <View style={styles.feedbackIconWrap}>
+            <AppIcon name="sparkle" size={13} color={colors.primaryDark} />
+          </View>
+          <Text style={[styles.feedbackText, { color: colors.primaryDark }]}>
             AI 맞춤 보정: {FeedbackContextService.generateBriefingNotice(feedbackSummary)}
           </Text>
         </View>
@@ -165,80 +153,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: 0,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 6,
     justifyContent: 'space-between', // 스크롤 없이 한 화면에 균형 배치
   },
   greetingSection: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   greetingSub: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '500',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   greetingMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   greetingMain: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
   feedbackBadge: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    alignItems: 'flex-start',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
     borderWidth: 1,
-    gap: 6,
+    gap: 7,
+  },
+  feedbackIconWrap: {
+    marginTop: 1,
   },
   feedbackText: {
     fontSize: 11,
+    lineHeight: 16,
     fontWeight: '600',
     flex: 1,
-  },
-  walkNavButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  walkNavContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  walkNavIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walkNavTextWrap: {
-    flex: 1,
-  },
-  walkNavTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  walkNavSub: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  walkNavArrow: {
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

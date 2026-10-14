@@ -5,6 +5,8 @@
 
 export type HeatRiskLevel = 'SAFE' | 'CAUTION' | 'DANGER';
 
+export type GoldenTimeWindowDay = 'today' | 'tomorrow' | null;
+
 /**
  * 시간대별 지면열 및 안심 산책 위험 지수 DTO
  */
@@ -28,6 +30,7 @@ export interface HeatRiskResponse {
   readonly current_risk_level: HeatRiskLevel;
   readonly is_current_golden: boolean;
   readonly golden_time_window: string;
+  readonly golden_time_window_day?: GoldenTimeWindowDay;
   readonly hourly_forecast: readonly HeatRiskHourDTO[];
   readonly notice: string;
   readonly fetched_at: string;

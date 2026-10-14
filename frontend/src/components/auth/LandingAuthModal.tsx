@@ -11,7 +11,10 @@ import { AppIcon } from '../common/AppIcon';
 import { SupabaseService } from '../../services/supabaseService';
 import { DogProfile } from '../../types/dogProfile';
 import { LegalTermsModal, LegalTabType } from '../common/LegalTermsModal';
+import { DogAvatar } from '../common/DogAvatar';
+import { PhotoPickerModal } from '../profile/PhotoPickerModal';
 
+import { generateUuid } from '../../utils/uuid';
 export interface LandingAuthModalProps {
   readonly visible: boolean;
   readonly onClose: () => void;
@@ -39,7 +42,8 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
   const [dogName, setDogName] = useState('');
   const [breed, setBreed] = useState('골든 리트리버');
   const [weightKg, setWeightKg] = useState('24');
-  const [photoSelected, setPhotoSelected] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
 
   const handleAuthSubmit = async () => {
     if (!email || !password) {
@@ -67,31 +71,34 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
       return;
     }
 
-    let photoPath: string | undefined;
-    if (photoSelected) {
+    let photoPath = photoUri;
+    if (photoUri && !photoUri.startsWith('preset:')) {
       const uploadRes = await SupabaseService.uploadPetPhoto(
         userId || 'guest_user',
         `${dogName.toLowerCase()}_profile.jpg`,
-        'mock_photo_data'
+        photoUri
       );
-      photoPath = uploadRes.photoPath;
+      if (uploadRes.photoPath) {
+        photoPath = uploadRes.photoPath;
+      }
     }
 
     const weight = Number.parseFloat(weightKg) || 10;
     const newDog: DogProfile = {
-      id: `dog_${Date.now()}`,
+      id: generateUuid(),
       name: dogName,
       breed,
       ageYears: 3,
       weightKg: weight,
       jointCareLevel: 1,
       speedKmH: 2.8,
-      photoUri: photoPath,
+      photoUri: photoPath || photoUri,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     await SupabaseService.saveDogProfile({
+      id: newDog.id,
       name: dogName,
       breed,
       weight_kg: weight,
@@ -203,13 +210,19 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setPhotoSelected(!photoSelected)}
-                style={[styles.photoCard, photoSelected && styles.photoCardSelected]}
+                onPress={() => setPhotoPickerVisible(true)}
+                style={[styles.photoCard, !!photoUri && styles.photoCardSelected]}
               >
-                <AppIcon name="paw" size={20} color={photoSelected ? '#059669' : TOKENS.colors.textMuted} />
-                <Text style={[styles.photoText, photoSelected && styles.photoTextSelected]}>
-                  {photoSelected ? '📷 사진 선택됨 (pet-photos/<user_id>/... 업로드)' : '📷 대표 사진 등록하기 (터치)'}
-                </Text>
+                <DogAvatar photoUri={photoUri} size={44} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={[styles.photoTitle, !!photoUri && styles.photoTitleSelected]}>
+                    {photoUri ? '✓ 대표 사진 등록 완료' : '📷 대표 사진 등록하기 (터치)'}
+                  </Text>
+                  <Text style={styles.photoSubtitle}>
+                    {photoUri ? '터치하여 사진 또는 아바타 변경' : '터치하여 앨범/카메라/캐릭터 선택'}
+                  </Text>
+                </View>
+                <AppIcon name="chevronRight" size={16} color={photoUri ? '#059669' : TOKENS.colors.textMuted} />
               </TouchableOpacity>
 
               <GradientButton fullWidth onPress={handleDogSubmit} style={{ marginTop: 16 }}>
@@ -219,6 +232,13 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
           )}
         </View>
       </View>
+
+      <PhotoPickerModal
+        visible={photoPickerVisible}
+        currentPhotoUri={photoUri}
+        onClose={() => setPhotoPickerVisible(false)}
+        onSelectPhoto={(uri) => setPhotoUri(uri)}
+      />
 
       <LegalTermsModal
         visible={legalModalVisible}
@@ -263,15 +283,15 @@ const styles = StyleSheet.create({
   photoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1.5,
     borderColor: TOKENS.colors.border,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 10,
     marginTop: 12,
   },
   photoCardSelected: { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-  photoText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '600' },
-  photoTextSelected: { color: '#065F46', fontWeight: '700' },
+  photoTitle: { fontSize: 13, color: TOKENS.colors.textMain, fontWeight: '700' },
+  photoTitleSelected: { color: '#065F46', fontWeight: '800' },
+  photoSubtitle: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2 },
 });

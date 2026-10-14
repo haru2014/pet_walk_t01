@@ -24,3 +24,5 @@ error/*.jpg
 .venv/
 
 docs/잡다한것
+error/pw.md
+error/*

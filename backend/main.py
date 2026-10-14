@@ -377,15 +377,44 @@ def get_weather_heat_risk(
             sky = "clear"
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
         hourly.append(dto.model_dump() if hasattr(dto, "model_dump") else dto.dict())
-        if dto.is_golden_time and (6 <= h <= 22):
-            golden_hours.append(h)
+    # 6시~22시 사이 안전 골든타임 블록 추출 (1.5~2시간 슬롯 최적화)
+    safe_blocks = []
+    block_start = None
+    for h in range(6, 23):
+        is_safe = hourly[h]["is_golden_time"] if h < len(hourly) else False
+        if is_safe:
+            if block_start is None:
+                block_start = h
+        else:
+            if block_start is not None:
+                safe_blocks.append((block_start, h))
+                block_start = None
+    if block_start is not None:
+        safe_blocks.append((block_start, 22))
+
+    chosen_slot = None
+    # 1) 현재 진행 중인 골든타임 블록이 있는가?
+    for b_start, b_end in safe_blocks:
+        if b_start <= now_hour < b_end:
+            chosen_slot = (b_start, min(b_end, b_start + 2))
+            break
+    # 2) 오늘 앞으로 다가올 가장 가까운 골든타임 블록이 있는가?
+    if not chosen_slot:
+        for b_start, b_end in safe_blocks:
+            if b_start > now_hour:
+                chosen_slot = (b_start, min(b_end, b_start + 2))
+                break
+    # 3) 내일 첫 번째 골든타임 블록
+    if not chosen_slot and safe_blocks:
+        first = safe_blocks[0]
+        chosen_slot = (first[0], min(first[1], first[0] + 2))
+
+    if chosen_slot:
+        golden_window = f"{chosen_slot[0]:02d}:00 ~ {chosen_slot[1]:02d}:00"
+    else:
+        golden_window = "18:00 ~ 20:00"
 
     current_dto = hourly[now_hour] if now_hour < len(hourly) else hourly[12]
-    golden_window = (
-        f"{golden_hours[0]:02d}:00 ~ {golden_hours[-1] + 1:02d}:00"
-        if golden_hours
-        else "일몰 후 (19:00 ~ 22:00) 권장"
-    )
 
     return {
         "status": "success",

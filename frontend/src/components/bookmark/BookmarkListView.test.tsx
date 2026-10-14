@@ -18,6 +18,13 @@ vi.mock('react-native-svg', () => ({
   Text: (props: any) => React.createElement('text', props),
 }));
 
+vi.mock('../../services/photoPickerService', () => ({
+  DOG_AVATAR_PRESETS: [
+    { id: 'golden', emoji: '🦮', label: '골든', color: '#FDF6E2' },
+  ],
+  pickDogPhoto: vi.fn(),
+}));
+
 const mockBookmark: BookmarkedRoute = {
   id: 'bm_test_01',
   title: '테스트 안심 숲길 코스',

@@ -22,6 +22,7 @@ import {
   WalkPreferences,
   WalkOriginMode,
 } from '../../types/walkSettings';
+import { WalkVoiceInputSection } from './WalkVoiceInputSection';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -51,7 +52,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const [environments, setEnvironments] = useState<EnvironmentId[]>(
     initialPreferences?.environments ?? ['soft', 'shade', 'stairs']
   );
-  const [requestText] = useState<string>(initialPreferences?.requestText ?? '');
+  const [requestText, setRequestText] = useState<string>(initialPreferences?.requestText ?? '');
 
   const handleToggleEnvironment = (id: EnvironmentId) => {
     setEnvironments((prev) =>
@@ -83,7 +84,11 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <View style={styles.contentWrap}>
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={styles.contentWrap}
+        showsVerticalScrollIndicator={false}
+      >
         {/* 2. 타이틀 & 안내 섹션 (03_walk_settings.png 원형 복원) */}
         <View style={styles.titleSection}>
           <Text style={[styles.mainTitle, { color: colors.textMain }]}>
@@ -94,7 +99,14 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           </Text>
         </View>
 
-        {/* 3. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
+        {/* 3. 직접 말해도 좋아요 (자연어 음성/텍스트 입력 섹션 - US-A1) */}
+        <WalkVoiceInputSection
+          dogName={dog.name}
+          requestText={requestText}
+          onChangeText={setRequestText}
+        />
+
+        {/* 4. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
         <View style={styles.originModeRow}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -269,7 +281,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             })}
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       {/* 6. 하단 Thumb Zone 탐색 버튼 (03_walk_settings.png 원형 복원) */}
       <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -305,12 +317,13 @@ const styles = StyleSheet.create({
   backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
   headerPlaceholder: { width: 32 },
-  contentWrap: {
+  contentScroll: {
     flex: 1,
+  },
+  contentWrap: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 6,
-    justifyContent: 'space-between', // 스크롤 없이 한 화면에 균형 배치
+    paddingBottom: 20,
   },
   titleSection: {
     marginBottom: 4,

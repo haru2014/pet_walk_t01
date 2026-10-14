@@ -65,24 +65,21 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
   let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
 
   if (pilotParkId === 'yurim') {
-    courseId = 'course_yurim';
+    courseId = 'yurim_course_1';
     courseName = '유림공원 갑천변 흙길 루프';
     reason = `${park.defaultParkingName} 출발, 갑천 둔치 폭신한 흙길과 그늘을 우선 반영한 안심 순환로예요.${feedbackReason}`;
   } else if (pilotParkId === 'sejong') {
-    courseId = 'course_sejong';
+    courseId = 'sejong_course_1';
     courseName = '세종호수공원 은빛해변 완만길';
     reason = `${park.defaultParkingName} 출발, 수상무대섬과 광폭 보행데크 중심의 계단 0개 평지 코스예요.${feedbackReason}`;
   } else if (pilotParkId === 'songgang') {
-    courseId = 'course_songgang';
+    courseId = 'songgang_course_1';
     courseName = '송강근린공원 솔밭 숲길 루프';
     reason = `${park.defaultParkingName} 출발, 울창한 솔잎 그늘과 잔디마당을 잇는 평온한 흙길이에요.${feedbackReason}`;
   } else if (pilotParkId === 'doan') {
-    courseId = 'course_doan';
+    courseId = 'doan_course_1';
     courseName = '도안호수공원 갑천 생태데크길';
     reason = `${park.defaultParkingName} 출발, 갑천 생태습지 수변 데크를 잇는 경사 1.1% 평탄길이에요.${feedbackReason}`;
-  } else if (pilotParkId === 'seoul_forest') {
-    courseName = '서울숲 숲길 & 호수 둘레길';
-    reason = `서울숲 공영주차장 출발, 중앙호수와 숲길을 감싸는 성동구 대표 안심 힐링 코스예요.${feedbackReason}`;
   }
 
   return {
@@ -116,9 +113,10 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
 
   const park = getPilotParkById(pilotParkId);
   const parkCourseName = pilotParkId ? `${park.shortName} 둘레 한바퀴` : '공원 한바퀴 코스';
+  const courseId = pilotParkId ? `${pilotParkId}_course_2` : 'course_2';
 
   return {
-    id: 'course_2',
+    id: courseId,
     name: parkCourseName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,
@@ -151,9 +149,10 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
   if (pilotParkId) {
     residentialName = `${park.shortName} 외곽 안심길`;
   }
+  const courseId = pilotParkId ? `${pilotParkId}_course_3` : 'course_3';
 
   return {
-    id: 'course_3',
+    id: courseId,
     name: residentialName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,

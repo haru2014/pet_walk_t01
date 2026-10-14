@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: '100%',
+    maxWidth: 440,
     maxHeight: '85%',
     backgroundColor: TOKENS.colors.surface,
     borderRadius: 20,

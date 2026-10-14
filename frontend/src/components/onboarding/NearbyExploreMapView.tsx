@@ -15,7 +15,7 @@ import { GradientButton } from '../common/GradientButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_WIDTH = Math.min(SCREEN_WIDTH - 48, 420);
-const MAP_HEIGHT = 220;
+const MAP_HEIGHT = 150;
 
 export interface NearbyDogMarker {
   id: string;
@@ -36,14 +36,14 @@ export interface NearbyCoursePin {
 }
 
 const MOCK_NEARBY_DOGS: NearbyDogMarker[] = [
-  { id: 'dog1', name: '콩이 (골든리트리버)', breed: '대형견', distanceM: 180, x: MAP_WIDTH * 0.35, y: MAP_HEIGHT * 0.3 },
-  { id: 'dog2', name: '보리 (말티즈)', breed: '소형견', distanceM: 320, x: MAP_WIDTH * 0.72, y: MAP_HEIGHT * 0.45 },
-  { id: 'dog3', name: '초코 (푸들)', breed: '중형견', distanceM: 450, x: MAP_WIDTH * 0.5, y: MAP_HEIGHT * 0.75 },
+  { id: 'dog1', name: '콩이 (골든리트리버)', breed: '대형견', distanceM: 180, x: MAP_WIDTH * 0.35, y: MAP_HEIGHT * 0.28 },
+  { id: 'dog2', name: '보리 (말티즈)', breed: '소형견', distanceM: 320, x: MAP_WIDTH * 0.72, y: MAP_HEIGHT * 0.42 },
+  { id: 'dog3', name: '초코 (푸들)', breed: '중형견', distanceM: 450, x: MAP_WIDTH * 0.48, y: MAP_HEIGHT * 0.72 },
 ];
 
 const MOCK_NEARBY_COURSES: NearbyCoursePin[] = [
-  { id: 'c1', title: '🌿 갑천 수변 그늘길', distanceKm: 1.8, durationMinutes: 25, x: MAP_WIDTH * 0.25, y: MAP_HEIGHT * 0.6 },
-  { id: 'c2', title: '🐾 반도지 폭신 흙길', distanceKm: 2.3, durationMinutes: 35, x: MAP_WIDTH * 0.65, y: MAP_HEIGHT * 0.25 },
+  { id: 'c1', title: '🌿 갑천 수변 그늘길', distanceKm: 1.8, durationMinutes: 25, x: MAP_WIDTH * 0.22, y: MAP_HEIGHT * 0.52 },
+  { id: 'c2', title: '🐾 반도지 폭신 흙길', distanceKm: 2.3, durationMinutes: 35, x: MAP_WIDTH * 0.62, y: MAP_HEIGHT * 0.2 },
 ];
 
 export interface NearbyExploreMapViewProps {
@@ -122,7 +122,7 @@ export const NearbyExploreMapView: React.FC<NearbyExploreMapViewProps> = ({
       {/* 하단 첫 산책 시작 액션 버튼 */}
       <View style={styles.actionWrap}>
         <GradientButton fullWidth onPress={onStartFirstWalk}>
-          🐾 {dogName}와 첫 산책 시작하기
+          {`🐾 ${dogName}와 첫 산책 시작하기`}
         </GradientButton>
       </View>
     </View>
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     backgroundColor: TOKENS.colors.surface,
-    padding: 12,
+    padding: 10,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
-    marginBottom: 10,
+    marginBottom: 8,
     width: '100%',
   },
   sparkleBadge: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: TOKENS.colors.primary,
-    marginBottom: 10,
+    marginBottom: 8,
     width: '100%',
   },
   privacyNoticeText: {

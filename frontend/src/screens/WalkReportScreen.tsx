@@ -18,6 +18,7 @@ import { BookmarkedRoute } from '../types/bookmark';
 import { ShareCourseModal } from '../components/community/ShareCourseModal';
 import { shareCommunityCourse } from '../services/communityApi';
 import { SupabaseService } from '../services/supabaseService';
+import { DogAvatar } from '../components/common/DogAvatar';
 
 export interface WalkReportScreenProps {
   record: WalkRecord;
@@ -107,14 +108,24 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. 상단: WALK COMPLETE 🐾 축하 카드 (07_walk_report.png 원형 복원) */}
       <View style={[styles.congratsCard, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-        <View style={[styles.completeCapsule, { backgroundColor: colors.primary }]}>
-          <Text style={styles.completeCapsuleText}>WALK COMPLETE 🐾</Text>
+        <View style={styles.congratsTopRow}>
+          <View style={[styles.completeCapsule, { backgroundColor: colors.primary }]}>
+            <Text style={styles.completeCapsuleText}>WALK COMPLETE 🐾</Text>
+          </View>
+          {record.dogSummary && (
+            <View style={styles.dogSummaryBadge}>
+              <DogAvatar photoUri={record.dogSummary.photoUri} size={20} />
+              <Text style={styles.dogSummaryBadgeText} numberOfLines={1}>
+                {record.dogSummary.name} ({record.dogSummary.breed} · {record.dogSummary.weightKg}kg)
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.congratsTitle, { color: colors.textMain }]}>
           오늘 산책을 무사히 마쳤어요!
         </Text>
         <Text style={[styles.congratsSubtitle, { color: colors.textMuted }]}>
-          {dogName}와 함께 발바닥과 관절이 편안한 산책을 완주했습니다.
+          {record.dogSummary?.name || dogName}와 함께 발바닥과 관절이 편안한 산책을 완주했습니다.
         </Text>
       </View>
 
@@ -245,17 +256,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  congratsTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
   completeCapsule: {
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 12,
-    marginBottom: 4,
   },
   completeCapsuleText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  dogSummaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dogSummaryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
   },
   congratsTitle: {
     fontSize: 17,

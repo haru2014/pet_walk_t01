@@ -18,8 +18,8 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
     updatedAt: '2026-10-13T00:00:00.000Z',
   };
 
-  it('4대 파일럿 거점 공원과 서울숲 메타데이터가 정상 정의되어 있어야 한다', () => {
-    expect(PILOT_PARKS).toHaveLength(5);
+  it('4대 파일럿 거점 공원 메타데이터가 정상 정의되어 있어야 한다', () => {
+    expect(PILOT_PARKS).toHaveLength(4);
 
     const yurim = getPilotParkById('yurim');
     expect(yurim.name).toBe('대전 유림공원');
@@ -37,7 +37,7 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
     expect(doan.name).toBe('대전 도안호수공원');
   });
 
-  it('유림공원 선택 시 유림공원 전용 코스명과 ID(course_yurim)를 생성해야 한다', () => {
+  it('유림공원 선택 시 유림공원 전용 코스명과 ID(yurim_course_1)를 생성해야 한다', () => {
     const courses = generateAdaptiveCourses(mockDog, {
       durationMinutes: 30,
       environments: ['soft', 'shade'],
@@ -46,7 +46,7 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
     });
 
     expect(courses).toHaveLength(3);
-    expect(courses[0].id).toBe('course_yurim');
+    expect(courses[0].id).toBe('yurim_course_1');
     expect(courses[0].name).toContain('유림공원');
     expect(courses[0].reason).toContain('유림공원 부설 공영주차장');
 
@@ -59,7 +59,7 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
     expect(briefing).toContain('[유림공원]');
   });
 
-  it('세종호수공원 선택 시 세종호수 전용 코스명과 ID(course_sejong)를 생성해야 한다', () => {
+  it('세종호수공원 선택 시 세종호수 전용 코스명과 ID(sejong_course_1)를 생성해야 한다', () => {
     const courses = generateAdaptiveCourses(mockDog, {
       durationMinutes: 40,
       environments: ['soft', 'shade'],
@@ -67,7 +67,7 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
       pilotParkId: 'sejong',
     });
 
-    expect(courses[0].id).toBe('course_sejong');
+    expect(courses[0].id).toBe('sejong_course_1');
     expect(courses[0].name).toContain('세종호수공원');
     expect(courses[0].reason).toContain('세종호수공원 제1주차장');
   });
@@ -102,7 +102,7 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
       });
 
       expect(result.isLiveServer).toBe(false);
-      expect(result.courses[0].id).toBe('course_yurim');
+      expect(result.courses[0].id).toBe('yurim_course_1');
       expect(result.courses[0].name).toContain('유림공원');
       expect(result.stepPins[0].instruction).toContain('유림공원');
     } finally {

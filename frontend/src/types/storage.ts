@@ -3,6 +3,8 @@
  * Local-First 영속성 스토리지 키 및 DTO (US-A2, US-E1)
  */
 
+import { WalkDogSummary } from './dogProfile';
+
 export const STORAGE_PREFIX = '@편안하개:';
 
 export const STORAGE_KEYS = {
@@ -36,6 +38,7 @@ export interface PoopEvent {
 export interface WalkRecord {
   id: string;
   dogId: string;
+  dogSummary?: WalkDogSummary;
   startedAt: string;
   completedAt: string;
   durationMinutes: number;

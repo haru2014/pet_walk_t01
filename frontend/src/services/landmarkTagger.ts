@@ -18,6 +18,8 @@ interface LandmarkCenter {
 }
 
 const LANDMARK_CENTERS: readonly LandmarkCenter[] = [
+  { code: 'LM_SEJONG', lat: 36.5020, lon: 127.2680, radiusM: 5000 },
+  { code: 'LM_YURIM', lat: 36.3628, lon: 127.3592, radiusM: 5000 },
   { code: 'LM_CITY_HALL', lat: 37.5663, lon: 126.9784, radiusM: 2500 },
   { code: 'LM_SEOUL_FOREST', lat: 37.5445, lon: 127.0374, radiusM: 3000 },
   { code: 'LM_GANGNAM', lat: 37.4980, lon: 127.0276, radiusM: 2500 },
@@ -70,6 +72,12 @@ export function detectLandmarkCategory(
   titleHint?: string
 ): LandmarkMetadata {
   if (titleHint) {
+    if (titleHint.includes('세종') || titleHint.includes('호수공원') || titleHint.includes('은빛해변')) {
+      return LANDMARK_DEFINITIONS.LM_SEJONG;
+    }
+    if (titleHint.includes('유림') || titleHint.includes('갑천') || titleHint.includes('반도지')) {
+      return LANDMARK_DEFINITIONS.LM_YURIM;
+    }
     if (titleHint.includes('시청') || titleHint.includes('덕수궁') || titleHint.includes('청계천')) {
       return LANDMARK_DEFINITIONS.LM_CITY_HALL;
     }

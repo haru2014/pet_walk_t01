@@ -128,10 +128,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
   const CATEGORY_CHIPS: readonly { code: LandmarkCategoryCode; label: string }[] = [
     { code: 'ALL', label: '전체' },
+    { code: 'LM_SEJONG', label: '🏞️ 세종호수' },
+    { code: 'LM_YURIM', label: '🌿 유림공원 · 대전' },
+    { code: 'LM_SEONGSAN', label: '🌲 성산공원 · 마포' },
     { code: 'LM_SEOUL_FOREST', label: '🌳 서울숲 · 성동' },
     { code: 'LM_CITY_HALL', label: '🏛️ 시청 · 중구' },
-    { code: 'LM_SEONGSAN', label: '🌲 성산공원 · 마포' },
-    { code: 'LM_GANGNAM', label: '🏙️ 강남역 · 강남' },
   ];
 
   const filteredFeeds =

@@ -13,9 +13,9 @@ import {
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './sampleRoute';
 import { LonLat } from '../types/route';
 
-const ON_ROUTE_START: LonLat = [127.0374, 37.5443];
-const NEAR_TURN_1: LonLat = [127.03992, 37.54592]; // turn_1 약 2m 이내
-const FAR_AWAY: LonLat = [127.05, 37.56];
+const ON_ROUTE_START: LonLat = [127.3592, 36.3628];
+const NEAR_TURN_1: LonLat = [127.35921, 36.36281]; // yurim_pin_1 약 2m 이내
+const FAR_AWAY: LonLat = [127.40, 36.40];
 
 describe('경로까지의 거리 계산', () => {
   it('경로 위의 점은 거리가 거의 0이어야 한다', () => {
@@ -32,12 +32,14 @@ describe('경로까지의 거리 계산', () => {
   });
 });
 
+const ON_ROUTE_FAR_FROM_PINS: LonLat = [127.3565, 36.3633];
+
 describe('30m 전 사전 음성 브리핑', () => {
   it('스텝 핀 30m 이내 진입 시 해당 안내 문구를 발화해야 한다', () => {
     const { events } = evaluateGuidance(NEAR_TURN_1, SAMPLE_ROUTE, SAMPLE_STEP_PINS, INITIAL_GUIDANCE_STATE);
     const brief = events.find((e) => e.kind === 'pre_brief');
-    expect(brief?.pinId).toBe('turn_1');
-    expect(brief?.message).toBe('50m 앞 완만한 길입니다. 우회전하세요');
+    expect(brief?.pinId).toBe('yurim_pin_1');
+    expect(brief?.message).toBe('유림공원 부설주차장에서 갑천 둔치 흙길로 진입합니다');
   });
 
   it('같은 핀은 한 번만 안내해야 한다', () => {
@@ -47,7 +49,7 @@ describe('30m 전 사전 음성 브리핑', () => {
   });
 
   it('핀에서 멀면 안내하지 않아야 한다', () => {
-    const { events } = evaluateGuidance(ON_ROUTE_START, SAMPLE_ROUTE, SAMPLE_STEP_PINS, INITIAL_GUIDANCE_STATE);
+    const { events } = evaluateGuidance(ON_ROUTE_FAR_FROM_PINS, SAMPLE_ROUTE, SAMPLE_STEP_PINS, INITIAL_GUIDANCE_STATE);
     expect(events).toHaveLength(0);
   });
 });
