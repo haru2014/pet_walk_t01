@@ -561,15 +561,15 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     if not is_golden or (is_hot_query and surface_temp > 33.0):
         briefing = (
             f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
-            f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 폭신한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
+            f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 계단 걱정 없이 경사가 완만한 폭신한 길과 시원한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
             f"약 {duration}분({int(dist_m)}m) 동안 발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
         )
     # 2. 지면온도 35℃ 이하 안전 골든타임
     else:
         briefing = (
             f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요. "
-            f"{breed} {dog_name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 '{route_name}'를 준비했어요. "
-            f"약 {duration}분({int(dist_m)}m) 동안 폭신하고 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+            f"{breed} {dog_name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주인 '{route_name}'를 준비했어요. "
+            f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
         )
 
     trace.append(f"[Node: synthesize_briefing] Synthesized wellness briefing. Total Score: {score}점, SurfaceTemp: {surface_temp}℃")
@@ -635,16 +635,16 @@ def run_walk_planning_agent(
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
 
-    # 기상 컨텍스트 미제공 시 실시간 기상청 지면열 모델 자동 바인딩
+    # 기상 컨텍스트 미제공 시 실시간 기상청 지면열 모델 자동 바인딩 (기본 안전 산책 프리셋)
     if weather_context is None:
         import datetime
         now_hour = datetime.datetime.now().hour
-        # 기본 맑은 낮 기온 28.5℃ (지면열 약 43.5℃ 추정)
-        dto = determine_heat_risk_dto(hour=now_hour, air_temp=28.5, sky="clear")
+        # 기본 온화한 안전 산책 기상 프리셋 (외기온 21.5℃, 지면열 약 27.5℃ 골든타임)
+        dto = determine_heat_risk_dto(hour=now_hour, air_temp=21.5, sky="partly_cloudy")
         dto_dict = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
         weather_context = {
             "current": dto_dict,
-            "golden_time_window": "17:00 ~ 20:00",
+            "golden_time_window": "06:00 ~ 21:00",
             "is_live_estimated": True,
         }
 
