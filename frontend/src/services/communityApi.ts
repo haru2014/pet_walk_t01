@@ -119,13 +119,14 @@ export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
+  userId?: string,
 ): Promise<{ success: boolean; is_supabase?: boolean }> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/community/share`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: 'user_local_demo',
+        user_id: userId || 'user_local_demo',
         course_title: title,
         raw_coordinates: rawCoordinates,
         satisfaction_rating: rating,

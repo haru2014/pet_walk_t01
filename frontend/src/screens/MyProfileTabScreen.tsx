@@ -30,7 +30,7 @@ export interface MyProfileTabScreenProps {
   onStartBookmark: (bookmark: BookmarkedRoute) => void;
   onResetData?: () => Promise<void>;
   onOpenOnboarding?: () => void;
-  onOpenAuthModal?: () => void;
+  onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
 type SubTabKey = 'profile_theme' | 'walk_records' | 'settings';
@@ -96,16 +96,32 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         <View>
           <CardWrapper variant="flat" style={styles.accountCard}>
             <View style={styles.accountRow}>
-              <View>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ Supabase 클라우드 계정</Text>
                 <Text style={[styles.accountSubtitle, { color: colors.textMuted }]}>
                   {currentUser ? `${currentUser.email} (로그인됨)` : '로컬 게스트 모드 (비로그인)'}
                 </Text>
+                {!currentUser && (
+                  <Text style={[styles.guestNotice, { color: colors.primaryDark }]}>
+                    회원가입 시 산책 기록 동기화 및 커뮤니티 코스 공유가 가능합니다.
+                  </Text>
+                )}
               </View>
               {onOpenAuthModal && (
-                <TouchableOpacity onPress={onOpenAuthModal} style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>{currentUser ? '계정 전환' : '로그인'}</Text>
-                </TouchableOpacity>
+                currentUser ? (
+                  <TouchableOpacity onPress={() => onOpenAuthModal('signin')} style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}>
+                    <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>계정 전환</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.authBtnGroup}>
+                    <TouchableOpacity onPress={() => onOpenAuthModal('signup')} style={[styles.accountBtn, { backgroundColor: colors.primary }]}>
+                      <Text style={[styles.accountBtnText, { color: '#FFFFFF' }]}>회원가입</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onOpenAuthModal('signin')} style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>로그인</Text>
+                    </TouchableOpacity>
+                  </View>
+                )
               )}
             </View>
           </CardWrapper>
@@ -121,7 +137,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
       {/* 서브탭 2: 산책 기록 목록 및 커뮤니티 공개(is_public) 토글 (US-G2) */}
       {subTab === 'walk_records' && (
         <View>
-          <MyWalkHistoryView dogName={dog.name} />
+          <MyWalkHistoryView dogName={dog.name} onOpenAuthModal={onOpenAuthModal} />
         </View>
       )}
 
@@ -258,7 +274,9 @@ const styles = StyleSheet.create({
   accountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   accountTitle: { fontSize: 12, fontWeight: '700' },
   accountSubtitle: { fontSize: 10, marginTop: 2 },
-  accountBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  guestNotice: { fontSize: 9.5, marginTop: 4, fontWeight: '600' },
+  authBtnGroup: { flexDirection: 'row', gap: 6 },
+  accountBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10 },
   accountBtnText: { fontSize: 10, fontWeight: '700' },
   cardHeaderTitle: { fontSize: 13, fontWeight: '700' },
   backupDesc: { fontSize: 11, marginTop: 2, lineHeight: 16 },

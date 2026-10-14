@@ -4,11 +4,11 @@
 > **최종 갱신 일자**: 2026년 10월 14일  
 > **문서 버전**: v1.3 (대전·세종 5대 공원 실증 보행망, origin_mode 이원화, KMA 실시간 예보 연동 및 255/141 테스트 통과 반영판)  
 > **기준 코드베이스**:
-> - 백엔드 엔트리포인트: [`backend/main.py`](file:///d:/코디세이/pet_walk_t01/backend/main.py)
-> - 백엔드 서비스: [`backend/services/kma_weather_client.py`](file:///d:/코디세이/pet_walk_t01/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](file:///d:/코디세이/pet_walk_t01/backend/services/kma_grid_converter.py)
-> - 백엔드 에이전트: [`backend/agent/pilot_park_routes.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/pilot_park_routes.py), [`backend/agent/walk_planning_agent.py`](file:///d:/코디세이/pet_walk_t01/backend/agent/walk_planning_agent.py)
-> - Supabase 스키마: [`backend/sql/supabase_schema.sql`](file:///d:/코디세이/pet_walk_t01/backend/sql/supabase_schema.sql), [`backend/sql/supabase_auth_schema.sql`](file:///d:/코디세이/pet_walk_t01/backend/sql/supabase_auth_schema.sql)
-> - 프론트엔드 서비스: [`frontend/src/services/`](file:///d:/코디세이/pet_walk_t01/frontend/src/services/) (`api.ts`, `weatherApi.ts`, `parkingApi.ts`, `communityApi.ts`, `supabaseService.ts`, `ambientNoiseMonitor.ts`, `pilotParks.ts`)
+> - 백엔드 엔트리포인트: [`backend/main.py`](/backend/main.py)
+> - 백엔드 서비스: [`backend/services/kma_weather_client.py`](/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](/backend/services/kma_grid_converter.py)
+> - 백엔드 에이전트: [`backend/agent/pilot_park_routes.py`](/backend/agent/pilot_park_routes.py), [`backend/agent/walk_planning_agent.py`](/backend/agent/walk_planning_agent.py)
+> - Supabase 스키마: [`backend/sql/supabase_schema.sql`](/backend/sql/supabase_schema.sql), [`backend/sql/supabase_auth_schema.sql`](/backend/sql/supabase_auth_schema.sql)
+> - 프론트엔드 서비스: [`frontend/src/services/`](/frontend/src/services/) (`api.ts`, `weatherApi.ts`, `parkingApi.ts`, `communityApi.ts`, `supabaseService.ts`, `ambientNoiseMonitor.ts`, `pilotParks.ts`)
 
 ---
 

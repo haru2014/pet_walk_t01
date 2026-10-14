@@ -63,6 +63,7 @@ export default function App() {
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummaryPayload | null>(null);
   const [completedRecord, setCompletedRecord] = useState<WalkRecord | null>(null);
   const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signup' | 'signin'>('signup');
   const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
   const [walkBookmark, setWalkBookmark] = useState<BookmarkedRoute | null>(null);
   const consent = useLocationConsent();
@@ -103,6 +104,11 @@ export default function App() {
     }
     await OnboardingService.markOnboardingCompleted();
     setSubScreen('main');
+  };
+
+  const handleOpenAuthModal = (mode: 'signup' | 'signin' = 'signup') => {
+    setAuthModalMode(mode);
+    setAuthModalVisible(true);
   };
 
   const beginWalk = async (title: string, plan: CoursePlan | undefined, bookmark: BookmarkedRoute | null) => {
@@ -305,6 +311,7 @@ export default function App() {
             record={completedRecord} dogName={activeDog.name} bookmarkCandidate={walkBookmark}
             onSaveFeedback={handleSaveReportFeedback} onGoHome={() => { setSubScreen('main'); setActiveTab('홈'); }}
             onGoToCommunity={() => { setSubScreen('main'); setActiveTab('커뮤니티'); }}
+            onOpenAuthModal={handleOpenAuthModal}
           />
         )}
         {subScreen === 'dog_selection' && (
@@ -363,6 +370,7 @@ export default function App() {
                   <CommunityTabScreen
                     onStartCommunityWalk={handleStartCommunityWalk}
                     dogSpeedKmH={activeDog.speedKmH}
+                    onOpenAuthModal={handleOpenAuthModal}
                   />
                 )}
                 {activeTab === '마이' && (
@@ -370,7 +378,7 @@ export default function App() {
                     dog={activeDog} feedbackSummary={feedbackSummary} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
                     onResetFeedback={handleResetFeedback} onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
                     onOpenOnboarding={() => setSubScreen('onboarding')}
-                    onOpenAuthModal={() => setAuthModalVisible(true)}
+                    onOpenAuthModal={handleOpenAuthModal}
                   />
                 )}
               </ErrorBoundary>
@@ -391,6 +399,7 @@ export default function App() {
         <LocationConsentModal controller={consent} />
         <LandingAuthModal
           visible={authModalVisible}
+          initialMode={authModalMode}
           onClose={() => setAuthModalVisible(false)}
           onFinish={handleAddDog}
         />

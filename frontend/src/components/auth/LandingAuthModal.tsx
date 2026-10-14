@@ -3,7 +3,7 @@
  * 랜딩 가입 -> 반려견 이름/사진 등록(pet-photos 업로드) -> 홈 진입 플로우 모달 (US-G2, PR #42)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { GradientButton } from '../common/GradientButton';
@@ -16,16 +16,24 @@ export interface LandingAuthModalProps {
   readonly visible: boolean;
   readonly onClose: () => void;
   readonly onFinish: (dog: DogProfile) => void;
+  readonly initialMode?: 'signup' | 'signin';
 }
 
-export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onClose, onFinish }) => {
+export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onClose, onFinish, initialMode = 'signup' }) => {
   const [step, setStep] = useState<'auth' | 'dog'>('auth');
-  const [isSignUp, setIsSignUp] = useState(true);
+  const [isSignUp, setIsSignUp] = useState(initialMode !== 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userId, setUserId] = useState<string>('');
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTabType>('terms');
+
+  useEffect(() => {
+    if (visible) {
+      setIsSignUp(initialMode !== 'signin');
+      setStep('auth');
+    }
+  }, [visible, initialMode]);
 
   // 반려견 정보
   const [dogName, setDogName] = useState('');
@@ -105,9 +113,11 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
           {step === 'auth' ? (
             <View>
               <View style={styles.header}>
-                <Text style={styles.title}>🐾 편안하개 클라우드 계정 (US-G2)</Text>
+                <Text style={styles.title}>
+                  🐾 {isSignUp ? '편안하개 회원가입' : '편안하개 로그인'}
+                </Text>
                 <Text style={styles.subtitle}>
-                  {isSignUp ? '이메일 가입 (CBT 즉시 완료)' : '계정 로그인'}
+                  {isSignUp ? '이메일 가입하고 우리 아이 안심 코스를 공유해 보세요!' : '기존 계정으로 로그인합니다.'}
                 </Text>
               </View>
 
@@ -131,13 +141,13 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
               />
 
               <GradientButton fullWidth onPress={handleAuthSubmit} style={{ marginTop: 16 }}>
-                {isSignUp ? '가입하고 반려견 등록하기 →' : '로그인 완료 →'}
+                {isSignUp ? '회원가입하고 반려견 등록하기 →' : '로그인 완료 →'}
               </GradientButton>
 
               <View style={styles.switchRow}>
                 <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
                   <Text style={styles.switchText}>
-                    {isSignUp ? '이미 계정이 있나요? 로그인' : '새 계정이 필요하신가요? 회원가입'}
+                    {isSignUp ? '이미 계정이 있나요? 로그인' : '아직 회원이 아니신가요? 회원가입'}
                   </Text>
                 </TouchableOpacity>
               </View>

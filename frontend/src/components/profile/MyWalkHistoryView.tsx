@@ -14,9 +14,10 @@ import { SupabaseService } from '../../services/supabaseService';
 
 export interface MyWalkHistoryViewProps {
   readonly dogName: string;
+  readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
-export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName }) => {
+export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, onOpenAuthModal }) => {
   const [records, setRecords] = useState<WalkRecord[]>([]);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
 
@@ -30,6 +31,19 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName })
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
+    const user = SupabaseService.getCurrentUser();
+    if (!user) {
+      Alert.alert(
+        '회원 전용 기능',
+        '커뮤니티 후기 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 아이 안심 코스를 공유해 보세요!',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '회원가입하기', onPress: () => onOpenAuthModal?.('signup') },
+        ]
+      );
+      return;
+    }
+
     const current = publicMap[record.id] ?? false;
     const nextState = !current;
 

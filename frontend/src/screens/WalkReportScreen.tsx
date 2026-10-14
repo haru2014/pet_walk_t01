@@ -17,6 +17,7 @@ import { QuickFeedbackModal } from '../components/feedback/QuickFeedbackModal';
 import { BookmarkedRoute } from '../types/bookmark';
 import { ShareCourseModal } from '../components/community/ShareCourseModal';
 import { shareCommunityCourse } from '../services/communityApi';
+import { SupabaseService } from '../services/supabaseService';
 
 export interface WalkReportScreenProps {
   record: WalkRecord;
@@ -25,6 +26,7 @@ export interface WalkReportScreenProps {
   onGoHome: () => void;
   onGoToCommunity?: () => void;
   bookmarkCandidate?: BookmarkedRoute | null;
+  onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
 export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
@@ -34,6 +36,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
   onGoHome,
   onGoToCommunity,
   bookmarkCandidate = null,
+  onOpenAuthModal,
 }) => {
   const { colors } = useAppTheme();
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -41,14 +44,42 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
   const [isSharing, setIsSharing] = useState(false);
   const safeRatioPercent = Math.round(record.safeSurfaceRatio * 100);
 
+  const handleOpenShareModal = () => {
+    const user = SupabaseService.getCurrentUser();
+    if (!user) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const goSignUp = window.confirm(
+          '[회원 전용 기능]\n커뮤니티 산책 경로 공유는 회원만 가능합니다.\n회원가입 페이지로 이동하시겠습니까?'
+        );
+        if (goSignUp && onOpenAuthModal) onOpenAuthModal('signup');
+      } else {
+        Alert.alert(
+          '회원 전용 기능',
+          '커뮤니티 산책 경로 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 아이 안심 코스를 공유해 보세요!',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '회원가입하기', onPress: () => onOpenAuthModal?.('signup') },
+          ]
+        );
+      }
+      return;
+    }
+    setShowShareModal(true);
+  };
+
   const handleShareCourse = async (title: string, rating: number) => {
+    const user = SupabaseService.getCurrentUser();
+    if (!user) {
+      Alert.alert('회원 전용 기능', '커뮤니티 코스 공유는 회원만 가능합니다.');
+      return;
+    }
     setIsSharing(true);
     try {
       const rawCoords: [number, number][] =
         record.gpsTrack && record.gpsTrack.length > 0
           ? record.gpsTrack.map((p) => [p.lon, p.lat] as [number, number])
           : [[127.038, 37.544], [127.040, 37.545], [127.039, 37.543]];
-      const res = await shareCommunityCourse(title, rawCoords, rating);
+      const res = await shareCommunityCourse(title, rawCoords, rating, user.id);
       setIsSharing(false);
       setShowShareModal(false);
       const msg = res.is_supabase
@@ -164,15 +195,24 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         기록된 산책 경로는 보호자님의 스마트폰에만 안전하게 보관됩니다.
       </Text>
 
-      {/* 5. 하단 Thumb Zone 홈으로 돌아가기 버튼 (07_walk_report.png 원형 복원) */}
+      {/* 5. 하단 Thumb Zone 버튼 (홈 복귀 & 회원 전용 코스 공유) */}
       <View style={styles.bottomArea}>
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={onGoHome}
-          style={[styles.homeBtn, { backgroundColor: colors.primary }]}
-        >
-          <Text style={styles.homeBtnText}>홈으로 돌아가기 ✓</Text>
-        </TouchableOpacity>
+        <View style={styles.actionBtnRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleOpenShareModal}
+            style={[styles.shareBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+          >
+            <Text style={[styles.shareBtnText, { color: colors.primaryDark }]}>이웃과 코스 공유 👥</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={onGoHome}
+            style={[styles.homeBtn, { backgroundColor: colors.primary }]}
+          >
+            <Text style={styles.homeBtnText}>홈으로 돌아가기 ✓</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <QuickFeedbackModal visible={showFeedbackModal} dogName={dogName} onSubmit={onSaveFeedback} onClose={() => setShowFeedbackModal(false)} />
@@ -338,7 +378,24 @@ const styles = StyleSheet.create({
   bottomArea: {
     marginTop: 'auto',
   },
+  actionBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   homeBtn: {
+    flex: 1.2,
     height: 50,
     borderRadius: 16,
     alignItems: 'center',
@@ -346,7 +403,7 @@ const styles = StyleSheet.create({
   },
   homeBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
 });
