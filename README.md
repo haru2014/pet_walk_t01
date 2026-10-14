@@ -12,6 +12,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
+## 테스트용 앱 다운로드 주소
+https://expo.dev/artifacts/eas/5vER01pLSzWqzEo_viUhWrzpcIYVr7gU31nb0vRBLig.apk
 
 ## ⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)
 
