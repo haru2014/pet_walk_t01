@@ -19,8 +19,11 @@ DEFAULT_DATA_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "parking_
 REQUIRED_FIELDS = {
     "parking_id": str, "name": str, "park_zone": str, "entrance_lat": float, "entrance_lon": float,
     "is_public": bool, "fee_type": str, "fee_info": str, "capacity": int, "address": str,
-    "source": str, "verified": bool,
+    "source": str, "verified": bool, "status": str, "park_link_verified": bool, "park_link_basis": str,
 }
+OPTIONAL_FIELDS = {"official_id": str, "parking_type": str, "data_issue": str}
+# official: 공식 표준데이터에서 가져온 값 / legacy_unverified: 기존 데이터(공식 자료와 대조 전 또는 불일치)
+STATUSES = {"official", "legacy_unverified"}
 FEE_TYPES = {"free", "paid"}
 # 대전·세종을 넉넉히 포함하는 범위 (좌표가 엉뚱한 지역으로 들어가는 실수를 막는 용도)
 REGION_LAT_RANGE = (36.1, 36.8)
@@ -53,6 +56,24 @@ def _type_ok(value: Any, expected: type) -> bool:
     return isinstance(value, expected)
 
 
+def _status_problems(label: str, lot: Dict[str, Any]) -> List[str]:
+    """status 와 verified/official_id/data_issue 의 앞뒤가 맞는지 검사한다."""
+    status = lot.get("status")
+    if status is None:
+        return []  # 필수 필드 누락은 별도로 보고된다
+    if status not in STATUSES:
+        return [f"{label}: status 는 {sorted(STATUSES)} 중 하나여야 합니다 ({status!r})"]
+    if status == "official":
+        problems = [] if lot.get("verified") is True else [f"{label}: 공식 항목은 verified=true 여야 합니다"]
+        if not str(lot.get("official_id") or "").strip():
+            problems.append(f"{label}: 공식 항목은 official_id 가 있어야 합니다")
+        return problems
+    problems = [] if lot.get("verified") is False else [f"{label}: 기존(미검증) 항목은 verified=false 여야 합니다"]
+    if not str(lot.get("data_issue") or "").strip():
+        problems.append(f"{label}: 기존(미검증) 항목은 data_issue 에 확인된 문제를 적어야 합니다")
+    return problems
+
+
 def validate_parking_lots(lots: List[Dict[str, Any]]) -> List[str]:
     """데이터의 문제점을 사람이 읽을 수 있는 문장 목록으로 돌려준다. 문제가 없으면 빈 목록."""
     problems: List[str] = []
@@ -68,6 +89,10 @@ def validate_parking_lots(lots: List[Dict[str, Any]]) -> List[str]:
                 problems.append(f"{label}: 필드 '{field}' 가 없습니다")
             elif not _type_ok(lot[field], expected):
                 problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
+        for field, expected in OPTIONAL_FIELDS.items():
+            if field in lot and not _type_ok(lot[field], expected):
+                problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
+        problems.extend(_status_problems(label, lot))
         if lot.get("parking_id") in seen_ids:
             problems.append(f"{label}: parking_id 가 중복입니다")
         seen_ids.add(lot.get("parking_id"))
@@ -89,8 +114,12 @@ def lot_kma_grid(lot: Dict[str, Any]) -> Tuple[int, int]:
 
 
 def find_nearby_parking_lots(lat: float, lon: float, radius_m: float = DEFAULT_RADIUS_M,
-                             lots: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
-    """(lat, lon) 에서 radius_m 이내 주차장을 가까운 순으로 돌려준다 (distance_m 추가, 원본은 바꾸지 않음)."""
+                             lots: Optional[List[Dict[str, Any]]] = None,
+                             verified_only: bool = False) -> List[Dict[str, Any]]:
+    """(lat, lon) 에서 radius_m 이내 주차장을 가까운 순으로 돌려준다 (distance_m 추가, 원본은 바꾸지 않음).
+
+    verified_only=True 이면 공식 자료로 확인된(verified=true) 주차장만 포함한다.
+    """
     for name, value in (("lat", lat), ("lon", lon), ("radius_m", radius_m)):
         if not _type_ok(value, float):
             raise ValueError(f"{name} 는 유한한 숫자여야 합니다: {value!r}")
@@ -99,6 +128,8 @@ def find_nearby_parking_lots(lat: float, lon: float, radius_m: float = DEFAULT_R
     candidates = load_pilot_parking_lots() if lots is None else lots
     nearby = []
     for lot in candidates:
+        if verified_only and lot.get("verified") is not True:
+            continue
         distance = round(haversine_m([lon, lat], [lot["entrance_lon"], lot["entrance_lat"]]), 1)
         if distance <= radius_m:
             nearby.append({**lot, "distance_m": distance})

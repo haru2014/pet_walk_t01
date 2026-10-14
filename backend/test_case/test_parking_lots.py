@@ -29,30 +29,71 @@ class TestFixtureData:
     def test_fixture_has_no_validation_problems(self):
         assert validate_parking_lots(load_pilot_parking_lots()) == []
 
-    def test_four_pilot_zones_with_expected_counts(self):
+    @staticmethod
+    def _count_by_zone(status):
         counts = defaultdict(int)
         for lot in load_pilot_parking_lots():
-            counts[lot["park_zone"]] += 1
-        assert dict(counts) == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 4}
+            if lot["status"] == status:
+                counts[lot["park_zone"]] += 1
+        return dict(counts)
+
+    def test_official_lots_per_zone(self):
+        assert self._count_by_zone("official") == {"유림공원": 1, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 1}
+
+    def test_legacy_lots_per_zone(self):
+        assert self._count_by_zone("legacy_unverified") == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 4}
 
     def test_every_lot_records_its_source_and_verification_state(self):
         for lot in load_pilot_parking_lots():
             assert lot["source"].strip(), lot["parking_id"]
             assert isinstance(lot["verified"], bool), lot["parking_id"]
+            assert lot["verified"] is (lot["status"] == "official"), lot["parking_id"]
 
-    def test_lots_of_one_park_share_one_weather_grid(self):
-        """같은 공원의 주차장은 같은 기상청 격자에 속해 날씨 호출을 한 번만 해도 된다."""
+    def test_legacy_lots_explain_what_is_wrong(self):
+        for lot in load_pilot_parking_lots():
+            if lot["status"] == "legacy_unverified":
+                assert "공식" in lot["data_issue"], lot["parking_id"]
+
+    def test_legacy_lots_of_one_park_share_one_weather_grid(self):
+        """기존 항목은 같은 공원이면 같은 기상청 격자에 속한다."""
         grids = defaultdict(set)
         for lot in load_pilot_parking_lots():
-            grids[lot["park_zone"]].add(lot_kma_grid(lot))
+            if lot["status"] == "legacy_unverified":
+                grids[lot["park_zone"]].add(lot_kma_grid(lot))
         assert all(len(g) == 1 for g in grids.values()), dict(grids)
 
-    def test_park_grids_match_adjacent_official_districts(self):
-        """공식 격자표의 인접 동과 일치하는 격자인지 (원신흥동 67,100 / 구즉동 67,102 / 어진동 65,104 등)."""
+    def test_legacy_park_grids_match_adjacent_official_districts(self):
+        """기존 항목의 격자는 공식 격자표의 인접 동과 일치 (원신흥동 67,100 / 구즉동 67,102 / 어진동 65,104 등)."""
         expected = {"유림공원": (67, 101), "송강근린공원": (67, 102),
                     "도안호수공원": (67, 100), "세종호수공원": (65, 104)}
         for lot in load_pilot_parking_lots():
-            assert lot_kma_grid(lot) == expected[lot["park_zone"]], lot["parking_id"]
+            if lot["status"] == "legacy_unverified":
+                assert lot_kma_grid(lot) == expected[lot["park_zone"]], lot["parking_id"]
+
+    def test_official_lots_match_the_national_standard_data(self):
+        """전국주차장정보표준데이터(기준일자 2026-04-16 전후)에서 확인한 값.
+
+        도안동의 두 공식 주차장은 약 2.2km 떨어져 서로 다른 날씨 격자에 속한다 (67,99 / 67,100).
+        """
+        expected = {
+            "유림공원주차장": (49, "free", (67, 101)),
+            "송강동(프라자옆)공영": (86, "paid", (67, 102)),
+            "송강동(GS마트앞)공영": (53, "paid", (67, 102)),
+            "도안동 제5공한지유료주차장": (49, "paid", (67, 99)),
+            "도안제2공한지무료주차장": (10, "free", (67, 100)),
+            "어진동(C47)": (208, "free", (65, 104)),
+        }
+        official = {l["name"]: l for l in load_pilot_parking_lots() if l["status"] == "official"}
+        assert set(official) == set(expected)
+        for name, (capacity, fee_type, grid) in expected.items():
+            lot = official[name]
+            assert (lot["capacity"], lot["fee_type"], lot_kma_grid(lot)) == (capacity, fee_type, grid), name
+            assert lot["is_public"] is True and lot["verified"] is True
+            assert "15012896" in lot["source"] and lot["official_id"], name
+
+    def test_only_yurim_official_lot_is_linked_to_its_park_by_name(self):
+        linked = {l["name"] for l in load_pilot_parking_lots() if l["park_link_verified"]}
+        assert linked == {"유림공원주차장"}
 
 
 class TestValidator:
@@ -92,6 +133,31 @@ class TestValidator:
         lots[0]["entrance_lat"], lots[0]["entrance_lon"] = lat, lon
         assert any("범위 밖" in p for p in validate_parking_lots(lots))
 
+    def test_unknown_status_is_reported(self, lots):
+        lots[0]["status"] = "maybe"
+        assert any("status" in p for p in validate_parking_lots(lots))
+
+    def test_official_lot_must_be_verified_and_have_official_id(self, lots):
+        official = next(l for l in lots if l["status"] == "official")
+        official["verified"] = False
+        del official["official_id"]
+        problems = validate_parking_lots(lots)
+        assert any("verified=true" in p for p in problems)
+        assert any("official_id" in p for p in problems)
+
+    def test_legacy_lot_must_be_unverified_and_explain_the_issue(self, lots):
+        legacy = next(l for l in lots if l["status"] == "legacy_unverified")
+        legacy["verified"] = True
+        legacy["data_issue"] = "  "
+        problems = validate_parking_lots(lots)
+        assert any("verified=false" in p for p in problems)
+        assert any("data_issue" in p for p in problems)
+
+    @pytest.mark.parametrize("field", ["official_id", "parking_type", "data_issue"])
+    def test_optional_field_with_wrong_type_is_reported(self, lots, field):
+        lots[0][field] = 123
+        assert any(field in p for p in validate_parking_lots(lots))
+
     def test_non_dict_item_is_reported_without_crashing(self):
         assert any("객체가 아닙니다" in p for p in validate_parking_lots(["not a dict"]))
 
@@ -104,10 +170,11 @@ class TestValidator:
 class TestLoader:
     def test_returns_independent_copies(self):
         first = load_pilot_parking_lots()
+        total = len(first)
         first[0]["name"] = "변경됨"
         first.pop()
         again = load_pilot_parking_lots()
-        assert again[0]["name"] != "변경됨" and len(again) == 11
+        assert again[0]["name"] != "변경됨" and len(again) == total
 
     def test_missing_file_raises_data_error(self, tmp_path):
         with pytest.raises(ParkingDataError):
@@ -130,10 +197,21 @@ class TestLoader:
 class TestNearbySearch:
     def test_finds_yurim_lots_sorted_by_distance(self):
         result = find_nearby_parking_lots(*YURIM, radius_m=1500.0)
-        assert [lot["park_zone"] for lot in result] == ["유림공원"] * 3
+        assert {lot["park_zone"] for lot in result} == {"유림공원"}
+        assert len(result) == 4  # 기존 3곳 + 공식 유림공원주차장
         distances = [lot["distance_m"] for lot in result]
         assert distances == sorted(distances)
         assert result[0]["parking_id"] == "pkg_yurim_01" and result[0]["distance_m"] == 0.0
+
+    def test_verified_only_returns_official_lots(self):
+        result = find_nearby_parking_lots(*YURIM, radius_m=1500.0, verified_only=True)
+        assert [lot["name"] for lot in result] == ["유림공원주차장"]
+        assert all(lot["verified"] for lot in result)
+
+    def test_verified_only_changes_nothing_for_all_verified_lots(self):
+        lots = [l for l in load_pilot_parking_lots() if l["verified"]]
+        assert find_nearby_parking_lots(*YURIM, radius_m=10000.0, lots=lots, verified_only=True) == \
+            find_nearby_parking_lots(*YURIM, radius_m=10000.0, lots=lots)
 
     def test_distance_matches_haversine(self):
         lots = load_pilot_parking_lots()
