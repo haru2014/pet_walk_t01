@@ -23,13 +23,27 @@ NOW = datetime(2026, 10, 13, 12, 20, tzinfo=KST)  # 낮 12시 20분
 DOAN = (36.3458, 127.3428)  # 도안호수공원 임시 주차장 부근 (기상청 격자 67,100)
 
 
+_REAL_RESOLVE = wc._resolve_insolation
+
+
 @pytest.fixture(autouse=True)
 def _clean_state(monkeypatch):
+    """기상청 캐시를 비우고, 일사량은 네트워크 없이 하늘상태/직접 준 제공자로만 계산한다."""
     kma.clear_cache()
     monkeypatch.setenv(kma.ENV_SERVICE_KEY, "TESTKEY")
     monkeypatch.delenv(kma.ENV_BASE_URL, raising=False)
+    monkeypatch.setattr(
+        wc, "_resolve_insolation",
+        lambda lat, lon, when, provider, use_open_meteo, timeout, warnings:
+            (provider, "custom" if provider else "sky_only", None))
     yield
     kma.clear_cache()
+
+
+@pytest.fixture
+def real_insolation(monkeypatch):
+    """Open-Meteo 연결 경로를 시험할 때 실제 _resolve_insolation 으로 되돌린다."""
+    monkeypatch.setattr(wc, "_resolve_insolation", _REAL_RESOLVE)
 
 
 def _ok(items):
@@ -273,6 +287,26 @@ class TestBuildResponse:
         assert response["current"]["is_golden_time"] is True
         assert (response["golden_time_window"], response["golden_time_window_day"]) == ("19:00 ~ 23:00", "today")
 
+    def test_current_hour_slot_is_filled_when_forecasts_start_at_the_next_hour(self, monkeypatch):
+        """매시 45분 이후(예: 20:50)에는 기상청 예보가 21시부터라서 현재 시각 슬롯이 없다. 관측값으로 채운다."""
+        late = datetime(2026, 10, 13, 20, 50, tzinfo=KST)
+        next_hour = late.replace(minute=0) + timedelta(hours=1)
+        _server(monkeypatch, ncst=_ncst(13.0),
+                ultra=_fcst(_hours(next_hour, 6, temp=12.0, sky=1), "T1H"),
+                vilage=_fcst(_hours(next_hour, 30, temp=12.0, sky=1), "TMP"))
+        response = wc.build_heat_risk_response(*DOAN, now=late)
+        hourly = response["hourly_forecast"]
+        assert datetime.fromisoformat(hourly[0]["time"]) == late.replace(minute=0)
+        assert hourly[0]["hour"] == 20 and hourly[0]["air_temp_celsius"] == 13.0  # 현재 관측값
+        assert datetime.fromisoformat(hourly[1]["time"]) == next_hour
+        assert [h["time"] for h in hourly] == sorted(h["time"] for h in hourly)
+        assert (response["golden_time_window"], response["golden_time_window_day"]) == ("20:00 ~ 23:00", "today")
+
+    def test_current_hour_slot_is_not_duplicated_when_the_forecast_has_it(self, monkeypatch):
+        _default_server(monkeypatch)
+        hours = [h["hour"] for h in wc.build_heat_risk_response(*DOAN, now=NOW)["hourly_forecast"]]
+        assert hours.count(12) == 1 and len(hours) == 24
+
     def test_source_information(self, monkeypatch):
         _default_server(monkeypatch)
         response = wc.build_heat_risk_response(*DOAN, now=NOW)
@@ -299,6 +333,102 @@ class TestBuildResponse:
         with pytest.raises(ValueError):
             wc.build_heat_risk_response(35.68, 139.69, now=NOW)  # 도쿄
         assert calls == []
+
+
+class TestOpenMeteoIntegration:
+    """일사량: Open-Meteo 우선, 실패하면 하늘상태, 직접 준 제공자가 있으면 그것이 우선."""
+
+    @staticmethod
+    def _radiation(**by_hour):
+        """{표시 시각(직전 1시간 평균의 끝): W/m²}. 예: h13=500 -> 13:00 항목."""
+        return {datetime(2026, 10, 13, int(k[1:]), 0, tzinfo=KST): v for k, v in by_hour.items()}
+
+    @staticmethod
+    def _fake_fetch(monkeypatch, result=None, error=None):
+        calls = []
+
+        def fake(lat, lon, now=None, *, timeout=5.0, forecast_days=2):
+            calls.append((lat, lon))
+            if error:
+                raise error
+            return result
+
+        monkeypatch.setattr(wc.open_meteo_client, "fetch_hourly_radiation", fake)
+        return calls
+
+    def test_open_meteo_value_replaces_the_sky_assumption(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, self._radiation(h13=500.0))  # 12~13시 평균 500 W/m²
+        _default_server(monkeypatch, t1h=30.0)
+        response = wc.build_heat_risk_response(*DOAN, now=NOW)
+        current = response["current"]
+        assert current["insolation_weight"] == 0.5 and current["insolation_source"] == "provider"
+        assert (current["estimated_surface_temp"], current["risk_level"]) == (37.5, "CAUTION")  # 맑음 가정이면 45.0
+        assert response["insolation_source"] == "open_meteo"
+        assert response["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)"
+
+    def test_hours_without_radiation_fall_back_to_the_sky_per_hour(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
+        _default_server(monkeypatch, t1h=30.0)
+        hourly = wc.build_heat_risk_response(*DOAN, now=NOW)["hourly_forecast"]
+        by_hour = {h["hour"]: h for h in hourly}
+        assert by_hour[12]["insolation_source"] == "provider" and by_hour[12]["insolation_weight"] == 0.5
+        assert by_hour[14]["insolation_source"] == "sky" and by_hour[14]["insolation_weight"] == 1.0
+
+    def test_uses_the_preceding_hour_mean_stamped_one_hour_later(self, monkeypatch, real_insolation):
+        """12시 구간(12:00~13:00)은 13:00 항목, 13시 구간은 14:00 항목의 값이다."""
+        self._fake_fetch(monkeypatch, self._radiation(h12=100.0, h13=700.0, h14=300.0))
+        _default_server(monkeypatch, t1h=20.0)
+        by_hour = {h["hour"]: h for h in wc.build_heat_risk_response(*DOAN, now=NOW)["hourly_forecast"]}
+        assert by_hour[12]["insolation_weight"] == 0.7  # 13:00 항목
+        assert by_hour[13]["insolation_weight"] == 0.3  # 14:00 항목
+
+    def test_radiation_above_1000_is_capped(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, self._radiation(h13=1200.0))
+        _default_server(monkeypatch, t1h=20.0)
+        assert wc.build_heat_risk_response(*DOAN, now=NOW)["current"]["insolation_weight"] == 1.0
+
+    def test_failure_falls_back_to_sky_with_a_warning(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, error=wc.open_meteo_client.OpenMeteoError("Open-Meteo 연결 실패 (URLError)"))
+        _default_server(monkeypatch, t1h=30.0)
+        response = wc.build_heat_risk_response(*DOAN, now=NOW)
+        assert response["insolation_source"] == "sky_fallback" and response["attribution"] is None
+        assert response["current"]["estimated_surface_temp"] == 45.0  # 맑음 기본값
+        assert any("Open-Meteo" in w and "하늘상태" in w for w in response["warnings"])
+
+    def test_empty_radiation_falls_back_to_sky_with_a_warning(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, result={})
+        _default_server(monkeypatch, t1h=30.0)
+        response = wc.build_heat_risk_response(*DOAN, now=NOW)
+        assert response["insolation_source"] == "sky_fallback"
+        assert any("비어" in w for w in response["warnings"])
+
+    def test_open_meteo_can_be_turned_off(self, monkeypatch, real_insolation):
+        calls = self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
+        _default_server(monkeypatch, t1h=30.0)
+        response = wc.build_heat_risk_response(*DOAN, now=NOW, use_open_meteo=False)
+        assert calls == [] and response["insolation_source"] == "sky_only"
+        assert response["attribution"] is None and response["warnings"] == []
+
+    def test_custom_provider_takes_precedence_and_skips_the_call(self, monkeypatch, real_insolation):
+        calls = self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
+        _default_server(monkeypatch, t1h=30.0)
+        response = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 0.0)
+        assert calls == [] and response["insolation_source"] == "custom"
+        assert response["current"]["estimated_surface_temp"] == 30.0
+
+    def test_observation_failure_does_not_call_open_meteo(self, monkeypatch, real_insolation):
+        calls = self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
+        _server(monkeypatch, ncst=urllib.error.URLError("down"))
+        with pytest.raises(KmaApiError):
+            wc.build_heat_risk_response(*DOAN, now=NOW)
+        assert calls == []
+
+    def test_context_carries_source_and_attribution(self, monkeypatch, real_insolation):
+        self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
+        _default_server(monkeypatch, t1h=30.0)
+        context = wc.build_weather_context(*DOAN, now=NOW)
+        assert context["insolation_source"] == "open_meteo"
+        assert context["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)"
 
 
 class TestFailureHandling:
