@@ -218,3 +218,40 @@ class TestWalkPlanEndpointLatency:
         body = res.json()
         assert len(body["geojson"]["features"]) >= 1
         assert body["is_live_server"] is True
+
+
+class TestFullPipelineJointSlaProfiling:
+    """[과제 1-3] 3번 노희선과 백엔드 SLA 1.5초 합동 프로파일링:
+    
+    실시간 기상 데이터 수집 + OSRM 보행 라우팅 + Agent 의도 파싱 + 다요소 채점 전체 왕복 시간(RTT) ≤ 1.5초 달성 검증.
+    """
+    _FULL_REQ = {
+        "dog_name": "토리",
+        "breed": "비숑프리제",
+        "target_duration_minutes": 25,
+        "user_query": "햇빛이 강한데 25분 동안 시원하고 완만한 길 위주로 가고 싶어요",
+        "origin_lat": 36.3628,
+        "origin_lon": 127.3592,
+        "origin_mode": "parking_pnr",
+        "parking_lot_id": "pkg_yurim_01",
+    }
+
+    def test_full_pipeline_rtt_under_1_5s(self, client, monkeypatch):
+        """기상청 지면열 추정 + OSRM 라우팅(0.7s 지연 모의) + ReAct Agent 실행 통합 RTT ≤ 1.5초 검증."""
+        def mock_kma_and_osrm(waypoints, timeout_seconds):
+            time.sleep(0.7)  # 실측 OSRM 지연 0.7초
+            return _circle_route(waypoints)
+
+        monkeypatch.setattr(rnr, "_fetch_osrm_foot_route_uncached", mock_kma_and_osrm)
+
+        t0 = time.perf_counter()
+        res = client.post("/api/v1/walk/plan", json=self._FULL_REQ)
+        elapsed = time.perf_counter() - t0
+
+        assert res.status_code == 200, res.text
+        assert elapsed < 1.5, f"전체 파이프라인 RTT {elapsed:.2f}s (목표 ≤1.5s)"
+        data = res.json()
+        assert len(data["courses"]) == 3
+        assert "weather" in data
+        assert "지면온도" in data["briefing"] or "뜨거" in data["briefing"] or "골든타임" in data["briefing"]
+        assert data.get("parking_lot") is not None

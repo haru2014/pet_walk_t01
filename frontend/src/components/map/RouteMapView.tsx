@@ -34,6 +34,18 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_WIDTH = Math.min(SCREEN_WIDTH - 40, 360);
 const MAP_HEIGHT = 380;
 
+function getPinColor(kind: RouteStepPin['kind']): string {
+  if (kind === 'caution') return TOKENS.colors.routeCaution;
+  if (kind === 'safe') return TOKENS.colors.routeSafe;
+  return TOKENS.colors.routeNormal;
+}
+
+function getPinIcon(kind: RouteStepPin['kind']): string {
+  if (kind === 'caution') return '!';
+  if (kind === 'safe') return '🌿';
+  return '↱';
+}
+
 export interface RouteMapViewProps {
   readonly route: RouteFeatureCollection;
   readonly stepPins: readonly RouteStepPin[];
@@ -133,13 +145,14 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 
             {stepPins.map((pin) => {
               const pt = project(pin.position);
-              const color = pin.kind === 'caution' ? TOKENS.colors.routeCaution : TOKENS.colors.routeNormal;
+              const color = getPinColor(pin.kind);
+              const icon = getPinIcon(pin.kind);
               const isSelected = pin.id === selectedPinId;
               return (
                 <G key={pin.id}>
                   <Circle cx={pt.x} cy={pt.y} r={isSelected ? 14 : 11} fill={color} stroke="#FFFFFF" strokeWidth="2.5" />
                   <SvgText x={pt.x} y={pt.y + 4} textAnchor="middle" fontSize={isSelected ? '13' : '11'} fontWeight="bold" fill="#FFFFFF">
-                    {pin.kind === 'caution' ? '!' : '↱'}
+                    {icon}
                   </SvgText>
                 </G>
               );

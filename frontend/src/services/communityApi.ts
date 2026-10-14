@@ -26,7 +26,7 @@ export interface CommunityFeedResponse {
   readonly is_supabase?: boolean;
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
   {
     course_id: 'feed_1',
@@ -119,13 +119,14 @@ export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
+  userId?: string,
 ): Promise<{ success: boolean; is_supabase?: boolean }> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/community/share`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: 'user_local_demo',
+        user_id: userId || 'user_local_demo',
         course_title: title,
         raw_coordinates: rawCoordinates,
         satisfaction_rating: rating,

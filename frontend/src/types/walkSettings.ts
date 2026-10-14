@@ -22,10 +22,66 @@ export const WALK_ENVIRONMENTS: readonly WalkEnvironmentOption[] = [
   { id: 'rest', label: '쉬어가기 좋은 길', detail: '휴식 공간이 있는 경로', icon: 'rest' },
 ];
 
+export type WalkOriginMode = 'current_location' | 'park';
+
 export interface WalkPreferences {
+  originMode?: WalkOriginMode; // 1. 현재 위치 기반 ('current_location') | 2. 지정한 공원 주변 ('park')
   durationMinutes: number | null;
   environments: EnvironmentId[];
   requestText: string;
+  isFreeWalk?: boolean;
+  pilotParkId?: string; // 대전/세종 4대 거점 공원 식별자 ('yurim', 'sejong', 'songgang', 'doan', 'seoul_forest')
+}
+
+/** 15분 단위 세분화 산책 시간 옵션 (US-A3) */
+export const DURATION_OPTIONS_15MIN: readonly number[] = [15, 30, 45, 60, 75, 90, 105, 120];
+
+/** 견종/체급별 산책 시간 가이드 */
+export interface DogBreedDurationGuide {
+  readonly id: 'small' | 'large' | 'trekking';
+  readonly label: string;
+  readonly recommendedMinutes: number;
+  readonly minMinutes: number;
+  readonly maxMinutes: number;
+  readonly description: string;
+}
+
+export const BREED_DURATION_GUIDES: readonly DogBreedDurationGuide[] = [
+  {
+    id: 'small',
+    label: '소형견 맞춤',
+    recommendedMinutes: 25,
+    minMinutes: 20,
+    maxMinutes: 30,
+    description: '말티즈·푸들 등 (1회 20~30분, 일 1~2회)',
+  },
+  {
+    id: 'large',
+    label: '중/대형견 맞춤',
+    recommendedMinutes: 50,
+    minMinutes: 40,
+    maxMinutes: 60,
+    description: '리트리버·진돗개 등 (1회 40분~1시간+)',
+  },
+  {
+    id: 'trekking',
+    label: '장거리/트레킹',
+    recommendedMinutes: 90,
+    minMinutes: 60,
+    maxMinutes: 120,
+    description: '주말 야외 활동 및 1시간 초과 트레킹',
+  },
+];
+
+/** 산책 시간 레이블 포맷터 (예: 75분 -> '1시간 15분', 자유 산책 -> '자유 산책') */
+export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean): string {
+  if (isFreeWalk) return '자유 산책';
+  if (minutes == null) return '시간 미설정';
+  if (minutes < 60) return `${minutes}분`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) return `${hours}시간`;
+  return `${hours}시간 ${remainingMinutes}분`;
 }
 
 export interface RecommendedCourse {

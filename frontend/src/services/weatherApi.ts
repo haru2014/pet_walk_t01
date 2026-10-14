@@ -9,7 +9,7 @@
 
 import { HeatRiskHourDTO, HeatRiskLevel, HeatRiskResponse } from '../types/weather';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const API_TIMEOUT_MS = 3000;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 TTL
 

@@ -4,7 +4,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Vibration, Platform } from 'react-native';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
+import { PoopEvent } from '../types/storage';
 import {
   GpsPoint,
   getTrackBuffer,
@@ -48,8 +50,12 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const routeRef = useRef(route);
   routeRef.current = route;
 
+  const [poopEvents, setPoopEvents] = useState<PoopEvent[]>([]);
+  const lastPointRef = useRef<GpsPoint | null>(null);
+
   const handlePoint = useCallback(
     (point: GpsPoint) => {
+      lastPointRef.current = point;
       const result = evaluateGuidance([point.longitude, point.latitude], routeRef.current, activePins, guidanceRef.current);
       guidanceRef.current = result.nextState;
       result.events.forEach((event) => TTSNavigationService.speak(event.message));
@@ -92,6 +98,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       guidanceRef.current = INITIAL_GUIDANCE_STATE;
       startedAtRef.current = Date.now();
       setStats(EMPTY_STATS);
+      setPoopEvents([]);
     }
     setStatus(next);
     return next;
@@ -100,6 +107,29 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const stop = useCallback(async () => {
     await stopWalkTracking();
     setStatus('idle');
+  }, []);
+
+  /** US-18 산책 중 한 손 원터치 배변/소변 마킹 및 햅틱 피드백 */
+  const markPoop = useCallback((type: 'poop' | 'pee' = 'poop'): PoopEvent => {
+    try {
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(60);
+      }
+    } catch {
+      // ignore
+    }
+
+    const newEvent: PoopEvent = {
+      id: `poop_${Date.now()}`,
+      timestamp: Date.now(),
+      type,
+      lat: lastPointRef.current?.latitude,
+      lon: lastPointRef.current?.longitude,
+    };
+
+    setPoopEvents((prev) => [...prev, newEvent]);
+    TTSNavigationService.speak(type === 'pee' ? '소변이 기록되었습니다.' : '배변이 기록되었습니다.');
+    return newEvent;
   }, []);
 
   /** 우회 경로 수신 시 지도 경로를 교체하고 음성으로 안내한다 (US-D2). */
@@ -116,6 +146,18 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     guidanceRef.current = INITIAL_GUIDANCE_STATE;
   }, []);
 
-  return { route, status, stats, start, stop, applyReroute, loadCourse, getTrackBuffer };
+  return {
+    route,
+    status,
+    stats,
+    poopEvents,
+    poopCount: poopEvents.length,
+    markPoop,
+    start,
+    stop,
+    applyReroute,
+    loadCourse,
+    getTrackBuffer,
+  };
 }
 

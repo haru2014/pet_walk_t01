@@ -12,6 +12,8 @@ export const STORAGE_KEYS = {
   BOOKMARKED_ROUTES: '@편안하개:bookmarked_routes',
   LOCATION_CONSENT: '@편안하개:location_consent',
   HAS_SEEN_ONBOARDING: '@편안하개:has_seen_onboarding',
+  SOUND_SETTINGS: '@편안하개:sound_settings',
+  APP_THEME: '@편안하개:app_theme',
 } as const;
 
 export type SlopeFeedbackLevel = 'gentle' | 'moderate' | 'steep';
@@ -21,6 +23,14 @@ export interface WalkFeedback {
   slopeRating?: SlopeFeedbackLevel; // 경사도 세부 체감 평가 (완만 / 보통 / 가파름)
   tags: string[];
   comment?: string;
+}
+
+export interface PoopEvent {
+  id: string;
+  timestamp: number;
+  type: 'poop' | 'pee';
+  lat?: number;
+  lon?: number;
 }
 
 export interface WalkRecord {
@@ -34,4 +44,6 @@ export interface WalkRecord {
   safeSurfaceRatio: number;
   gpsTrack: Array<{ lat: number; lon: number; timestamp: number }>;
   feedback?: WalkFeedback;
+  poopCount?: number;
+  poopEvents?: PoopEvent[];
 }

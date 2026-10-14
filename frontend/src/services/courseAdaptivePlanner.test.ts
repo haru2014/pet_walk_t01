@@ -96,4 +96,42 @@ describe('courseAdaptivePlanner', () => {
     expect(briefing).toContain('20분');
     expect(briefing).toContain('폭신한 길');
   });
+
+  it('사용자가 75분(1시간 15분) 및 120분(2시간)을 선택했을 때 적응형 코스 및 라벨이 올바르게 생성되어야 한다 (US-A3, #38)', () => {
+    const prefs75: WalkPreferences = {
+      durationMinutes: 75,
+      environments: ['soft', 'shade'],
+      requestText: '',
+    };
+
+    const courses75 = generateAdaptiveCourses(TEST_DOG, prefs75);
+    expect(courses75[0].estimatedMinutes).toBe(75);
+    expect(courses75[0].distanceKm).toBe('3.5 km'); // 2.8 * (75/60) = 3.5 km
+    const labels75 = buildAdaptiveConditionLabels(TEST_DOG, prefs75);
+    expect(labels75).toContain('1시간 15분');
+
+    const prefs120: WalkPreferences = {
+      durationMinutes: 120,
+      environments: ['soft', 'shade'],
+      requestText: '',
+    };
+    const labels120 = buildAdaptiveConditionLabels(TEST_DOG, prefs120);
+    expect(labels120).toContain('2시간');
+  });
+
+  it('자유 산책 모드(isFreeWalk=true) 선택 시 브리핑과 라벨에 자유 산책이 명시되어야 한다 (#38)', () => {
+    const freePrefs: WalkPreferences = {
+      durationMinutes: null,
+      environments: ['soft', 'quiet'],
+      requestText: '',
+      isFreeWalk: true,
+    };
+
+    const labels = buildAdaptiveConditionLabels(TEST_DOG, freePrefs);
+    expect(labels).toContain('초코');
+    expect(labels).toContain('자유 산책');
+
+    const briefing = generateAdaptiveBriefing(TEST_DOG, freePrefs);
+    expect(briefing).toContain('자유 산책');
+  });
 });

@@ -23,6 +23,7 @@ import { fetchCommunityFeeds, CommunityFeedItem } from '../services/communityApi
 import { RouteMapView } from '../components/map/RouteMapView';
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
 import { LandmarkCategoryCode } from '../types/landmarkCategory';
+import { SupabaseService } from '../services/supabaseService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ export interface CommunityTabScreenProps {
     stepPins: readonly RouteStepPin[],
   ) => void;
   readonly dogSpeedKmH?: number;
+  readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
 /** 이웃이 공유한 마스킹 좌표열을 3대 안심 등급 GeoJSON FeatureCollection 규격으로 변환 */
@@ -85,10 +87,12 @@ function buildPinsFromCoords(coords: readonly (readonly [number, number])[]): re
 export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   onStartCommunityWalk,
   dogSpeedKmH = 2.8,
+  onOpenAuthModal,
 }) => {
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>([]);
   const [isSupabase, setIsSupabase] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const currentUser = SupabaseService.getCurrentUser();
 
   // 1번 인터랙션: 카드 아코디언 확장 선택 ID
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
@@ -158,6 +162,27 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           <Text style={styles.refreshText}>{isLoading ? '⌛ 로딩 중...' : '🔄 새로고침'}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 비회원 안내 배너 및 회원가입 링크 */}
+      {!currentUser && (
+        <View style={styles.guestBanner}>
+          <View style={styles.guestBannerTextWrap}>
+            <Text style={styles.guestBannerTitle}>👥 비회원 둘러보기 모드</Text>
+            <Text style={styles.guestBannerDesc}>
+              회원가입 시 나만의 안심 코스를 동네 이웃과 공유할 수 있습니다.
+            </Text>
+          </View>
+          {onOpenAuthModal && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onOpenAuthModal('signup')}
+              style={styles.guestBannerBtn}
+            >
+              <Text style={styles.guestBannerBtnText}>회원가입</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* 200m 자택 위치 안심 보호 안내 카드 */}
       <CardWrapper style={{ marginBottom: 14 }}>
@@ -495,4 +520,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalConfirmText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  guestBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: TOKENS.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  guestBannerTextWrap: {
+    flex: 1,
+    marginRight: 8,
+  },
+  guestBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: TOKENS.colors.primaryDark,
+  },
+  guestBannerDesc: {
+    fontSize: 11,
+    color: TOKENS.colors.textMuted,
+    marginTop: 2,
+  },
+  guestBannerBtn: {
+    backgroundColor: TOKENS.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  guestBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
 });

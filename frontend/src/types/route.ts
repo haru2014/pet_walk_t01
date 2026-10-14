@@ -29,7 +29,7 @@ export interface RouteFeatureCollection {
 
 export interface RouteStepPin {
   readonly id: string;
-  readonly kind: 'turn' | 'caution';
+  readonly kind: 'turn' | 'caution' | 'safe';
   readonly position: LonLat;
   readonly instruction: string;
 }

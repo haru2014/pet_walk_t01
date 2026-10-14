@@ -56,4 +56,58 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(result.briefingMessage).toBe('실시간 AI 코스가 생성되었습니다.');
     expect(result.coursePlans?.live_1).toBeDefined();
   });
+
+  it('진입 경로 1: 현재 위치 기반(current_location) 요청 시 현위치 페이로드를 전송해야 한다', async () => {
+    let capturedBody: any = null;
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          courses: [{ id: 'current_1', name: '현위치 안심 코스' }],
+          briefing: '현위치 기반 코스',
+        }),
+      } as Response;
+    });
+
+    await requestWalkPlan(dummyDog, {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+    });
+
+    expect(capturedBody).toBeDefined();
+    expect(capturedBody.origin_mode).toBe('current_location');
+    expect(capturedBody.origin_lat).toBe(36.3628);
+    expect(capturedBody.origin_lon).toBe(127.3592);
+    expect(capturedBody.park_zone).toBe('현재 위치 주변');
+  });
+
+  it('진입 경로 2: 지정 공원 둘레길(park) 요청 시 공원 좌표 및 명칭을 전송해야 한다', async () => {
+    let capturedBody: any = null;
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          courses: [{ id: 'park_1', name: '유림공원 코스' }],
+          briefing: '유림공원 코스',
+        }),
+      } as Response;
+    });
+
+    await requestWalkPlan(dummyDog, {
+      originMode: 'park',
+      pilotParkId: 'yurim',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+    });
+
+    expect(capturedBody).toBeDefined();
+    expect(capturedBody.origin_mode).toBe('park');
+    expect(capturedBody.park_zone).toBe('대전 유림공원');
+    expect(capturedBody.origin_lat).toBeCloseTo(36.3628);
+  });
 });
