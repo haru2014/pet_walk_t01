@@ -14,6 +14,7 @@ import { LegalTermsModal, LegalTabType } from '../common/LegalTermsModal';
 import { DogAvatar } from '../common/DogAvatar';
 import { PhotoPickerModal } from '../profile/PhotoPickerModal';
 
+import { generateUuid } from '../../utils/uuid';
 export interface LandingAuthModalProps {
   readonly visible: boolean;
   readonly onClose: () => void;
@@ -84,7 +85,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
 
     const weight = Number.parseFloat(weightKg) || 10;
     const newDog: DogProfile = {
-      id: `dog_${Date.now()}`,
+      id: generateUuid(),
       name: dogName,
       breed,
       ageYears: 3,
@@ -97,6 +98,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
     };
 
     await SupabaseService.saveDogProfile({
+      id: newDog.id,
       name: dogName,
       breed,
       weight_kg: weight,

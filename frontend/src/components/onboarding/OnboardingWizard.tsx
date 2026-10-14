@@ -20,6 +20,7 @@ import { LegalTermsModal, LegalTabType } from '../common/LegalTermsModal';
 import { DogAvatar } from '../common/DogAvatar';
 import { PhotoPickerModal } from '../profile/PhotoPickerModal';
 
+import { generateUuid } from '../../utils/uuid';
 export interface OnboardingWizardProps {
   onComplete: (registeredDog?: DogProfile) => void;
 }
@@ -100,7 +101,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
     const weight = Number.parseFloat(weightKg) || 10;
     const speed = calculateRecommendedSpeedKmH(weight, 3, 1);
     const newDog: DogProfile = {
-      id: `dog_${Date.now()}`,
+      id: generateUuid(),
       name: dogName.trim() || '초코',
       breed: breed.trim() || '골든 리트리버',
       ageYears: 3,
@@ -113,6 +114,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
     };
 
     await SupabaseService.saveDogProfile({
+      id: newDog.id,
       name: newDog.name,
       breed: newDog.breed,
       weight_kg: weight,

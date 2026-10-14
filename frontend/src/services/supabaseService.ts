@@ -11,6 +11,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AuthSession, AuthUser, DogProfileRemote, WalkRecordRemote } from '../types/auth';
 import { LocalStorageService } from './storage';
+import { generateUuid, isUuid } from '../utils/uuid';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -134,7 +135,8 @@ class SupabaseServiceManager {
     const user = this.getCurrentUser();
     const userId = user?.id ?? 'guest_user';
     const remote: DogProfileRemote = {
-      id: profile.id ?? 'dog_' + Date.now(),
+      // DB 의 id 칸은 UUID 만 받는다 (backend/sql/README.md 약속 1번). 폰에서 정한 id 가 있으면 그대로 쓴다.
+      id: profile.id ?? generateUuid(),
       user_id: userId,
       name: profile.name,
       breed: profile.breed,
@@ -148,8 +150,17 @@ class SupabaseServiceManager {
     };
 
     if (this.client) {
+      // 로그인 전이거나 옛 형식(dog_123) id 는 DB 가 거절하므로 보내지 않고 폰에만 둔다 (약속 2번).
+      if (!user || !isUuid(user.id) || !isUuid(remote.id)) {
+        console.warn('[SupabaseService] dog_profiles 동기화 건너뜀: 로그인 전이거나 id 가 UUID 형식이 아님 (로컬 유지)');
+        return remote;
+      }
       try {
-        await this.client.from('dog_profiles').upsert(remote);
+        // supabase-js 는 실패해도 throw 하지 않고 { error } 를 돌려준다 (약속 5번).
+        const { error } = await this.client.from('dog_profiles').upsert(remote);
+        if (error) {
+          console.warn(`[SupabaseService] dog_profiles 저장 실패 (로컬 유지): ${error.message}`);
+        }
       } catch (e) {
         console.warn('[SupabaseService] dog_profiles 동기화 실패 (로컬 유지):', e);
       }
@@ -161,7 +172,7 @@ class SupabaseServiceManager {
     const user = this.getCurrentUser();
     const userId = user?.id ?? 'guest_user';
     const newRecord: WalkRecordRemote = {
-      id: record.id ?? 'walk_' + Date.now(),
+      id: record.id ?? generateUuid(),
       user_id: userId,
       dog_id: record.dog_id,
       course_id: record.course_id,
@@ -178,8 +189,17 @@ class SupabaseServiceManager {
     };
 
     if (this.client) {
+      if (!user || !isUuid(user.id) || !isUuid(newRecord.id)) {
+        console.warn('[SupabaseService] walk_records 동기화 건너뜀: 로그인 전이거나 id 가 UUID 형식이 아님 (로컬 유지)');
+        return newRecord;
+      }
+      // dog_id 는 DB 의 개 프로필(UUID)을 가리키는 연결이다. 옛 형식이면 연결 없이 저장한다.
+      const payload = { ...newRecord, dog_id: isUuid(newRecord.dog_id) ? newRecord.dog_id : undefined };
       try {
-        await this.client.from('walk_records').insert(newRecord);
+        const { error } = await this.client.from('walk_records').insert(payload);
+        if (error) {
+          console.warn(`[SupabaseService] walk_records 저장 실패 (로컬 유지): ${error.message}`);
+        }
       } catch (e) {
         console.warn('[SupabaseService] walk_records 저장 실패 (로컬 유지):', e);
       }
