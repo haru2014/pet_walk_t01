@@ -43,6 +43,8 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
+from services.kma_weather_client import KmaApiError
+from services.weather_context import build_heat_risk_response, weather_context_from_response
 from test_case.test_api_contracts import (
     apply_spatial_masking_to_course,
     WalkPlanResponseV1,
@@ -232,16 +234,7 @@ def plan_walk_route(req: Dict[str, Any]):
     # 🌤️ [US-F1] 기상청 지면열 추정 DTO 바인딩
     weather_context = req.get("weather_context")
     if not weather_context:
-        import datetime
-        now_hour = datetime.datetime.now().hour
-        # 기본 단기예보 추정 모델 (맑은 날 외기온 28.5℃)
-        dto = determine_heat_risk_dto(hour=now_hour, air_temp=28.5, sky="clear")
-        dto_dict = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
-        weather_context = {
-            "current": dto_dict,
-            "golden_time_window": "17:00 ~ 20:00",
-            "is_live_estimated": True,
-        }
+        weather_context = weather_context_from_response(_live_heat_risk_response(origin_lat, origin_lon))
 
     user_query = (
         req.get("user_query")
@@ -462,12 +455,8 @@ def get_community_feed():
     }
 
 
-@app.get("/api/v1/weather/heat-risk")
-def get_weather_heat_risk(
-    lat: float = Query(..., ge=-90.0, le=90.0),
-    lon: float = Query(..., ge=-180.0, le=180.0),
-):
-    """[US-F1] 기상청 단기예보 모델 기반 시간대별 지면열 추정 및 안전 골든타임 조회."""
+def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
+    """기상청 호출이 불가능할 때 쓰는 고정 기온 곡선 기반 추정 (실제 날씨가 아님)."""
     import datetime
     import math
 
@@ -531,7 +520,34 @@ def get_weather_heat_risk(
         "hourly_forecast": hourly,
         "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
         "coordinates": {"lat": lat, "lon": lon},
+        "data_source": "fallback_estimate",
+        "insolation_source": None,
+        "attribution": None,
+        "golden_time_window_day": "today",
+        "grid": None,
+        "bases": {},
+        "warnings": ["실시간 기상 정보를 가져오지 못해 고정 기온 곡선으로 추정한 값입니다."],
     }
+
+
+def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 고정 곡선 추정으로 대체한다."""
+    try:
+        return build_heat_risk_response(lat, lon)
+    except (KmaApiError, ValueError, OSError) as exc:
+        logger.warning("실시간 날씨 조회 실패, 고정 곡선 추정으로 대체합니다: %s", exc)
+        response = _fallback_heat_risk_response(lat, lon)
+        response["warnings"].append(f"사유: {exc}")
+        return response
+
+
+@app.get("/api/v1/weather/heat-risk")
+def get_weather_heat_risk(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+):
+    """[US-F1] 기상청 실황·단기예보와 일사량 기반 시간대별 지면열 추정 및 안전 골든타임 조회."""
+    return _live_heat_risk_response(lat, lon)
 
 
 _ZONE_YURIM = "유림공원"
