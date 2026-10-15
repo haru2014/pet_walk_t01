@@ -44,6 +44,7 @@ from agent.hazard_service import (
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
 from services.kma_weather_client import KmaApiError
+from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import build_heat_risk_response, weather_context_from_response
 from test_case.test_api_contracts import (
     apply_spatial_masking_to_course,
@@ -550,26 +551,9 @@ def get_weather_heat_risk(
     return _live_heat_risk_response(lat, lon)
 
 
-_ZONE_YURIM = "유림공원"
-_ZONE_SONGGANG = "송강근린공원"
-_ZONE_DOAN = "도안호수공원"
-_ZONE_SEJONG = "세종호수공원"
-_FEE_FREE = "free"
-_FEE_PAID = "paid"
-
-_PILOT_PARKING_LOTS = [
-    {"parking_id": "pkg_yurim_01", "name": "유림공원 부설 공영주차장", "entrance_lat": 36.3628, "entrance_lon": 127.3592, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_YURIM},
-    {"parking_id": "pkg_yurim_02", "name": "유성구청 공영주차장", "entrance_lat": 36.3615, "entrance_lon": 127.3598, "is_public": True, "fee_type": _FEE_PAID, "park_zone": _ZONE_YURIM},
-    {"parking_id": "pkg_yurim_03", "name": "어은교 갑천변 노상 공영주차장", "entrance_lat": 36.3640, "entrance_lon": 127.3575, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_YURIM},
-    {"parking_id": "pkg_songgang_01", "name": "송강근린공원 공영주차장", "entrance_lat": 36.4320, "entrance_lon": 127.3810, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SONGGANG},
-    {"parking_id": "pkg_songgang_02", "name": "송강동 공영노상주차장", "entrance_lat": 36.4305, "entrance_lon": 127.3790, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SONGGANG},
-    {"parking_id": "pkg_doan_01", "name": "도안호수공원 임시 공영주차장", "entrance_lat": 36.3458, "entrance_lon": 127.3428, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_DOAN},
-    {"parking_id": "pkg_doan_02", "name": "갑천생태공원 둔치 주차장", "entrance_lat": 36.3435, "entrance_lon": 127.3455, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_DOAN},
-    {"parking_id": "pkg_sejong_01", "name": "세종호수공원 제1주차장", "entrance_lat": 36.5065, "entrance_lon": 127.2655, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
-    {"parking_id": "pkg_sejong_02", "name": "세종호수공원 제2주차장", "entrance_lat": 36.5015, "entrance_lon": 127.2695, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
-    {"parking_id": "pkg_sejong_03", "name": "세종호수공원 제3주차장 (수목원 방면)", "entrance_lat": 36.4980, "entrance_lon": 127.2730, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
-    {"parking_id": "pkg_sejong_04", "name": "세종호수공원 제4주차장 (대통령기록관)", "entrance_lat": 36.5085, "entrance_lon": 127.2630, "is_public": True, "fee_type": _FEE_FREE, "park_zone": _ZONE_SEJONG},
-]
+# 공영주차장은 backend/fixtures/parking_lots_pilot.json 한 곳에서 읽는다 (공식 표준데이터 6곳 + 기존 데이터 11곳).
+# verified=false 항목은 공식 자료와 대조되지 않았거나 좌표가 맞지 않는 값이다 (data_issue 참고).
+_PILOT_PARKING_LOTS = load_pilot_parking_lots()
 
 
 def _haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -587,17 +571,13 @@ def get_nearby_parking_lots(
     lat: float = Query(..., ge=-90.0, le=90.0),
     lon: float = Query(..., ge=-180.0, le=180.0),
     radius_m: float = Query(1500.0, gt=0.0, le=10000.0),
+    verified_only: bool = Query(False),
 ):
-    """[US-G1] 대전 3대 공원 & 세종호수공원 4대 파일럿 거점 반경 내 공영주차장 검색."""
-    nearby_lots = []
-    for lot in _PILOT_PARKING_LOTS:
-        dist = _haversine_distance_meters(lat, lon, lot["entrance_lat"], lot["entrance_lon"])
-        if dist <= radius_m:
-            item = dict(lot)
-            item["distance_m"] = dist
-            nearby_lots.append(item)
+    """[US-G1] 대전 3대 공원 & 세종호수공원 4대 파일럿 거점 반경 내 공영주차장 검색.
 
-    nearby_lots.sort(key=lambda x: x["distance_m"])
+    verified_only=true 이면 공식 자료로 확인된 주차장만 돌려준다.
+    """
+    nearby_lots = find_nearby_parking_lots(lat, lon, radius_m, lots=_PILOT_PARKING_LOTS, verified_only=verified_only)
     return {
         "status": "success",
         "total_count": len(nearby_lots),
