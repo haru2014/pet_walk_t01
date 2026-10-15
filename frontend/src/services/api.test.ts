@@ -19,26 +19,23 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     vi.restoreAllMocks();
   });
 
-  it('서버가 오프라인이거나 응답하지 않을 때 즉시 로컬 Mock 데이터로 안전하게 폴백해야 한다', async () => {
+  it('공원 경로 서버가 오프라인이면 검증되지 않은 로컬 코스로 대체하지 않는다', async () => {
     // fetch가 에러를 던지도록 모킹
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
-
-    const result = await requestWalkPlan(dummyDog, { durationMinutes: 30, environments: ['soft'], requestText: '' });
-
-    expect(result.isLiveServer).toBe(false);
-    expect(result.courses.length).toBeGreaterThan(0);
-    expect(result.route.type).toBe('FeatureCollection');
-    expect(result.stepPins.length).toBeGreaterThan(0);
-    expect(result.briefingMessage).toContain('코코');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+    await expect(requestWalkPlan(dummyDog, { durationMinutes: 30, environments: ['soft'], requestText: '' }))
+      .rejects.toMatchObject({ code: 'ROUTING_PROVIDER_TIMEOUT' });
   });
 
   it('서버가 정상 응답할 경우 Live 데이터 결과를 반환해야 한다', async () => {
     const mockApiResponse = {
       courses: [{ id: 'live_1', name: '실시간 생성 코스', durationMinutes: 25, distanceKm: 1.5, safeRatio: 90, slopePercent: 2.0, shadowPercent: 80, tags: ['안심'] }],
       briefing: '실시간 AI 코스가 생성되었습니다.',
+      validated_park_id: 'yurim',
+      route_validation: { live_1: { passed: true, park_id: 'yurim' } },
+      geojson: { type: 'FeatureCollection', features: [{ geometry: { type: 'LineString', coordinates: [[127, 36], [127.001, 36]] } }] },
       course_plans: {
         live_1: {
-          route: { type: 'FeatureCollection', features: [] },
+          route: { type: 'FeatureCollection', features: [{ geometry: { type: 'LineString', coordinates: [[127, 36], [127.001, 36]] } }] },
           stepPins: [],
         },
       },
@@ -94,6 +91,10 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
         json: async () => ({
           courses: [{ id: 'park_1', name: '유림공원 코스' }],
           briefing: '유림공원 코스',
+          validated_park_id: 'yurim',
+          route_validation: { park_1: { passed: true, park_id: 'yurim' } },
+          geojson: { features: [{ geometry: { type: 'LineString', coordinates: [[127, 36], [127.001, 36]] } }] },
+          course_plans: { park_1: { route: { features: [{ geometry: { type: 'LineString', coordinates: [[127, 36], [127.001, 36]] } }] }, stepPins: [] } },
         }),
       } as Response;
     });
@@ -110,12 +111,12 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(capturedBody.origin_mode).toBe('park');
     expect(capturedBody.pilot_park_id).toBe('yurim');
     expect(capturedBody.park_zone).toBe('대전 유림공원');
-    expect(capturedBody.origin_lat).toBeCloseTo(36.3628);
-    expect(capturedBody.origin_lon).toBeCloseTo(127.3592);
+    expect(capturedBody.origin_lat).toBeCloseTo(36.3620608);
+    expect(capturedBody.origin_lon).toBeCloseTo(127.3601379);
   });
 
   it('현위치 기반 오프라인 폴백 시 실측 좌표 기준 안전 순환 경로를 생성해야 한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
     const result = await requestWalkPlan(dummyDog, {
       originMode: 'current_location',
@@ -134,5 +135,37 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(firstCoord[1]).toBeCloseTo(37.56, 1);
     expect(result.stepPins[0].position[0]).toBeCloseTo(126.978);
     expect(result.stepPins[0].position[1]).toBeCloseTo(37.5665);
+  });
+
+  it('서버의 경계 검증 거부를 그대로 전달하고 로컬 코스를 생성하지 않는다', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false, status: 422,
+      json: async () => ({ code: 'ROUTE_VALIDATION_FAILED', detail: '공원 경계 밖 경로입니다.', request_id: 'trace-test' }),
+    } as Response);
+    await expect(requestWalkPlan(dummyDog, { originMode: 'park', pilotParkId: 'songgang', durationMinutes: 40, environments: [], requestText: '' }))
+      .rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED', requestId: 'trace-test' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('검증 메타데이터가 없는 구버전 성공 응답도 거부한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ courses: [{ id: 'old' }] }) } as Response);
+    await expect(requestWalkPlan(dummyDog)).rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED' });
+  });
+
+  it('검증된 코스와 검증되지 않은 대안 코스가 섞인 응답을 거부한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({
+      validated_park_id: 'yurim', courses: [{ id: 'safe' }, { id: 'unsafe' }],
+      geojson: { features: [{}] }, route_validation: { safe: { passed: true, park_id: 'yurim' } },
+      course_plans: { safe: { route: { features: [{}] } }, unsafe: { route: { features: [{}] } } },
+    }) } as Response);
+    await expect(requestWalkPlan(dummyDog)).rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED' });
+  });
+
+  it('미등록 공원 ID를 기본 공원으로 조용히 변경하지 않는다', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    await expect(requestWalkPlan(dummyDog, {
+      originMode: 'park', pilotParkId: 'unknown', durationMinutes: 30, environments: [], requestText: '',
+    })).rejects.toMatchObject({ code: 'BOUNDARY_DATA_UNAVAILABLE' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

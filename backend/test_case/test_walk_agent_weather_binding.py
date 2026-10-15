@@ -41,8 +41,8 @@ def test_walk_agent_weather_binding_high_temp_hot_query():
             "joint_care_level": 1,
         },
         weather_context=mock_weather,
-        origin_lat=36.3628,
-        origin_lon=127.3592,
+        origin_lat=36.3620608,
+        origin_lon=127.3601379,
         origin_mode="park",
     )
 
@@ -85,8 +85,8 @@ def test_walk_agent_weather_binding_safe_golden_time():
             "joint_care_level": 0,
         },
         weather_context=mock_weather,
-        origin_lat=36.3628,
-        origin_lon=127.3592,
+        origin_lat=36.3620608,
+        origin_lon=127.3601379,
         origin_mode="park",
     )
 
@@ -105,8 +105,8 @@ def test_walk_plan_api_endpoint_weather_integration():
             "breed": "골든리트리버",
             "target_duration_minutes": 30,
             "user_query": "햇빛이 너무 센데 지금 산책 괜찮을까요?",
-            "origin_lat": 36.3628,
-            "origin_lon": 127.3592,
+            "origin_lat": 36.3620608,
+            "origin_lon": 127.3601379,
             "origin_mode": "park",
             "weather_context": {
                 "current": {

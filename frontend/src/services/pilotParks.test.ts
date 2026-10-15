@@ -23,8 +23,8 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
 
     const yurim = getPilotParkById('yurim');
     expect(yurim.name).toBe('대전 유림공원');
-    expect(yurim.center.lat).toBeCloseTo(36.3628, 3);
-    expect(yurim.center.lon).toBeCloseTo(127.3592, 3);
+    expect(yurim.center.lat).toBeCloseTo(36.3620608, 6);
+    expect(yurim.center.lon).toBeCloseTo(127.3601379, 6);
 
     const sejong = getPilotParkById('sejong');
     expect(sejong.name).toBe('세종호수공원');
@@ -89,22 +89,17 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
     expect(doanPlan.stepPins[0].instruction).toContain('도안호수공원');
   });
 
-  it('requestWalkPlan 오프라인 폴백 시 선택한 공원의 경로와 코스가 반환되어야 한다', async () => {
+  it('공원 검증 서버가 오프라인이면 미검증 샘플 경로를 반환하지 않는다', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
     try {
-      const result = await requestWalkPlan(mockDog, {
+      await expect(requestWalkPlan(mockDog, {
         durationMinutes: 25,
         environments: ['soft'],
         requestText: '',
         pilotParkId: 'yurim',
-      });
-
-      expect(result.isLiveServer).toBe(false);
-      expect(result.courses[0].id).toBe('yurim_course_1');
-      expect(result.courses[0].name).toContain('유림공원');
-      expect(result.stepPins[0].instruction).toContain('유림공원');
+      })).rejects.toMatchObject({ code: 'ROUTING_PROVIDER_TIMEOUT' });
     } finally {
       globalThis.fetch = originalFetch;
     }

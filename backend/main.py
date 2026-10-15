@@ -12,6 +12,10 @@ FastAPI 메인 애플리케이션 엔트리포인트 (v1 REST API).
 """
 
 import os
+import json
+import logging
+import math
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
@@ -20,10 +24,14 @@ load_dotenv()
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 from agent.walk_planning_agent import run_walk_planning_agent
+from agent.pilot_park_routes import resolve_pilot_park_key
+from agent.park_route_validation import RoutePlanningError, validate_park_route
+from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
 from agent.supabase_repository import community_repo
 from agent.hazard_service import (
@@ -48,6 +56,7 @@ app = FastAPI(
     description="AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼 REST API",
     version="1.0.0",
 )
+logger = logging.getLogger(__name__)
 
 # 🌐 크로스 오리진(CORS) 미들웨어 설정 (Expo Web 및 모바일 통신 허용)
 app.add_middleware(
@@ -172,6 +181,7 @@ def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
     dog_name = req.get("dog_name", "아이")
     target_duration = req.get("target_duration_minutes", 30)
+    request_id = str(uuid4())
 
     # 1. 출발 좌표 유효성 및 범위 검증
     try:
@@ -184,9 +194,20 @@ def plan_walk_route(req: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
 
     pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
+    if pilot_park_id is not None and not isinstance(pilot_park_id, str):
+        raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
     origin_mode = req.get("origin_mode")
     if not origin_mode:
         origin_mode = "park" if pilot_park_id else "current_location"
+    if origin_mode not in ("park", "parking_pnr", "current_location"):
+        raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
+    try:
+        target_duration = float(target_duration)
+        speed_kmh = float(req.get("speed_kmh", 2.8))
+        if not math.isfinite(target_duration) or not 10 <= target_duration <= 90 or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="산책 시간(10~90분)과 양수 보행 속도가 필요합니다.")
     parking_lot_id = req.get("parking_lot_id") or req.get("parking_id")
 
     # 🚗 [US-G1] 공영주차장 P&R 모드 또는 parking_lot_id 지정 시 출입구 좌표로 강제 스냅 바인딩
@@ -226,7 +247,7 @@ def plan_walk_route(req: Dict[str, Any]):
         req.get("user_query")
         or req.get("prompt")
         or req.get("query")
-        or f"{dog_name}와 {target_duration}분 동안 폭신한 길 위주로 걷고 싶어요."
+        or f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
     )
 
     client_dog = {
@@ -235,11 +256,16 @@ def plan_walk_route(req: Dict[str, Any]):
         "breed": req.get("breed", "반려견"),
         "age_years": req.get("age_years", 4),
         "weight_kg": req.get("weight_kg", 4.0),
-        "speed_kmh": req.get("speed_kmh", 2.8),
+        "speed_kmh": speed_kmh,
         "joint_care_level": req.get("joint_care_level", 1),
     }
 
     recent_feedback = _parse_recent_feedback(req)
+    park_mode = origin_mode in ("park", "parking_pnr")
+    selected_park = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id) if park_mode else None
+    logger.info(json.dumps({"event": "walk_plan_requested", "request_id": request_id,
+                           "origin_mode": origin_mode, "park_id": selected_park,
+                           "origin": [origin_lon, origin_lat], "target_minutes": target_duration}, ensure_ascii=False))
 
     try:
         agent_result = run_walk_planning_agent(
@@ -255,13 +281,56 @@ def plan_walk_route(req: Dict[str, Any]):
         )
 
         best = agent_result.best_route
-
-        # 🛡️ 공원 모드에서 유효한 보행 경로가 없는 경우 조용한 서울광장 대체 차단
-        if origin_mode == "park" and not best.geojson_coordinates:
-            raise HTTPException(
-                status_code=422,
-                detail=f"선택한 공원({pilot_park_id or '지정 공원'}) 영역 내에서 안전한 순환 보행로를 생성할 수 없습니다."
-            )
+        validations = {}
+        if park_mode:
+            if not selected_park:
+                raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
+            # Independently validate every candidate at the response boundary.
+            # An agent, cache, static route or fallback cannot bypass this gate.
+            valid_scored = []
+            last_error = None
+            scored_candidates = agent_result.all_scored_candidates
+            candidates = [s.candidate for s in scored_candidates] or [best]
+            for index, candidate in enumerate(candidates):
+                try:
+                    validation = validate_park_route(candidate.geojson_coordinates, selected_park, speed_kmh,
+                                                     target_duration, (origin_lon, origin_lat))
+                except RoutePlanningError as exc:
+                    last_error = exc
+                    logger.warning(json.dumps({"event": "walk_candidate_rejected", "request_id": request_id,
+                                               "route_id": candidate.route_id, "source": candidate.route_source,
+                                               "park_id": selected_park, "point_count": len(candidate.geojson_coordinates),
+                                               "code": exc.code}, ensure_ascii=False))
+                    continue
+                candidate.total_distance_m = validation["distance_m"]
+                candidate.estimated_duration_minutes = validation["estimated_minutes"]
+                candidate.turn_by_turn_steps = build_turn_steps(candidate.geojson_coordinates)
+                validation["route_source"] = candidate.route_source
+                validations[candidate.route_id] = validation
+                if scored_candidates:
+                    valid_scored.append(scored_candidates[index])
+                else:
+                    best = candidate
+                logger.info(json.dumps({"event": "walk_candidate_validated", "request_id": request_id,
+                                        "route_id": candidate.route_id, "source": candidate.route_source,
+                                        "point_count": len(candidate.geojson_coordinates), **validation}, ensure_ascii=False))
+            if not validations:
+                raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
+            agent_result.all_scored_candidates = valid_scored
+            if valid_scored:
+                best = valid_scored[0].candidate
+                agent_result.best_score = valid_scored[0].total_score
+            agent_result.best_route = best
+            agent_result.briefing_message = f"{best.name}: 실제 보행로 기준 약 {best.estimated_duration_minutes:.0f}분, {best.total_distance_m:.0f}m 코스입니다."
+            current_weather = weather_context.get("current", weather_context)
+            surface_temp = current_weather.get("estimated_surface_temp")
+            if isinstance(surface_temp, (int, float)):
+                heat_notice = f"지면온도 {surface_temp:.1f}℃입니다. "
+                if surface_temp > 35:
+                    heat_notice += f"그늘 숲길을 이용하고 뜨거운 지면을 피해 {weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
+                agent_result.briefing_message = heat_notice + agent_result.briefing_message
+            if validations[best.route_id]["duration_is_alternative"]:
+                agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
 
         coords = best.geojson_coordinates if best.geojson_coordinates else V1_ROAD_ALIGNED_COORDS
 
@@ -280,6 +349,7 @@ def plan_walk_route(req: Dict[str, Any]):
                 }
 
         resp_data = {
+            "request_id": request_id,
             "courses": courses,
             "geojson": geojson,
             "step_pins": step_pins,
@@ -290,10 +360,19 @@ def plan_walk_route(req: Dict[str, Any]):
             "is_live_server": True,
             "weather": agent_result.weather_context,
         }
+        if park_mode:
+            resp_data["route_validation"] = validations
+            resp_data["validated_park_id"] = selected_park
+        logger.info(json.dumps({"event": "walk_plan_completed", "request_id": request_id,
+                                "park_id": selected_park, "route_id": best.route_id, "status": 200}, ensure_ascii=False))
         if matched_parking:
             resp_data["parking_lot"] = matched_parking
 
         return resp_data
+    except RoutePlanningError as exc:
+        logger.warning(json.dumps({"event": "walk_plan_failed", "request_id": request_id,
+                                   "park_id": selected_park, "code": exc.code, "status": 422}, ensure_ascii=False))
+        return JSONResponse(status_code=422, content={"detail": str(exc), "code": exc.code, "request_id": request_id})
     except HTTPException:
         raise
     except Exception as exc:

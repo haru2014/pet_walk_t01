@@ -50,8 +50,8 @@ def test_origin_mode_park_via_agent():
             "speed_kmh": 2.8,
             "joint_care_level": 1,
         },
-        origin_lat=36.3628,
-        origin_lon=127.3592,
+        origin_lat=36.3620608,
+        origin_lon=127.3601379,
         origin_mode="park",
     )
     assert result.status == "completed"
@@ -85,8 +85,8 @@ def test_origin_mode_api_endpoint():
         json={
             "dog_name": "초코",
             "target_duration_minutes": 30,
-            "origin_lat": 36.3628,
-            "origin_lon": 127.3592,
+            "origin_lat": 36.3620608,
+            "origin_lon": 127.3601379,
             "origin_mode": "park",
             "pilot_park_id": "yurim",
             "park_zone": "유림공원",
@@ -132,13 +132,9 @@ def test_pilot_park_id_explicit_dispatch():
             "pilot_park_id": "sejong",
         },
     )
-    assert res.status_code == 200
-    data = res.json()
-    assert "세종호수" in data["courses"][0]["name"] or "수변" in data["courses"][0]["name"]
-    first_coord = data["geojson"]["features"][0]["geometry"]["coordinates"][0]
-    # 세종호수공원 좌표 대역(127.26x, 36.50x) 확인
-    assert abs(first_coord[0] - 127.265) < 0.01
-    assert abs(first_coord[1] - 36.506) < 0.01
+    # Source-less legacy buffers cannot establish the requested park boundary.
+    assert res.status_code == 422
+    assert res.json()["code"] == "BOUNDARY_DATA_UNAVAILABLE"
 
 
 def test_park_mode_rejects_out_of_boundary():
@@ -156,7 +152,7 @@ def test_park_mode_rejects_out_of_boundary():
     )
     # 조용한 직사각형 대체가 차단되고 422 상태코드 반환
     assert res.status_code == 422
-    assert "안전한 순환 보행로를 생성할 수 없습니다" in res.json()["detail"]
+    assert res.json()["code"] == "BOUNDARY_DATA_UNAVAILABLE"
 
 
 def test_invalid_coordinate_ranges_rejected():

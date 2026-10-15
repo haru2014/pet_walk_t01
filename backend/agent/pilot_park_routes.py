@@ -1,7 +1,7 @@
-"""[US-A3, US-B1, US-G1] 대전 3대 공원 및 세종호수공원 4대 파일럿 거점 실제 OSM 정밀 보행망.
+"""파일럿 공원 메타데이터와 경계 로더.
 
-호수 수면이나 건물을 관통하는 허공의 직사각형 폴백을 원천 배제하고,
-실제 OpenStreetMap 보행로(Footway/Pedestrian Deck)를 100% 추종하는 정밀 순환 좌표열.
+기존 정적 좌표열은 회귀 분석용 레거시 자료이며 공원 경로 생성에는 사용하지 않는다.
+실제 경계와 별도 OSM 보행망으로 생성하는 경로는 park_walk_planner에서 담당한다.
 """
 
 import math
@@ -33,8 +33,8 @@ SONGGANG_PARK_OSM_COORDS: List[List[float]] = _drop_excursion(_SONGGANG_PARK_OSM
 
 PILOT_PARK_CENTERS: Dict[str, Tuple[float, float, str]] = {
     'sejong': (36.5020, 127.2680, '세종호수공원 은빛해변·수상무대섬 수변순환로'),
-    'yurim': (36.3628, 127.3592, '대전 유림공원 갑천변 흙길·반도지 순환로'),
-    'songgang': (36.4315, 127.3805, '대전 송강근린공원 솔밭 숲길·잔디광장 완만루프'),
+    'yurim': (36.3620608, 127.3601379, '대전 유림공원 내부 보행로'),
+    'songgang': (36.4353, 127.3847, '대전 송강근린공원 내부 보행로'),
     'doan': (36.3450, 127.3435, '대전 도안호수공원 갑천 생태습지 데크길'),
 }
 
@@ -55,9 +55,11 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 import json
 from pathlib import Path
-from shapely.geometry import shape, LineString, Polygon
+from shapely.geometry import shape, LineString, Polygon, MultiPolygon
+from shapely.errors import ShapelyError
 
 _PARK_POLYGONS_CACHE: Optional[Dict[str, Polygon]] = None
+PARK_BOUNDARIES_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "park_polygons_pilot.json"
 
 def load_pilot_park_polygons() -> Dict[str, Polygon]:
     """fixtures/park_polygons_pilot.json 에서 4대 공원 경계 폴리곤을 로드."""
@@ -65,16 +67,26 @@ def load_pilot_park_polygons() -> Dict[str, Polygon]:
     if _PARK_POLYGONS_CACHE is not None:
         return _PARK_POLYGONS_CACHE
 
-    fixture_path = Path(__file__).resolve().parent.parent / "fixtures" / "park_polygons_pilot.json"
+    fixture_path = PARK_BOUNDARIES_PATH
     polys: Dict[str, Polygon] = {}
-    if fixture_path.exists():
+    try:
         with open(fixture_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             for feat in data.get("features", []):
                 p_id = feat.get("properties", {}).get("park_id")
                 geom = feat.get("geometry")
-                if p_id and geom:
-                    polys[p_id] = shape(geom)
+                props = feat.get("properties", {})
+                if p_id and geom and props.get("quality") == "verified_osm" and props.get("crs") == "EPSG:4326":
+                    try:
+                        poly = shape(geom)
+                        if (isinstance(poly, (Polygon, MultiPolygon)) and poly.is_valid and not poly.is_empty
+                                and -180 <= poly.bounds[0] <= poly.bounds[2] <= 180
+                                and -90 <= poly.bounds[1] <= poly.bounds[3] <= 90):
+                            polys[p_id] = poly
+                    except (ValueError, TypeError, ShapelyError):
+                        continue
+    except (OSError, ValueError, TypeError, AttributeError):
+        polys = {}
     _PARK_POLYGONS_CACHE = polys
     return polys
 
@@ -83,11 +95,18 @@ def is_route_inside_park_boundary(coords: List[List[float]], park_id: str) -> bo
     polys = load_pilot_park_polygons()
     poly = polys.get(park_id)
     # 경계 데이터가 없거나 좌표가 부족하면 "안전하다"고 단정하지 않고 실패로 처리한다.
-    if poly is None or len(coords) < 2:
+    if poly is None or not isinstance(coords, (list, tuple)) or len(coords) < 2:
         return False
-    line = LineString(coords)
-    # 완충 0.0005도(약 50m) 여유 허용
-    return poly.buffer(0.0005).contains(line)
+    try:
+        if any(len(p) != 2 or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in p)
+               or not (-180 <= p[0] <= 180 and -90 <= p[1] <= 90) for p in coords):
+            return False
+        line = LineString(coords)
+        # Boundary contact is allowed; no expansion in degrees or metres.
+        # covers checks every segment, including holes and gaps in MultiPolygons.
+        return poly.is_valid and not poly.is_empty and poly.covers(line)
+    except (ValueError, TypeError, ShapelyError):
+        return False
 
 def resolve_pilot_park_key(
     origin_lat: float,
@@ -96,8 +115,8 @@ def resolve_pilot_park_key(
     pilot_park_id: Optional[str] = None,
 ) -> Optional[str]:
     """pilot_park_id 가 있으면 우선 사용하고, 없으면 출발 좌표에서 가장 가까운 거점 공원 키를 반환."""
-    if pilot_park_id and pilot_park_id in PILOT_PARK_COORDS_MAP:
-        return pilot_park_id
+    if pilot_park_id:
+        return pilot_park_id if pilot_park_id in PILOT_PARK_CENTERS else None
     candidates = []
     for park_key, (c_lat, c_lon, _name) in PILOT_PARK_CENTERS.items():
         dist = _haversine_m(origin_lat, origin_lon, c_lat, c_lon)

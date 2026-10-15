@@ -18,6 +18,7 @@ from langgraph.graph.message import add_messages
 
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
+from agent.pilot_park_routes import PILOT_PARK_CENTERS
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
 
 # ==============================================================================
@@ -70,6 +71,7 @@ class RouteCandidate(BaseModel):
     surface_types: List[str] = Field(default_factory=lambda: ["dirt", "grass"])
     geojson_coordinates: List[List[float]] = Field(default_factory=list)
     turn_by_turn_steps: List[Dict[str, Any]] = Field(default_factory=list)
+    route_source: str = "unknown"
 
 
 class ScoredRoute(BaseModel):
@@ -357,7 +359,10 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
         direction = _direction_label(VARIANT_BEARINGS[variant])
-        if plan.source.startswith("static_pilot_"):
+        if plan.source.startswith("park_graph_"):
+            park_key = plan.source.removeprefix("park_graph_")
+            cand_name = f"🏞️ {PILOT_PARK_CENTERS[park_key][2]}"
+        elif plan.source.startswith("static_pilot_"):
             park_title = plan.source.replace("static_pilot_", "")
             cand_name = f"🏞️ {park_title}"
         else:
@@ -370,6 +375,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
             estimated_duration_minutes=estimate_duration_minutes(plan.distance_m, req.speed_kmh),
             geojson_coordinates=plan.coords,
             turn_by_turn_steps=plan.steps,
+            route_source=plan.source,
             **_variant_profile(variant, req),
         ))
     return candidates
@@ -562,7 +568,7 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
 
     dog_name = dog_ctx_dict.get("name", "아이")
     breed = dog_ctx_dict.get("breed", "반려견")
-    duration = intent_dict.get("target_duration_minutes", 20)
+    duration = selected_dict.get("estimated_duration_minutes", intent_dict.get("target_duration_minutes", 20))
     route_name = selected_dict.get("name", "안심 산책로")
     dist_m = selected_dict.get("total_distance_m", 900.0)
 

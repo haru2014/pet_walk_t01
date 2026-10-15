@@ -45,11 +45,21 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onPinSelect,
 }) => {
   const { colors } = useAppTheme();
+  const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
+  const [planError, setPlanError] = useState<string | null>(null);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
-    generateAdaptiveCourses(dog, preferences, feedback)
+    requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback)
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
+  const [requestInputs, setRequestInputs] = useState({ dog, preferences, feedback });
+  if (requestInputs.dog !== dog || requestInputs.preferences !== preferences || requestInputs.feedback !== feedback) {
+    setRequestInputs({ dog, preferences, feedback });
+    setPlanResult(null);
+    setPlanError(null);
+    setSelectedCourseIndex(0);
+    setCourses(requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -57,9 +67,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       if (!isMounted) return;
       setPlanResult(res);
       if (res.courses.length > 0) setCourses(res.courses);
+    }).catch((error: unknown) => {
+      if (!isMounted) return;
+      setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
+      setCourses([]);
     });
     return () => { isMounted = false; };
-  }, [dog, preferences, feedback]);
+  }, [dog, preferences, feedback, requiresValidatedPark]);
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
   const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
@@ -68,11 +82,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (planResult?.isLiveServer && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
+    if (requiresValidatedPark) return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
     return getCoursePlanById(
       currentCourse?.id,
       getCoursePlanByParkId(preferences?.pilotParkId, selectedCourseIndex)
     );
-  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId]);
+  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark]);
 
   const activeRoute = activePlan.route;
   const activePins = activePlan.stepPins;
@@ -96,6 +111,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   const briefingText = planResult?.briefingMessage ??
     `반려견 ${dog.name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주로 구성된 안심 코스를 준비했어요.`;
+
+  if (!currentCourse || (requiresValidatedPark && !planResult)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, padding: 20, justifyContent: 'center', gap: 16 }]}>
+        <Text accessibilityRole="alert" style={{ color: colors.textMain }}>
+          {planError ?? '선택한 공원 내부의 보행 경로를 확인하고 있어요.'}
+        </Text>
+        <TouchableOpacity accessibilityRole="button" onPress={onBack} style={[styles.startButton, { backgroundColor: colors.primary }]}>
+          <Text style={styles.startButtonText}>산책 설정으로 돌아가기</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

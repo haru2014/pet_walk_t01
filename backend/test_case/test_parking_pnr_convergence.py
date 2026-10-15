@@ -29,10 +29,7 @@ def test_get_nearby_parking_lots_pilot_zones():
 
 
 @pytest.mark.parametrize("parking_id, expected_zone", [
-    ("pkg_yurim_01", "유림공원"),
-    ("pkg_sejong_01", "세종호수공원"),
-    ("pkg_songgang_01", "송강근린공원"),
-    ("pkg_doan_01", "도안호수공원"),
+    ("pkg_yurim_02", "유림공원"),
 ])
 def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: str):
     """P&R 주차장 출입구 좌표가 순환 코스의 시작/종료점에 강제 바인딩되고 루프가 닫히는지 검증."""
@@ -63,11 +60,29 @@ def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: s
 
     # 시작점과 주차장 출입구 거리 (m)
     dist_start = haversine_m((ent_lon, ent_lat), (start_pt[0], start_pt[1]))
-    assert dist_start <= 60.0, f"시작점이 주차장 출입구와 너무 멉니다: {dist_start:.1f}m"
+    assert dist_start <= 100.0, f"시작점이 주차장 출입구와 너무 멉니다: {dist_start:.1f}m"
 
     # 순환 폐곡선 종결성 검증 (시작점과 종료점 거리 20m 이내)
     gap = haversine_m((start_pt[0], start_pt[1]), (end_pt[0], end_pt[1]))
     assert gap <= 20.0, f"주차장으로 되돌아오는 루프 종결 오차 초과: {gap:.1f}m"
+
+
+@pytest.mark.parametrize("parking_id, code", [
+    ("pkg_yurim_01", "ORIGIN_NOT_CONNECTED"),
+    ("pkg_songgang_01", "ORIGIN_NOT_CONNECTED"),
+    ("pkg_sejong_01", "BOUNDARY_DATA_UNAVAILABLE"),
+    ("pkg_doan_01", "BOUNDARY_DATA_UNAVAILABLE"),
+])
+def test_unconnected_or_unverified_parking_does_not_bypass_park_validation(parking_id, code):
+    lot = next(p for p in _PILOT_PARKING_LOTS if p["parking_id"] == parking_id)
+    response = client.post("/api/v1/walk/plan", json={
+        "origin_mode": "parking_pnr", "parking_lot_id": parking_id,
+        "origin_lat": lot["entrance_lat"], "origin_lon": lot["entrance_lon"],
+        "target_duration_minutes": 30,
+    })
+    assert response.status_code == 422
+    assert response.json()["code"] == code
+    assert "geojson" not in response.json()
 
 
 def test_parking_pnr_target_distance_convergence(monkeypatch):

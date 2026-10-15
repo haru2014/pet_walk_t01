@@ -233,7 +233,7 @@ class TestFullPipelineJointSlaProfiling:
         "origin_lat": 36.3628,
         "origin_lon": 127.3592,
         "origin_mode": "parking_pnr",
-        "parking_lot_id": "pkg_yurim_01",
+        "parking_lot_id": "pkg_yurim_02",
     }
 
     def test_full_pipeline_rtt_under_1_5s(self, client, monkeypatch):
