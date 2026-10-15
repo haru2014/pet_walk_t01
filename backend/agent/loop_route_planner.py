@@ -22,7 +22,12 @@ from agent.road_network_routes import (
     fetch_osrm_foot_route,
 )
 from agent.offline_walk_network import plan_offline_network_loop
-from agent.pilot_park_routes import match_pilot_park_loop
+from agent.pilot_park_routes import (
+    fit_loop_to_target,
+    is_route_inside_park_boundary,
+    match_pilot_park_loop,
+    resolve_pilot_park_key,
+)
 from agent.route_geometry import (
     backtrack_ratio,
     collapse_backtracks,
@@ -197,13 +202,30 @@ def _plan_static_pilot_park(
     origin_lat: float,
     origin_lon: float,
     variant: int,
+    pilot_park_id: Optional[str] = None,
+    target_distance_m: Optional[float] = None,
 ) -> Optional[LoopPlan]:
-    """출발지가 대전/세종 4대 거점 공원 2.5km 이내일 때 사용하는 실제 OSM 정밀 보행 도로망 코스."""
-    res = match_pilot_park_loop(origin_lat, origin_lon, variant=variant)
+    """4대 거점 공원의 실제 OSM 정밀 보행로 코스를 반환한다.
+
+    1) 목표 거리보다 길면 같은 보행로를 왕복하는 코스로 줄이고(fit_loop_to_target),
+    2) 최종 좌표열 전체가 공원 경계 안에 있는지 검사하며(is_route_inside_park_boundary),
+    3) 어긋나면 성공으로 위장하지 않고 park_boundary_violation 실패 계획을 반환한다.
+    """
+    res = match_pilot_park_loop(origin_lat, origin_lon, variant=variant, pilot_park_id=pilot_park_id)
     if res is None:
         return None
     coords, source_name = res
-    return _to_plan(coords, f"static_pilot_{source_name}")
+    park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
+    fitted = fit_loop_to_target(coords, target_distance_m)
+    inside = is_route_inside_park_boundary(fitted, park_key) if park_key else False
+    logger.info(
+        "공원 정적 코스: park=%s variant=%d target_m=%s points=%d->%d inside_boundary=%s",
+        park_key, variant, target_distance_m, len(coords), len(fitted), inside,
+    )
+    if not inside:
+        logger.warning("공원 경계 검사 실패: park=%s variant=%d - 경로를 반환하지 않습니다.", park_key, variant)
+        return LoopPlan(coords=[], steps=[], distance_m=0.0, source="park_boundary_violation")
+    return _to_plan(fitted, f"static_pilot_{source_name}")
 
 
 def _plan_static_seoul(
@@ -288,15 +310,32 @@ def _plan_variant(
     target_distance_m: float,
     variant: int,
     deadline: float,
-    origin_mode: str = "park",
+    origin_mode: str = "current_location",
+    pilot_park_id: Optional[str] = None,
 ) -> LoopPlan:
-    """공원 모드 시 정밀 공원 보행로(1순위) → 실시간 OSRM → 정적 서울 도로망 → 오프라인 도로망 그래프 → 비상 폴백 순으로 후보 1개를 생성한다."""
+    """공원 모드 시 정밀 공원 보행로(1순위) → 실시간 OSRM 순으로 시도하며, 공원 경계 밖 직사각형 임의 대체는 차단한다."""
     # 🌟 공원 모드 또는 P&R 주차장 모드일 때 대전 3대 공원 & 세종호수공원 실제 OSM 보행로 적용
     if origin_mode in ("park", "parking_pnr"):
-        pilot_plan = _plan_static_pilot_park(origin_lat, origin_lon, variant)
+        pilot_plan = _plan_static_pilot_park(
+            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m
+        )
         if pilot_plan is not None:
             return pilot_plan
 
+        plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline)
+        if plan is not None:
+            return plan
+
+        # 🛡️ 공원 모드 실패 가드레일: 임의의 건물/도로 관통 직사각형이나 서울광장으로 조용히 대체하지 않음
+        logger.warning("공원 모드 경로 탐색 실패(variant=%d): 공원 영역 밖 임의 직사각형 생성을 차단합니다.", variant)
+        return LoopPlan(
+            coords=[],
+            steps=[],
+            distance_m=0.0,
+            source="park_not_found",
+        )
+
+    # 📍 현위치 기반 모드 (current_location)
     plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline)
     if plan is not None:
         return plan
@@ -317,7 +356,8 @@ def plan_loop_candidates(
     origin_lon: float,
     target_distance_m: float,
     time_budget_s: float = PLAN_TIME_BUDGET_S,
-    origin_mode: str = "park",
+    origin_mode: str = "current_location",
+    pilot_park_id: Optional[str] = None,
 ) -> Dict[int, LoopPlan]:
     """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
     deadline = time.monotonic() + time_budget_s
@@ -331,6 +371,7 @@ def plan_loop_candidates(
                 variant,
                 deadline,
                 origin_mode,
+                pilot_park_id,
             )
             for variant in VARIANT_BEARINGS
         }

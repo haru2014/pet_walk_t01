@@ -295,7 +295,8 @@ class LoopCandidateRequest(BaseModel):
     avoid_stairs: bool = True
     max_slope_allowed: float = 6.0
     preferred_surfaces: List[str] = Field(default_factory=list)
-    origin_mode: str = "park"
+    origin_mode: str = "current_location"
+    pilot_park_id: Optional[str] = None
     estimated_surface_temp: Optional[float] = None
     air_temp_celsius: Optional[float] = None
 
@@ -351,13 +352,20 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         req.origin_lon,
         req.target_distance_m,
         origin_mode=req.origin_mode,
+        pilot_park_id=req.pilot_park_id,
     )
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
         direction = _direction_label(VARIANT_BEARINGS[variant])
+        if plan.source.startswith("static_pilot_"):
+            park_title = plan.source.replace("static_pilot_", "")
+            cand_name = f"🏞️ {park_title}"
+        else:
+            cand_name = VARIANT_NAME_TEMPLATES[variant].format(direction=direction)
+
         candidates.append(RouteCandidate(
             route_id=f"candidate-loop-{variant:02d}",
-            name=VARIANT_NAME_TEMPLATES[variant].format(direction=direction),
+            name=cand_name,
             total_distance_m=plan.distance_m,
             estimated_duration_minutes=estimate_duration_minutes(plan.distance_m, req.speed_kmh),
             geojson_coordinates=plan.coords,
@@ -382,6 +390,7 @@ class WalkPlanningState(TypedDict):
     origin_lon: float
     origin_mode: str
     parking_lot_id: Optional[str]
+    pilot_park_id: Optional[str]
     # 분석 & 보정 산출물
     parsed_intent: Optional[Dict[str, Any]]
     calibrated_speed_kmh: float
@@ -468,6 +477,10 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
 
     surf_temp = current_weather.get("estimated_surface_temp")
     air_temp = current_weather.get("air_temp_celsius")
+    pilot_park_id = state.get("pilot_park_id")
+    origin_mode = state.get("origin_mode")
+    if not origin_mode:
+        origin_mode = "park" if pilot_park_id else "current_location"
 
     request = LoopCandidateRequest(
         origin_lat=state.get("origin_lat", 37.5665),
@@ -477,7 +490,8 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         avoid_stairs=intent_dict.get("avoid_stairs", True),
         max_slope_allowed=state.get("max_slope_allowed", 6.0),
         preferred_surfaces=intent_dict.get("preferred_surfaces", ["dirt", "grass"]),
-        origin_mode=state.get("origin_mode", "park"),
+        origin_mode=origin_mode,
+        pilot_park_id=pilot_park_id,
         estimated_surface_temp=surf_temp,
         air_temp_celsius=air_temp,
     )
@@ -629,11 +643,15 @@ def run_walk_planning_agent(
     weather_context: Optional[Dict[str, Any]] = None,
     origin_lat: float = 37.5665,
     origin_lon: float = 126.9780,
-    origin_mode: str = "park",
+    origin_mode: Optional[str] = None,
     parking_lot_id: Optional[str] = None,
+    pilot_park_id: Optional[str] = None,
 ) -> WalkPlanningResult:
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
+
+    if not origin_mode:
+        origin_mode = "park" if pilot_park_id else "current_location"
 
     # 기상 컨텍스트 미제공 시 실시간 기상청 지면열 모델 자동 바인딩 (기본 안전 산책 프리셋)
     if weather_context is None:
@@ -658,6 +676,7 @@ def run_walk_planning_agent(
         "origin_lon": origin_lon,
         "origin_mode": origin_mode,
         "parking_lot_id": parking_lot_id,
+        "pilot_park_id": pilot_park_id,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

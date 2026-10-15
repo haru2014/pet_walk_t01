@@ -30,7 +30,8 @@ export interface WalkPreferences {
   environments: EnvironmentId[];
   requestText: string;
   isFreeWalk?: boolean;
-  pilotParkId?: string; // 대전/세종 4대 거점 공원 식별자 ('yurim', 'sejong', 'songgang', 'doan', 'seoul_forest')
+  pilotParkId?: string; // 대전/세종 4대 거점 공원 식별자 ('yurim', 'sejong', 'songgang', 'doan')
+  userCoordinates?: { lat: number; lon: number }; // 단말기 실측 GPS 좌표 (위도, 경도)
 }
 
 /** 15분 단위 세분화 산책 시간 옵션 (US-A3) */

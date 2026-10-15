@@ -5,6 +5,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+import { AmbientNoiseMonitorService } from './ambientNoiseMonitor';
+import { TTSNavigationService } from './ttsNavigation';
+
 const memoryStore = new Map<string, string>();
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -24,9 +27,6 @@ vi.mock('expo-speech', () => ({
   stop: vi.fn().mockResolvedValue(undefined),
   getAvailableVoicesAsync: vi.fn().mockResolvedValue([]),
 }));
-
-import { AmbientNoiseMonitorService } from './ambientNoiseMonitor';
-import { TTSNavigationService } from './ttsNavigation';
 
 describe('AmbientNoiseMonitorService - 돌발 짖음 감지 및 스마트 자동 음소거', () => {
   beforeEach(async () => {

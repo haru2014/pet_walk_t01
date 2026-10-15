@@ -48,7 +48,9 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const guidanceRef = useRef<GuidanceState>(INITIAL_GUIDANCE_STATE);
   const startedAtRef = useRef<number | null>(null);
   const routeRef = useRef(route);
-  routeRef.current = route;
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
 
   const [poopEvents, setPoopEvents] = useState<PoopEvent[]>([]);
   const lastPointRef = useRef<GpsPoint | null>(null);

@@ -88,6 +88,15 @@ export class BackupService {
     const profile = this.parseAndValidateBackup(jsonString);
     if (!profile) return null;
 
+    const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
+    if (savedProfiles !== null && Array.isArray(savedProfiles)) {
+      const updatedProfiles = savedProfiles.some((dog) => dog.id === profile.id)
+        ? savedProfiles.map((dog) => dog.id === profile.id ? profile : dog)
+        : [profile, ...savedProfiles];
+      const profilesSaved = await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, updatedProfiles);
+      if (!profilesSaved) return null;
+    }
+
     const saved = await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, profile);
     return saved ? profile : null;
   }

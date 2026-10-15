@@ -20,6 +20,29 @@ export interface DogProfile {
   updatedAt: string;
 }
 
+/** 산책 기록 및 북마크 저장 시 보존되는 반려견 스펙 요약 DTO */
+export interface WalkDogSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly breed: string;
+  readonly ageYears: number;
+  readonly weightKg: number;
+  readonly jointCareLevel: JointCareLevel;
+  readonly photoUri?: string;
+}
+
+export function toWalkDogSummary(dog: DogProfile): WalkDogSummary {
+  return {
+    id: dog.id,
+    name: dog.name,
+    breed: dog.breed || '반려견',
+    ageYears: dog.ageYears,
+    weightKg: dog.weightKg,
+    jointCareLevel: dog.jointCareLevel,
+    photoUri: dog.photoUri,
+  };
+}
+
 export function calculateRecommendedSpeedKmH(
   weightKg: number,
   ageYears: number,

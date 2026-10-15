@@ -1,9 +1,7 @@
 /**
- * [RouteMapView 컴포넌트 렌더링 및 웹 SVG 호환성 TDD 테스트]
+ * [RouteMapView 컴포넌트 렌더링 및 MapLibre 웹 호환성 테스트]
  *
- * 1. Web 환경(Platform.OS === 'web')에서 Svg 컴포넌트에 React Native 스타일 배열([style1, style2])이
- *    전달될 때 CSSStyleDeclaration Indexed Property Setter 오류 없이 안전하게 렌더링되는지 검증.
- * 2. 3색 Polyline 세그먼트, 출발/도착 마커, 스텝 핀 요소가 정상 마운트되는지 검증.
+ * Web 환경에서 MapLibre 지도 캔버스와 코스 범례가 렌더링되는지 검증합니다.
  */
 
 import React from 'react';
@@ -16,12 +14,28 @@ vi.mock('react-native-svg', () => ({
   G: (props: any) => React.createElement('g', props),
   Text: (props: any) => React.createElement('text', props),
 }));
+vi.mock('react-native-webview', () => ({
+  WebView: (props: any) => React.createElement('div', { 'data-testid': 'mock-webview', ...props }),
+  default: (props: any) => React.createElement('div', { 'data-testid': 'mock-webview', ...props }),
+}));
+vi.mock('maplibre-gl', () => ({
+  default: {
+    Map: vi.fn().mockImplementation(() => ({
+      on: vi.fn(),
+      addSource: vi.fn(),
+      addLayer: vi.fn(),
+      fitBounds: vi.fn(),
+      remove: vi.fn(),
+      setStyle: vi.fn(),
+    })),
+  },
+}));
 
 import { renderToStaticMarkup } from 'react-dom/server';
-import { RouteMapView } from './RouteMapView';
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
+import { RouteMapView } from './RouteMapView';
 
-describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
+describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
   const mockRoute: RouteFeatureCollection = {
     type: 'FeatureCollection',
     features: [
@@ -60,7 +74,7 @@ describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
     },
   ];
 
-  it('웹 환경에서 Svg에 배열 스타일([StyleSheet.absoluteFill, { zIndex: 2 }])이 주어져도 CSSStyleDeclaration 에러 없이 렌더링된다', () => {
+  it('MapLibre 캔버스와 코스 범례를 렌더링한다', () => {
     // React DOM 서버 렌더러(renderToStaticMarkup)를 통해 브라우저 HTML SVG 렌더링 파이프라인 검증
     expect(() => {
       const html = renderToStaticMarkup(
@@ -70,14 +84,12 @@ describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
           speedKmH={2.8}
         />
       );
-      // HTML 결과물에 svg 태그와 polyline, circle이 포함되어 있는지 확인
-      expect(html).toContain('<svg');
-      expect(html).toContain('<polyline');
-      expect(html).toContain('<circle');
+      expect(html).toContain('width:100%;height:100%');
+      expect(html).toContain('완만/그늘');
     }).not.toThrow();
   });
 
-  it('SVG 엘리먼트에 React Native 전용 속성(accessible 등)이 DOM으로 누출되지 않고 평탄화된 style 객체가 적용된다', () => {
+  it('MapLibre 컨테이너와 지도 범례를 렌더링한다', () => {
     const html = renderToStaticMarkup(
       <RouteMapView
         route={mockRoute}
@@ -85,9 +97,7 @@ describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
         speedKmH={2.8}
       />
     );
-    // accessible 속성이 누출되지 않음
-    expect(html).not.toContain('accessible=');
-    // z-index: 2 및 position: absolute 스타일이 정상 반영됨
-    expect(html).toContain('z-index:2');
+    expect(html).toContain('width:100%;height:100%');
+    expect(html).toContain('완만/그늘');
   });
 });

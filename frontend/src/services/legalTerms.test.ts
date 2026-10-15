@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../constants/legalTerms';
+import { TERMS_OF_SERVICE, PRIVACY_POLICY, DATA_SOURCES_ATTRIBUTION } from '../constants/legalTerms';
 
 describe('회원가입약관 및 개인정보보호정책 규격 검증', () => {
   it('회원가입 약관(TERMS_OF_SERVICE)에 필수 조항 및 핵심 서비스 규정이 포함되어야 한다', () => {
@@ -11,6 +11,11 @@ describe('회원가입약관 및 개인정보보호정책 규격 검증', () => 
     expect(TERMS_OF_SERVICE).toContain('제5조 (위치기반서비스 이용)');
     expect(TERMS_OF_SERVICE).toContain('200m');
     expect(TERMS_OF_SERVICE).toContain('제6조 (이용자의 의무 및 안전 수칙)');
+  });
+
+  it('데이터 출처(TERMS_OF_SERVICE 및 DATA_SOURCES_ATTRIBUTION)에 Open-Meteo.com (CC BY 4.0)이 명시되어야 한다 (#57)', () => {
+    expect(TERMS_OF_SERVICE).toContain('Open-Meteo.com (CC BY 4.0)');
+    expect(DATA_SOURCES_ATTRIBUTION).toContain('Open-Meteo.com (CC BY 4.0)');
   });
 
   it('개인정보보호정책(PRIVACY_POLICY)에 Local-First 및 공간 마스킹 원칙이 포함되어야 한다', () => {

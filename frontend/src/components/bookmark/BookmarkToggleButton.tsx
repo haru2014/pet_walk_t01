@@ -24,7 +24,6 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
   useEffect(() => {
     let mounted = true;
     if (!bookmarkId) {
-      setSaved(false);
       return undefined;
     }
     void BookmarkService.isBookmarked(bookmarkId).then((value) => {
@@ -41,6 +40,7 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
     setSaved(next);
     void (next ? hapticSuccess() : hapticLight());
   };
+  const isSaved = Boolean(bookmarkId && saved);
 
   return (
     <TouchableOpacity
@@ -48,12 +48,12 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
       disabled={!bookmark}
       onPress={() => void handleToggle()}
       accessibilityRole="button"
-      accessibilityLabel={saved ? '즐겨찾기 해제' : '즐겨찾기 저장'}
-      style={[styles.button, saved && styles.buttonSaved]}
+      accessibilityLabel={isSaved ? '즐겨찾기 해제' : '즐겨찾기 저장'}
+      style={[styles.button, isSaved && styles.buttonSaved]}
     >
       <View style={styles.content}>
-        <AppIcon name="heart" size={14} color={saved ? TOKENS.colors.primary : TOKENS.colors.textMuted} filled={saved} />
-        <Text style={[styles.text, saved && styles.textSaved]}>{saved ? '저장됨' : '찜하기'}</Text>
+        <AppIcon name="heart" size={14} color={isSaved ? TOKENS.colors.primary : TOKENS.colors.textMuted} filled={isSaved} />
+        <Text style={[styles.text, isSaved && styles.textSaved]}>{isSaved ? '저장됨' : '찜하기'}</Text>
       </View>
     </TouchableOpacity>
   );

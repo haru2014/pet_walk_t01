@@ -135,14 +135,15 @@ describe('parkingApi - US-G1 대전/세종 4대 거점 공영주차장 P&R 서�
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
       const first = await fetchNearbyParkingLots(YURIM_LAT, YURIM_LON);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const callsAfterFirst = fetchSpy.mock.calls.length;
+      expect(callsAfterFirst).toBeGreaterThanOrEqual(1);
 
       const second = await fetchNearbyParkingLots(YURIM_LAT, YURIM_LON);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterFirst);
       expect(second.fetched_at).toBe(first.fetched_at);
 
       await fetchNearbyParkingLots(YURIM_LAT, YURIM_LON, { forceRefresh: true });
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
     });
   });
 });

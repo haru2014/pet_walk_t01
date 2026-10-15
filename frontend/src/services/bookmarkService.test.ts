@@ -8,6 +8,7 @@ import { BookmarkService, createBookmark, MAX_BOOKMARKS } from './bookmarkServic
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './sampleRoute';
 import { DEFAULT_RECOMMENDED_COURSES } from '../types/walkSettings';
 import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
+import { WalkDogSummary } from '../types/dogProfile';
 
 const memoryStore = new Map<string, string>();
 
@@ -47,6 +48,21 @@ describe('US-29 createBookmark', () => {
     const b = createBookmark(DEFAULT_RECOMMENDED_COURSES[1], PLAN, '초코');
     expect(a1.id).toBe(a2.id);
     expect(a1.id).not.toBe(b.id);
+  });
+
+  it('WalkDogSummary 객체를 전달하면 dogName과 dogSummary 객체가 함께 보관된다', () => {
+    const summary: WalkDogSummary = {
+      id: 'dog_123',
+      name: '보리',
+      breed: '포메라니안',
+      ageYears: 2,
+      weightKg: 3.2,
+      jointCareLevel: 2,
+      photoUri: 'preset:pomeranian',
+    };
+    const bm = createBookmark(DEFAULT_RECOMMENDED_COURSES[0], PLAN, summary);
+    expect(bm.dogName).toBe('보리');
+    expect(bm.dogSummary).toEqual(summary);
   });
 });
 

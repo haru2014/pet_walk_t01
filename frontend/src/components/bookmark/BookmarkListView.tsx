@@ -9,13 +9,14 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
 import { RouteMapView } from '../map/RouteMapView';
+import { DogAvatar } from '../common/DogAvatar';
 
 
 export interface BookmarkListViewProps {
@@ -38,8 +39,16 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let mounted = true;
+    void BookmarkService.getBookmarks().then((items) => {
+      if (!mounted) return;
+      setBookmarks(items);
+      setIsLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleRemove = async (id: string) => {
     await BookmarkService.removeBookmark(id);
@@ -68,119 +77,144 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
         </Text>
       )}
 
-      {bookmarks.map((bm) => {
-        const isExpanded = expandedId === bm.id;
+      {!isLoading && bookmarks.length > 0 && (
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+        >
+          {bookmarks.map((bm) => {
+            const isExpanded = expandedId === bm.id;
 
-        return (
-          <View key={bm.id} style={[styles.itemCard, isExpanded && styles.itemCardExpanded]}>
-            {/* 카드 헤더 (터치 시 아코디언 토글) */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => toggleExpand(bm.id)}
-              style={styles.cardHeaderTouchable}
-            >
-              <View style={styles.headerTitleRow}>
-                <View style={styles.titleBadgeRow}>
-                  <Text style={styles.itemTitle}>{bm.title}</Text>
-                  <View style={styles.expandTag}>
-                    <Text style={styles.expandTagText}>
-                      {isExpanded ? '경로 접기 ▴' : '경로 보기 ▾'}
-                    </Text>
-                  </View>
-                </View>
+            return (
+              <View key={bm.id} style={[styles.itemCard, isExpanded && styles.itemCardExpanded]}>
+                {/* 카드 헤더 (터치 시 아코디언 토글) */}
                 <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    void handleRemove(bm.id);
-                  }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel="즐겨찾기 삭제"
-                  style={styles.deleteBtn}
+                  activeOpacity={0.7}
+                  onPress={() => toggleExpand(bm.id)}
+                  style={styles.cardHeaderTouchable}
                 >
-                  <Text style={styles.removeText}>삭제</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 4대 보행 메타 요약 */}
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <AppIcon name="map" size={13} color={TOKENS.colors.textMuted} />
-                  <Text style={styles.meta}>{bm.totalDistanceKm.toFixed(1)}km</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <AppIcon name="clock" size={13} color={TOKENS.colors.textMuted} />
-                  <Text style={styles.meta}>약 {bm.estimatedMinutes}분</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <AppIcon name="mountain" size={13} color={TOKENS.colors.textMuted} />
-                  <Text style={styles.meta}>최대 {bm.maxSlopePercent}%</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <AppIcon name="shade" size={13} color={TOKENS.colors.textMuted} />
-                  <Text style={styles.meta}>그늘 {bm.shadePercent}%</Text>
-                </View>
-              </View>
-
-              {/* 태그 목록 */}
-              <View style={styles.tagRow}>
-                {bm.tags.map((tag) => (
-                  <View key={tag} style={styles.tag}>
-                    <Text style={styles.tagText}>#{tag}</Text>
+                  <View style={styles.headerTitleRow}>
+                    <View style={styles.titleBadgeRow}>
+                      <Text style={styles.itemTitle}>{bm.title}</Text>
+                      <View style={styles.expandTag}>
+                        <Text style={styles.expandTagText}>
+                          {isExpanded ? '경로 접기 ▴' : '경로 보기 ▾'}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void handleRemove(bm.id);
+                      }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityLabel="즐겨찾기 삭제"
+                      style={styles.deleteBtn}
+                    >
+                      <Text style={styles.removeText}>삭제</Text>
+                    </TouchableOpacity>
                   </View>
-                ))}
-              </View>
-            </TouchableOpacity>
 
-            {/* 접힌 상태의 간편 산책 시작 버튼 */}
-            {!isExpanded && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => onStartBookmark(bm)}
-                style={styles.collapsedStartBtn}
-              >
-                <Text style={styles.collapsedStartBtnText}>🐾 바로 산책 시작</Text>
-              </TouchableOpacity>
-            )}
+                  {/* 산책 대상 반려견 스펙 요약 뱃지 */}
+                  <View style={styles.dogSummaryRow}>
+                    {bm.dogSummary ? (
+                      <View style={styles.dogSummaryBadge}>
+                        <DogAvatar photoUri={bm.dogSummary.photoUri} size={18} />
+                        <Text style={styles.dogSummaryText}>
+                          {bm.dogSummary.name} ({bm.dogSummary.breed} · {bm.dogSummary.weightKg}kg)
+                        </Text>
+                      </View>
+                    ) : bm.dogName ? (
+                      <View style={styles.dogSummaryBadge}>
+                        <Text style={styles.dogSummaryText}>🐾 {bm.dogName} 추천 코스</Text>
+                      </View>
+                    ) : null}
+                  </View>
 
-            {/* 아코디언 펼침 콘텐츠 (인라인 지도 + 액션 버튼) */}
-            {isExpanded && (
-              <View style={styles.accordionBody}>
-                <View style={styles.divider} />
+                  {/* 4대 보행 메타 요약 */}
+                  <View style={styles.metaRow}>
+                    <View style={styles.metaItem}>
+                      <AppIcon name="map" size={13} color={TOKENS.colors.textMuted} />
+                      <Text style={styles.meta}>{bm.totalDistanceKm.toFixed(1)}km</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <AppIcon name="clock" size={13} color={TOKENS.colors.textMuted} />
+                      <Text style={styles.meta}>약 {bm.estimatedMinutes}분</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <AppIcon name="mountain" size={13} color={TOKENS.colors.textMuted} />
+                      <Text style={styles.meta}>최대 {bm.maxSlopePercent}%</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <AppIcon name="shade" size={13} color={TOKENS.colors.textMuted} />
+                      <Text style={styles.meta}>그늘 {bm.shadePercent}%</Text>
+                    </View>
+                  </View>
 
-                <Text style={styles.previewNotice}>
-                  🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길 / 주황: 주의길)
-                </Text>
+                  {/* 태그 목록 */}
+                  <View style={styles.tagRow}>
+                    {bm.tags.map((tag) => (
+                      <View key={tag} style={styles.tag}>
+                        <Text style={styles.tagText}>#{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
 
-                <View style={styles.miniMapContainer}>
-                  <RouteMapView
-                    route={bm.routeGeoJson}
-                    stepPins={bm.stepPins}
-                    speedKmH={dogSpeedKmH}
-                  />
-                </View>
-
-                {/* 정돈된 액션 버튼 그룹 (중복 없이 1세트 제공) */}
-                <View style={styles.actionButtonGroup}>
+                {/* 접힌 상태의 간편 산책 시작 버튼 */}
+                {!isExpanded && (
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => onStartBookmark(bm)}
-                    style={styles.startWalkButton}
+                    style={styles.collapsedStartBtn}
                   >
-                    <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
+                    <Text style={styles.collapsedStartBtnText}>🐾 바로 산책 시작</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setModalBookmark(bm)}
-                    style={styles.fullScreenButton}
-                  >
-                    <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
-                  </TouchableOpacity>
-                </View>
+                )}
+
+                {/* 아코디언 펼침 콘텐츠 (인라인 지도 + 액션 버튼) */}
+                {isExpanded && (
+                  <View style={styles.accordionBody}>
+                    <View style={styles.divider} />
+
+                    <Text style={styles.previewNotice}>
+                      🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길 / 주황: 주의길)
+                    </Text>
+
+                    <View style={styles.miniMapContainer}>
+                      <RouteMapView
+                        route={bm.routeGeoJson}
+                        stepPins={bm.stepPins}
+                        speedKmH={dogSpeedKmH}
+                      />
+                    </View>
+
+                    {/* 정돈된 액션 버튼 그룹 (중복 없이 1세트 제공) */}
+                    <View style={styles.actionButtonGroup}>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => onStartBookmark(bm)}
+                        style={styles.startWalkButton}
+                      >
+                        <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => setModalBookmark(bm)}
+                        style={styles.fullScreenButton}
+                      >
+                        <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-        );
-      })}
+            );
+          })}
+        </ScrollView>
+      )}
 
       {/* 전체화면 코스 상세 모달 팝업 */}
       {modalBookmark && (
@@ -253,6 +287,13 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   desc: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16, marginTop: 4 },
   empty: { fontSize: 12, color: TOKENS.colors.primaryDark, marginTop: 12, textAlign: 'center' },
+  scrollArea: {
+    maxHeight: 520,
+    marginTop: 8,
+  },
+  scrollContent: {
+    paddingBottom: 4,
+  },
 
   itemCard: {
     marginTop: 12,
@@ -529,5 +570,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  dogSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  dogSummaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: TOKENS.colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.primaryMint,
+    gap: 6,
+  },
+  dogSummaryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: TOKENS.colors.primaryDark,
   },
 });

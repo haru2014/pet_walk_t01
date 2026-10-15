@@ -10,6 +10,7 @@ import { STORAGE_KEYS } from '../types/storage';
 import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
 import { RecommendedCourse } from '../types/walkSettings';
 import { RouteFeatureCollection } from '../types/route';
+import { WalkDogSummary } from '../types/dogProfile';
 
 import { detectLandmarkCategory } from './landmarkTagger';
 
@@ -28,15 +29,20 @@ export function routeFingerprint(route: RouteFeatureCollection): string {
 export function createBookmark(
   course: RecommendedCourse,
   plan: CoursePlan,
-  dogName: string,
+  dogSummaryOrName: WalkDogSummary | string,
   now: Date = new Date(),
 ): BookmarkedRoute {
   const distance = Number.parseFloat(course.distanceKm);
   const landmarkInfo = detectLandmarkCategory(plan.route, course.name);
+  const isString = typeof dogSummaryOrName === 'string';
+  const dogName = isString ? dogSummaryOrName : dogSummaryOrName.name;
+  const dogSummary = isString ? undefined : dogSummaryOrName;
+
   return {
     id: `bm_${course.id}_${routeFingerprint(plan.route)}`,
     title: course.name,
     dogName,
+    dogSummary,
     totalDistanceKm: Number.isFinite(distance) ? distance : 0,
     estimatedMinutes: course.estimatedMinutes,
     maxSlopePercent: course.maxSlopePercent,

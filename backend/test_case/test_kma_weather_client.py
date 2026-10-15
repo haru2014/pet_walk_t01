@@ -86,6 +86,19 @@ class TestBaseTime:
     def test_fcst_base(self, h, m, expected):
         assert kma.latest_ultra_srt_fcst_base(datetime(2026, 10, 13, h, m, tzinfo=KST)) == expected
 
+    @pytest.mark.parametrize("h, m, expected", [
+        (2, 9, ("20261012", "2300")),    # 02:00 발표분은 02:10 이후부터, 그 전에는 전날 23시
+        (2, 10, ("20261013", "0200")),
+        (5, 9, ("20261013", "0200")),
+        (5, 10, ("20261013", "0500")),
+        (13, 59, ("20261013", "1100")),
+        (14, 10, ("20261013", "1400")),
+        (23, 15, ("20261013", "2300")),
+        (0, 5, ("20261012", "2300")),    # 자정 직후도 전날 23시 발표분
+    ])
+    def test_vilage_fcst_base(self, h, m, expected):
+        assert kma.latest_vilage_fcst_base(datetime(2026, 10, 13, h, m, tzinfo=KST)) == expected
+
     def test_naive_datetime_is_treated_as_kst(self):
         assert kma.latest_ultra_srt_ncst_base(datetime(2026, 10, 13, 12, 20)) == ("20261013", "1200")
 
@@ -169,6 +182,36 @@ class TestFetchFcst:
         calls = _install(monkeypatch, _ok(self.ITEMS))
         kma.fetch_ultra_srt_fcst(60, 127, now=NOW)
         assert int(_query(calls[0])["numOfRows"]) >= 60  # 6시간 x 약 10개 항목
+
+
+class TestFetchVilageFcst:
+    ITEMS = [
+        {"category": "TMP", "fcstDate": "20261013", "fcstTime": "1400", "fcstValue": "20"},
+        {"category": "SKY", "fcstDate": "20261013", "fcstTime": "1400", "fcstValue": "1"},
+        {"category": "PTY", "fcstDate": "20261013", "fcstTime": "1400", "fcstValue": "0"},
+        {"category": "TMP", "fcstDate": "20261013", "fcstTime": "1300", "fcstValue": "19"},
+        {"category": "TMP", "fcstDate": "20261014", "fcstTime": "0000", "fcstValue": "12"},
+        {"category": "PCP", "fcstDate": "20261013", "fcstTime": "1400", "fcstValue": "강수없음"},
+    ]
+
+    def test_groups_hourly_slots_across_days_in_time_order(self, monkeypatch):
+        _install(monkeypatch, _ok(self.ITEMS))
+        result = kma.fetch_vilage_fcst(60, 127, now=datetime(2026, 10, 13, 14, 20, tzinfo=KST))
+        assert (result["base_date"], result["base_time"]) == ("20261013", "1400")
+        slots = [(s["fcst_date"], s["fcst_time"]) for s in result["forecasts"]]
+        assert slots == [("20261013", "1300"), ("20261013", "1400"), ("20261014", "0000")]
+        at_14 = result["forecasts"][1]["values"]
+        assert at_14["TMP"] == 20.0 and at_14["SKY"] == 1 and at_14["PTY"] == 0
+        assert at_14["PCP"] == "강수없음"
+
+    def test_requests_the_vilage_operation_with_enough_rows(self, monkeypatch):
+        calls = _install(monkeypatch, _ok(self.ITEMS))
+        kma.fetch_vilage_fcst(67, 100, now=datetime(2026, 10, 13, 14, 20, tzinfo=KST))
+        url = calls[0]
+        assert urllib.parse.urlparse(url).path.endswith("/getVilageFcst")
+        q = _query(url)
+        assert int(q["numOfRows"]) >= 1000 and (q["nx"], q["ny"]) == ("67", "100")
+        assert (q["base_date"], q["base_time"]) == ("20261013", "1400")
 
 
 class TestErrorsAndSecrecy:

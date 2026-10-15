@@ -88,6 +88,7 @@ def test_origin_mode_api_endpoint():
             "origin_lat": 36.3628,
             "origin_lon": 127.3592,
             "origin_mode": "park",
+            "pilot_park_id": "yurim",
             "park_zone": "유림공원",
         },
     )
@@ -95,3 +96,83 @@ def test_origin_mode_api_endpoint():
     data2 = res2.json()
     assert len(data2["courses"]) > 0
     assert data2["geojson"]["type"] == "FeatureCollection"
+
+
+def test_origin_mode_real_gps_coordinates():
+    """진입 경로 1: 대전 둔산동 실제 GPS 좌표(36.3504, 127.3845) 전달 시 실시간 경로 생성 검증."""
+    res = client.post(
+        "/api/v1/walk/plan",
+        json={
+            "dog_name": "초코",
+            "target_duration_minutes": 20,
+            "origin_lat": 36.3504,
+            "origin_lon": 127.3845,
+            "origin_mode": "current_location",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["courses"]) > 0
+    coords = data["geojson"]["features"][0]["geometry"]["coordinates"]
+    # 첫 출발점 좌표가 둔산동 인근(127.38x, 36.35x)인지 검증 (유림공원 127.3592가 아님)
+    assert abs(coords[0][0] - 127.3845) < 0.01
+    assert abs(coords[0][1] - 36.3504) < 0.01
+
+
+def test_pilot_park_id_explicit_dispatch():
+    """진입 경로 2: pilot_park_id='sejong' 전달 시 세종호수공원 정밀 코스 정확히 선택 검증."""
+    res = client.post(
+        "/api/v1/walk/plan",
+        json={
+            "dog_name": "초코",
+            "target_duration_minutes": 30,
+            "origin_lat": 36.5020,
+            "origin_lon": 127.2680,
+            "origin_mode": "park",
+            "pilot_park_id": "sejong",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "세종호수" in data["courses"][0]["name"] or "수변" in data["courses"][0]["name"]
+    first_coord = data["geojson"]["features"][0]["geometry"]["coordinates"][0]
+    # 세종호수공원 좌표 대역(127.26x, 36.50x) 확인
+    assert abs(first_coord[0] - 127.265) < 0.01
+    assert abs(first_coord[1] - 36.506) < 0.01
+
+
+def test_park_mode_rejects_out_of_boundary():
+    """거점 공원 2.5km 이외 좌표로 공원 모드 요청 시 허공 직사각형 반환 대신 422 상태코드 반환 검증."""
+    res = client.post(
+        "/api/v1/walk/plan",
+        json={
+            "dog_name": "초코",
+            "target_duration_minutes": 30,
+            "origin_lat": 36.3000,
+            "origin_lon": 127.3000,
+            "origin_mode": "park",
+            "pilot_park_id": "unknown_park",
+        },
+    )
+    # 조용한 직사각형 대체가 차단되고 422 상태코드 반환
+    assert res.status_code == 422
+    assert "안전한 순환 보행로를 생성할 수 없습니다" in res.json()["detail"]
+
+
+def test_invalid_coordinate_ranges_rejected():
+    """위도/경도 범위 초과 및 잘못된 좌표 입력 시 400 Bad Request 검증."""
+    # 1. 위도 범위 초과 (91.0)
+    res1 = client.post(
+        "/api/v1/walk/plan",
+        json={"origin_lat": 91.0, "origin_lon": 127.0, "origin_mode": "current_location"},
+    )
+    assert res1.status_code == 400
+    assert "허용 범위를 초과" in res1.json()["detail"]
+
+    # 2. 숫자가 아닌 좌표
+    res2 = client.post(
+        "/api/v1/walk/plan",
+        json={"origin_lat": "invalid_lat", "origin_lon": 127.0, "origin_mode": "current_location"},
+    )
+    assert res2.status_code == 400
+

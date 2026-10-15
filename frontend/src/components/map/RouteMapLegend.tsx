@@ -35,9 +35,6 @@ export const RouteMapLegend: React.FC = () => {
 
 const styles = StyleSheet.create({
   legend: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 12,
     paddingVertical: 6,

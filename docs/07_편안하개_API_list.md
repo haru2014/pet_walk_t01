@@ -64,8 +64,8 @@ flowchart TB
 ### 🌐 기본 엔드포인트 URL
 | 대상 시스템 | 기본 접속 주소 (Live / 개발) | 설명 |
 |---|---|---|
-| **FastAPI Core 서버** | `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | Windows 환경 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 기본값 적용 (PR #28) |
-| **Supabase 클라우드** | `https://<project-id>.supabase.co` (환경변수: `EXPO_PUBLIC_SUPABASE_URL`) | 팀 공용 Supabase `petwalk-backend`, 앱은 Publishable Anon 키만 사용 (PR #24, #42) |
+| **FastAPI Core 서버** | 운영: `https://pet-walk-t01.onrender.com` / 로컬: `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | 운영은 Render 무료 플랜(팀장 계정, 잠자기 있음). Windows 로컬은 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 사용 (PR #28). 실행·배포 방법은 [`09_백엔드_서버_실행_배포_가이드.md`](09_백엔드_서버_실행_배포_가이드.md) |
+| **Supabase 클라우드** | `https://<project-id>.supabase.co` (환경변수: `EXPO_PUBLIC_SUPABASE_URL`) | 팀 공용 Supabase 프로젝트 `pet_walk`(팀장 소유), 앱은 Publishable Anon 키만 사용 (PR #24, #42) |
 | **OSM / OpenFreeMap 타일** | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | 실제 OpenStreetMap 래스터 타일 (차기: OpenFreeMap 벡터 타일 확장) |
 
 ---
@@ -88,8 +88,8 @@ flowchart TB
 | **12** | `POST` | `/auth/v1/signup` (Supabase) | 이메일 회원가입 | US-G2, US-21 | ✅ 구현 완료 | 3번 노희선 (DB/설정) | 4번 김승현 |
 | **13** | `POST` | `/auth/v1/token` (Supabase) | 이메일 로그인 & 세션 발급 | US-G2 | ✅ 구현 완료 | 3번 노희선 (DB/설정) | 4번 김승현 |
 | **14** | `POST` | `/storage/v1/object/pet-photos/*` | 반려견 사진 비공개 업로드 | US-G2 | ✅ 구현 완료 | 3번 노희선 (Storage RLS) | 4번 김승현 |
-| **15** | `POST/GET`| `/api/v1/dogs/me` | 내 반려견 프로필 관리 | US-G2, US-A2 | ⏳ 서버 작성 중 (DB/클라이언트 완료) | 3번 노희선 | 4번 김승현 |
-| **16** | `POST/GET`| `/api/v1/walks` & `/walks/me` | 산책 완주 기록 & 내 목록 | US-G2, Phase 5 | ⏳ 서버 작성 중 (DB/클라이언트 완료) | 3번 노희선 | 4번 김승현 |
+| **15** | `POST/GET`| `/api/v1/dogs/me` | 내 반려견 프로필 관리 | US-G2, US-A2 | ➖ 서버 API 미작성 (앱이 Supabase에 직접 저장, RLS로 보호) | 3번 노희선 | 4번 김승현 |
+| **16** | `POST/GET`| `/api/v1/walks` & `/walks/me` | 산책 완주 기록 & 내 목록 | US-G2, Phase 5 | ➖ 서버 API 미작성 (앱이 Supabase에 직접 저장, RLS로 보호) | 3번 노희선 | 4번 김승현 |
 
 ---
 
@@ -131,8 +131,8 @@ flowchart TB
   "request_text": "30분 동안 폭신한 길 위주로 걷고 싶어요",
   "origin_lat": 36.3628,
   "origin_lon": 127.3592,
-  "origin_mode": "pilot_park",
-  "park_id": "yurim",
+  "origin_mode": "park",
+  "pilot_park_id": "yurim",
   "recent_feedback": {
     "recent_walk_count": 3,
     "slope_dissatisfaction_count": 1,
@@ -141,7 +141,9 @@ flowchart TB
   }
 }
 ```
-> **참고**: `origin_mode`는 `current_location`(사용자 현위치 기준 순환)과 `pilot_park`(지정 공원 중심 산책, 공원 내부 90% 이상 가중치 반영)를 지원합니다.
+> **참고**: `origin_mode`는 `current_location`(실제 GPS 좌표 기준 순환, 생략 시 기본값), `park`(지정 공원 중심 산책, `pilot_park_id` 동봉: `yurim`·`sejong`·`songgang`·`doan`), `parking_pnr`(주차장 P&R)을 지원합니다. `pilot_park_id`(또는 `park_id`)만 보내고 `origin_mode`를 생략하면 `park`로 처리됩니다.
+>
+> **오류 응답 (PR #61)**: `400` 출발 좌표가 숫자가 아니거나 위도(-90~90)·경도(-180~180) 범위를 벗어남, `422` 공원 영역 안에서 안전한 순환 경로를 찾지 못함(공원 밖 임의 직사각형으로 조용히 대체하지 않음), `500` 서버 내부 오류.
 - **응답 DTO (200 OK)**:
 ```json
 {

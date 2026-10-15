@@ -57,7 +57,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(result.coursePlans?.live_1).toBeDefined();
   });
 
-  it('진입 경로 1: 현재 위치 기반(current_location) 요청 시 현위치 페이로드를 전송해야 한다', async () => {
+  it('진입 경로 1: 현재 위치 기반(current_location) 요청 시 실측 GPS 좌표를 전송해야 한다', async () => {
     let capturedBody: any = null;
     vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
       capturedBody = JSON.parse(options.body);
@@ -75,16 +75,17 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
       durationMinutes: 30,
       environments: ['soft'],
       requestText: '',
+      userCoordinates: { lat: 37.5665, lon: 126.978 }, // 서울 시청 GPS 좌표
     });
 
     expect(capturedBody).toBeDefined();
     expect(capturedBody.origin_mode).toBe('current_location');
-    expect(capturedBody.origin_lat).toBe(36.3628);
-    expect(capturedBody.origin_lon).toBe(127.3592);
+    expect(capturedBody.origin_lat).toBeCloseTo(37.5665);
+    expect(capturedBody.origin_lon).toBeCloseTo(126.978);
     expect(capturedBody.park_zone).toBe('현재 위치 주변');
   });
 
-  it('진입 경로 2: 지정 공원 둘레길(park) 요청 시 공원 좌표 및 명칭을 전송해야 한다', async () => {
+  it('진입 경로 2: 지정 공원 둘레길(park) 요청 시 공원 좌표, pilot_park_id 및 명칭을 전송해야 한다', async () => {
     let capturedBody: any = null;
     vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
       capturedBody = JSON.parse(options.body);
@@ -107,7 +108,31 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
 
     expect(capturedBody).toBeDefined();
     expect(capturedBody.origin_mode).toBe('park');
+    expect(capturedBody.pilot_park_id).toBe('yurim');
     expect(capturedBody.park_zone).toBe('대전 유림공원');
     expect(capturedBody.origin_lat).toBeCloseTo(36.3628);
+    expect(capturedBody.origin_lon).toBeCloseTo(127.3592);
+  });
+
+  it('현위치 기반 오프라인 폴백 시 실측 좌표 기준 안전 순환 경로를 생성해야 한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+
+    const result = await requestWalkPlan(dummyDog, {
+      originMode: 'current_location',
+      durationMinutes: 20,
+      environments: ['soft'],
+      requestText: '',
+      userCoordinates: { lat: 37.5665, lon: 126.978 },
+    });
+
+    expect(result.isLiveServer).toBe(false);
+    expect(result.route.type).toBe('FeatureCollection');
+    expect(result.route.features.length).toBeGreaterThan(0);
+    // 생성된 루프 첫 점이 서울 시청 인근(126.x, 37.x)인지 확인 (대전 유림공원 127.3592가 아님)
+    const firstCoord = result.route.features[0].geometry.coordinates[0];
+    expect(firstCoord[0]).toBeCloseTo(126.98, 1);
+    expect(firstCoord[1]).toBeCloseTo(37.56, 1);
+    expect(result.stepPins[0].position[0]).toBeCloseTo(126.978);
+    expect(result.stepPins[0].position[1]).toBeCloseTo(37.5665);
   });
 });

@@ -116,10 +116,10 @@ graph TD
 ## 📋 4. 세부 구현 일정 및 단계별 태스크 (Phase Roadmap)
 
 ### 📅 Sprint 1: 인프라 구축 및 OpenFreeMap 스타일 정의 (1~2일차)
-- [ ] **T-OFM-1: 의존성 패키지 설치**:
+- [x] **T-OFM-1: 의존성 패키지 설치**:
   - `maplibre-gl` (웹 렌더링용)
   - `react-native-webview` (모바일 브릿징용)
-- [ ] **T-OFM-2: 스타일 엔드포인트 및 컬러 매핑 정의 (`src/constants/mapStyles.ts`)**:
+- [x] **T-OFM-2: 스타일 엔드포인트 및 컬러 매핑 정의 (`src/constants/mapStyles.ts`)**:
   - `OPENFREEMAP_STYLES`:
     - `liberty`: `https://tiles.openfreemap.org/styles/liberty`
     - `bright`: `https://tiles.openfreemap.org/styles/bright`
@@ -127,20 +127,20 @@ graph TD
   - 편안하개 3대 테마(`themeManager.ts`)와 실시간 스타일 동기화 로직 구현.
 
 ### 📅 Sprint 2: MapLibre 하이브리드 컴포넌트 개발 (3~4일차)
-- [ ] **T-OFM-3: `MapLibreMapView.tsx` 신설 (`src/components/map/MapLibreMapView.tsx`)**:
+- [x] **T-OFM-3: `MapLibreMapView.tsx` 신설 (`src/components/map/MapLibreMapView.tsx`)**:
   - `Platform.select` 기반 분기:
     - 웹: `maplibre-gl.Map` 인스턴스 초기화 및 리사이즈 핸들러.
     - 모바일: 고속 로컬 HTML 템플릿 로드 및 양방향 postMessage 이벤트 브릿지.
-- [ ] **T-OFM-4: GeoJSON 벡터 소스 & 레이어 렌더링 파이프라인 구축**:
+- [x] **T-OFM-4: GeoJSON 벡터 소스 & 레이어 렌더링 파이프라인 구축**:
   - LineString 경로를 3색 세그먼트 스타일로 분기 렌더링 (`line-color`, `line-width: 6`).
   - 스텝 핀 및 배변 마킹 핀 심볼 레이어 탑재.
   - 200m 마스킹 영역 서클 폴리곤 레이어 추가.
 
 ### 📅 Sprint 3: 기존 지도 컴포넌트 교체 및 통합 (5일차)
-- [ ] **T-OFM-5: `RouteMapView.tsx` 고도화**:
+- [x] **T-OFM-5: `RouteMapView.tsx` 고도화**:
   - 기존 래스터 타일 의존성을 `MapLibreMapView`로 전면 전환.
   - 안심 코스 3종 대안 루프 전환 시 부드러운 `flyTo` / `fitBounds` 카메라 트랜지션 적용.
-- [ ] **T-OFM-6: `NearbyExploreMapView.tsx` (온보딩 4단계) 고도화**:
+- [x] **T-OFM-6: `NearbyExploreMapView.tsx` (온보딩 4단계) 고도화**:
   - 온보딩 4단계 주변 탐색 지도에 OpenFreeMap 적용.
   - 대전/세종 거점 공원 및 이웃 산책견 아이콘 벡터 핀 렌더링.
 

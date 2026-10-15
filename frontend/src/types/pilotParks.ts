@@ -8,7 +8,7 @@ export interface PilotPark {
   readonly name: string;
   readonly shortName: string;
   readonly badgeLabel: string;
-  readonly region: '대전' | '세종' | '서울';
+  readonly region: '대전' | '세종';
   readonly center: {
     readonly lat: number;
     readonly lon: number;
@@ -62,17 +62,6 @@ export const PILOT_PARKS: readonly PilotPark[] = [
     defaultParkingName: '도안호수공원 임시 공영주차장',
     description: '갑천 생태습지와 수변 생태공원을 잇는 광폭 평탄 산책로',
     features: ['생태 수변길', '완만한 경사', '탁 트인 시야'],
-  },
-  {
-    id: 'seoul_forest',
-    name: '서울숲 공원',
-    shortName: '서울숲',
-    badgeLabel: '🌳 서울숲',
-    region: '서울',
-    center: { lat: 37.5443, lon: 127.0374 },
-    defaultParkingName: '서울숲 공영주차장',
-    description: '거울연못과 은행나무 숲을 감싸는 성동구 대표 안심 힐링 코스',
-    features: ['중앙호수 둘레길', '메타세쿼이아 숲', '풍부한 벤치'],
   },
 ];
 

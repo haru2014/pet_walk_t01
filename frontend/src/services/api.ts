@@ -13,6 +13,14 @@ import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanByParkId } from './sampleR
 import { FeedbackSummaryPayload } from './feedbackContext';
 import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdaptivePlanner';
 
+import { fetchWithServerFallback } from './apiClient';
+
+/**
+ * 반려견 조건과 피드백을 기반으로 안심 산책 코스를 요청한다.
+ * 백엔드 서버가 활성화되어 있지 않아도 오프라인 안전 데이터로 즉시 폴백한다.
+ */
+import { getPilotParkById } from '../types/pilotParks';
+
 export interface RoutePlanResult {
   readonly isLiveServer: boolean;
   readonly courses: readonly RecommendedCourse[];
@@ -22,14 +30,45 @@ export interface RoutePlanResult {
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const API_TIMEOUT_MS = 3500;
 
-/**
- * 반려견 조건과 피드백을 기반으로 안심 산책 코스를 요청한다.
- * 백엔드 서버가 활성화되어 있지 않아도 오프라인 안전 데이터로 즉시 폴백한다.
- */
-import { getPilotParkById } from '../types/pilotParks';
+function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
+  const count = 8;
+  const radiusDeg = 0.0018; // 약 200m 완만 순환
+  const coords: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i * 2 * Math.PI) / count;
+    const pLon = lon + radiusDeg * Math.cos(angle) * 1.2;
+    const pLat = lat + radiusDeg * Math.sin(angle);
+    coords.push([Number(pLon.toFixed(6)), Number(pLat.toFixed(6))]);
+  }
+  coords.push(coords[0]);
+
+  const route: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 2.0, shaded: true },
+        geometry: {
+          type: 'LineString',
+          coordinates: coords,
+        },
+      },
+    ],
+  };
+
+  const stepPins: RouteStepPin[] = [
+    {
+      id: 'current_loc_pin_1',
+      kind: 'safe',
+      position: [lon, lat],
+      instruction: '현재 위치 주변 오프라인 안심 완만 순환 코스입니다.',
+    },
+  ];
+
+  return { route, stepPins };
+}
 
 export async function requestWalkPlan(
   dog: DogProfile,
@@ -44,8 +83,13 @@ export async function requestWalkPlan(
   const park = getPilotParkById(preferences?.pilotParkId);
 
   // 1. 현재 위치 기반 vs 2. 지정한 공원 주변 좌표 및 구역 설정
-  const originLat = isCurrentLocation ? 36.3628 : park.center.lat;
-  const originLon = isCurrentLocation ? 127.3592 : park.center.lon;
+  // 단말기 실측 GPS가 전달된 경우 우선 반영
+  const originLat = isCurrentLocation
+    ? (preferences?.userCoordinates?.lat ?? 36.3628)
+    : park.center.lat;
+  const originLon = isCurrentLocation
+    ? (preferences?.userCoordinates?.lon ?? 127.3592)
+    : park.center.lon;
   const parkZone = isCurrentLocation ? '현재 위치 주변' : park.name;
 
   try {
@@ -64,22 +108,29 @@ export async function requestWalkPlan(
       origin_mode: originMode,
       origin_lat: originLat,
       origin_lon: originLon,
+      pilot_park_id: !isCurrentLocation ? preferences?.pilotParkId : undefined,
       park_zone: parkZone,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/walk/plan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
+    const response = await fetchWithServerFallback(
+      '/api/v1/walk/plan',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+      API_TIMEOUT_MS
+    );
 
     clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();
       const defaultPlan = isCurrentLocation
-        ? { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS }
+        ? (preferences?.userCoordinates
+            ? createCurrentLocationFallbackPlan(originLat, originLon)
+            : { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS })
         : getCoursePlanByParkId(preferences?.pilotParkId);
       return {
         isLiveServer: true,
@@ -90,7 +141,7 @@ export async function requestWalkPlan(
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
       };
     }
-  } catch (_err) {
+  } catch {
     // 서버 미응답 또는 타임아웃 시 안전하게 폴백
   } finally {
     clearTimeout(timeoutId);
@@ -100,7 +151,9 @@ export async function requestWalkPlan(
   const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback);
   const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
   const defaultPlan = isCurrentLocation
-    ? { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS }
+    ? (preferences?.userCoordinates
+        ? createCurrentLocationFallbackPlan(originLat, originLon)
+        : { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS })
     : getCoursePlanByParkId(preferences?.pilotParkId);
 
   return {

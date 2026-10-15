@@ -110,7 +110,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   };
 
   useEffect(() => {
-    void loadFeeds();
+    void fetchCommunityFeeds().then((res) => {
+      setFeeds(res.feeds);
+      setIsSupabase(Boolean(res.is_supabase));
+      setIsLoading(false);
+    });
   }, []);
 
   const handleToggleAccordion = (courseId: string) => {
@@ -128,10 +132,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
   const CATEGORY_CHIPS: readonly { code: LandmarkCategoryCode; label: string }[] = [
     { code: 'ALL', label: '전체' },
+    { code: 'LM_SEJONG', label: '🏞️ 세종호수' },
+    { code: 'LM_YURIM', label: '🌿 유림공원 · 대전' },
+    { code: 'LM_SEONGSAN', label: '🌲 성산공원 · 마포' },
     { code: 'LM_SEOUL_FOREST', label: '🌳 서울숲 · 성동' },
     { code: 'LM_CITY_HALL', label: '🏛️ 시청 · 중구' },
-    { code: 'LM_SEONGSAN', label: '🌲 성산공원 · 마포' },
-    { code: 'LM_GANGNAM', label: '🏙️ 강남역 · 강남' },
   ];
 
   const filteredFeeds =
@@ -369,7 +374,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 32 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
   sectionHeader: { marginBottom: 12 },
   sectionSubtitle: { fontSize: 13, color: TOKENS.colors.textMuted },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },

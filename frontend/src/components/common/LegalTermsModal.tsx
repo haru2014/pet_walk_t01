@@ -34,20 +34,18 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
   showAcceptButton = false,
 }) => {
   const { colors } = useAppTheme();
-  const [activeTab, setActiveTab] = useState<LegalTabType>(initialTab);
-
-  // 모달이 열릴 때 초기 탭 동기화
-  React.useEffect(() => {
-    if (visible) {
-      setActiveTab(initialTab);
-    }
-  }, [visible, initialTab]);
+  const [tabOverride, setTabOverride] = useState<LegalTabType | null>(null);
+  const activeTab = tabOverride ?? initialTab;
+  const handleClose = () => {
+    setTabOverride(null);
+    onClose();
+  };
 
   const contentText = activeTab === 'terms' ? TERMS_OF_SERVICE : PRIVACY_POLICY;
   const contentTitle = activeTab === 'terms' ? '회원가입 및 서비스 이용약관' : '개인정보보호정책 (처리방침)';
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           {/* 헤더 */}
@@ -58,7 +56,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
                 약관 및 정책 안내
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={[styles.closeIcon, { color: colors.textMuted }]}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -67,7 +65,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
           <View style={[styles.tabBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => setActiveTab('terms')}
+              onPress={() => setTabOverride('terms')}
               style={[
                 styles.tabBtn,
                 activeTab === 'terms' && [styles.tabBtnActive, { backgroundColor: colors.primary }],
@@ -86,7 +84,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
 
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => setActiveTab('privacy')}
+              onPress={() => setTabOverride('privacy')}
               style={[
                 styles.tabBtn,
                 activeTab === 'privacy' && [styles.tabBtnActive, { backgroundColor: colors.primary }],
@@ -126,7 +124,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={onClose}
+                  onPress={handleClose}
                   style={[styles.outlineBtn, { borderColor: colors.border }]}
                 >
                   <Text style={[styles.outlineBtnText, { color: colors.textMuted }]}>닫기</Text>
@@ -135,7 +133,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
                   activeOpacity={0.85}
                   onPress={() => {
                     onAccept();
-                    onClose();
+                    handleClose();
                   }}
                   style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                 >
@@ -145,7 +143,7 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
             ) : (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={onClose}
+                onPress={handleClose}
                 style={[styles.primaryBtn, { backgroundColor: colors.primary, width: '100%' }]}
               >
                 <Text style={styles.primaryBtnText}>확인</Text>

@@ -12,10 +12,16 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01.onrender.com"
       }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01.onrender.com"
+      }
     }
   },
   "submit": {

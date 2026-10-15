@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LocalStorageService } from './storage';
-import { STORAGE_KEYS, WalkRecord, PoopEvent } from '../types/storage';
+import { WalkRecord, PoopEvent } from '../types/storage';
 
 const memoryStore = new Map<string, string>();
 

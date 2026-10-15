@@ -62,7 +62,7 @@ export const OnboardingSlideCard: React.FC<OnboardingSlideCardProps> = ({ slide 
       </View>
 
       <Text style={styles.title}>{slide.title}</Text>
-      <Text style={styles.headline}>"{slide.headline}"</Text>
+      <Text style={styles.headline}>&quot;{slide.headline}&quot;</Text>
       <Text style={styles.desc}>{slide.description}</Text>
 
       <View style={styles.featuresRow}>

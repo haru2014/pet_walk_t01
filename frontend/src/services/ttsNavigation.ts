@@ -21,7 +21,7 @@ export class TTSNavigationService {
   private static settings: SoundSettings = { ...DEFAULT_SOUND_SETTINGS };
   private static isInitialized = false;
   private static isBarkMuted = false;
-  private static listeners: Array<(settings: SoundSettings) => void> = [];
+  private static listeners: ((settings: SoundSettings) => void)[] = [];
 
   /** 저장된 사운드 설정을 불러와 초기화한다. */
   static async init(): Promise<SoundSettings> {

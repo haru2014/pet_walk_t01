@@ -11,7 +11,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { DogProfile } from '../../types/dogProfile';
@@ -21,7 +21,11 @@ import {
   WALK_ENVIRONMENTS,
   WalkPreferences,
   WalkOriginMode,
+  formatDurationLabel,
 } from '../../types/walkSettings';
+import { WalkVoiceInputSection } from './WalkVoiceInputSection';
+import { WalkDurationSlider } from './WalkDurationSlider';
+import { getCurrentLocationCoords } from '../../services/locationService';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -45,13 +49,43 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const [pilotParkId, setPilotParkId] = useState<string>(
     initialPreferences?.pilotParkId ?? 'yurim'
   );
-  const [duration, setDuration] = useState<number>(
+  const [duration, setDuration] = useState<number | null>(
     initialPreferences?.durationMinutes ?? 30
+  );
+  const [isFreeWalk, setIsFreeWalk] = useState<boolean>(
+    initialPreferences?.isFreeWalk ?? false
+  );
+  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(
+    Boolean(
+      initialPreferences?.isFreeWalk ||
+      (initialPreferences?.durationMinutes && ![20, 30, 40, 60].includes(initialPreferences.durationMinutes))
+    )
   );
   const [environments, setEnvironments] = useState<EnvironmentId[]>(
     initialPreferences?.environments ?? ['soft', 'shade', 'stairs']
   );
-  const [requestText] = useState<string>(initialPreferences?.requestText ?? '');
+  const [requestText, setRequestText] = useState<string>(initialPreferences?.requestText ?? '');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | undefined>(
+    initialPreferences?.userCoordinates
+  );
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const fetchUserLocation = async () => {
+    setIsLocating(true);
+    setLocationError(null);
+    const res = await getCurrentLocationCoords(5000);
+    setIsLocating(false);
+    if (res.ok && res.coords) {
+      const coords = { lat: res.coords.latitude, lon: res.coords.longitude };
+      setUserCoords(coords);
+      return coords;
+    } else {
+      const err = res.errorMessage || '현재 위치를 확인할 수 없습니다.';
+      setLocationError(err);
+      return null;
+    }
+  };
 
   const handleToggleEnvironment = (id: EnvironmentId) => {
     setEnvironments((prev) =>
@@ -61,15 +95,32 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   const currentPark = getPilotParkById(pilotParkId);
 
-  const handleSubmit = () => {
-    onFindRoute({
-      originMode,
-      durationMinutes: duration,
-      environments,
-      requestText,
-      isFreeWalk: false,
-      pilotParkId: originMode === 'park' ? pilotParkId : undefined,
-    });
+  const handleSubmit = async () => {
+    const payloadDuration = isFreeWalk ? null : duration;
+    if (originMode === 'current_location') {
+      let coords = userCoords;
+      if (!coords) {
+        coords = (await fetchUserLocation()) ?? undefined;
+      }
+      onFindRoute({
+        originMode,
+        durationMinutes: payloadDuration,
+        environments,
+        requestText,
+        isFreeWalk,
+        pilotParkId: undefined,
+        userCoordinates: coords,
+      });
+    } else {
+      onFindRoute({
+        originMode,
+        durationMinutes: payloadDuration,
+        environments,
+        requestText,
+        isFreeWalk,
+        pilotParkId,
+      });
+    }
   };
 
   return (
@@ -83,7 +134,11 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <View style={styles.contentWrap}>
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={styles.contentWrap}
+        showsVerticalScrollIndicator={false}
+      >
         {/* 2. 타이틀 & 안내 섹션 (03_walk_settings.png 원형 복원) */}
         <View style={styles.titleSection}>
           <Text style={[styles.mainTitle, { color: colors.textMain }]}>
@@ -94,11 +149,23 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           </Text>
         </View>
 
-        {/* 3. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
+        {/* 3. 직접 말해도 좋아요 (자연어 음성/텍스트 입력 섹션 - US-A1) */}
+        <WalkVoiceInputSection
+          dogName={dog.name}
+          requestText={requestText}
+          onChangeText={setRequestText}
+        />
+
+        {/* 4. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
         <View style={styles.originModeRow}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => setOriginMode('current_location')}
+            onPress={() => {
+              setOriginMode('current_location');
+              if (!userCoords && !isLocating) {
+                void fetchUserLocation();
+              }
+            }}
             style={[
               styles.originModeBtn,
               {
@@ -147,13 +214,23 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             <AppIcon name="sparkle" size={15} color={colors.primaryDark} />
             <Text style={[styles.aiBannerTitle, { color: colors.primaryDark }]}>
               {originMode === 'current_location'
-                ? '현재 위치 기준 실시간 안심 경로'
+                ? isLocating
+                  ? '현재 GPS 위치 수신 중...'
+                  : userCoords
+                  ? `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`
+                  : '현재 위치 기준 실시간 안심 경로'
                 : `${currentPark.shortName} (공원 보행률 90% 이상)`}
             </Text>
           </View>
-          <Text style={[styles.aiBannerBody, { color: colors.textMuted }]}>
+          <Text style={[styles.aiBannerBody, { color: locationError ? '#DC2626' : colors.textMuted }]}>
             {originMode === 'current_location'
-              ? '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)'
+              ? locationError
+                ? `⚠️ ${locationError}`
+                : isLocating
+                ? '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...'
+                : userCoords
+                ? '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.'
+                : '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)'
               : `${currentPark.name}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`}
           </Text>
 
@@ -190,41 +267,82 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           )}
         </View>
 
-        {/* 5. 섹션 1: 얼마나 걸을까요? (4개 원터치 칩 20분 / 30분 / 40분 / 1시간) */}
+        {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
         <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
-          <View style={styles.durationChipRow}>
-            {PRESET_DURATIONS.map((min) => {
-              const isSelected = duration === min;
-              const label = min === 60 ? '1시간' : `${min}분`;
-              return (
-                <TouchableOpacity
-                  key={min}
-                  activeOpacity={0.8}
-                  onPress={() => setDuration(min)}
-                  style={[
-                    styles.durationChip,
-                    {
-                      backgroundColor: isSelected ? colors.primary : colors.surface,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.durationTitleRow}>
+              <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
+              <View style={[styles.durationBadge, { backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.durationBadgeText, { color: colors.primaryDark }]}>
+                  {formatDurationLabel(duration, isFreeWalk)}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setShowDetailedDuration((prev) => !prev)}
+              style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
+            >
+              <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
+                {showDetailedDuration ? '간편 설정 접기 ▲' : '상세 설정 (최대 2시간) ▼'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {!showDetailedDuration ? (
+            <View style={styles.durationChipRow}>
+              {PRESET_DURATIONS.map((min) => {
+                const isSelected = !isFreeWalk && duration === min;
+                const label = min === 60 ? '1시간' : `${min}분`;
+                return (
+                  <TouchableOpacity
+                    key={min}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setIsFreeWalk(false);
+                      setDuration(min);
+                    }}
                     style={[
-                      styles.durationChipText,
+                      styles.durationChip,
                       {
-                        color: isSelected ? colors.textWhite : colors.textMain,
-                        fontWeight: isSelected ? '800' : '600',
+                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                   >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.durationChipText,
+                        {
+                          color: isSelected ? colors.textWhite : colors.textMain,
+                          fontWeight: isSelected ? '800' : '600',
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <WalkDurationSlider
+              duration={duration}
+              isFreeWalk={isFreeWalk}
+              onChangeDuration={(mins) => {
+                setIsFreeWalk(false);
+                setDuration(mins);
+              }}
+              onChangeFreeWalk={(free) => {
+                setIsFreeWalk(free);
+                if (free) {
+                  setDuration(null);
+                } else if (!duration) {
+                  setDuration(30);
+                }
+              }}
+            />
+          )}
         </View>
 
         {/* 5. 섹션 2: 어떤 길이 좋을까요? (6대 안심 환경 2열 카드 그리드 복원) */}
@@ -269,20 +387,32 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             })}
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       {/* 6. 하단 Thumb Zone 탐색 버튼 (03_walk_settings.png 원형 복원) */}
       <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.88}
+          disabled={isLocating}
           onPress={handleSubmit}
-          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          style={[styles.submitButton, { backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
         >
           <View style={styles.submitButtonContent}>
-            <AppIcon name="sparkle" size={18} color={colors.textWhite} />
-            <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
-              AI 산책 코스 찾아보기
-            </Text>
+            {isLocating ? (
+              <>
+                <ActivityIndicator size="small" color={colors.textWhite} style={{ marginRight: 6 }} />
+                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                  현재 위치 확인 중...
+                </Text>
+              </>
+            ) : (
+              <>
+                <AppIcon name="sparkle" size={18} color={colors.textWhite} />
+                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                  AI 산책 코스 찾아보기
+                </Text>
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -305,12 +435,13 @@ const styles = StyleSheet.create({
   backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
   headerPlaceholder: { width: 32 },
-  contentWrap: {
+  contentScroll: {
     flex: 1,
+  },
+  contentWrap: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 6,
-    justifyContent: 'space-between', // 스크롤 없이 한 화면에 균형 배치
+    paddingBottom: 20,
   },
   titleSection: {
     marginBottom: 4,
@@ -386,6 +517,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+  },
+  durationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  durationBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  durationBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  detailToggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  detailToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   sectionTitle: {
     fontSize: 14,

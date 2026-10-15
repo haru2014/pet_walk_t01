@@ -19,7 +19,7 @@ import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
-import { DogProfile } from '../../types/dogProfile';
+import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
 import { RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
@@ -68,7 +68,10 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (planResult?.isLiveServer && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
-    return getCoursePlanById(currentCourse?.id, getCoursePlanByParkId(preferences?.pilotParkId));
+    return getCoursePlanById(
+      currentCourse?.id,
+      getCoursePlanByParkId(preferences?.pilotParkId, selectedCourseIndex)
+    );
   }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId]);
 
   const activeRoute = activePlan.route;
@@ -79,8 +82,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     [activeRoute, dog.speedKmH],
   );
   const bookmarkCandidate = useMemo(
-    () => (currentCourse ? createBookmark(currentCourse, plan, dog.name) : null),
-    [currentCourse, plan, dog.name],
+    () => (currentCourse ? createBookmark(currentCourse, plan, toWalkDogSummary(dog)) : null),
+    [currentCourse, plan, dog],
   );
 
   const conditionLabels = useMemo(() => {
@@ -108,38 +111,46 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
       </View>
 
-      {/* 2. 상단 AI 맞춤 브리핑 & 조건 태그 (04_course_recommendation.png 원형 복원) */}
-      <View style={[styles.briefingSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.titleRow}>
-          <AppIcon name="sparkle" size={16} color={colors.primaryDark} />
-          <Text style={[styles.briefingTitle, { color: colors.textMain }]}>
-            {dog.name}에게 맞는 산책 코스를 찾았어요.
+      {/* 스크롤 가능한 본문 영역 (헤더와 하단 카드는 화면에 안정적으로 고정) */}
+      <ScrollView
+        style={styles.mainScroll}
+        contentContainerStyle={styles.mainScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 2. 상단 AI 맞춤 브리핑 & 조건 태그 (04_course_recommendation.png 원형 복원) */}
+        <View style={[styles.briefingSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <View style={styles.titleRow}>
+            <AppIcon name="sparkle" size={16} color={colors.primaryDark} />
+            <Text style={[styles.briefingTitle, { color: colors.textMain }]}>
+              {dog.name}에게 맞는 산책 코스를 찾았어요.
+            </Text>
+          </View>
+          <Text style={[styles.briefingDesc, { color: colors.textMuted }]} numberOfLines={2}>
+            {briefingText}
           </Text>
+          {/* 가로 태그 칩 */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
+            {conditionLabels.map((lbl) => (
+              <View key={lbl} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
-        <Text style={[styles.briefingDesc, { color: colors.textMuted }]} numberOfLines={2}>
-          {briefingText}
-        </Text>
-        {/* 가로 태그 칩 */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
-          {conditionLabels.map((lbl) => (
-            <View key={lbl} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
 
-      {/* 3. 중앙 실시간 지도 (flex: 1로 남은 공간 전체 활용하여 스크롤 완전 배제) */}
-      <View style={styles.mapSection}>
-        <RouteMapView
-          key={currentCourse.id}
-          route={activeRoute}
-          stepPins={activePins}
-          speedKmH={dog.speedKmH}
-          onStart={() => onStartWalk(currentCourse, plan)}
-          onPinSelect={onPinSelect}
-        />
-      </View>
+        {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
+        <View style={styles.mapSection}>
+          <RouteMapView
+            size="large"
+            route={activeRoute}
+            stepPins={activePins}
+            speedKmH={dog.speedKmH}
+            stairsCount={currentCourse.stairsCount}
+            onStart={() => onStartWalk(currentCourse, plan)}
+            onPinSelect={onPinSelect}
+          />
+        </View>
+      </ScrollView>
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
       <View style={[styles.bottomCard, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -187,10 +198,14 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           </Text>
         </View>
 
-        {/* 3대 안심 지표 바 (노면 / 경사 / 그늘) */}
+        {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <Text style={[styles.metricText, { color: colors.textMuted }]}>
             폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{currentCourse.softRatio}</Text>
+          </Text>
+          <Text style={styles.metricDot}>·</Text>
+          <Text style={[styles.metricText, { color: colors.textMuted }]}>
+            계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
           </Text>
           <Text style={styles.metricDot}>·</Text>
           <Text style={[styles.metricText, { color: colors.textMuted }]}>
@@ -246,7 +261,9 @@ const styles = StyleSheet.create({
   tagScrollRow: { flexDirection: 'row' },
   tagChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 6 },
   tagText: { fontSize: 10, fontWeight: '700' },
-  mapSection: { flex: 1, minHeight: 180 },
+  mainScroll: { flex: 1 },
+  mainScrollContent: { flexGrow: 1 },
+  mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
@@ -278,9 +295,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 8,
+    gap: 6,
   },
-  metricText: { fontSize: 11 },
+  metricText: { fontSize: 10 },
   metricDot: { color: 'rgba(0,0,0,0.2)', fontSize: 10 },
   startButton: {
     height: 48,

@@ -11,6 +11,8 @@ export interface RouteSegmentProperties {
   readonly segmentType: SegmentType;
   readonly maxSlopePercent: number;
   readonly shaded: boolean;
+  /** Present when the source identifies stairs along this route segment. */
+  readonly hasStairs?: boolean;
 }
 
 export interface RouteSegmentFeature {
@@ -32,6 +34,10 @@ export interface RouteStepPin {
   readonly kind: 'turn' | 'caution' | 'safe';
   readonly position: LonLat;
   readonly instruction: string;
+  /** Optional glyph override for map markers such as onboarding demo pins. */
+  readonly icon?: string;
+  readonly title?: string;
+  readonly detail?: string;
 }
 
 export interface CourseSummary {

@@ -9,13 +9,13 @@
 - 발표 시각 규칙 (공식 활용가이드):
   초단기실황  base_time 매 정시(HH00),  정시 10분 이후 호출 가능
   초단기예보  base_time 매시 30분(HH30), 매시 45분 이후 호출 가능
+  단기예보    base_time 0200 0500 0800 1100 1400 1700 2000 2300 (하루 8회), 각각 10분 이후 호출 가능
 - 응답 값 중 절댓값 900 이상은 결측(Missing)이므로 None 으로 바꾼다.
 """
 
 import json
 import math
 import os
-import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -23,6 +23,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from services.http_util import ssl_context as _ssl_context
 from services.kma_grid_converter import latlon_to_grid
 
 KST = timezone(timedelta(hours=9))  # 한국 표준시 (일광절약시간 없음)
@@ -34,6 +35,8 @@ DEFAULT_TIMEOUT_S = 5.0
 
 OP_ULTRA_SRT_NCST = "getUltraSrtNcst"  # 초단기실황
 OP_ULTRA_SRT_FCST = "getUltraSrtFcst"  # 초단기예보
+OP_VILAGE_FCST = "getVilageFcst"  # 단기예보
+VILAGE_BASE_HOURS = (2, 5, 8, 11, 14, 17, 20, 23)  # 단기예보 발표 시각 (하루 8회), 정시 10분 이후 호출 가능
 
 CACHE_TTL_S = 600.0  # 기상청 자료는 10분마다 갱신된다
 _MISSING_LIMIT = 900.0
@@ -60,6 +63,9 @@ def _to_kst(now: Optional[datetime]) -> datetime:
     return now.astimezone(KST) if now.tzinfo else now.replace(tzinfo=KST)
 
 
+to_kst = _to_kst  # 다른 모듈(어댑터 등)이 쓰는 공개 이름
+
+
 def latest_ultra_srt_ncst_base(now: Optional[datetime] = None) -> Tuple[str, str]:
     """지금 조회 가능한 가장 최근 초단기실황 (base_date, base_time)."""
     t = _to_kst(now) - timedelta(minutes=10)
@@ -74,6 +80,15 @@ def latest_ultra_srt_fcst_base(now: Optional[datetime] = None) -> Tuple[str, str
     return t.strftime("%Y%m%d"), t.strftime("%H30")
 
 
+def latest_vilage_fcst_base(now: Optional[datetime] = None) -> Tuple[str, str]:
+    """지금 조회 가능한 가장 최근 단기예보 (base_date, base_time). 02시 10분 이전에는 전날 23시 발표분."""
+    t = _to_kst(now) - timedelta(minutes=10)
+    available = [h for h in VILAGE_BASE_HOURS if h <= t.hour]
+    if available:
+        return t.strftime("%Y%m%d"), f"{max(available):02d}00"
+    return (t - timedelta(days=1)).strftime("%Y%m%d"), "2300"
+
+
 def _parse_value(category: str, raw: Any) -> Any:
     """응답 값을 숫자로 바꾼다. 결측은 None, 숫자가 아닌 범주 문자열은 그대로 둔다."""
     try:
@@ -83,19 +98,6 @@ def _parse_value(category: str, raw: Any) -> Any:
     if not math.isfinite(number) or abs(number) >= _MISSING_LIMIT:
         return None
     return int(round(number)) if category in _INT_CATEGORIES else number
-
-
-def _ssl_context() -> ssl.SSLContext:
-    """인증서 검증을 유지한 채 certifi 인증서를 쓴다.
-
-    macOS 의 python.org 파이썬은 기본 인증서 목록이 없어 HTTPS 호출이
-    CERTIFICATE_VERIFY_FAILED 로 실패한다. certifi 는 requests 의 의존 패키지다.
-    """
-    try:
-        import certifi
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        return ssl.create_default_context()
 
 
 def _http_get(url: str, timeout: float) -> str:
@@ -161,12 +163,29 @@ def fetch_ultra_srt_fcst(nx: int, ny: int, *, now: Optional[datetime] = None,
     params = {"pageNo": 1, "numOfRows": 100, "base_date": base_date,
               "base_time": base_time, "nx": nx, "ny": ny}
     items = _call(OP_ULTRA_SRT_FCST, params, service_key, timeout)
+    return {"base_date": base_date, "base_time": base_time, "nx": nx, "ny": ny,
+            "forecasts": _group_forecasts(items)}
+
+
+def _group_forecasts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """예보 항목을 (예보일자, 예보시각)별로 묶어 시간순으로 돌려준다."""
     grouped: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for i in items:
         slot = grouped.setdefault((i["fcstDate"], i["fcstTime"]), {})
         slot[i["category"]] = _parse_value(i["category"], i.get("fcstValue"))
-    forecasts = [{"fcst_date": d, "fcst_time": t, "values": v} for (d, t), v in sorted(grouped.items())]
-    return {"base_date": base_date, "base_time": base_time, "nx": nx, "ny": ny, "forecasts": forecasts}
+    return [{"fcst_date": d, "fcst_time": t, "values": v} for (d, t), v in sorted(grouped.items())]
+
+
+def fetch_vilage_fcst(nx: int, ny: int, *, now: Optional[datetime] = None,
+                      service_key: Optional[str] = None,
+                      timeout: float = DEFAULT_TIMEOUT_S) -> Dict[str, Any]:
+    """단기예보: 격자 (nx, ny)의 앞으로 며칠간 시간별 예보. values 에 TMP(기온), SKY, PTY 등."""
+    base_date, base_time = latest_vilage_fcst_base(now)
+    params = {"pageNo": 1, "numOfRows": 1000, "base_date": base_date,
+              "base_time": base_time, "nx": nx, "ny": ny}
+    items = _call(OP_VILAGE_FCST, params, service_key, timeout)
+    return {"base_date": base_date, "base_time": base_time, "nx": nx, "ny": ny,
+            "forecasts": _group_forecasts(items)}
 
 
 def fetch_current_weather_at(lat: float, lon: float, **kwargs: Any) -> Dict[str, Any]:

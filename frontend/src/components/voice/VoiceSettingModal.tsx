@@ -24,14 +24,9 @@ const VOLUME_STEPS = [0.2, 0.4, 0.6, 0.8, 1.0];
 export const VoiceSettingModal: React.FC<VoiceSettingModalProps> = ({ visible, onClose }) => {
   const [settings, setSettings] = useState<SoundSettings>(() => TTSNavigationService.getSettings());
 
-  useEffect(() => {
-    if (visible) {
-      setSettings(TTSNavigationService.getSettings());
-    }
-    return TTSNavigationService.subscribe((next) => {
+  useEffect(() => TTSNavigationService.subscribe((next) => {
       setSettings(next);
-    });
-  }, [visible]);
+  }), []);
 
   const handleSelectProfile = (id: VoiceProfileId) => {
     void TTSNavigationService.setProfile(id);
@@ -197,6 +192,7 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: '100%',
+    maxWidth: 440,
     maxHeight: '85%',
     backgroundColor: TOKENS.colors.surface,
     borderRadius: 20,

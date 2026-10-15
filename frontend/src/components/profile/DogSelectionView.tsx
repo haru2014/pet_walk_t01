@@ -81,13 +81,15 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
     <View style={styles.container}>
       {/* 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onBack}
-          style={styles.backButton}
-        >
-          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
-        </TouchableOpacity>
+        {dogs.length > 0 ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onBack}
+            style={styles.backButton}
+          >
+            <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
+          </TouchableOpacity>
+        ) : <View style={styles.backButton} />}
         <Text style={styles.headerTitle}>강아지 선택</Text>
         <View style={styles.headerPlaceholder} />
       </View>
@@ -102,6 +104,11 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
         {/* 내 강아지 리스트 */}
         <View style={styles.listSection}>
           <Text style={styles.sectionHeading}>내 강아지</Text>
+          {dogs.length === 0 && (
+            <Text style={styles.emptyProfilesMessage}>
+              등록된 반려견 프로필이 없습니다. 새 강아지를 등록해 주세요.
+            </Text>
+          )}
 
           {dogs.map((dog) => {
             const isSelected = dog.id === selectedDogId;
@@ -155,7 +162,8 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={onContinue}
-          style={styles.continueButton}
+          disabled={!selectedDog}
+          style={[styles.continueButton, !selectedDog && styles.continueButtonDisabled]}
         >
           <Text style={styles.continueButtonText}>
             {selectedDog ? `${selectedDog.name}와 산책 설정하기` : '강아지를 선택해주세요'}
@@ -292,7 +300,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   titleSection: {
     marginBottom: 24,
@@ -317,6 +325,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 12,
+  },
+  emptyProfilesMessage: {
+    marginBottom: 12,
+    color: TOKENS.colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   dogCard: {
     backgroundColor: TOKENS.colors.surface,
@@ -420,32 +434,31 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.primaryDark,
   },
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: TOKENS.colors.surface,
     borderTopWidth: 1,
     borderTopColor: TOKENS.colors.border,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   continueButton: {
     backgroundColor: TOKENS.colors.primary,
-    height: 52,
-    borderRadius: 16,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
+  },
+  continueButtonDisabled: {
+    opacity: 0.45,
   },
   continueButtonText: {
     color: '#FFFFFF',

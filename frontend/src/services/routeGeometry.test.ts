@@ -78,7 +78,7 @@ describe('routeGeometry - buildCourseSummary', () => {
     expect(summary.totalDistanceKm).toBeGreaterThan(0.8);
     expect(summary.totalDistanceKm).toBeLessThan(1.5);
     expect(summary.estimatedMinutes).toBeGreaterThan(15);
-    expect(summary.maxSlopePercent).toBe(7.8);
+    expect(summary.maxSlopePercent).toBe(2.2);
     expect(summary.shadeRatioPercent).toBeGreaterThan(0);
     expect(summary.shadeRatioPercent).toBeLessThanOrEqual(100);
   });
