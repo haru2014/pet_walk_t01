@@ -8,7 +8,8 @@
       "status=legacy_unverified 항목은 기존 데이터이며 공식 자료와 맞지 않는 부분이 있다 (data_issue 참고).",
       "park_link_verified=false 는 주차장 자체는 공식이지만 해당 공원과의 연계(거리)를 확인하지 못했다는 뜻이다.",
       "entrance_lat/entrance_lon 은 공식 항목에서는 표준데이터의 주차장 위치 좌표이다 (보행 출입구가 아님).",
-      "원본 CSV(약 5MB, 전국)는 저장소에 포함하지 않는다."
+      "원본 CSV(약 5MB, 전국)는 저장소에 포함하지 않는다.",
+      "park_link_verified=true 는 이름이 공원과 연계되거나, 공원 대표점(docs/reference/parks_gis/park_locations.geojson)에서 300m 이내인 공식 주차장이다. 대표점은 공원 경계가 아니라 중심 부근 좌표이다."
     ]
   },
   "parking_lots": [
@@ -45,8 +46,8 @@
       "source": "전국주차장정보표준데이터 (공공데이터포털 15012896) 기준일자 2026-04-16",
       "verified": true,
       "status": "official",
-      "park_link_verified": false,
-      "park_link_basis": "송강동 소재 공영주차장. 송강근린공원 위치는 미확인",
+      "park_link_verified": true,
+      "park_link_basis": "송강동 소재 공영주차장. 송강근린공원 대표점(OSM way 564388430)에서 121m로 300m 이내",
       "official_id": "186-2-000002",
       "parking_type": "노외"
     },
@@ -64,8 +65,8 @@
       "source": "전국주차장정보표준데이터 (공공데이터포털 15012896) 기준일자 2026-04-16",
       "verified": true,
       "status": "official",
-      "park_link_verified": false,
-      "park_link_basis": "송강동 소재 공영주차장. 송강근린공원 위치는 미확인",
+      "park_link_verified": true,
+      "park_link_basis": "송강동 소재 공영주차장. 송강근린공원 대표점(OSM way 564388430)에서 187m로 300m 이내",
       "official_id": "186-2-000003",
       "parking_type": "노외"
     },
@@ -84,7 +85,7 @@
       "verified": true,
       "status": "official",
       "park_link_verified": false,
-      "park_link_basis": "도안동 소재 공영주차장. 도안호수공원 위치는 미확인",
+      "park_link_basis": "도안동 소재 공영주차장. 갑천 생태호수공원 대표점(OSM relation 19159630)에서 2588m로 멀어 연계 확인 불가",
       "official_id": "185-2-000076",
       "parking_type": "노외"
     },
@@ -103,7 +104,7 @@
       "verified": true,
       "status": "official",
       "park_link_verified": false,
-      "park_link_basis": "도안동 소재 공영주차장. 도안호수공원 위치는 미확인",
+      "park_link_basis": "도안동 소재 공영주차장. 갑천 생태호수공원 대표점(OSM relation 19159630)에서 564m로 300m 초과, 연계 확인 불가",
       "official_id": "185-2-000045",
       "parking_type": "노외"
     },
