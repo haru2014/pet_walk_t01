@@ -8,7 +8,7 @@
  * - Phase 5: 완주 기록 영구 저장 (100회 FIFO) & 3초 인포그래픽 리포트
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
@@ -95,7 +95,6 @@ export default function App() {
         if (!savedProfile) await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, migratedDogs[0]);
       }
       setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
-      if (typeof window !== 'undefined') (window as any).__petWalkNav = { setSubScreen, setActiveTab, setCompletedRecord, handleStopWalkAndReport, consent };
       if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
     }
     void loadData();
@@ -247,7 +246,7 @@ export default function App() {
     void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
-  const handleStopWalkAndReport = async () => {
+  const handleStopWalkAndReport = useCallback(async () => {
     const distKm = walk.stats.distanceKm;
     const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const newRecord: WalkRecord = {
@@ -277,7 +276,13 @@ export default function App() {
     await walk.stop();
     setCompletedRecord(newRecord);
     setSubScreen('report');
-  };
+  }, [walk, activeDog]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__petWalkNav = { setSubScreen, setActiveTab, setCompletedRecord, handleStopWalkAndReport, consent };
+    }
+  }, [handleStopWalkAndReport, consent]);
 
   const handleResetAllData = async () => {
     await ConsentService.resetAllLocalData();
