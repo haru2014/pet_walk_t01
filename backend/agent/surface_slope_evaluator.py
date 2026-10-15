@@ -9,6 +9,7 @@ import math
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from agent.route_geometry import haversine_m, polyline_length_m
+from services.dem import get_elevation_m
 
 
 # ==============================================================================
@@ -18,9 +19,18 @@ from agent.route_geometry import haversine_m, polyline_length_m
 def estimate_elevation_m(lon: float, lat: float) -> float:
     """위경도 좌표에 대한 지형 표고(해발 고도, m)를 추정/반환한다.
     
-    서울 주요 랜드마크 지형(남산/회현 능선, 인왕산/정동 언덕, 테헤란로 고개, 서울숲 평지)의
-    실제 DEM 실측 데이터를 모델링하고 부드러운 2차 표면 보간을 적용한다.
+    DEM_DIR 의 실제 DEM 파일이 이 좌표를 덮으면 그 값(주변 4칸 쌍선형 보간)을 쓴다.
+    그렇지 않으면 서울 주요 랜드마크 지형(남산/회현 능선, 인왕산/정동 언덕, 테헤란로 고개,
+    서울숲 평지)을 모델링한 근사값을 쓴다.
     """
+    real_elevation = get_elevation_m(lat, lon)  # services/dem.py
+    if real_elevation is not None:
+        return round(real_elevation, 1)
+    return _approximate_elevation_m(lon, lat)
+
+
+def _approximate_elevation_m(lon: float, lat: float) -> float:
+    """실제 DEM 이 없을 때 쓰는 근사 고도 모델 (서울 주요 지형 기반)."""
     # 1. 서울숲 / 성수동 (한강 평지: 해발 약 8 ~ 14m)
     if 127.030 <= lon <= 127.050 and 37.535 <= lat <= 37.550:
         base = 11.0
@@ -60,15 +70,35 @@ def estimate_elevation_m(lon: float, lat: float) -> float:
     return round(max(10.0, base_dem), 1)
 
 
-def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float]) -> float:
-    """두 좌표 사이의 수평 거리(m)와 DEM 고도차(m)를 이용하여 경사도(%)를 계산한다."""
+MIN_SLOPE_BASELINE_M = 150.0
+# DEM 칸(약 25~31m, 90m)과 건물·나무 잡음 때문에 24m 정도의 짧은 구간에서 구한 경사는 믿기 어렵다.
+# (대전 유림공원 하천변 평지 경로: 구간 그대로 최대 23%, 150m 로 늘리면 7%) 그래서 짧은 구간은
+# 중심에서 양쪽으로 늘려 최소 150m 간격의 고도 차이로 경사를 구한다.
+
+
+def _elevations_from_one_source(p1: Sequence[float], p2: Sequence[float]) -> Tuple[float, float]:
+    """두 점의 고도를 같은 출처(실제 DEM 둘 다, 아니면 근사 모델 둘 다)에서 구한다.
+
+    한 점만 DEM 범위 안이면 실제 값과 근사값을 비교하게 되어 엉뚱한 경사가 나오므로 막는다.
+    """
+    real1, real2 = get_elevation_m(p1[1], p1[0]), get_elevation_m(p2[1], p2[0])
+    if real1 is not None and real2 is not None:
+        return real1, real2
+    return _approximate_elevation_m(p1[0], p1[1]), _approximate_elevation_m(p2[0], p2[1])
+
+
+def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float],
+                                    min_baseline_m: float = MIN_SLOPE_BASELINE_M) -> float:
+    """두 좌표 구간의 경사도(%)를 계산한다. 구간이 min_baseline_m 보다 짧으면 중심에서 양쪽으로 늘려 구한다."""
     dist_m = haversine_m(p1, p2)
     if dist_m < 1.0:
         return 0.0
-    ele1 = estimate_elevation_m(p1[0], p1[1])
-    ele2 = estimate_elevation_m(p2[0], p2[1])
-    d_ele = abs(ele2 - ele1)
-    slope = (d_ele / dist_m) * 100.0
+    scale = max(1.0, min_baseline_m / dist_m)
+    mid_lon, mid_lat = (p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0
+    start = (mid_lon + (p1[0] - mid_lon) * scale, mid_lat + (p1[1] - mid_lat) * scale)
+    end = (mid_lon + (p2[0] - mid_lon) * scale, mid_lat + (p2[1] - mid_lat) * scale)
+    ele1, ele2 = _elevations_from_one_source(start, end)
+    slope = (abs(ele2 - ele1) / (dist_m * scale)) * 100.0
     return round(slope, 1)
 
 
@@ -210,8 +240,7 @@ def evaluate_route_metrics(coords: Sequence[Sequence[float]]) -> Dict[str, Any]:
         p1, p2 = coords[i], coords[i + 1]
         dist = haversine_m(p1, p2)
         if dist >= 1.0:
-            ele_diff = abs(elevations[i + 1] - elevations[i])
-            slope = (ele_diff / dist) * 100.0
+            slope = calculate_segment_slope_percent(p1, p2)
             slopes.append(slope)
             total_len += dist
             weighted_slope_sum += slope * dist

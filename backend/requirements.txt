@@ -28,6 +28,7 @@ google-generativeai>=0.8.0               # Gemini Multimodal Vision API 체인
 # OSM 보행망 계단 회피(highway=steps), DEM 15도 미만 완만경사, SunCalc 실시간 그늘길 분석
 shapely>=2.0.0                           # 지리 기하학 연산 (라인스트링, 폴리곤 공간 분석)
 pyproj>=3.6.0                            # 좌표계 변환 (WGS84 EPSG:4326 및 투영 좌표계)
+rasterio>=1.4                            # DEM 고도 래스터(GeoTIFF, ERDAS .img) 읽기 (CI 파이썬 3.11 은 1.4.x 설치)
 suncalc>=0.1.2                           # 태양 고도/방위각 기반 실시간 그늘길 계산
 networkx>=3.2                            # 보행 네트워크 그래프 분석 및 순환 루프 탐색
 openrouteservice>=2.3.0                  # OpenRouteService Routing API 어댑터
