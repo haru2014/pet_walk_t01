@@ -12,6 +12,7 @@
   https://registry.opendata.aws/copernicus-dem"), 국토지리정보원 공개DEM (90m, EPSG:5179).
 """
 
+import logging
 import math
 import os
 from dataclasses import dataclass
@@ -19,10 +20,18 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
 import numpy as np
-import rasterio
 from pyproj import Transformer
-from rasterio.errors import RasterioIOError
-from rasterio.windows import Window
+
+try:
+    import rasterio
+    from rasterio.errors import RasterioIOError
+    from rasterio.windows import Window
+except ImportError:  # DEM 은 선택 기능이다: rasterio 가 없으면 DEM 만 끄고 서버는 근사 고도로 동작한다
+    rasterio = None
+    RasterioIOError = OSError  # type: ignore[misc, assignment]
+    Window = None  # type: ignore[assignment, misc]
+
+logger = logging.getLogger(__name__)
 
 ENV_DEM_DIR = "DEM_DIR"
 SUPPORTED_SUFFIXES = {".tif", ".tiff", ".img"}
@@ -41,6 +50,8 @@ class _Raster:
     """DEM 파일 하나. 위경도로 고도를 읽는다."""
 
     def __init__(self, path: Path) -> None:
+        if rasterio is None:
+            raise ValueError("rasterio 가 설치되어 있지 않습니다 (pip install -r backend/requirements.txt)")
         self.path = path
         self.ds = rasterio.open(path)
         if self.ds.crs is None:
@@ -106,7 +117,7 @@ class DemSet:
             try:
                 rasters.append(_Raster(Path(path)))
             except (RasterioIOError, ValueError, OSError) as exc:
-                skipped.append(f"{Path(path).name}: {type(exc).__name__}")
+                skipped.append(f"{Path(path).name}: {type(exc).__name__} {exc}".strip())
         return cls(rasters, skipped)
 
     @classmethod
@@ -147,7 +158,10 @@ def get_dem_set() -> DemSet:
     directory = os.getenv(ENV_DEM_DIR) or None
     if _default is None or _default[0] != directory:
         reset_default_dem()
-        _default = (directory, DemSet.from_dir(Path(directory)) if directory else DemSet([]))
+        dem_set = DemSet.from_dir(Path(directory)) if directory else DemSet([])
+        if dem_set.skipped:
+            logger.warning("DEM 파일 %d개를 읽지 못해 건너뜁니다: %s", len(dem_set.skipped), "; ".join(dem_set.skipped[:5]))
+        _default = (directory, dem_set)
     return _default[1]
 
 

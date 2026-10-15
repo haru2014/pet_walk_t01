@@ -278,6 +278,55 @@ class TestWiringIntoSlopeEvaluator:
         assert flat == pytest.approx(0.0, abs=0.3)
 
 
+class TestWithoutRasterio:
+    """DEM 은 선택 기능이다: rasterio 가 없어도 서버는 뜨고, DEM 만 꺼진 채 근사 고도로 동작해야 한다."""
+
+    def test_missing_rasterio_disables_the_dem_instead_of_crashing(self, tmp_path, monkeypatch):
+        write_geographic(tmp_path / "a.tif", fn=constant(77.7))
+        monkeypatch.setattr(dem, "rasterio", None)
+        s = DemSet.from_dir(tmp_path)
+        assert not s and s.elevation(36.45, 127.05) is None
+        assert "rasterio" in s.skipped[0] and s.skipped[0].startswith("a.tif")
+
+    def test_evaluator_falls_back_to_the_approximation_without_rasterio(self, tmp_path, monkeypatch):
+        write_geographic(tmp_path / "a.tif", lon0=127.30, lat_top=36.40, fn=constant(77.7))
+        before = estimate_elevation_m(127.35, 36.35)
+        monkeypatch.setattr(dem, "rasterio", None)
+        monkeypatch.setenv(dem.ENV_DEM_DIR, str(tmp_path))
+        assert estimate_elevation_m(127.35, 36.35) == before != 77.7
+
+    def test_unreadable_dem_files_are_logged_once_when_the_default_set_loads(self, tmp_path, monkeypatch, caplog):
+        (tmp_path / "broken.tif").write_text("not a tiff")
+        monkeypatch.setenv(dem.ENV_DEM_DIR, str(tmp_path))
+        with caplog.at_level("WARNING", logger=dem.logger.name):
+            dem.get_dem_set()
+            dem.get_dem_set()
+        warnings = [r for r in caplog.records if "DEM 파일" in r.getMessage()]
+        assert len(warnings) == 1 and "broken.tif" in warnings[0].getMessage()
+
+    def test_server_modules_import_in_a_process_where_rasterio_is_not_installed(self, tmp_path):
+        """실제로 rasterio 를 막은 별도 프로세스에서 서버 모듈이 불러와지고 고도 조회가 근사값으로 동작하는지."""
+        import subprocess
+        import sys
+        backend = Path(__file__).resolve().parents[1]
+        write_geographic(tmp_path / "a.tif", fn=constant(77.7))
+        code = (
+            "import sys; sys.modules['rasterio'] = None\n"
+            "from services import dem\n"
+            "from agent.surface_slope_evaluator import estimate_elevation_m, calculate_segment_slope_percent\n"
+            "print('rasterio_off', dem.rasterio is None)\n"
+            "print('dem_empty', not dem.get_dem_set())\n"
+            "print('elevation_is_approx', estimate_elevation_m(127.05, 36.45) != 77.7)\n"
+            "print('slope_ok', calculate_segment_slope_percent([127.05, 36.45], [127.051, 36.451]) >= 0)\n"
+        )
+        env = {**os.environ, "PYTHONPATH": str(backend), dem.ENV_DEM_DIR: str(tmp_path)}
+        result = subprocess.run([sys.executable, "-c", code], cwd=backend, env=env, capture_output=True,
+                                text=True, timeout=120)
+        assert result.returncode == 0, result.stderr[-800:]
+        assert result.stdout.split() == ["rasterio_off", "True", "dem_empty", "True",
+                                         "elevation_is_approx", "True", "slope_ok", "True"]
+
+
 class TestSlopeBaseline:
     """짧은 구간은 중심에서 양쪽으로 늘려(최소 150m) 경사를 구한다 (DEM 칸·건물·나무 잡음 완화)."""
 
