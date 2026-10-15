@@ -107,7 +107,6 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
 
 interface SettingsSubTabSectionProps {
   colors: ReturnType<typeof useAppTheme>['colors'];
-  currentUser: ReturnType<typeof SupabaseService.getCurrentUser>;
   feedbackSummary?: FeedbackSummaryPayload | null;
   onInjectFeedback: (dissatisfied: boolean) => void;
   onResetFeedback?: () => void;
@@ -115,12 +114,10 @@ interface SettingsSubTabSectionProps {
   onResetData?: () => Promise<void>;
   onOpenLegal: (tab: LegalTabType) => void;
   onResetCompleted: () => void;
-  onSignOut?: () => void;
 }
 
 const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
   colors,
-  currentUser,
   feedbackSummary,
   onInjectFeedback,
   onResetFeedback,
@@ -128,7 +125,6 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
   onResetData,
   onOpenLegal,
   onResetCompleted,
-  onSignOut,
 }) => (
   <ScrollView
     style={styles.tabScrollContainer}
@@ -214,21 +210,6 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
       <DataResetCard onReset={onResetData} onCompleted={onResetCompleted} />
     )}
 
-    {currentUser && onSignOut && (
-      <View style={styles.settingsLogoutContainer}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onSignOut}
-          style={styles.settingsLogoutBtn}
-          accessibilityRole="button"
-          accessibilityLabel="로그아웃"
-        >
-          <Text style={[styles.settingsLogoutText, { color: colors.textMuted }]}>
-            로그아웃 ({currentUser.email})
-          </Text>
-        </TouchableOpacity>
-      </View>
-    )}
   </ScrollView>
 );
 
@@ -461,7 +442,6 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
       {subTab === 'settings' && (
         <SettingsSubTabSection
           colors={colors}
-          currentUser={currentUser}
           feedbackSummary={feedbackSummary}
           onInjectFeedback={onInjectFeedback}
           onResetFeedback={onResetFeedback}
@@ -472,7 +452,6 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             setLegalVisible(true);
           }}
           onResetCompleted={() => setResetCount((c) => c + 1)}
-          onSignOut={handleSignOut}
         />
       )}
 
@@ -540,20 +519,6 @@ const styles = StyleSheet.create({
   logoutBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-  },
-  settingsLogoutContainer: {
-    alignItems: 'center',
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  settingsLogoutBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  settingsLogoutText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
   },
   cardHeaderTitle: { fontSize: 13, fontWeight: '700' },
   backupDesc: { fontSize: 11, marginTop: 2, lineHeight: 16 },
