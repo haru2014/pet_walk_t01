@@ -107,3 +107,11 @@ def test_api_songgang_40min_stays_north_and_near_target():
             if feature["geometry"]["type"] == "LineString":
                 lats += [pt[1] for pt in feature["geometry"]["coordinates"]]
     assert lats and min(lats) > SONGGANG_REPORTED_OUTSIDE_LAT
+
+
+def test_health_shows_deployed_commit_prefix(monkeypatch):
+    """배포 확인용: Render 가 주는 RENDER_GIT_COMMIT 의 앞 7자리를 /health 가 보여 준다."""
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "6d76a93abcdef0123456789")
+    assert client.get("/health").json()["commit"] == "6d76a93"
+    monkeypatch.delenv("RENDER_GIT_COMMIT")
+    assert client.get("/health").json()["commit"] == ""

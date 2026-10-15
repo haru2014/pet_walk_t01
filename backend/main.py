@@ -11,6 +11,8 @@ FastAPI 메인 애플리케이션 엔트리포인트 (v1 REST API).
 - GET /health (헬스체크)
 """
 
+import os
+
 from dotenv import load_dotenv
 
 # .env 를 가장 먼저 읽어야 agent.* 모듈 import 시 os.getenv(SUPABASE_URL 등) 가 값을 본다.
@@ -78,6 +80,8 @@ def health_check():
         "status": "ok",
         "mode": "live",
         "supabase_connected": community_repo.is_connected(),
+        # 지금 서버에 올라가 있는 커밋(Render 가 자동으로 넣어 주는 값). 로컬 실행에서는 빈 문자열.
+        "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
     }
 
 
