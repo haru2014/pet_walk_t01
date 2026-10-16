@@ -1,7 +1,9 @@
 """[US-B1] 로컬 DEM 래스터(GeoTIFF, ERDAS .img 등)에서 고도(m)를 읽는다.
 
 - 환경변수 DEM_DIR 폴더(하위 폴더 포함)의 .tif / .tiff / .img 파일을 모두 읽는다.
-  파일은 저장소에 올리지 않고 각자 컴퓨터에 둔다 (backend/.env 의 DEM_DIR 로 지정).
+  DEM_DIR 이 비어 있으면 DEM 을 쓰지 않고 근사 고도로 동작한다 (기본값).
+  저장소에는 파일럿 지역 Copernicus 파일이 backend/data/dem 에 있으며, DEM_DIR=data/dem 으로 켠다
+  (상대 경로는 backend 폴더 기준). 다른 자료(국토지리정보원 90m 등)는 각자 받아 다른 폴더를 지정한다.
 - 파일의 좌표계는 무엇이든 된다 (위경도, EPSG:5179, EPSG:5186 등). 위경도를 파일 좌표계로 바꿔 읽는다.
 - 여러 파일이 같은 지점을 덮으면 **칸이 가장 작은(촘촘한) 파일**을 우선하고, 그 파일에
   값이 없으면(범위 밖, NoData) 다음 파일로 넘어간다.
@@ -34,6 +36,8 @@ except ImportError:  # DEM 은 선택 기능이다: rasterio 가 없으면 DEM �
 logger = logging.getLogger(__name__)
 
 ENV_DEM_DIR = "DEM_DIR"
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+BUNDLED_DEM_DIR = BACKEND_DIR / "data" / "dem"  # 저장소에 포함된 파일럿 지역 DEM (출처: data/dem/NOTICE.md)
 SUPPORTED_SUFFIXES = {".tif", ".tiff", ".img"}
 MAX_CELLS_IN_MEMORY = 25_000_000  # 이보다 크면 읽을 때마다 필요한 칸만 읽는다
 
@@ -152,13 +156,22 @@ class DemSet:
 _default: Optional[Tuple[Optional[str], DemSet]] = None
 
 
+def resolve_dem_dir(value: Optional[str]) -> Optional[Path]:
+    """DEM_DIR 값을 폴더 경로로 바꾼다. 상대 경로는 backend 폴더 기준이다 (예: data/dem). 비어 있으면 None."""
+    if not value or not value.strip():
+        return None
+    path = Path(value.strip()).expanduser()
+    return path if path.is_absolute() else BACKEND_DIR / path
+
+
 def get_dem_set() -> DemSet:
-    """DEM_DIR 환경변수 기준의 기본 DEM 묶음 (환경변수가 바뀌면 다시 읽는다)."""
+    """DEM_DIR 환경변수 기준의 기본 DEM 묶음 (환경변수가 바뀌면 다시 읽는다). 비어 있으면 DEM 을 쓰지 않는다."""
     global _default
     directory = os.getenv(ENV_DEM_DIR) or None
     if _default is None or _default[0] != directory:
         reset_default_dem()
-        dem_set = DemSet.from_dir(Path(directory)) if directory else DemSet([])
+        folder = resolve_dem_dir(directory)
+        dem_set = DemSet.from_dir(folder) if folder else DemSet([])
         if dem_set.skipped:
             logger.warning("DEM 파일 %d개를 읽지 못해 건너뜁니다: %s", len(dem_set.skipped), "; ".join(dem_set.skipped[:5]))
         _default = (directory, dem_set)
