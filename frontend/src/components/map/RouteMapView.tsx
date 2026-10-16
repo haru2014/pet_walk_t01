@@ -27,8 +27,6 @@ export interface RouteMapViewProps {
   readonly onPinSelect?: (instruction: string) => void;
   /** 단독 뷰일 때만 요약 카드를 표시합니다. */
   readonly showSummaryCard?: boolean;
-  /** 추천 코스 화면처럼 지도를 크게 보여줄 때 사용합니다. */
-  readonly size?: 'default' | 'large';
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -39,11 +37,8 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   onStart,
   onPinSelect,
   showSummaryCard = false,
-  size = 'default',
 }) => {
-  const mapHeight = size === 'large'
-    ? Math.max(320, Math.min(Math.round(SCREEN_HEIGHT * 0.6), 520))
-    : MAP_HEIGHT;
+  const mapHeight = MAP_HEIGHT;
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
   const allCoords = useMemo<LonLat[]>(
