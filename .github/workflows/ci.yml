@@ -1,3 +1,30 @@
+name: CI (Backend Test & Frontend Build)
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ========================================================
+  # Job 1: Python 백엔드 및 AI 에이전트 단위 테스트 (pytest)
+  # ========================================================
+  backend-test:
+    name: Backend Unit Tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v7
+
       - name: Python 3.11 환경 설정
         uses: actions/setup-python@v7
         with:
