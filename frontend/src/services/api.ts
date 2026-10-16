@@ -77,51 +77,111 @@ function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: R
   return { route, stepPins };
 }
 
+function resolveOrigin(preferences?: WalkPreferences) {
+  const originMode = preferences?.originMode ?? 'park';
+  const isCurrentLocation = originMode === 'current_location';
+  const park = getPilotParkById(preferences?.pilotParkId);
+  const userCoords = preferences?.userCoordinates;
+
+  const originLat = isCurrentLocation ? (userCoords?.lat ?? 36.3628) : park.center.lat;
+  const originLon = isCurrentLocation ? (userCoords?.lon ?? 127.3592) : park.center.lon;
+  const parkZone = isCurrentLocation ? '현재 위치 주변' : park.name;
+
+  return { originMode, isCurrentLocation, park, originLat, originLon, parkZone };
+}
+
+function buildPlanPayload(
+  dog: DogProfile,
+  preferences: WalkPreferences | undefined,
+  feedback: FeedbackSummaryPayload | null | undefined,
+  origin: ReturnType<typeof resolveOrigin>
+) {
+  const envs = preferences?.environments ?? [];
+  return {
+    dog_id: dog.id,
+    dog_name: dog.name,
+    speed_kmh: dog.speedKmH,
+    joint_care_level: dog.jointCareLevel,
+    target_duration_minutes: preferences?.durationMinutes ?? 30,
+    avoid_stairs: envs.includes('stairs'),
+    prefer_shade: envs.includes('shade'),
+    prefer_cushion: envs.includes('soft'),
+    request_text: preferences?.requestText ?? '',
+    recent_feedback: feedback ?? null,
+    origin_mode: origin.originMode,
+    origin_lat: origin.originLat,
+    origin_lon: origin.originLon,
+    pilot_park_id: !origin.isCurrentLocation ? origin.park.id : undefined,
+    park_zone: origin.parkZone,
+  };
+}
+
+function resolveDefaultPlan(
+  isCurrentLocation: boolean,
+  originLat: number,
+  originLon: number,
+  preferences?: WalkPreferences
+): { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] } {
+  if (isCurrentLocation) {
+    if (preferences?.userCoordinates) {
+      return createCurrentLocationFallbackPlan(originLat, originLon);
+    }
+    return { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS };
+  }
+  return getCoursePlanByParkId(preferences?.pilotParkId);
+}
+
+function isValidParkResponse(data: any, parkId: string): boolean {
+  if (data.validated_park_id !== parkId) return false;
+  if (!Array.isArray(data.courses) || data.courses.length === 0) return false;
+  if (!data.geojson?.features?.length) return false;
+
+  return data.courses.every((course: RecommendedCourse) =>
+    data.route_validation?.[course.id]?.passed === true &&
+    data.route_validation[course.id].park_id === parkId &&
+    data.course_plans?.[course.id]?.route?.features?.length > 0
+  );
+}
+
+async function throwParkError(response: Response): Promise<never> {
+  const error = await response.json().catch(() => ({}));
+  throw new RoutePlanError(
+    error.code ?? 'NO_VALID_LOOP',
+    typeof error.detail === 'string' ? error.detail : '선택한 공원 안의 산책 경로를 생성하지 못했습니다.',
+    error.request_id
+  );
+}
+
+function handlePlanError(error: unknown, isCurrentLocation: boolean): void {
+  if (isCurrentLocation) {
+    return;
+  }
+  if (error instanceof RoutePlanError) {
+    throw error;
+  }
+  throw new RoutePlanError(
+    'ROUTING_PROVIDER_TIMEOUT',
+    '공원 내부 경로를 확인할 수 없습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.'
+  );
+}
+
 export async function requestWalkPlan(
   dog: DogProfile,
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
 ): Promise<RoutePlanResult> {
+  const origin = resolveOrigin(preferences);
+  const { isCurrentLocation, park, originLat, originLon } = origin;
+
+  if (!isCurrentLocation && preferences?.pilotParkId && preferences.pilotParkId !== park.id) {
+    throw new RoutePlanError('BOUNDARY_DATA_UNAVAILABLE', '선택한 공원의 경계 데이터를 확인할 수 없습니다. 다른 공원을 선택해 주세요.');
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  const originMode = preferences?.originMode ?? 'park';
-  const isCurrentLocation = originMode === 'current_location';
-  const park = getPilotParkById(preferences?.pilotParkId);
-
-  // 1. 현재 위치 기반 vs 2. 지정한 공원 주변 좌표 및 구역 설정
-  // 단말기 실측 GPS가 전달된 경우 우선 반영
-  const originLat = isCurrentLocation
-    ? (preferences?.userCoordinates?.lat ?? 36.3628)
-    : park.center.lat;
-  const originLon = isCurrentLocation
-    ? (preferences?.userCoordinates?.lon ?? 127.3592)
-    : park.center.lon;
-  const parkZone = isCurrentLocation ? '현재 위치 주변' : park.name;
-
   try {
-    if (!isCurrentLocation && preferences?.pilotParkId && preferences.pilotParkId !== park.id) {
-      throw new RoutePlanError('BOUNDARY_DATA_UNAVAILABLE', '선택한 공원의 경계 데이터를 확인할 수 없습니다. 다른 공원을 선택해 주세요.');
-    }
-    const envs = preferences?.environments ?? [];
-    const payload = {
-      dog_id: dog.id,
-      dog_name: dog.name,
-      speed_kmh: dog.speedKmH,
-      joint_care_level: dog.jointCareLevel,
-      target_duration_minutes: preferences?.durationMinutes ?? 30,
-      avoid_stairs: envs.includes('stairs'),
-      prefer_shade: envs.includes('shade'),
-      prefer_cushion: envs.includes('soft'),
-      request_text: preferences?.requestText ?? '',
-      recent_feedback: feedback ?? null,
-      origin_mode: originMode,
-      origin_lat: originLat,
-      origin_lon: originLon,
-      pilot_park_id: !isCurrentLocation ? park.id : undefined,
-      park_zone: parkZone,
-    };
-
+    const payload = buildPlanPayload(dog, preferences, feedback, origin);
     const response = await fetchWithServerFallback(
       '/api/v1/walk/plan',
       {
@@ -137,23 +197,10 @@ export async function requestWalkPlan(
 
     if (response.ok) {
       const data = await response.json();
-      if (!isCurrentLocation) {
-        const validated = data.validated_park_id === park.id
-          && Array.isArray(data.courses) && data.courses.length > 0
-          && data.geojson?.features?.length > 0
-          && data.courses.every((course: RecommendedCourse) =>
-            data.route_validation?.[course.id]?.passed === true
-            && data.route_validation[course.id].park_id === park.id
-            && data.course_plans?.[course.id]?.route?.features?.length > 0);
-        if (!validated) {
-          throw new RoutePlanError('ROUTE_VALIDATION_FAILED', '선택한 공원 내부의 검증된 경로를 확인할 수 없습니다. 다시 시도해 주세요.', data.request_id);
-        }
+      if (!isCurrentLocation && !isValidParkResponse(data, park.id)) {
+        throw new RoutePlanError('ROUTE_VALIDATION_FAILED', '선택한 공원 내부의 검증된 경로를 확인할 수 없습니다. 다시 시도해 주세요.', data.request_id);
       }
-      const defaultPlan = isCurrentLocation
-        ? (preferences?.userCoordinates
-            ? createCurrentLocationFallbackPlan(originLat, originLon)
-            : { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS })
-        : getCoursePlanByParkId(preferences?.pilotParkId);
+      const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
       return {
         isLiveServer: true,
         courses: data.courses ?? DEFAULT_RECOMMENDED_COURSES,
@@ -164,16 +211,10 @@ export async function requestWalkPlan(
       };
     }
     if (!isCurrentLocation) {
-      const error = await response.json().catch(() => ({}));
-      throw new RoutePlanError(error.code ?? 'NO_VALID_LOOP',
-        typeof error.detail === 'string' ? error.detail : '선택한 공원 안의 산책 경로를 생성하지 못했습니다.', error.request_id);
+      await throwParkError(response);
     }
   } catch (error) {
-    if (!isCurrentLocation) {
-      if (error instanceof RoutePlanError) throw error;
-      throw new RoutePlanError('ROUTING_PROVIDER_TIMEOUT', '공원 내부 경로를 확인할 수 없습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.');
-    }
-    // 서버 미응답 또는 타임아웃 시 안전하게 폴백
+    handlePlanError(error, isCurrentLocation);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -181,11 +222,7 @@ export async function requestWalkPlan(
   // 🛡️ 오프라인 / 데모용 무중단 자동 폴백
   const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback);
   const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
-  const defaultPlan = isCurrentLocation
-    ? (preferences?.userCoordinates
-        ? createCurrentLocationFallbackPlan(originLat, originLon)
-        : { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS })
-    : getCoursePlanByParkId(preferences?.pilotParkId);
+  const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
 
   return {
     isLiveServer: false,

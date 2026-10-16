@@ -169,7 +169,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
         <View style={styles.mapSection}>
           <RouteMapView
-            size="large"
             route={activeRoute}
             stepPins={activePins}
             speedKmH={dog.speedKmH}
