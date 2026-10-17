@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, Optional, Tuple
@@ -28,6 +29,14 @@ CACHE_TTL_S = 1800.0  # 30분 캐시
 
 _CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 
+SIDO_BOUNDARIES: Tuple[Tuple[Tuple[float, float], Tuple[float, float], str], ...] = (
+    ((36.45, 36.7), (127.1, 127.4), "세종"),
+    ((36.1, 36.45), (127.2, 127.6), "대전"),
+    ((37.4, 37.7), (126.8, 127.2), "서울"),
+    ((35.0, 35.4), (128.9, 129.3), "부산"),
+    ((35.7, 36.0), (128.4, 128.8), "대구"),
+)
+
 
 def clear_cache() -> None:
     _CACHE.clear()
@@ -35,16 +44,9 @@ def clear_cache() -> None:
 
 def resolve_sido_name(lat: float, lon: float) -> str:
     """위경도 좌표로 시도명 판별 (파일럿 거점 우선)."""
-    if 36.45 <= lat <= 36.7 and 127.1 <= lon <= 127.4:
-        return "세종"
-    if 36.1 <= lat < 36.45 and 127.2 <= lon <= 127.6:
-        return "대전"
-    if 37.4 <= lat <= 37.7 and 126.8 <= lon <= 127.2:
-        return "서울"
-    if 35.0 <= lat <= 35.4 and 128.9 <= lon <= 129.3:
-        return "부산"
-    if 35.7 <= lat <= 36.0 and 128.4 <= lon <= 128.8:
-        return "대구"
+    for (min_lat, max_lat), (min_lon, max_lon), sido in SIDO_BOUNDARIES:
+        if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+            return sido
     return "대전"
 
 
@@ -52,26 +54,22 @@ def pm10_to_grade_label(pm10: Optional[float]) -> str:
     """환경부 PM10 기준 (0~30 좋음, 31~80 보통, 81~150 나쁨, 151~ 매우나쁨)."""
     if pm10 is None:
         return "보통"
-    if pm10 <= 30:
+    if pm10 <= 30.0:
         return "좋음"
-    if pm10 <= 80:
+    if pm10 <= 80.0:
         return "보통"
-    if pm10 <= 150:
-        return "나쁨"
-    return "매우나쁨"
+    return "나쁨" if pm10 <= 150.0 else "매우나쁨"
 
 
 def pm25_to_grade_label(pm25: Optional[float]) -> str:
     """환경부 PM2.5 기준 (0~15 좋음, 16~35 보통, 36~75 나쁨, 76~ 매우나쁨)."""
     if pm25 is None:
         return "보통"
-    if pm25 <= 15:
+    if pm25 <= 15.0:
         return "좋음"
-    if pm25 <= 35:
+    if pm25 <= 35.0:
         return "보통"
-    if pm25 <= 75:
-        return "나쁨"
-    return "매우나쁨"
+    return "나쁨" if pm25 <= 75.0 else "매우나쁨"
 
 
 def fetch_open_meteo_air_quality(lat: float, lon: float, timeout: float = DEFAULT_TIMEOUT_S) -> Optional[Dict[str, Any]]:
@@ -98,7 +96,7 @@ def fetch_open_meteo_air_quality(lat: float, lon: float, timeout: float = DEFAUL
                     "station_name": "Open-Meteo 실시간 대기질",
                     "data_source": "open_meteo",
                 }
-    except Exception as exc:
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError) as exc:
         logger.debug("Open-Meteo 대기질 폴백 조회 실패: %s", exc)
     return None
 
@@ -157,7 +155,7 @@ def fetch_air_quality(
     sido = resolve_sido_name(lat, lon)
     cache_key = f"{sido}_{round(lat, 2)}_{round(lon, 2)}"
     cached = _CACHE.get(cache_key)
-    if cached is not None and time.time() - cached[0] < CACHE_TTL_S:
+    if cached is not None and time.monotonic() - cached[0] < CACHE_TTL_S:
         return cached[1]
 
     key = service_key or os.environ.get(ENV_AIRKOREA_KEY) or os.environ.get(ENV_KMA_KEY)
@@ -167,15 +165,15 @@ def fetch_air_quality(
         try:
             result = _fetch_airkorea_api(sido, key, timeout)
             if result:
-                _CACHE[cache_key] = (time.time(), result)
+                _CACHE[cache_key] = (time.monotonic(), result)
                 return result
-        except Exception as exc:
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError) as exc:
             logger.info("에어코리아 API 조회 실패 (%s), Open-Meteo 대기질 폴백 시도", exc)
 
     # 2. Open-Meteo 실시간 대기질 폴백 시도
     om_result = fetch_open_meteo_air_quality(lat, lon, timeout)
     if om_result:
-        _CACHE[cache_key] = (time.time(), om_result)
+        _CACHE[cache_key] = (time.monotonic(), om_result)
         return om_result
 
     # 3. 최종 안심 기본값
@@ -186,6 +184,5 @@ def fetch_air_quality(
         "station_name": f"{sido} 기준",
         "data_source": "estimated",
     }
-    _CACHE[cache_key] = (time.time(), fallback)
+    _CACHE[cache_key] = (time.monotonic(), fallback)
     return fallback
-
