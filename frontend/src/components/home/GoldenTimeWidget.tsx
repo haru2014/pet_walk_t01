@@ -7,8 +7,8 @@
  * - 당일 계절/일사량 맞춤 골든타임 윈도우(1.5~2시간 슬롯) 동적 시각화
  */
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { HeatRiskLevel, HeatRiskResponse } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
@@ -233,6 +233,8 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
 
+  const [modalVisible, setModalVisible] = useState(false);
+
   return (
     <View
       style={styles.container}
@@ -251,8 +253,12 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         </View>
       </View>
 
-      {/* 2. 메인 산책지수 카드 (원형 게이지 + 상태 + 추천 시간 + 내부 마이크로 메트릭) */}
-      <View
+      {/* 2. 메인 산책지수 카드 (원터치 터치 시 상세 모달 오픈) */}
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="산책지수 상세 날씨 모달 열기"
         style={[
           styles.scoreCard,
           {
@@ -261,7 +267,6 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
           },
         ]}
       >
-        {/* 상단: 원형 점수 게이지 + 상태 & 추천 시간 */}
         <View style={styles.cardMainRow}>
           {/* 원형 점수 게이지 (컴팩트 66px) */}
           <View style={styles.gaugeContainer}>
@@ -271,53 +276,164 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
             </View>
           </View>
 
-          {/* 상태 뱃지, 타이틀, 추천 시간 */}
+          {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
           <View style={styles.scoreContent}>
-            <View style={styles.badgeTimeRow}>
+            {/* 상단: 상태 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
+            <View style={styles.badgeChipsRow}>
               <View style={[styles.statusBadge, { backgroundColor: quotient.badgeBg }]}>
                 <Text style={[styles.statusBadgeText, { color: quotient.badgeColor }]}>
                   ✓ {quotient.statusLabel}
                 </Text>
               </View>
-              <Text style={[styles.recommendTimeInline, { color: colors.textMuted }]}>
-                {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
-              </Text>
+
+              <View style={styles.iconChipsRow}>
+                <View style={[styles.iconChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.iconChipEmoji}>🌧️</Text>
+                  <Text style={[styles.iconChipText, { color: colors.textMain }]}>{popPercent}%</Text>
+                </View>
+                <View style={[styles.iconChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.iconChipEmoji}>🌫️</Text>
+                  <Text style={[styles.iconChipText, { color: airQualityColor }]}>{airQualityLabel}</Text>
+                </View>
+              </View>
             </View>
 
+            {/* 중단: 상태 메인 문구 */}
             <Text style={[styles.statusTitle, { color: colors.textMain }]} numberOfLines={1}>
               {quotient.statusTitle}
             </Text>
 
-            {/* 카드 내부 작은 글씨 4대 메트릭 마이크로 바 (기온, 체감, 강수확률, 미세먼지) */}
-            <View style={[styles.miniMetricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <View style={styles.miniMetricItem}>
-                <Text style={styles.miniMetricEmoji}>🌡️</Text>
-                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>기온</Text>
-                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{currentAirTemp}°</Text>
-              </View>
-              <View style={styles.miniMetricDivider} />
-              <View style={styles.miniMetricItem}>
-                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>체감</Text>
-                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°</Text>
-              </View>
-              <View style={styles.miniMetricDivider} />
-              <View style={styles.miniMetricItem}>
-                <Text style={styles.miniMetricEmoji}>🌧️</Text>
-                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>강수</Text>
-                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
-              </View>
-              <View style={styles.miniMetricDivider} />
-              <View style={styles.miniMetricItem}>
-                <Text style={styles.miniMetricEmoji}>🌫️</Text>
-                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>미세</Text>
-                <Text style={[styles.miniMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
-              </View>
+            {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
+            <View style={styles.bottomHintRow}>
+              <Text style={[styles.recommendTimeInline, { color: colors.textMuted }]}>
+                {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
+              </Text>
+              <Text style={styles.detailHintText}>상세보기 〉</Text>
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {/* 3. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
+      {/* 3. 상세 정보 모달 화면 (터치 시 팝업) */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdropTouchable}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          />
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {/* 모달 상단 헤더 */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleRow}>
+                <Text style={styles.modalHeaderPaw}>🐾</Text>
+                <Text style={[styles.modalTitle, { color: colors.textMain }]}>오늘의 산책 날씨 리포트</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.modalCloseBtn}
+                accessibilityLabel="모달 닫기"
+              >
+                <Text style={[styles.modalCloseText, { color: colors.textMuted }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
+              {/* 산책 지수 총평 배지 */}
+              <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
+                <Text style={[styles.modalScoreNumber, { color: quotient.badgeColor }]}>{quotient.score}점</Text>
+                <View style={styles.modalScoreBannerTextWrap}>
+                  <Text style={[styles.modalScoreLabel, { color: quotient.badgeColor }]}>✓ {quotient.statusLabel}</Text>
+                  <Text style={[styles.modalScoreTitle, { color: quotient.badgeColor }]}>{quotient.statusTitle}</Text>
+                </View>
+              </View>
+
+              {/* 지면온도 & 산책 가이드 브리핑 */}
+              <View style={[styles.modalGuideBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={[styles.modalGuideText, { color: colors.textMain }]}>{subtitleText}</Text>
+              </View>
+
+              {/* 4대 환경 상세 메트릭 카드 2x2 그리드 */}
+              <Text style={[styles.modalSectionTitle, { color: colors.textMain }]}>4대 환경 메트릭 상세 분석</Text>
+              <View style={styles.modalMetricsGrid}>
+                {/* 1. 기온 */}
+                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.modalMetricEmoji}>🌡️</Text>
+                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>현재 기온</Text>
+                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{currentAirTemp}°C</Text>
+                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>대기 관측 온도</Text>
+                </View>
+
+                {/* 2. 발바닥 체감 지면온도 */}
+                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.modalMetricEmoji}>🔥</Text>
+                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>체감 지면열</Text>
+                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
+                  <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
+                    {riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의'}
+                  </Text>
+                </View>
+
+                {/* 3. 강수확률 */}
+                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.modalMetricEmoji}>🌧️</Text>
+                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>강수확률</Text>
+                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
+                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
+                    {popPercent > 30 ? '우산 준비 권장' : '비 소식 없음'}
+                  </Text>
+                </View>
+
+                {/* 4. 미세먼지 */}
+                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={styles.modalMetricEmoji}>🌫️</Text>
+                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>미세먼지</Text>
+                  <Text style={[styles.modalMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
+                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
+                    {airQuality?.station_name ? `${airQuality.station_name} 측정소` : '실시간 공공데이터'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 추천 골든타임 상세 윈도우 */}
+              <View style={[styles.modalGoldenBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={styles.modalGoldenEmoji}>⏰</Text>
+                <View style={styles.modalGoldenTextWrap}>
+                  <Text style={[styles.modalGoldenTitle, { color: colors.textMain }]}>
+                    {isTomorrow ? '내일 추천 산책 시간' : '오늘 추천 산책 시간'}
+                  </Text>
+                  <Text style={[styles.modalGoldenTime, { color: '#2563EB' }]}>{timeRangeDisplay}</Text>
+                </View>
+              </View>
+
+              {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
+              <View style={styles.modalAttributionBox}>
+                <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
+                  데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)
+                  {weather?.attribution ? ` · ${weather.attribution}` : ' · Open-Meteo'}
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* 모달 닫기 버튼 */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setModalVisible(false)}
+              style={styles.modalConfirmBtn}
+            >
+              <Text style={styles.modalConfirmBtnText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 4. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
       <View style={styles.hiddenMetaArea}>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{subtitleText}</Text>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
@@ -329,10 +445,10 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         </View>
       </View>
 
-      {/* 4. 데이터 출처 표기 (공공누리 제1유형 & Open-Meteo CC BY 4.0 준수) */}
+      {/* 5. 데이터 출처 표기 (화면 상시 마이크로 출처) */}
       <View style={styles.attributionContainer}>
         <Text style={[styles.attributionText, { color: colors.textMuted }]}>
-          데이터 출처: 기상청 · 한국환경공단(에어코리아) · Open-Meteo
+          데이터 출처: 기상청 · 한국환경공단(에어코리아)
           {weather?.attribution ? ` · ${weather.attribution}` : ''}
         </Text>
       </View>
@@ -413,7 +529,7 @@ const styles = StyleSheet.create({
   scoreContent: {
     flex: 1,
   },
-  badgeTimeRow: {
+  badgeChipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -428,47 +544,221 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '800',
   },
-  recommendTimeInline: {
-    fontSize: 11,
-    fontWeight: '600',
+  iconChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  iconChipEmoji: {
+    fontSize: 9.5,
+  },
+  iconChipText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   statusTitle: {
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: -0.3,
     lineHeight: 18,
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  miniMetricsBar: {
+  bottomHintRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 3.5,
-    paddingHorizontal: 7,
-    borderRadius: 8,
-    borderWidth: 1,
   },
-  miniMetricItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  miniMetricEmoji: {
-    fontSize: 9.5,
-  },
-  miniMetricLabel: {
-    fontSize: 10,
+  recommendTimeInline: {
+    fontSize: 11,
     fontWeight: '600',
   },
-  miniMetricValue: {
+  detailHintText: {
     fontSize: 10.5,
+    fontWeight: '700',
+    color: '#6366F1',
+  },
+  /* 모달 스타일 */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 18,
+  },
+  modalBackdropTouchable: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalHeaderPaw: {
+    fontSize: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalScrollBody: {
+    paddingBottom: 6,
+  },
+  modalScoreBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  modalScoreNumber: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  modalScoreBannerTextWrap: {
+    flex: 1,
+  },
+  modalScoreLabel: {
+    fontSize: 11.5,
     fontWeight: '800',
   },
-  miniMetricDivider: {
-    width: 1,
-    height: 10,
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: 1,
+  modalScoreTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  modalGuideBox: {
+    padding: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  modalGuideText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  modalSectionTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  modalMetricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  modalMetricCard: {
+    width: '48.8%',
+    padding: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  modalMetricEmoji: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  modalMetricTitle: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  modalMetricValue: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    marginBottom: 1,
+  },
+  modalMetricSub: {
+    fontSize: 9.5,
+    fontWeight: '500',
+  },
+  modalGoldenBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  modalGoldenEmoji: {
+    fontSize: 18,
+  },
+  modalGoldenTextWrap: {
+    flex: 1,
+  },
+  modalGoldenTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  modalGoldenTime: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  modalAttributionBox: {
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  modalAttributionText: {
+    fontSize: 9,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
+  modalConfirmBtn: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  modalConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   hiddenMetaArea: {
     height: 0,
