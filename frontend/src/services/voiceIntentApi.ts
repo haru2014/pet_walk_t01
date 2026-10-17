@@ -87,9 +87,7 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
     duration = 90;
   } else if (/(?:1\s*시간|한\s*시간|한시간)/.test(text)) {
     duration = 60;
-  } else if (text.includes('반시간')) {
-    duration = 30;
-  } else {
+  } else if (!text.includes('반시간')) {
     const match = /(\d{1,3})\s*(?:분|min)/.exec(text);
     if (match) {
       duration = Math.max(10, Math.min(90, Number.parseInt(match[1], 10)));

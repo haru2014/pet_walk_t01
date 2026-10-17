@@ -205,16 +205,22 @@ def _build_step_pins(cand: Any, coords: List[List[float]]) -> List[Dict[str, Any
     return pins
 
 
-def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]:
-    """출발 좌표, 공원 ID, 출발 모드, 산책 시간 및 속도 입력 유효성 검증."""
+def _parse_origin_coords(req: Dict[str, Any]) -> Tuple[float, float]:
+    """출발 위경도 좌표 검증 및 파싱."""
     try:
-        origin_lat = float(req.get("origin_lat", 37.5665))
-        origin_lon = float(req.get("origin_lon", 126.9780))
+        lat = float(req.get("origin_lat", 37.5665))
+        lon = float(req.get("origin_lon", 126.9780))
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="유효한 숫자 형식의 출발 좌표(origin_lat, origin_lon)가 필요합니다.")
 
-    if not (-90.0 <= origin_lat <= 90.0 and -180.0 <= origin_lon <= 180.0):
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
+    return lat, lon
+
+
+def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]:
+    """출발 좌표, 공원 ID, 출발 모드, 산책 시간 및 속도 입력 유효성 검증."""
+    origin_lat, origin_lon = _parse_origin_coords(req)
 
     pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
     if not pilot_park_id:
@@ -705,11 +711,18 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
             weight = open_meteo_client.radiation_to_weight(curr["radiation"]) if (6 <= now_hour < 20) else 0.0
             surface = round(curr["air"] + weight * 15.0, 1)
             is_golden = surface <= 35.0
+            if is_golden:
+                risk_lvl = "SAFE"
+            elif surface <= 45.0:
+                risk_lvl = "CAUTION"
+            else:
+                risk_lvl = "DANGER"
+
             hourly[now_hour] = {
                 "hour": now_hour,
                 "air_temp_celsius": curr["air"],
                 "estimated_surface_temp": surface,
-                "risk_level": "SAFE" if is_golden else ("CAUTION" if surface <= 45.0 else "DANGER"),
+                "risk_level": risk_lvl,
                 "is_golden_time": is_golden,
                 "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
             }
