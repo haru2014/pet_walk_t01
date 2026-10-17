@@ -32,8 +32,16 @@ export interface VoiceIntentResult {
 const LANDMARK_TO_PARK_ID: Record<string, string> = {
   유림공원: 'yurim',
   유림: 'yurim',
+  갑천: 'yurim',
+  보라매공원: 'yurim',
+  보라매: 'yurim',
+  한밭수목원: 'yurim',
+  한밭: 'yurim',
+  엑스포: 'yurim',
+  엑스포다리: 'yurim',
   세종호수공원: 'sejong',
   세종호수: 'sejong',
+  호수공원: 'sejong',
   송강공원: 'songgang',
   송강근린공원: 'songgang',
   송강: 'songgang',
@@ -79,7 +87,9 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
     duration = 90;
   } else if (/(?:1\s*시간|한\s*시간|한시간)/.test(text)) {
     duration = 60;
-  } else if (!text.includes('반시간')) {
+  } else if (text.includes('반시간')) {
+    duration = 30;
+  } else {
     const match = /(\d{1,3})\s*(?:분|min)/.exec(text);
     if (match) {
       duration = Math.max(10, Math.min(90, Number.parseInt(match[1], 10)));

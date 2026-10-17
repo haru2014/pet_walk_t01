@@ -126,15 +126,26 @@ def test_pilot_park_id_explicit_dispatch():
         json={
             "dog_name": "초코",
             "target_duration_minutes": 30,
-            "origin_lat": 36.5020,
-            "origin_lon": 127.2680,
+            "origin_lat": 36.4972593,
+            "origin_lon": 127.2749633,
             "origin_mode": "park",
             "pilot_park_id": "sejong",
         },
     )
-    # Source-less legacy buffers cannot establish the requested park boundary.
+    # OSM relation 9734480 경계와 그 안 보행망으로 세종호수공원 코스를 만든다.
+    assert res.status_code == 200, res.text
+    assert res.json()["validated_park_id"] == "sejong"
+
+
+def test_sejong_legacy_center_is_not_teleported():
+    """옛 세종 대표점(36.5020, 127.2680)은 공원 보행망에서 멀다: 가까운 보행로로 옮기지 않고 422."""
+    res = client.post(
+        "/api/v1/walk/plan",
+        json={"dog_name": "초코", "target_duration_minutes": 30, "origin_lat": 36.5020,
+              "origin_lon": 127.2680, "origin_mode": "park", "pilot_park_id": "sejong"},
+    )
     assert res.status_code == 422
-    assert res.json()["code"] == "BOUNDARY_DATA_UNAVAILABLE"
+    assert res.json()["code"] == "ORIGIN_NOT_CONNECTED"
 
 
 def test_park_mode_rejects_out_of_boundary():

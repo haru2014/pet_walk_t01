@@ -32,10 +32,11 @@ def _drop_excursion(coords: List[List[float]], start: int, end: int) -> List[Lis
 SONGGANG_PARK_OSM_COORDS: List[List[float]] = _drop_excursion(_SONGGANG_PARK_OSM_RAW, 6, 102)
 
 PILOT_PARK_CENTERS: Dict[str, Tuple[float, float, str]] = {
-    'sejong': (36.5020, 127.2680, '세종호수공원 은빛해변·수상무대섬 수변순환로'),
+    # 세종·도안: OSM relation 경계(fixtures/park_polygons_pilot.json) 안 보행망의 가장 큰 연결망 위 점 (2026-10-17)
+    'sejong': (36.4972593, 127.2749633, '세종호수공원 내부 보행로'),
     'yurim': (36.3620608, 127.3601379, '대전 유림공원 내부 보행로'),
     'songgang': (36.4353, 127.3847, '대전 송강근린공원 내부 보행로'),
-    'doan': (36.3450, 127.3435, '대전 도안호수공원 갑천 생태습지 데크길'),
+    'doan': (36.332629, 127.3505325, '대전 갑천생태호수공원(도안호수공원) 내부 보행로'),
 }
 
 PILOT_PARK_COORDS_MAP: Dict[str, List[List[float]]] = {

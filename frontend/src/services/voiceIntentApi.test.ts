@@ -57,3 +57,4 @@ describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)'
     expect(normalizeToFrontendParkId(null)).toBe('yurim');
   });
 });
+
