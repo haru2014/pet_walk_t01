@@ -129,6 +129,56 @@ def find_first_intersection_index(
     return None
 
 
+def _find_boundary_cut_indices(
+    coordinates: List[List[float]],
+    origin: Tuple[float, float],
+    destination: Tuple[float, float],
+    masking_radius_m: float,
+) -> Tuple[Optional[int], Optional[int]]:
+    """출발지 및 도착지 마스킹 반경을 벗어나는 시작/종료 인덱스를 찾는다."""
+    start_idx: Optional[int] = None
+    for idx, pt in enumerate(coordinates):
+        curr = (pt[1], pt[0])
+        if calculate_haversine_distance_m(origin, curr) > masking_radius_m:
+            start_idx = idx
+            break
+
+    end_idx: Optional[int] = None
+    for idx in range(len(coordinates) - 1, -1, -1):
+        curr = (coordinates[idx][1], coordinates[idx][0])
+        if calculate_haversine_distance_m(destination, curr) > masking_radius_m:
+            end_idx = idx
+            break
+
+    return start_idx, end_idx
+
+
+def _apply_intersection_snaps(
+    coordinates: List[List[float]],
+    start_cut_idx: int,
+    end_cut_idx: int,
+) -> Tuple[int, int, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """교차로 노드 스냅을 적용하여 시작/종료 컷 인덱스를 보정한다."""
+    start_info: Optional[Dict[str, Any]] = None
+    end_info: Optional[Dict[str, Any]] = None
+
+    snap_start = find_first_intersection_index(
+        coordinates, start_search_idx=start_cut_idx, forward=True
+    )
+    if snap_start is not None and snap_start[0] <= end_cut_idx:
+        start_cut_idx = snap_start[0]
+        start_info = snap_start[1]
+
+    snap_end = find_first_intersection_index(
+        coordinates, start_search_idx=end_cut_idx, forward=False
+    )
+    if snap_end is not None and snap_end[0] >= start_cut_idx:
+        end_cut_idx = snap_end[0]
+        end_info = snap_end[1]
+
+    return start_cut_idx, end_cut_idx, start_info, end_info
+
+
 def apply_spatial_masking_to_course(
     coordinates: List[List[float]],
     masking_radius_m: float = 200.0,
@@ -156,16 +206,10 @@ def apply_spatial_masking_to_course(
     origin = (coordinates[0][1], coordinates[0][0])  # (lat, lon)
     destination = (coordinates[-1][1], coordinates[-1][0])
 
-    # 1. 출발지 200m 경계 인덱스 탐색
-    first_outside_start_idx = 0
-    for idx, pt in enumerate(coordinates):
-        curr = (pt[1], pt[0])
-        dist = calculate_haversine_distance_m(origin, curr)
-        if dist > masking_radius_m:
-            first_outside_start_idx = idx
-            break
-    else:
-        # 전 구간이 200m 이내인 경우
+    start_idx, end_idx = _find_boundary_cut_indices(
+        coordinates, origin, destination, masking_radius_m
+    )
+    if start_idx is None:
         return {
             "masked_coordinates": [],
             "is_masked": True,
@@ -174,17 +218,7 @@ def apply_spatial_masking_to_course(
             "masking_radius_m": masking_radius_m,
             "intersection_snapped": False,
         }
-
-    # 2. 도착지 200m 경계 인덱스 탐색 (뒤에서부터)
-    last_outside_dest_idx = len(coordinates) - 1
-    for idx in range(len(coordinates) - 1, -1, -1):
-        pt = coordinates[idx]
-        curr = (pt[1], pt[0])
-        dist = calculate_haversine_distance_m(destination, curr)
-        if dist > masking_radius_m:
-            last_outside_dest_idx = idx
-            break
-    else:
+    if end_idx is None:
         return {
             "masked_coordinates": [],
             "is_masked": True,
@@ -193,8 +227,7 @@ def apply_spatial_masking_to_course(
             "masking_radius_m": masking_radius_m,
             "intersection_snapped": False,
         }
-
-    if first_outside_start_idx > last_outside_dest_idx:
+    if start_idx > end_idx:
         return {
             "masked_coordinates": [],
             "is_masked": True,
@@ -204,28 +237,15 @@ def apply_spatial_masking_to_course(
             "intersection_snapped": False,
         }
 
-    start_cut_idx = first_outside_start_idx
-    end_cut_idx = last_outside_dest_idx
+    start_cut_idx = start_idx
+    end_cut_idx = end_idx
     start_intersection_info: Optional[Dict[str, Any]] = None
     end_intersection_info: Optional[Dict[str, Any]] = None
 
-    # 3. 🎯 교차로(Node) 스냅 절단 적용
     if snap_to_intersection:
-        # 200m 이후 가장 먼저 만나는 다중 교차로(Degree >= 3)로 출발 지점 스냅 전진
-        snap_start = find_first_intersection_index(
-            coordinates, start_search_idx=first_outside_start_idx, forward=True
+        start_cut_idx, end_cut_idx, start_intersection_info, end_intersection_info = (
+            _apply_intersection_snaps(coordinates, start_cut_idx, end_cut_idx)
         )
-        if snap_start is not None and snap_start[0] <= end_cut_idx:
-            start_cut_idx = snap_start[0]
-            start_intersection_info = snap_start[1]
-
-        # 도착지 200m 이전 지점 중 가장 가까운 다중 교차로로 도착 지점 스냅 후진
-        snap_end = find_first_intersection_index(
-            coordinates, start_search_idx=last_outside_dest_idx, forward=False
-        )
-        if snap_end is not None and snap_end[0] >= start_cut_idx:
-            end_cut_idx = snap_end[0]
-            end_intersection_info = snap_end[1]
 
     final_coords = coordinates[start_cut_idx : end_cut_idx + 1]
     trimmed_start = start_cut_idx

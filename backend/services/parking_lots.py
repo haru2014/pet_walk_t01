@@ -58,26 +58,83 @@ def _type_ok(value: Any, expected: type) -> bool:
     return isinstance(value, expected)
 
 
+def _check_official_status(label: str, lot: Dict[str, Any]) -> List[str]:
+    problems = []
+    if lot.get("verified") is not True:
+        problems.append(f"{label}: 공식 항목은 verified=true 여야 합니다")
+    if not str(lot.get("official_id") or "").strip():
+        problems.append(f"{label}: 공식 항목은 official_id 가 있어야 합니다")
+    return problems
+
+
+def _check_park_operator_status(label: str, lot: Dict[str, Any]) -> List[str]:
+    problems = []
+    if lot.get("verified") is not True:
+        problems.append(f"{label}: 공원 관리기관 항목은 verified=true 여야 합니다")
+    if not str(lot.get("coordinate_basis") or "").strip():
+        problems.append(f"{label}: 공원 관리기관 항목은 coordinate_basis 에 좌표를 구한 방법을 적어야 합니다")
+    return problems
+
+
+def _check_unverified_status(label: str, lot: Dict[str, Any]) -> List[str]:
+    problems = []
+    if lot.get("verified") is not False:
+        problems.append(f"{label}: 기존(미검증) 항목은 verified=false 여야 합니다")
+    if not str(lot.get("data_issue") or "").strip():
+        problems.append(f"{label}: 기존(미검증) 항목은 data_issue 에 확인된 문제를 적어야 합니다")
+    return problems
+
+
+_STATUS_CHECKERS = {
+    "official": _check_official_status,
+    "park_operator": _check_park_operator_status,
+    "legacy_unverified": _check_unverified_status,
+}
+
+
 def _status_problems(label: str, lot: Dict[str, Any]) -> List[str]:
     """status 와 verified/official_id/data_issue 의 앞뒤가 맞는지 검사한다."""
     status = lot.get("status")
     if status is None:
         return []  # 필수 필드 누락은 별도로 보고된다
-    if status not in STATUSES:
+    checker = _STATUS_CHECKERS.get(status)
+    if checker is None:
         return [f"{label}: status 는 {sorted(STATUSES)} 중 하나여야 합니다 ({status!r})"]
-    if status == "official":
-        problems = [] if lot.get("verified") is True else [f"{label}: 공식 항목은 verified=true 여야 합니다"]
-        if not str(lot.get("official_id") or "").strip():
-            problems.append(f"{label}: 공식 항목은 official_id 가 있어야 합니다")
-        return problems
-    if status == "park_operator":
-        problems = [] if lot.get("verified") is True else [f"{label}: 공원 관리기관 항목은 verified=true 여야 합니다"]
-        if not str(lot.get("coordinate_basis") or "").strip():
-            problems.append(f"{label}: 공원 관리기관 항목은 coordinate_basis 에 좌표를 구한 방법을 적어야 합니다")
-        return problems
-    problems = [] if lot.get("verified") is False else [f"{label}: 기존(미검증) 항목은 verified=false 여야 합니다"]
-    if not str(lot.get("data_issue") or "").strip():
-        problems.append(f"{label}: 기존(미검증) 항목은 data_issue 에 확인된 문제를 적어야 합니다")
+    return checker(label, lot)
+
+
+def _validate_lot_field_types(label: str, lot: Dict[str, Any]) -> List[str]:
+    """필수 및 선택 필드의 존재 및 타입 정합성을 검사한다."""
+    problems: List[str] = []
+    for field, expected in REQUIRED_FIELDS.items():
+        if field not in lot:
+            problems.append(f"{label}: 필드 '{field}' 가 없습니다")
+        elif not _type_ok(lot[field], expected):
+            problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
+    for field, expected in OPTIONAL_FIELDS.items():
+        if field in lot and not _type_ok(lot[field], expected):
+            problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
+    return problems
+
+
+def _validate_lot_semantics(label: str, lot: Dict[str, Any], seen_ids: set) -> List[str]:
+    """주차장 ID 중복, 요금 유형, 수용량, 좌표 범위 등을 검사한다."""
+    problems: List[str] = []
+    pid = lot.get("parking_id")
+    if pid in seen_ids:
+        problems.append(f"{label}: parking_id 가 중복입니다")
+    seen_ids.add(pid)
+
+    if lot.get("fee_type") not in FEE_TYPES:
+        problems.append(f"{label}: fee_type 은 {sorted(FEE_TYPES)} 중 하나여야 합니다 ({lot.get('fee_type')!r})")
+    if _type_ok(lot.get("capacity"), int) and lot["capacity"] <= 0:
+        problems.append(f"{label}: capacity 는 1 이상이어야 합니다")
+
+    lat, lon = lot.get("entrance_lat"), lot.get("entrance_lon")
+    if _type_ok(lat, float) and _type_ok(lon, float):
+        if not (REGION_LAT_RANGE[0] <= lat <= REGION_LAT_RANGE[1]
+                and REGION_LON_RANGE[0] <= lon <= REGION_LON_RANGE[1]):
+            problems.append(f"{label}: 좌표({lat}, {lon})가 대전·세종 범위 밖입니다")
     return problems
 
 
@@ -91,27 +148,9 @@ def validate_parking_lots(lots: List[Dict[str, Any]]) -> List[str]:
         if not isinstance(lot, dict):
             problems.append(f"{label}: 항목이 객체가 아닙니다")
             continue
-        for field, expected in REQUIRED_FIELDS.items():
-            if field not in lot:
-                problems.append(f"{label}: 필드 '{field}' 가 없습니다")
-            elif not _type_ok(lot[field], expected):
-                problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
-        for field, expected in OPTIONAL_FIELDS.items():
-            if field in lot and not _type_ok(lot[field], expected):
-                problems.append(f"{label}: 필드 '{field}' 의 형식이 잘못되었습니다 ({lot[field]!r})")
+        problems.extend(_validate_lot_field_types(label, lot))
         problems.extend(_status_problems(label, lot))
-        if lot.get("parking_id") in seen_ids:
-            problems.append(f"{label}: parking_id 가 중복입니다")
-        seen_ids.add(lot.get("parking_id"))
-        if lot.get("fee_type") not in FEE_TYPES:
-            problems.append(f"{label}: fee_type 은 {sorted(FEE_TYPES)} 중 하나여야 합니다 ({lot.get('fee_type')!r})")
-        if _type_ok(lot.get("capacity"), int) and lot["capacity"] <= 0:
-            problems.append(f"{label}: capacity 는 1 이상이어야 합니다")
-        lat, lon = lot.get("entrance_lat"), lot.get("entrance_lon")
-        if _type_ok(lat, float) and _type_ok(lon, float):
-            if not (REGION_LAT_RANGE[0] <= lat <= REGION_LAT_RANGE[1]
-                    and REGION_LON_RANGE[0] <= lon <= REGION_LON_RANGE[1]):
-                problems.append(f"{label}: 좌표({lat}, {lon})가 대전·세종 범위 밖입니다")
+        problems.extend(_validate_lot_semantics(label, lot, seen_ids))
     return problems
 
 

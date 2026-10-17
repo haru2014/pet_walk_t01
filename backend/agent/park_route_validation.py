@@ -41,6 +41,36 @@ def park_boundary_metadata(park_id: str) -> dict:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 경계 출처와 버전을 확인할 수 없습니다.")
 
 
+_ALLOWED_HIGHWAYS = {"footway", "pedestrian", "path"}
+_DISALLOWED_ACCESS = {"no", "private", "customers", "permit", "delivery", "military"}
+_DISALLOWED_FOOT = {"no", "private"}
+
+
+def _is_walkable_way(tags: Any) -> bool:
+    """공원 보행로 태그 유효성 검사."""
+    if not isinstance(tags, dict):
+        return False
+    if tags.get("highway") not in _ALLOWED_HIGHWAYS:
+        return False
+    if tags.get("access") in _DISALLOWED_ACCESS:
+        return False
+    return tags.get("foot") not in _DISALLOWED_FOOT
+
+
+def _add_way_to_graph(graph: nx.Graph, way: Dict[str, Any], park_id: str) -> None:
+    """단일 OSM way 의 보행 가능한 선분을 그래프에 추가한다."""
+    if not isinstance(way, dict) or not isinstance(way.get("coordinates"), list) or not way.get("way_id"):
+        return
+    if not _is_walkable_way(way.get("tags")):
+        return
+    coords = way["coordinates"]
+    way_id = way["way_id"]
+    for a, b in zip(coords, coords[1:]):
+        if a == b or not is_route_inside_park_boundary([a, b], park_id):
+            continue
+        graph.add_edge(tuple(a), tuple(b), weight=haversine_m(a, b), way_id=way_id)
+
+
 def build_park_graph(park_id: str) -> nx.Graph:
     boundary = load_pilot_park_polygons().get(park_id)
     if boundary is None or not boundary.is_valid or boundary.is_empty:
@@ -50,15 +80,7 @@ def build_park_graph(park_id: str) -> nx.Graph:
         raise RoutePlanningError("WALK_NETWORK_UNAVAILABLE", "선택한 공원의 보행로 데이터를 확인할 수 없습니다.")
     graph = nx.Graph()
     for way in data.get("ways", []):
-        if not isinstance(way, dict) or not isinstance(way.get("coordinates"), list) or not way.get("way_id"):
-            continue
-        tags = way.get("tags", {})
-        if not isinstance(tags, dict) or tags.get("highway") not in ("footway", "pedestrian", "path") or tags.get("access") in ("no", "private", "customers", "permit", "delivery", "military") or tags.get("foot") in ("no", "private"):
-            continue
-        for a, b in zip(way["coordinates"], way["coordinates"][1:]):
-            if a == b or not is_route_inside_park_boundary([a, b], park_id):
-                continue
-            graph.add_edge(tuple(a), tuple(b), weight=haversine_m(a, b), way_id=way["way_id"])
+        _add_way_to_graph(graph, way, park_id)
     if not graph.edges:
         raise RoutePlanningError("WALK_NETWORK_UNAVAILABLE", "공원 경계 안에 연결 가능한 보행로가 없습니다.")
     return graph

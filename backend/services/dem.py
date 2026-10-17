@@ -22,12 +22,16 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
 import numpy as np
-from pyproj import Transformer
 
 try:
-    import rasterio
-    from rasterio.errors import RasterioIOError
-    from rasterio.windows import Window
+    from pyproj import Transformer  # type: ignore[import-not-found, import-untyped]
+except ImportError:
+    Transformer = None  # type: ignore[assignment, misc]
+
+try:
+    import rasterio  # type: ignore[import-not-found, import-untyped]
+    from rasterio.errors import RasterioIOError  # type: ignore[import-not-found, import-untyped]
+    from rasterio.windows import Window  # type: ignore[import-not-found, import-untyped]
 except ImportError:  # DEM 은 선택 기능이다: rasterio 가 없으면 DEM 만 끄고 서버는 근사 고도로 동작한다
     rasterio = None
     RasterioIOError = OSError  # type: ignore[misc, assignment]
@@ -54,8 +58,8 @@ class _Raster:
     """DEM 파일 하나. 위경도로 고도를 읽는다."""
 
     def __init__(self, path: Path) -> None:
-        if rasterio is None:
-            raise ValueError("rasterio 가 설치되어 있지 않습니다 (pip install -r backend/requirements.txt)")
+        if rasterio is None or Transformer is None:
+            raise ValueError("rasterio 및 pyproj 가 설치되어 있지 않습니다 (pip install -r backend/requirements.txt)")
         self.path = path
         self.ds = rasterio.open(path)
         if self.ds.crs is None:

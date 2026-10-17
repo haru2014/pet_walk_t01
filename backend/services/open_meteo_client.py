@@ -90,7 +90,7 @@ def fetch_hourly_radiation(lat: float, lon: float, now: Optional[datetime] = Non
         text = _http_get(f"{base}?{query}", timeout)
     except urllib.error.HTTPError as exc:
         raise OpenMeteoError(f"Open-Meteo HTTP 오류 {exc.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except OSError as exc:
         raise OpenMeteoError(f"Open-Meteo 연결 실패 ({type(exc).__name__})") from None
 
     radiation = _parse(text)
@@ -152,6 +152,30 @@ def wmo_code_to_sky_pty(code: int) -> Tuple[int, int]:
     return 1, 0
 
 
+def _parse_hourly_forecast(payload: Dict[str, Any]) -> Dict[datetime, Dict[str, Any]]:
+    """시간별 날씨 예보 응답 JSON을 구조화된 딕셔너리로 변환한다."""
+    offset = timezone(timedelta(seconds=int(payload.get("utc_offset_seconds", 32400))))
+    hourly = payload["hourly"]
+    times = hourly["time"]
+    temps = hourly["temperature_2m"]
+    rads = hourly["shortwave_radiation"]
+    pops = hourly.get("precipitation_probability", [0] * len(times))
+    codes = hourly.get("weather_code", [0] * len(times))
+
+    parsed: Dict[datetime, Dict[str, Any]] = {}
+    for stamp, temp, rad, pop, code in zip(times, temps, rads, pops, codes):
+        t = datetime.fromisoformat(stamp).replace(tzinfo=offset)
+        sky, pty = wmo_code_to_sky_pty(int(code) if code is not None else 0)
+        parsed[t] = {
+            "air": float(temp) if temp is not None else 20.0,
+            "radiation": float(rad) if rad is not None else 0.0,
+            "sky": sky,
+            "pty": pty,
+            "pop": int(pop) if pop is not None else 0,
+        }
+    return parsed
+
+
 def fetch_hourly_weather_forecast(
     lat: float, lon: float, now: Optional[datetime] = None, *,
     timeout: float = DEFAULT_TIMEOUT_S,
@@ -180,7 +204,7 @@ def fetch_hourly_weather_forecast(
         text = _http_get(f"{base}?{query}", timeout)
     except urllib.error.HTTPError as exc:
         raise OpenMeteoError(f"Open-Meteo HTTP 오류 {exc.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except OSError as exc:
         raise OpenMeteoError(f"Open-Meteo 연결 실패 ({type(exc).__name__})") from None
 
     try:
@@ -188,25 +212,7 @@ def fetch_hourly_weather_forecast(
         if payload.get("error"):
             raise OpenMeteoError(f"Open-Meteo 오류: {str(payload.get('reason', ''))[:100]}")
 
-        offset = timezone(timedelta(seconds=int(payload.get("utc_offset_seconds", 32400))))
-        hourly = payload["hourly"]
-        times = hourly["time"]
-        temps = hourly["temperature_2m"]
-        rads = hourly["shortwave_radiation"]
-        pops = hourly.get("precipitation_probability", [0] * len(times))
-        codes = hourly.get("weather_code", [0] * len(times))
-
-        parsed: Dict[datetime, Dict[str, Any]] = {}
-        for stamp, temp, rad, pop, code in zip(times, temps, rads, pops, codes):
-            t = datetime.fromisoformat(stamp).replace(tzinfo=offset)
-            sky, pty = wmo_code_to_sky_pty(int(code) if code is not None else 0)
-            parsed[t] = {
-                "air": float(temp) if temp is not None else 20.0,
-                "radiation": float(rad) if rad is not None else 0.0,
-                "sky": sky,
-                "pty": pty,
-                "pop": int(pop) if pop is not None else 0,
-            }
+        parsed = _parse_hourly_forecast(payload)
         _FORECAST_CACHE[cache_key] = (time.monotonic(), parsed)
         return parsed
     except OpenMeteoError:
