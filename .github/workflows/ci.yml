@@ -105,16 +105,16 @@ jobs:
 
       - name: Render 저장소 main으로 즉시 동기화
         env:
-          RENDER_REPO: ${{ vars.FORK_REPO }}
-          RENDER_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
+          FORK_REPO: ${{ vars.FORK_REPO }}
+          FORK_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -n "${RENDER_REPO:-}" ] && [ -n "${RENDER_REPO_TOKEN:-}" ]; then
+          if [ -n "${FORK_REPO:-}" ] && [ -n "${FORK_REPO_TOKEN:-}" ]; then
             git fetch origin main:main || true
             git config --global credential.helper store
-            printf "https://oauth2:%s@github.com\n" "$RENDER_REPO_TOKEN" > ~/.git-credentials
+            printf "https://oauth2:%s@github.com\n" "$FORK_REPO_TOKEN" > ~/.git-credentials
             git config --global lfs.locksverify false || true
-            git push --force "https://github.com/${RENDER_REPO}.git" main:refs/heads/main || true
+            git push --force "https://github.com/${FORK_REPO}.git" main:refs/heads/main || true
           fi
 
   # ========================================================
@@ -145,32 +145,32 @@ jobs:
 
       - name: Render 저장소 main으로 동기화
         env:
-          RENDER_REPO: ${{ vars.FORK_REPO }}
-          RENDER_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
+          FORK_REPO: ${{ vars.FORK_REPO }}
+          FORK_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
         run: |
           set -euo pipefail
 
-          if [ -z "${RENDER_REPO:-}" ]; then
+          if [ -z "${FORK_REPO:-}" ]; then
             echo "::error::Repository variable FORK_REPO가 설정되지 않았습니다."
             echo "값은 gigantess/pet_walk_t01 형식이어야 합니다."
             exit 1
           fi
 
-          if [ "$RENDER_REPO" != "gigantess/pet_walk_t01" ]; then
-            echo "::error::FORK_REPO가 예상한 Render 저장소가 아닙니다: $RENDER_REPO"
+          if [ "$FORK_REPO" != "gigantess/pet_walk_t01" ]; then
+            echo "::error::FORK_REPO가 예상한 Render 저장소가 아닙니다: $FORK_REPO"
             echo "GitHub Actions Variables에서 FORK_REPO=gigantess/pet_walk_t01 로 설정하세요."
             exit 1
           fi
 
-          if [ -z "${RENDER_REPO_TOKEN:-}" ]; then
+          if [ -z "${FORK_REPO_TOKEN:-}" ]; then
             echo "::error::Secret FORK_REPO_TOKEN이 설정되지 않았습니다."
             exit 1
           fi
 
           # 1. Git 및 Git LFS가 PAT로 정상 인증되도록 credential helper store 구성
           git config --global credential.helper store
-          printf "https://oauth2:%s@github.com\n" "$RENDER_REPO_TOKEN" > ~/.git-credentials
+          printf "https://oauth2:%s@github.com\n" "$FORK_REPO_TOKEN" > ~/.git-credentials
           git config --global lfs.locksverify false || true
 
           # 2. Render 배포용 미러 저장소 main으로 강제 동기화 (Git LFS 객체 포함)
-          git push --force "https://github.com/${RENDER_REPO}.git" HEAD:refs/heads/main
+          git push --force "https://github.com/${FORK_REPO}.git" HEAD:refs/heads/main
