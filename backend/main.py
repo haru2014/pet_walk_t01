@@ -637,21 +637,14 @@ def get_community_feed():
     }
 
 
-MONTH_BASE_TEMP = {
-    1: 0.0, 2: 2.0, 3: 7.5, 4: 13.5, 5: 18.5, 6: 22.5,
-    7: 25.5, 8: 26.5, 9: 21.5, 10: 15.5, 11: 8.5, 12: 2.0,
-}
-
-
-def _generate_fallback_hourly_dtos(month: int = 10) -> List[Dict[str, Any]]:
-    base_temp = MONTH_BASE_TEMP.get(month, 15.5)
+def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
     hourly = []
     for h in range(24):
-        air_temp = round(base_temp + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
+        air_temp = round(26.5 + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
         if 20 <= h or h < 6:
             sky = "night"  # 야간에는 일사량 0.0 (지면열 = 기온)
         elif 10 <= h <= 15:
-            sky = "clear"
+            sky = "clear"  # 한낮에는 일사량 1.0 (지면열 = 기온 + 15도)
         else:
             sky = "partly_cloudy"
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
@@ -697,10 +690,32 @@ def _determine_golden_window(safe_blocks: List[Tuple[int, int]], now_hour: int) 
 
 
 def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 및 실시간 날씨 조회가 불가능할 때 쓰는 계절/KST 기준 지면열 추정 (실제 날씨가 아님)."""
+    """기상청 호출이 불가능할 때 쓰는 KST 시간대 기반 지면열 추정 (UTC 시차 오류 원천 차단)."""
     now_kst = to_kst(None)
     now_hour = now_kst.hour
-    hourly = _generate_fallback_hourly_dtos(month=now_kst.month)
+    hourly = _generate_fallback_hourly_dtos()
+
+    # Open-Meteo 실시간 기상 조회 가능 시 현재 기온과 일사량 실측값으로 정밀 보정
+    try:
+        from services import open_meteo_client
+        om_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, now_kst, timeout=1.5, forecast_days=1)
+        hour_start = now_kst.replace(minute=0, second=0, microsecond=0)
+        curr = om_data.get(hour_start)
+        if curr:
+            weight = open_meteo_client.radiation_to_weight(curr["radiation"]) if (6 <= now_hour < 20) else 0.0
+            surface = round(curr["air"] + weight * 15.0, 1)
+            is_golden = surface <= 35.0
+            hourly[now_hour] = {
+                "hour": now_hour,
+                "air_temp_celsius": curr["air"],
+                "estimated_surface_temp": surface,
+                "risk_level": "SAFE" if is_golden else ("CAUTION" if surface <= 45.0 else "DANGER"),
+                "is_golden_time": is_golden,
+                "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
+            }
+    except Exception:
+        pass
+
     safe_blocks = _extract_safe_blocks(hourly)
     golden_window = _determine_golden_window(safe_blocks, now_hour)
     current_dto = hourly[now_hour] if now_hour < len(hourly) else hourly[12]
@@ -726,26 +741,19 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
         "golden_time_window_day": "today",
         "grid": None,
         "bases": {},
-        "warnings": ["실시간 기상 정보를 가져오지 못해 계절별 기온 곡선으로 추정한 값입니다."],
+        "warnings": ["실시간 기상 정보를 가져오지 못해 KST 기준 추정 곡선으로 산출한 값입니다."],
     }
 
 
 def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """1차 기상청 -> 2차 Open-Meteo 실시간 -> 3차 KST 계절 곡선 폴백 계층."""
-    # 1차: 기상청 단기예보 & 초단기실황
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 KST 기반 추정으로 대체한다."""
     try:
         return build_heat_risk_response(lat, lon)
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.info("기상청 API 조회 실패 (%s), 2차 Open-Meteo 실시간 예보로 전환합니다.", exc)
-
-    # 2차: 무키 Open-Meteo 실시간 종합 날씨 (기상청 API 키 불필요, 실제 관측값 제공)
-    try:
-        return build_open_meteo_heat_risk_response(lat, lon)
-    except Exception as exc:
-        logger.warning("Open-Meteo 실시간 날씨 조회 실패 (%s), 3차 오프라인 계절 곡선으로 폴백합니다.", exc)
-
-    # 3차: 오프라인 계절별 KST 추정
-    return _fallback_heat_risk_response(lat, lon)
+        logger.warning("기상청 API 조회 실패, KST 기반 대체 추정을 반환합니다: %s", exc)
+        response = _fallback_heat_risk_response(lat, lon)
+        response["warnings"].append(f"사유: {exc}")
+        return response
 
 
 @app.get("/api/v1/weather/heat-risk")

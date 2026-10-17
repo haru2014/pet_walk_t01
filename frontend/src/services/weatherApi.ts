@@ -59,16 +59,11 @@ function getInsolationWeightForHour(hour: number): number {
   return 0.2; // 일출/일몰 완만한 일사
 }
 
-const MONTH_BASE_TEMP: Record<number, number> = {
-  1: 0.0, 2: 2.0, 3: 7.5, 4: 13.5, 5: 18.5, 6: 22.5,
-  7: 25.5, 8: 26.5, 9: 21.5, 10: 15.5, 11: 8.5, 12: 2.0,
-};
-
 /**
- * 시간대별 외기온도 시뮬레이션 (계절별 월 평균 기준 일변화 곡선)
+ * 시간대별 외기온도 시뮬레이션 (최저 22℃ ~ 최고 31℃ 곡선)
  */
-function getAirTempForHour(hour: number, month = 10): number {
-  const midTemp = MONTH_BASE_TEMP[month] ?? 15.5;
+function getAirTempForHour(hour: number): number {
+  const midTemp = 26.5;
   const amplitude = 4.5;
   const radians = ((hour - 14) / 12) * Math.PI;
   return Math.round((midTemp + amplitude * Math.cos(radians)) * 10) / 10;
@@ -179,11 +174,10 @@ export function computeGoldenWindowDay(
 export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResponse {
   const now = new Date();
   const currentHour = now.getHours();
-  const currentMonth = now.getMonth() + 1;
   const hourly: HeatRiskHourDTO[] = [];
 
   for (let h = 0; h < 24; h++) {
-    const airTemp = getAirTempForHour(h, currentMonth);
+    const airTemp = getAirTempForHour(h);
     const weight = getInsolationWeightForHour(h);
     const surfaceTemp = Math.round((airTemp + weight * 15.0) * 10) / 10;
     const { riskLevel, isGolden } = evaluateRisk(surfaceTemp);
