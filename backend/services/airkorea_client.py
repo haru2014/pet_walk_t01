@@ -96,7 +96,7 @@ def fetch_open_meteo_air_quality(lat: float, lon: float, timeout: float = DEFAUL
                     "station_name": "Open-Meteo 실시간 대기질",
                     "data_source": "open_meteo",
                 }
-    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         logger.debug("Open-Meteo 대기질 폴백 조회 실패: %s", exc)
     return None
 
@@ -167,7 +167,7 @@ def fetch_air_quality(
             if result:
                 _CACHE[cache_key] = (time.monotonic(), result)
                 return result
-        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError) as exc:
+        except (OSError, ValueError) as exc:
             logger.info("에어코리아 API 조회 실패 (%s), Open-Meteo 대기질 폴백 시도", exc)
 
     # 2. Open-Meteo 실시간 대기질 폴백 시도

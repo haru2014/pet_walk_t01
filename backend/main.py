@@ -727,7 +727,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "is_golden_time": is_golden,
                     "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
                 }
-        except (OSError, json.JSONDecodeError, ValueError, KeyError):
+        except (OSError, ValueError, KeyError):
             pass
 
     safe_blocks = _extract_safe_blocks(hourly)
