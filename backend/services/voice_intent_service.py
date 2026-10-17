@@ -34,12 +34,6 @@ LANDMARK_TO_PARK_ID = {
     "도안공원": "doan",
     "도안호수공원": "doan",
     "도안": "doan",
-    "보라매공원": "yurim",
-    "보라매": "yurim",
-    "한밭수목원": "yurim",
-    "한밭": "yurim",
-    "엑스포": "yurim",
-    "엑스포다리": "yurim",
 }
 
 DEFAULT_GEMINI_CANDIDATES = [
