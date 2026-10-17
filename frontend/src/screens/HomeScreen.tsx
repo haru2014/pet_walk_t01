@@ -72,12 +72,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. 환영 인사 (02_home_screen.png 원형 복원) */}
+      {/* 1. 환영 인사 (컴팩트 헤더) */}
       <View style={styles.greetingSection}>
         <Text style={[styles.greetingSub, { color: colors.textMuted }]}>오늘도 편안하게,</Text>
         <View style={styles.greetingMainRow}>
           <Text style={[styles.greetingMain, { color: colors.textMain }]}>우리 아이와 걸어요.</Text>
-          <AppIcon name="paw" size={18} color={colors.primary} />
+          <AppIcon name="paw" size={15} color={colors.primary} />
         </View>
       </View>
 
@@ -107,7 +107,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
       )}
 
-      {/* 4. 이번 주 산책 달성도 위젯 (docs/reference/trail_ accomplishment.png 원형 디자인) */}
+      {/* 4. 이번 주 산책 달성도 위젯 (일주일 7일 발자국 게이지) */}
       <TrailAccomplishmentWidget
         stats={weeklyStats}
         onPress={onOpenStats}
@@ -122,44 +122,44 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 24, // 하단 탭바에 마지막 카드가 잘리지 않도록 안전 여백 확보
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 6,
   },
   greetingSection: {
-    marginBottom: 2,
+    marginBottom: 0,
   },
   greetingSub: {
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '500',
-    marginBottom: 1,
+    marginBottom: 0,
   },
   greetingMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   greetingMain: {
-    fontSize: 19,
+    fontSize: 16.5,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   feedbackBadge: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 7,
+    gap: 6,
   },
   feedbackIconWrap: {
     marginTop: 1,
   },
   feedbackText: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 10.5,
+    lineHeight: 15,
     fontWeight: '600',
     flex: 1,
   },

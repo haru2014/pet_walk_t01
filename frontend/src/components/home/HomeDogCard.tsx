@@ -102,7 +102,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
             style={styles.profileRow}
           >
             <View style={styles.avatarWrapper}>
-              <DogAvatar photoUri={profile.photoUri} size={48} />
+              <DogAvatar photoUri={profile.photoUri} size={40} />
               <View style={styles.onlineBadge} />
             </View>
 
@@ -193,7 +193,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
                   style={styles.profileRow}
                 >
                   <View style={styles.avatarWrapper}>
-                    <DogAvatar photoUri={dogItem.photoUri} size={48} />
+                    <DogAvatar photoUri={dogItem.photoUri} size={40} />
                     <View style={styles.onlineBadge} />
                   </View>
 
@@ -308,10 +308,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
 const styles = StyleSheet.create({
   singleCardWrapper: {
-    marginBottom: 10,
+    marginBottom: 4,
   },
   sliderOuterContainer: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   scrollContent: {
     alignItems: 'stretch',
@@ -322,13 +322,14 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: TOKENS.colors.surface,
     borderRadius: TOKENS.borderRadius.card,
-    padding: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
     shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   cardActiveHighlight: {
@@ -337,8 +338,8 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 8,
   },
   avatarWrapper: {
     position: 'relative',
@@ -347,9 +348,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 1,
     right: 1,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: TOKENS.colors.primary,
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -362,71 +363,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   dogName: {
-    fontSize: 17,
+    fontSize: 15.5,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   readyBadge: {
     backgroundColor: TOKENS.colors.primarySubtle,
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 20,
   },
   readyBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primary,
   },
   slideNoticeBadge: {
     marginLeft: 'auto',
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
   },
   slideNoticeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   addBtnSmall: {
     marginLeft: 'auto',
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
   addBtnSmallText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: TOKENS.colors.textMuted,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breedText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: TOKENS.colors.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 4,
-    gap: 8,
+    paddingTop: 2,
+    gap: 6,
   },
   chipsContainer: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
     flexWrap: 'wrap',
     flex: 1,
   },
@@ -434,30 +435,30 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 16,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
-  chipContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  chipContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   startButton: {
     backgroundColor: TOKENS.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 6.5,
+    borderRadius: 12,
     shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
   startButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     letterSpacing: -0.2,
   },

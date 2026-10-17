@@ -18,18 +18,21 @@ vi.mock('react-native-svg', () => ({
 }));
 
 describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)', () => {
-  it('renders title and 6 paw prints with default 4 filled when stats is null', () => {
+  it('renders title and 7 paw prints with default 4 filled when stats is null', () => {
     const html = renderToStaticMarkup(
       <TrailAccomplishmentWidget stats={null} />
     );
 
     expect(html).toContain('이번 주 산책 달성도');
-    expect(html).toContain('이번 주 산책 달성도: 6회 중 4회 달성');
-    // activeColor #58B273 4회, inactiveColor #E2E8F0 2회 포함 확인
+    expect(html).toContain('이번 주 산책 달성도: 7회 중 4회 달성');
+    // activeColor #58B273 4회, inactiveColor #E2E8F0 3회 포함 확인
     const activeOccurrences = (html.match(/#58B273/g) || []).length;
     const inactiveOccurrences = (html.match(/#E2E8F0/g) || []).length;
     expect(activeOccurrences).toBe(4);
-    expect(inactiveOccurrences).toBe(2);
+    expect(inactiveOccurrences).toBe(3);
+    // 일주일 7일(월~일) 라벨 렌더링 확인
+    expect(html).toContain('월');
+    expect(html).toContain('일');
   });
 
   it('renders exact completed count according to weeklyStats.totalWalks', () => {
@@ -37,8 +40,8 @@ describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)',
       weekRangeLabel: '10.12 ~ 10.18',
       totalDistanceKm: 8.5,
       totalWalks: 5,
-      targetWalks: 6,
-      completionRatePercent: 83,
+      targetWalks: 7,
+      completionRatePercent: 71,
       safeSurfaceRatioPercent: 75,
       totalDurationMinutes: 120,
       totalPoopCount: 4,
@@ -50,10 +53,10 @@ describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)',
       <TrailAccomplishmentWidget stats={mockStats} />
     );
 
-    expect(html).toContain('이번 주 산책 달성도: 6회 중 5회 달성');
+    expect(html).toContain('이번 주 산책 달성도: 7회 중 5회 달성');
     const activeOccurrences = (html.match(/#58B273/g) || []).length;
     const inactiveOccurrences = (html.match(/#E2E8F0/g) || []).length;
     expect(activeOccurrences).toBe(5);
-    expect(inactiveOccurrences).toBe(1);
+    expect(inactiveOccurrences).toBe(2);
   });
 });

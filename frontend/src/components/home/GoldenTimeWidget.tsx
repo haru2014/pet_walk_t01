@@ -7,8 +7,8 @@
  * - 당일 계절/일사량 맞춤 골든타임 윈도우(1.5~2시간 슬롯) 동적 시각화
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { HeatRiskLevel, HeatRiskResponse } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
@@ -189,7 +189,6 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   statusNotice,
 }) => {
   const { colors } = useAppTheme();
-  const [selectedLocation, setSelectedLocation] = useState('대전광역시 서구');
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -229,14 +228,6 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     statusNotice
   );
 
-  const handleChangeRegion = () => {
-    const locations = ['대전광역시 서구', '대전광역시 유성구', '세종특별자치시 연기면'];
-    const nextIdx = (locations.indexOf(selectedLocation) + 1) % locations.length;
-    const nextLoc = locations[nextIdx];
-    setSelectedLocation(nextLoc);
-    Alert.alert('산책 지역 변경', `지역이 "${nextLoc}"(으)로 변경되었습니다.`);
-  };
-
   const popPercent = typeof weather?.pop === 'number' ? weather.pop : 20;
   const airQuality = weather?.air_quality;
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
@@ -247,10 +238,10 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
       style={styles.container}
       accessibilityLabel="산책하기 좋은 지면온도 시간"
     >
-      {/* 1. 상단 타이틀 영역 (trail_quotient.jpg) */}
+      {/* 1. 상단 타이틀 영역 (컴팩트 헤더) */}
       <View style={styles.topHeader}>
         <View style={styles.pawIconBox}>
-          <AppIcon name="paw" size={24} color="#6366F1" />
+          <AppIcon name="paw" size={17} color="#6366F1" />
         </View>
         <View style={styles.headerTitleWrap}>
           <Text style={[styles.mainHeading, { color: colors.textMain }]}>오늘 강아지 산책지수</Text>
@@ -260,35 +251,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         </View>
       </View>
 
-      {/* 2. 위치 및 기준 시각 칩 바 & 지역 변경 */}
-      <View style={styles.locationBar}>
-        <View style={styles.chipsRow}>
-          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <AppIcon name="map" size={12} color="#64748B" />
-            <Text style={[styles.infoChipText, { color: colors.textMain }]}>
-              {airQuality?.station_name ? `${airQuality.station_name}` : selectedLocation}
-            </Text>
-          </View>
-          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.infoChipText, { color: colors.textMuted }]}>대략 위치</Text>
-          </View>
-          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <AppIcon name="clock" size={12} color="#64748B" />
-            <Text style={[styles.infoChipText, { color: colors.textMain }]}>{nowLabel} 기준</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleChangeRegion}
-          style={styles.changeRegionBtn}
-          accessibilityRole="button"
-          accessibilityLabel="지역 변경"
-        >
-          <Text style={styles.changeRegionText}>지역 변경</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 3. 메인 산책지수 카드 (원형 게이지 + 상태 + 추천 시간) */}
+      {/* 2. 메인 산책지수 카드 (원형 게이지 + 상태 + 추천 시간 + 내부 마이크로 메트릭) */}
       <View
         style={[
           styles.scoreCard,
@@ -298,73 +261,75 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
           },
         ]}
       >
-        {/* 원형 점수 게이지 (100점) */}
-        <View style={styles.gaugeContainer}>
-          <View style={[styles.circleRing, { borderColor: quotient.ringColor }]}>
-            <Text style={[styles.scoreNumber, { color: colors.textMain }]}>{quotient.score}</Text>
-            <Text style={[styles.scoreUnit, { color: colors.textMuted }]}>점</Text>
-          </View>
-        </View>
-
-        {/* 상태 뱃지 & 안내 문구 */}
-        <View style={styles.scoreContent}>
-          <View style={[styles.statusBadge, { backgroundColor: quotient.badgeBg }]}>
-            <Text style={[styles.statusBadgeText, { color: quotient.badgeColor }]}>
-              ✓ {quotient.statusLabel}
-            </Text>
+        {/* 상단: 원형 점수 게이지 + 상태 & 추천 시간 */}
+        <View style={styles.cardMainRow}>
+          {/* 원형 점수 게이지 (컴팩트 66px) */}
+          <View style={styles.gaugeContainer}>
+            <View style={[styles.circleRing, { borderColor: quotient.ringColor }]}>
+              <Text style={[styles.scoreNumber, { color: colors.textMain }]}>{quotient.score}</Text>
+              <Text style={[styles.scoreUnit, { color: colors.textMuted }]}>점</Text>
+            </View>
           </View>
 
-          <Text style={[styles.statusTitle, { color: colors.textMain }]}>
-            {quotient.statusTitle}
-          </Text>
+          {/* 상태 뱃지, 타이틀, 추천 시간 */}
+          <View style={styles.scoreContent}>
+            <View style={styles.badgeTimeRow}>
+              <View style={[styles.statusBadge, { backgroundColor: quotient.badgeBg }]}>
+                <Text style={[styles.statusBadgeText, { color: quotient.badgeColor }]}>
+                  ✓ {quotient.statusLabel}
+                </Text>
+              </View>
+              <Text style={[styles.recommendTimeInline, { color: colors.textMuted }]}>
+                {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
+              </Text>
+            </View>
 
-          <View style={styles.recommendTimeBox}>
-            <Text style={[styles.recommendLeadText, { color: colors.textMuted }]}>
-              {isTomorrow ? '내일' : '오늘'} 추천 시간은
+            <Text style={[styles.statusTitle, { color: colors.textMain }]} numberOfLines={1}>
+              {quotient.statusTitle}
             </Text>
-            <Text style={[styles.recommendRangeText, { color: colors.textMain }]}>
-              <Text style={styles.recommendRangeBold}>{timeRangeDisplay}</Text>
-              이에요.
-            </Text>
+
+            {/* 카드 내부 작은 글씨 4대 메트릭 마이크로 바 (기온, 체감, 강수확률, 미세먼지) */}
+            <View style={[styles.miniMetricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <View style={styles.miniMetricItem}>
+                <Text style={styles.miniMetricEmoji}>🌡️</Text>
+                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>기온</Text>
+                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{currentAirTemp}°</Text>
+              </View>
+              <View style={styles.miniMetricDivider} />
+              <View style={styles.miniMetricItem}>
+                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>체감</Text>
+                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°</Text>
+              </View>
+              <View style={styles.miniMetricDivider} />
+              <View style={styles.miniMetricItem}>
+                <Text style={styles.miniMetricEmoji}>🌧️</Text>
+                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>강수</Text>
+                <Text style={[styles.miniMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
+              </View>
+              <View style={styles.miniMetricDivider} />
+              <View style={styles.miniMetricItem}>
+                <Text style={styles.miniMetricEmoji}>🌫️</Text>
+                <Text style={[styles.miniMetricLabel, { color: colors.textMuted }]}>미세</Text>
+                <Text style={[styles.miniMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
 
-      {/* 4. 하단 4대 환경 메트릭 캡슐 바 (기온, 체감, 강수확률, 미세먼지) */}
-      <View style={styles.metricsGrid}>
-        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.metricEmoji}>🌡️</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>기온</Text>
-          <Text style={[styles.metricValue, { color: colors.textMain }]}>{currentAirTemp}°</Text>
-        </View>
-        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.metricEmoji}>🌡️</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>체감</Text>
-          <Text style={[styles.metricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°</Text>
-        </View>
-        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.metricEmoji}>🌧️</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>강수확률</Text>
-          <Text style={[styles.metricValue, { color: colors.textMain }]}>{popPercent}%</Text>
-        </View>
-        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={styles.metricEmoji}>🌫️</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>미세먼지</Text>
-          <Text style={[styles.metricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
-        </View>
-      </View>
-
-      {/* 5. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
+      {/* 3. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
       <View style={styles.hiddenMetaArea}>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{subtitleText}</Text>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{startDisplay}</Text>
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{timeRangeDisplay}</Text>
         <View style={styles.hiddenTrack}>
           <View style={[styles.hiddenProgress, { width: `${progress}%` }]} />
           <View style={[styles.hiddenIndicator, { left: `${progress}%` }]} />
         </View>
       </View>
 
-      {/* 6. 오픈메테오 일사량 데이터 출처 (라이선스 CC BY 4.0 표기) */}
+      {/* 4. 오픈메테오 일사량 데이터 출처 (라이선스 CC BY 4.0 표기) */}
       {Boolean(weather?.attribution) && (
         <View style={styles.attributionContainer}>
           <Text style={[styles.attributionText, { color: colors.textMuted }]}>
@@ -378,19 +343,19 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-    marginTop: 2,
+    gap: 8,
+    marginBottom: 6,
+    marginTop: 1,
   },
   pawIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -399,164 +364,126 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainHeading: {
-    fontSize: 21,
+    fontSize: 16,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   mainSubHeading: {
-    fontSize: 12.5,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 2,
-  },
-  locationBar: {
-    marginBottom: 12,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 6,
-  },
-  infoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  infoChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  changeRegionBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 2,
-    paddingHorizontal: 2,
-  },
-  changeRegionText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#2563EB',
+    marginTop: 1,
   },
   scoreCard: {
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 16,
+    padding: 10,
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    gap: 10,
   },
   gaugeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   circleRing: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 8,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
   scoreNumber: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.5,
-    lineHeight: 32,
+    lineHeight: 24,
   },
   scoreUnit: {
-    fontSize: 11.5,
+    fontSize: 9.5,
     fontWeight: '700',
     marginTop: -2,
   },
   scoreContent: {
     flex: 1,
   },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginBottom: 6,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  recommendTimeBox: {},
-  recommendLeadText: {
-    fontSize: 12.5,
-    fontWeight: '500',
-    lineHeight: 16,
-  },
-  recommendRangeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  recommendRangeBold: {
-    fontSize: 14.5,
-    fontWeight: '800',
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  metricCapsule: {
-    width: '48.7%',
+  badgeTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    borderWidth: 1,
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
-  metricEmoji: {
-    fontSize: 14,
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
   },
-  metricLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  metricValue: {
-    fontSize: 13.5,
+  statusBadgeText: {
+    fontSize: 10.5,
     fontWeight: '800',
   },
+  recommendTimeInline: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  miniMetricsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 3.5,
+    paddingHorizontal: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  miniMetricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  miniMetricEmoji: {
+    fontSize: 9.5,
+  },
+  miniMetricLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  miniMetricValue: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  miniMetricDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 1,
+  },
   hiddenMetaArea: {
-    marginTop: 6,
-    paddingHorizontal: 4,
+    height: 0,
+    overflow: 'hidden',
+    opacity: 0,
   },
   hiddenMetaText: {
     fontSize: 10.5,
-    lineHeight: 14,
   },
   hiddenTrack: {
     height: 0,
-    position: 'relative',
-    overflow: 'hidden',
   },
   hiddenProgress: {
-    position: 'absolute',
     height: 0,
   },
   hiddenIndicator: {
@@ -564,10 +491,10 @@ const styles = StyleSheet.create({
   },
   attributionContainer: {
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 2,
   },
   attributionText: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     fontWeight: '400',
     textAlign: 'center',
   },
