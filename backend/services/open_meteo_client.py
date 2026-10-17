@@ -35,6 +35,7 @@ ATTRIBUTION = "Weather data by Open-Meteo.com (CC BY 4.0)"
 
 InsolationProvider = Callable[[datetime], Optional[float]]
 _CACHE: Dict[Tuple, Tuple[float, Dict[datetime, float]]] = {}
+_FORECAST_CACHE: Dict[Tuple, Tuple[float, Dict[datetime, Dict[str, Any]]]] = {}
 
 
 class OpenMeteoError(Exception):
@@ -43,6 +44,7 @@ class OpenMeteoError(Exception):
 
 def clear_cache() -> None:
     _CACHE.clear()
+    _FORECAST_CACHE.clear()
 
 
 def _http_get(url: str, timeout: float) -> str:
@@ -160,6 +162,12 @@ def fetch_hourly_weather_forecast(
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise ValueError(f"좌표 범위를 벗어났습니다: lat={lat}, lon={lon}")
 
+    today = to_kst(now).strftime("%Y%m%d%H")
+    cache_key = (round(lat, 2), round(lon, 2), today, forecast_days)
+    cached = _FORECAST_CACHE.get(cache_key)
+    if cached and time.monotonic() - cached[0] < CACHE_TTL_S:
+        return cached[1]
+
     query = urllib.parse.urlencode({
         "latitude": lat,
         "longitude": lon,
@@ -199,6 +207,7 @@ def fetch_hourly_weather_forecast(
                 "pty": pty,
                 "pop": int(pop) if pop is not None else 0,
             }
+        _FORECAST_CACHE[cache_key] = (time.monotonic(), parsed)
         return parsed
     except OpenMeteoError:
         raise
