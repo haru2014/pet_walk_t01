@@ -15,7 +15,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -25,8 +24,6 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
 import { LandmarkCategoryCode } from '../types/landmarkCategory';
 import { SupabaseService } from '../services/supabaseService';
 import { useAppResponsive } from '../hooks/useAppResponsive';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface CommunityTabScreenProps {
   readonly onStartCommunityWalk?: (
