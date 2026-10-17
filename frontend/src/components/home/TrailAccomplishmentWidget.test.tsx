@@ -1,6 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { TrailAccomplishmentWidget } from './TrailAccomplishmentWidget';
+import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
@@ -14,9 +16,6 @@ vi.mock('react-native-svg', () => ({
   G: (props: any) => React.createElement('g', props),
   Text: (props: any) => React.createElement('text', props),
 }));
-
-import { TrailAccomplishmentWidget } from './TrailAccomplishmentWidget';
-import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 
 describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)', () => {
   it('renders title and 6 paw prints with default 4 filled when stats is null', () => {

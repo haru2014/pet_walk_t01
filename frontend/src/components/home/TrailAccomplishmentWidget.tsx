@@ -173,6 +173,11 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
       ? Math.max(0, Math.min(stats.totalWalks, totalSlots))
       : 4;
 
+  const slots = Array.from({ length: totalSlots }, (_, i) => ({
+    id: `paw_slot_step_${i + 1}`,
+    filled: i < completedCount,
+  }));
+
   return (
     <TouchableOpacity
       activeOpacity={onPress ? 0.88 : 1}
@@ -198,10 +203,10 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
 
       {/* 2. 하단 6개 강아지 발자국(Paw) 게이지 바 */}
       <View style={styles.pawsRow}>
-        {Array.from({ length: totalSlots }).map((_, index) => (
+        {slots.map((slot) => (
           <AccomplishmentPaw
-            key={`paw-slot-${index}`}
-            filled={index < completedCount}
+            key={slot.id}
+            filled={slot.filled}
             activeColor="#58B273"
             inactiveColor="#E2E8F0"
           />
