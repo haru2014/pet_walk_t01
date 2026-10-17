@@ -16,6 +16,7 @@ import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { DogProfile } from '../../types/dogProfile';
 import { PILOT_PARKS, getPilotParkById } from '../../types/pilotParks';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import {
   EnvironmentId,
   WALK_ENVIRONMENTS,
@@ -113,6 +114,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   onFindRoute,
 }) => {
   const { colors } = useAppTheme();
+  const { walkSettings, scale } = useAppResponsive();
   const [originMode, setOriginMode] = useState<WalkOriginMode>(
     initialPreferences?.originMode ?? 'park'
   );
@@ -238,7 +240,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
       <ScrollView
         style={styles.contentScroll}
-        contentContainerStyle={styles.contentWrap}
+        contentContainerStyle={[styles.contentWrap, { paddingHorizontal: walkSettings.containerPaddingH }]}
         showsVerticalScrollIndicator={false}
       >
         {/* 2. 타이틀 & 안내 섹션 (03_walk_settings.png 원형 복원) */}
@@ -381,7 +383,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
-        <View style={styles.sectionBlock}>
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.durationTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
@@ -418,6 +420,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                     style={[
                       styles.durationChip,
                       {
+                        height: scale(36, 38, 44),
                         backgroundColor: isSelected ? colors.primary : colors.surface,
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
@@ -459,7 +462,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 2: 어떤 길이 좋을까요? (6대 안심 환경 2열 카드 그리드 복원) */}
-        <View style={styles.sectionBlock}>
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: colors.textMain }]}>어떤 길이 좋을까요?</Text>
             <Text style={[styles.sectionSubGuide, { color: colors.textMuted }]}>여러 개 선택할 수 있어요</Text>
@@ -475,6 +478,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   style={[
                     styles.envCard,
                     {
+                      minHeight: walkSettings.envCardHeight,
+                      padding: scale(7, 9, 12),
                       backgroundColor: colors.surface,
                       borderColor: isChecked ? colors.primary : colors.border,
                       borderWidth: isChecked ? 1.5 : 1,
@@ -503,25 +508,25 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       </ScrollView>
 
       {/* 6. 하단 Thumb Zone 탐색 버튼 (03_walk_settings.png 원형 복원) */}
-      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomBar, { paddingVertical: scale(8, 10, 14), backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.88}
           disabled={isLocating}
           onPress={handleSubmit}
-          style={[styles.submitButton, { backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
+          style={[styles.submitButton, { height: scale(46, 50, 56), backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
         >
           <View style={styles.submitButtonContent}>
             {isLocating ? (
               <>
                 <ActivityIndicator size="small" color={colors.textWhite} style={{ marginRight: 6 }} />
-                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
                   현재 위치 확인 중...
                 </Text>
               </>
             ) : (
               <>
                 <AppIcon name="sparkle" size={18} color={colors.textWhite} />
-                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
                   AI 산책 코스 찾아보기
                 </Text>
               </>

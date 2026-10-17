@@ -16,6 +16,7 @@ import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
 import { useAppTheme } from '../../theme/themeManager';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import { AppIcon } from '../common/AppIcon';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
@@ -45,6 +46,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onPinSelect,
 }) => {
   const { colors } = useAppTheme();
+  const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
@@ -167,7 +169,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
-        <View style={styles.mapSection}>
+        <View style={[styles.mapSection, { minHeight: courseRecommend.mapHeight }]}>
           <RouteMapView
             route={activeRoute}
             stepPins={activePins}
@@ -180,7 +182,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       </ScrollView>
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
-      <View style={[styles.bottomCard, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomCard, { paddingVertical: courseRecommend.cardPaddingV, paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         {/* 상단 핸들 바 & 대체 코스 퀵 칩 & 북마크 */}
         <View style={styles.sheetHeaderRow}>
           <View style={styles.courseChipRow}>
@@ -194,6 +196,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   style={[
                     styles.courseChip,
                     {
+                      paddingVertical: courseRecommend.altCourseChipPadV,
                       backgroundColor: isSelected ? colors.primaryLight : colors.surface,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
@@ -248,11 +251,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={() => onStartWalk(currentCourse, plan)}
-          style={[styles.startButton, { backgroundColor: colors.primary }]}
+          style={[styles.startButton, { height: scale(46, 48, 54), backgroundColor: colors.primary }]}
         >
           <View style={styles.btnContent}>
             <AppIcon name="paw" size={18} color={colors.textWhite} />
-            <Text style={[styles.startButtonText, { color: colors.textWhite }]}>
+            <Text style={[styles.startButtonText, { fontSize: courseRecommend.startButtonFontSize, color: colors.textWhite }]}>
               이 코스로 산책 시작하기
             </Text>
           </View>

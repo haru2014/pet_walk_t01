@@ -18,6 +18,7 @@ import { MyWalkHistoryView } from '../components/profile/MyWalkHistoryView';
 import { ThemeSelectorCard } from '../components/profile/ThemeSelectorCard';
 import { SupabaseService } from '../services/supabaseService';
 import { useAppTheme } from '../theme/themeManager';
+import { useAppResponsive } from '../hooks/useAppResponsive';
 import { LegalTermsModal, LegalTabType } from '../components/common/LegalTermsModal';
 import { VoiceSettingCard } from '../components/voice/VoiceSettingCard';
 import { WeeklyWalkReportCard, RecentWalkInfo } from '../components/home/WeeklyWalkReportCard';
@@ -284,6 +285,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   const [legalTab, setLegalTab] = useState<LegalTabType>('terms');
   const [currentUser, setCurrentUser] = useState(() => SupabaseService.getCurrentUser());
   const { colors } = useAppTheme();
+  const { myProfile } = useAppResponsive();
 
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
     WalkStatisticsService.getWeeklyStats([])
@@ -345,7 +347,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
     });
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: myProfile.containerPaddingH }]}>
       {/* 상단 헤더 */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
@@ -356,33 +358,33 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
       <View style={[styles.segmentContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <TouchableOpacity
           onPress={() => handleSubTabChange('dog_profile')}
-          style={[styles.segmentBtn, subTab === 'dog_profile' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'dog_profile' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, subTab === 'dog_profile' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'dog_profile' && { color: colors.primaryDark, fontWeight: '700' }]}>
             🐾 프로필
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleSubTabChange('theme_account')}
-          style={[styles.segmentBtn, subTab === 'theme_account' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'theme_account' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, subTab === 'theme_account' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'theme_account' && { color: colors.primaryDark, fontWeight: '700' }]}>
             🎨 테마·계정
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleSubTabChange('walk_records')}
-          style={[styles.segmentBtn, subTab === 'walk_records' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'walk_records' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, subTab === 'walk_records' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'walk_records' && { color: colors.primaryDark, fontWeight: '700' }]}>
             📜 활동
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleSubTabChange('settings')}
-          style={[styles.segmentBtn, subTab === 'settings' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'settings' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, subTab === 'settings' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'settings' && { color: colors.primaryDark, fontWeight: '700' }]}>
             ⚙️ 설정
           </Text>
         </TouchableOpacity>
@@ -461,12 +463,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               onPress={() => setWalkSubFilter('history')}
               style={[
                 styles.filterChip,
+                { paddingVertical: myProfile.segmentPaddingV },
                 walkSubFilter === 'history' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
               ]}
             >
               <Text
                 style={[
                   styles.filterChipText,
+                  { fontSize: myProfile.segmentFontSize },
                   walkSubFilter === 'history' && { color: colors.primaryDark, fontWeight: '700' },
                 ]}
               >
@@ -478,12 +482,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               onPress={() => setWalkSubFilter('bookmarks')}
               style={[
                 styles.filterChip,
+                { paddingVertical: myProfile.segmentPaddingV },
                 walkSubFilter === 'bookmarks' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
               ]}
             >
               <Text
                 style={[
                   styles.filterChipText,
+                  { fontSize: myProfile.segmentFontSize },
                   walkSubFilter === 'bookmarks' && { color: colors.primaryDark, fontWeight: '700' },
                 ]}
               >

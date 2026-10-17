@@ -24,6 +24,7 @@ import { RouteMapView } from '../components/map/RouteMapView';
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
 import { LandmarkCategoryCode } from '../types/landmarkCategory';
 import { SupabaseService } from '../services/supabaseService';
+import { useAppResponsive } from '../hooks/useAppResponsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -89,6 +90,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   dogSpeedKmH = 2.8,
   onOpenAuthModal,
 }) => {
+  const { community } = useAppResponsive();
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>([]);
   const [isSupabase, setIsSupabase] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -230,7 +232,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
         const feedPins = buildPinsFromCoords(feed.masked_polyline);
 
         return (
-          <CardWrapper key={feed.course_id} variant="elevated" style={styles.feedCard}>
+          <CardWrapper
+            key={feed.course_id}
+            variant="elevated"
+            style={[styles.feedCard, { paddingVertical: community.feedCardPaddingV, paddingHorizontal: community.feedCardPaddingH }]}
+          >
             {/* 카드 상단 클릭 시 아코디언 토글 */}
             <TouchableOpacity
               activeOpacity={0.75}
@@ -240,14 +246,14 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               <View style={styles.landmarkRow}>
                 {feed.landmark_name && (
                   <View style={styles.landmarkChip}>
-                    <Text style={styles.landmarkChipText}>
+                    <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont }]}>
                       📍 {feed.landmark_name} · {feed.region_name}
                     </Text>
                   </View>
                 )}
                 {feed.is_origin_masked && (
                   <View style={styles.maskedChip}>
-                    <Text style={styles.maskedChipText}>🔒 200m 보호</Text>
+                    <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>🔒 200m 보호</Text>
                   </View>
                 )}
               </View>
@@ -275,7 +281,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길)
                 </Text>
 
-                <View style={styles.miniMapContainer}>
+                <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight }]}>
                   <RouteMapView
                     route={feedRoute}
                     stepPins={feedPins}
@@ -289,7 +295,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                     <TouchableOpacity
                       activeOpacity={0.8}
                       onPress={() => handleStartWalkFromFeed(feed)}
-                      style={styles.startWalkButton}
+                      style={[styles.startWalkButton, { paddingVertical: community.actionBtnPaddingV }]}
                     >
                       <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
                     </TouchableOpacity>
@@ -297,7 +303,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => setModalFeed(feed)}
-                    style={styles.fullScreenButton}
+                    style={[styles.fullScreenButton, { paddingVertical: community.actionBtnPaddingV }]}
                   >
                     <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
                   </TouchableOpacity>
