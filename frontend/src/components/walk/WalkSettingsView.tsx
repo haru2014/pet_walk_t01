@@ -26,6 +26,7 @@ import {
 import { WalkVoiceInputSection } from './WalkVoiceInputSection';
 import { WalkDurationSlider } from './WalkDurationSlider';
 import { getCurrentLocationCoords } from '../../services/locationService';
+import { VoiceIntentResult } from '../../services/voiceIntentApi';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -93,6 +94,37 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     );
   };
 
+  const handleIntentParsed = (result: VoiceIntentResult) => {
+    const { intent, landmark_park_id } = result;
+    // 1. 산책 시간 자동 반영
+    if (intent.target_duration_minutes) {
+      setDuration(intent.target_duration_minutes);
+      setIsFreeWalk(false);
+      if (![20, 30, 40, 60].includes(intent.target_duration_minutes)) {
+        setShowDetailedDuration(true);
+      }
+    }
+    // 2. 환경 칩 자동 반영
+    setEnvironments((prev) => {
+      let next = [...prev];
+      if (intent.prefer_shade && !next.includes('shade')) {
+        next.push('shade');
+      }
+      if (intent.prefer_cushion && !next.includes('soft')) {
+        next.push('soft');
+      }
+      if (intent.avoid_stairs) {
+        next = next.filter((e) => e !== 'stairs');
+      }
+      return next;
+    });
+    // 3. 랜드마크 공원 자동 설정
+    if (landmark_park_id) {
+      setOriginMode('park');
+      setPilotParkId(landmark_park_id);
+    }
+  };
+
   const currentPark = getPilotParkById(pilotParkId);
 
   const handleSubmit = async () => {
@@ -154,6 +186,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           dogName={dog.name}
           requestText={requestText}
           onChangeText={setRequestText}
+          onIntentParsed={handleIntentParsed}
+          coords={userCoords}
         />
 
         {/* 4. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}

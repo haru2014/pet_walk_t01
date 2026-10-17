@@ -53,6 +53,11 @@ from test_case.test_api_contracts import (
     CommunityCourseSummary,
 )
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
+from services.voice_intent_service import (
+    VoiceWalkIntentPayload,
+    parse_voice_walk_intent,
+    resolve_landmark_park_id,
+)
 
 app = FastAPI(
     title="편안하개 (PetWalk) API",
@@ -94,6 +99,30 @@ def health_check():
         "supabase_connected": community_repo.is_connected(),
         # 지금 서버에 올라가 있는 커밋(Render 가 자동으로 넣어 주는 값). 로컬 실행에서는 빈 문자열.
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
+    }
+
+
+class VoiceIntentRequest(BaseModel):
+    speech_text: str = Field(..., min_length=1)
+    dog_name: Optional[str] = None
+    origin_lat: Optional[float] = None
+    origin_lon: Optional[float] = None
+
+
+@app.post("/api/v1/voice/intent")
+def parse_voice_intent_endpoint(body: VoiceIntentRequest):
+    """[영역 1] 보호자의 음성/자연어 발화에서 산책 의도 파라미터를 Gemini API로 분석."""
+    payload, model_used, data_source = parse_voice_walk_intent(
+        speech_text=body.speech_text,
+        dog_name=body.dog_name,
+    )
+    landmark_park_id = resolve_landmark_park_id(payload.destination_landmark)
+    return {
+        "status": "success",
+        "intent": payload.model_dump(),
+        "landmark_park_id": landmark_park_id,
+        "model_used": model_used,
+        "data_source": data_source,
     }
 
 
@@ -197,6 +226,9 @@ def plan_walk_route(req: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
 
     pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
+    if not pilot_park_id:
+        hint_text = str(req.get("user_query") or req.get("request_text") or "")
+        pilot_park_id = resolve_landmark_park_id(hint_text)
     if pilot_park_id is not None and not isinstance(pilot_park_id, str):
         raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
     origin_mode = req.get("origin_mode")
