@@ -96,6 +96,8 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: PR 자동 머지 실행 (Squash & Merge)
         run: |
@@ -111,12 +113,10 @@ jobs:
           set -euo pipefail
           if [ -n "${FORK_REPO:-}" ] && [ -n "${FORK_REPO_TOKEN:-}" ]; then
             git fetch origin main:main || true
-            # actions/checkout이 주입한 기본 GITHUB_TOKEN extraheader 제거
             git config --local --unset-all 'http.https://github.com/.extraheader' || true
-            git config --global credential.helper store
-            printf "https://oauth2:%s@github.com\n" "$FORK_REPO_TOKEN" > ~/.git-credentials
-            git config --global lfs.locksverify false || true
-            git push --force "https://github.com/${FORK_REPO}.git" main:refs/heads/main || true
+            git -c credential.helper= -c http.extraheader= push --force \
+              "https://${FORK_REPO_TOKEN}@github.com/${FORK_REPO}.git" \
+              main:refs/heads/main || true
           fi
 
   # ========================================================
@@ -169,13 +169,10 @@ jobs:
             exit 1
           fi
 
-          # 1. actions/checkout이 주입한 기본 GITHUB_TOKEN extraheader 제거 (외부 저장소 푸시 시 권한 충돌 방지)
+          # 1. actions/checkout이 주입한 기본 GITHUB_TOKEN extraheader 제거
           git config --local --unset-all 'http.https://github.com/.extraheader' || true
 
-          # 2. Git 및 Git LFS가 PAT로 정상 인증되도록 credential helper store 구성
-          git config --global credential.helper store
-          printf "https://oauth2:%s@github.com\n" "$FORK_REPO_TOKEN" > ~/.git-credentials
-          git config --global lfs.locksverify false || true
-
-          # 3. Render 배포용 미러 저장소 main으로 강제 동기화 (Git LFS 객체 포함)
-          git push --force "https://github.com/${FORK_REPO}.git" HEAD:refs/heads/main
+          # 2. Render 배포용 미러 저장소 main으로 강제 동기화 (Git LFS 객체 포함)
+          git -c credential.helper= -c http.extraheader= push --force \
+            "https://${FORK_REPO_TOKEN}@github.com/${FORK_REPO}.git" \
+            HEAD:refs/heads/main
