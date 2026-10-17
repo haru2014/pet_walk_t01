@@ -48,4 +48,18 @@ describe('WalkVoiceInputSection (US-A1, 영역 1 & 2)', () => {
     expect(html).toContain('30분 산책');
     expect(html).toContain('AI 분석');
   });
+
+  it('accepts hideResultBadge prop without breaking render', () => {
+    const html = renderToStaticMarkup(
+      <WalkVoiceInputSection
+        dogName="초코"
+        requestText="30분 산책"
+        onChangeText={vi.fn()}
+        hideResultBadge={true}
+      />
+    );
+
+    expect(html).toContain('30분 산책');
+    expect(html).toContain('직접 말해도 좋아요');
+  });
 });

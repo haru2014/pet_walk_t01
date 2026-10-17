@@ -34,6 +34,8 @@ export interface WalkVoiceInputSectionProps {
   onIntentParsed?: (result: VoiceIntentResult) => void;
   coords?: { lat: number; lon: number } | null;
   onFindRouteDirectly?: () => void;
+  /** 부모 컴포넌트(예: WalkSettingsView)에서 자체 피드백 카드를 렌더링할 때 중복 출력을 방지하는 옵션 */
+  hideResultBadge?: boolean;
 }
 
 export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
@@ -43,6 +45,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
   onIntentParsed,
   coords,
   onFindRouteDirectly,
+  hideResultBadge = false,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -212,8 +215,8 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
         </View>
       )}
 
-      {/* Gemini AI 분석 결과 피드백 뱃지 */}
-      {analysisResult && !isAnalyzing && (
+      {/* Gemini AI 분석 결과 피드백 뱃지 (부모 컴포넌트에서 자체 피드백 카드를 표시하지 않을 때만 렌더링) */}
+      {analysisResult && !isAnalyzing && !hideResultBadge && (
         <View style={styles.analysisBadge}>
           <View style={styles.badgeTop}>
             <AppIcon name="sparkle" size={14} color="#4F46E5" />

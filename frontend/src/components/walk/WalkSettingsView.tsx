@@ -261,6 +261,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           onIntentParsed={handleIntentParsed}
           coords={userCoords}
           onFindRouteDirectly={handleSubmit}
+          hideResultBadge={true}
         />
 
         {/* AI 맞춤 조건 적용 알림 카드 */}
@@ -457,6 +458,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   setDuration(30);
                 }
               }}
+              hideHeader={true}
             />
           )}
         </View>
