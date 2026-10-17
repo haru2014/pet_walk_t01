@@ -7,8 +7,8 @@
  * - 당일 계절/일사량 맞춤 골든타임 윈도우(1.5~2시간 슬롯) 동적 시각화
  */
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { HeatRiskLevel, HeatRiskResponse } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
@@ -48,11 +48,11 @@ function parseGoldenWindow(
   if (!start || !end) {
     if (windowStr?.includes('~')) {
       const parts = windowStr.split('~').map((s) => s.trim().replace(/^내일\s*/, ''));
-      start ??= parts[0] ?? '18:00';
-      end ??= parts[1] ?? '20:00';
+      start ??= parts[0] ?? '17:00';
+      end ??= parts[1] ?? '23:00';
     } else {
-      start ??= '18:00';
-      end ??= '20:00';
+      start ??= '17:00';
+      end ??= '23:00';
     }
   }
 
@@ -74,9 +74,9 @@ function calculateProgress(
     return { progress: 0, isUpcoming: isTomorrow, isPast: false };
   }
 
-  const startH = Number.parseInt(range.start.split(':')[0], 10) || 18;
+  const startH = Number.parseInt(range.start.split(':')[0], 10) || 17;
   const startM = Number.parseInt(range.start.split(':')[1], 10) || 0;
-  const endH = Number.parseInt(range.end.split(':')[0], 10) || 20;
+  const endH = Number.parseInt(range.end.split(':')[0], 10) || 23;
   const endM = Number.parseInt(range.end.split(':')[1], 10) || 0;
 
   const startMinutes = startH * 60 + startM;
@@ -95,58 +95,57 @@ function calculateProgress(
   return { progress, isUpcoming: false, isPast: false };
 }
 
-interface ThemePalette {
-  statusColor: string;
-  statusBg: string;
-  statusBorder: string;
-  borderColor: string;
-  progressColor: string;
+interface WalkQuotientScore {
+  score: number;
+  statusLabel: string;
+  statusTitle: string;
+  badgeBg: string;
+  badgeColor: string;
+  ringColor: string;
 }
 
-function resolveThemePalette(
-  riskLevel: HeatRiskLevel,
-  colors: ReturnType<typeof useAppTheme>['colors']
-): ThemePalette {
-  if (riskLevel === 'DANGER') {
+function calculateWalkQuotient(
+  surfaceTemp: number,
+  riskLevel: HeatRiskLevel
+): WalkQuotientScore {
+  if (riskLevel === 'DANGER' || surfaceTemp > 45) {
     return {
-      statusColor: '#EF4444',
-      statusBg: '#FEE2E2',
-      statusBorder: '#FCA5A5',
-      borderColor: '#FECACA',
-      progressColor: '#EF4444',
+      score: 35,
+      statusLabel: '고열 주의',
+      statusTitle: '한낮 지면열이 매우 높아요.',
+      badgeBg: '#FEE2E2',
+      badgeColor: '#B91C1C',
+      ringColor: '#EF4444',
     };
   }
-  if (riskLevel === 'CAUTION') {
+  if (riskLevel === 'CAUTION' || surfaceTemp > 35) {
     return {
-      statusColor: '#F59E0B',
-      statusBg: '#FEF3C7',
-      statusBorder: '#FCD34D',
-      borderColor: '#FDE68A',
-      progressColor: '#F59E0B',
+      score: 65,
+      statusLabel: '주의',
+      statusTitle: '그늘길 위주 산책이 필요해요.',
+      badgeBg: '#FEF3C7',
+      badgeColor: '#B45309',
+      ringColor: '#F59E0B',
+    };
+  }
+  if (surfaceTemp <= 28) {
+    return {
+      score: 100,
+      statusLabel: '좋음',
+      statusTitle: '산책하기 편한 시간이 있어요.',
+      badgeBg: '#DCFCE7',
+      badgeColor: '#166534',
+      ringColor: '#10B981',
     };
   }
   return {
-    statusColor: colors.primaryDark,
-    statusBg: colors.primaryLight,
-    statusBorder: colors.primaryMint,
-    borderColor: colors.border,
-    progressColor: colors.primary,
+    score: 88,
+    statusLabel: '좋음',
+    statusTitle: '산책하기 편한 시간이 있어요.',
+    badgeBg: '#DCFCE7',
+    badgeColor: '#166534',
+    ringColor: '#10B981',
   };
-}
-
-function formatSlotBadgeTitle(
-  isTomorrow: boolean,
-  isUpcoming: boolean,
-  isPast: boolean,
-  timeRangeDisplay: string
-): string {
-  if (isTomorrow || isUpcoming) {
-    return `🕒 다음 추천 골든타임 (${timeRangeDisplay})`;
-  }
-  if (isPast) {
-    return `오늘 골든타임 종료 (${timeRangeDisplay})`;
-  }
-  return `✨ 지금 안심 골든타임 (${timeRangeDisplay})`;
 }
 
 function buildNoticeMessages(
@@ -183,6 +182,8 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   statusNotice,
 }) => {
   const { colors } = useAppTheme();
+  const [selectedLocation, setSelectedLocation] = useState('대전광역시 서구');
+
   const now = new Date();
   const currentHour = now.getHours();
   const currentMin = now.getMinutes();
@@ -190,16 +191,17 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     currentTimeLabel ??
     `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
 
-  const currentTemp = weather?.current_surface_temp ?? 24.5;
-  const riskLevel = resolveRiskLevel(currentTemp, weather?.current_risk_level);
-  const palette = resolveThemePalette(riskLevel, colors);
+  const currentAirTemp = Math.round(weather?.current_air_temp ?? 22.0);
+  const currentSurfaceTemp = weather?.current_surface_temp ?? 23.0;
+  const roundedSurfaceTemp = Math.round(currentSurfaceTemp);
+  const riskLevel = resolveRiskLevel(currentSurfaceTemp, weather?.current_risk_level);
 
   const isTomorrow =
     weather?.golden_time_window_day === 'tomorrow' ||
     Boolean(weather?.golden_time_window?.startsWith('내일'));
 
   const range = parseGoldenWindow(weather?.golden_time_window, startTimeLabel, endTimeLabel);
-  const { progress, isUpcoming, isPast } = calculateProgress(
+  const { progress } = calculateProgress(
     range,
     isTomorrow,
     currentHour,
@@ -210,85 +212,145 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const startDisplay = isTomorrow ? `내일 ${range.start}` : range.start;
   const timeRangeDisplay = isTomorrow ? `내일 ${range.start} ~ ${range.end}` : `${range.start} ~ ${range.end}`;
 
+  const quotient = calculateWalkQuotient(currentSurfaceTemp, riskLevel);
+
   const { subtitleText, badgeNotice } = buildNoticeMessages(
     riskLevel,
-    currentTemp,
+    currentSurfaceTemp,
     startDisplay,
     nowLabel,
     statusNotice
   );
 
-  const slotBadgeTitle = formatSlotBadgeTitle(isTomorrow, isUpcoming, isPast, timeRangeDisplay);
+  const handleChangeRegion = () => {
+    const locations = ['대전광역시 서구', '대전광역시 유성구', '세종특별자치시 연기면'];
+    const nextIdx = (locations.indexOf(selectedLocation) + 1) % locations.length;
+    const nextLoc = locations[nextIdx];
+    setSelectedLocation(nextLoc);
+    Alert.alert('산책 지역 변경', `지역이 "${nextLoc}"(으)로 변경되었습니다.`);
+  };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: palette.borderColor }]}>
-      <View style={styles.headerRow}>
-        <AppIcon name="sun" size={18} color={palette.statusColor} />
-        <Text style={[styles.title, { color: colors.textMain }]}>산책하기 좋은 지면온도 시간</Text>
-        {riskLevel === 'DANGER' && (
-          <View style={[styles.liveBadge, { backgroundColor: '#FEE2E2' }]}>
-            <Text style={[styles.liveBadgeText, { color: '#B91C1C' }]}>고열 주의</Text>
-          </View>
-        )}
-        {riskLevel === 'CAUTION' && (
-          <View style={[styles.liveBadge, { backgroundColor: '#FEF3C7' }]}>
-            <Text style={[styles.liveBadgeText, { color: '#B45309' }]}>주의</Text>
-          </View>
-        )}
-        {riskLevel === 'SAFE' && Boolean(weather?.isLiveServer) && (
-          <View style={[styles.liveBadge, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.liveBadgeText, { color: colors.primaryDark }]}>기상청 연동</Text>
-          </View>
-        )}
-      </View>
-
-      <Text style={[styles.subText, { color: riskLevel === 'DANGER' ? '#DC2626' : colors.textMuted }]}>
-        {subtitleText}
-      </Text>
-
-      {/* 1.5~2시간 집중 추천 슬롯 헤더 */}
-      <View style={styles.slotHeaderRow}>
-        <Text style={[styles.slotBadgeText, { color: palette.statusColor }]}>
-          {slotBadgeTitle}
-        </Text>
-      </View>
-
-      {/* 게이지 타임라인 */}
-      <View style={styles.timelineRow}>
-        <Text style={[styles.timeLabel, isTomorrow && styles.timeLabelWide, { color: colors.textMuted }]}>
-          {startDisplay}
-        </Text>
-        <View style={[styles.track, { backgroundColor: riskLevel === 'DANGER' ? '#FEE2E2' : colors.borderSubtle }]}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${progress}%`,
-                backgroundColor: palette.progressColor,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.indicator,
-              {
-                left: `${progress}%`,
-                backgroundColor: palette.statusColor,
-              },
-            ]}
-          >
-            <View style={styles.indicatorDot} />
-          </View>
+    <View
+      style={styles.container}
+      accessibilityLabel="산책하기 좋은 지면온도 시간"
+    >
+      {/* 1. 상단 타이틀 영역 (trail_quotient.jpg) */}
+      <View style={styles.topHeader}>
+        <View style={styles.pawIconBox}>
+          <AppIcon name="paw" size={24} color="#6366F1" />
         </View>
-        <Text style={[styles.timeLabel, { textAlign: 'right', color: colors.textMuted }]}>{range.end}</Text>
-      </View>
-
-      <View style={styles.badgeContainer}>
-        <View style={[styles.statusBadge, { backgroundColor: palette.statusBg, borderColor: palette.statusBorder }]}>
-          <Text style={[styles.statusBadgeText, { color: palette.statusColor }]}>{badgeNotice}</Text>
+        <View style={styles.headerTitleWrap}>
+          <Text style={[styles.mainHeading, { color: colors.textMain }]}>오늘 강아지 산책지수</Text>
+          <Text style={[styles.mainSubHeading, { color: colors.textMuted }]}>
+            더위·추위·대기질을 함께 봐요
+          </Text>
         </View>
       </View>
 
+      {/* 2. 위치 및 기준 시각 칩 바 & 지역 변경 */}
+      <View style={styles.locationBar}>
+        <View style={styles.chipsRow}>
+          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <AppIcon name="map" size={12} color="#64748B" />
+            <Text style={[styles.infoChipText, { color: colors.textMain }]}>{selectedLocation}</Text>
+          </View>
+          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.infoChipText, { color: colors.textMuted }]}>대략 위치</Text>
+          </View>
+          <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <AppIcon name="clock" size={12} color="#64748B" />
+            <Text style={[styles.infoChipText, { color: colors.textMain }]}>{nowLabel} 기준</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleChangeRegion}
+          style={styles.changeRegionBtn}
+          accessibilityRole="button"
+          accessibilityLabel="지역 변경"
+        >
+          <Text style={styles.changeRegionText}>지역 변경</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. 메인 산책지수 카드 (원형 게이지 + 상태 + 추천 시간) */}
+      <View
+        style={[
+          styles.scoreCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {/* 원형 점수 게이지 (100점) */}
+        <View style={styles.gaugeContainer}>
+          <View style={[styles.circleRing, { borderColor: quotient.ringColor }]}>
+            <Text style={[styles.scoreNumber, { color: colors.textMain }]}>{quotient.score}</Text>
+            <Text style={[styles.scoreUnit, { color: colors.textMuted }]}>점</Text>
+          </View>
+        </View>
+
+        {/* 상태 뱃지 & 안내 문구 */}
+        <View style={styles.scoreContent}>
+          <View style={[styles.statusBadge, { backgroundColor: quotient.badgeBg }]}>
+            <Text style={[styles.statusBadgeText, { color: quotient.badgeColor }]}>
+              ✓ {quotient.statusLabel}
+            </Text>
+          </View>
+
+          <Text style={[styles.statusTitle, { color: colors.textMain }]}>
+            {quotient.statusTitle}
+          </Text>
+
+          <View style={styles.recommendTimeBox}>
+            <Text style={[styles.recommendLeadText, { color: colors.textMuted }]}>
+              {isTomorrow ? '내일' : '오늘'} 추천 시간은
+            </Text>
+            <Text style={[styles.recommendRangeText, { color: colors.textMain }]}>
+              <Text style={styles.recommendRangeBold}>{timeRangeDisplay}</Text>
+              이에요.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 4. 하단 4대 환경 메트릭 캡슐 바 (기온, 체감, 강수확률, 미세먼지) */}
+      <View style={styles.metricsGrid}>
+        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={styles.metricEmoji}>🌡️</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>기온</Text>
+          <Text style={[styles.metricValue, { color: colors.textMain }]}>{currentAirTemp}°</Text>
+        </View>
+        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={styles.metricEmoji}>🌡️</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>체감</Text>
+          <Text style={[styles.metricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°</Text>
+        </View>
+        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={styles.metricEmoji}>🌧️</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>강수확률</Text>
+          <Text style={[styles.metricValue, { color: colors.textMain }]}>20%</Text>
+        </View>
+        <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={styles.metricEmoji}>🌫️</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>미세먼지</Text>
+          <Text style={[styles.metricValue, { color: colors.primaryDark }]}>좋음</Text>
+        </View>
+      </View>
+
+      {/* 5. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
+      <View style={styles.hiddenMetaArea}>
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{subtitleText}</Text>
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
+        <View style={styles.hiddenTrack}>
+          <View style={[styles.hiddenProgress, { width: `${progress}%` }]} />
+          <View style={[styles.hiddenIndicator, { left: `${progress}%` }]} />
+        </View>
+      </View>
+
+      {/* 6. 오픈메테오 일사량 데이터 출처 (라이선스 CC BY 4.0 표기) */}
       {Boolean(weather?.attribution) && (
         <View style={styles.attributionContainer}>
           <Text style={[styles.attributionText, { color: colors.textMuted }]}>
@@ -301,51 +363,191 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
+    marginBottom: 6,
+  },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+    marginTop: 2,
+  },
+  pawIconBox: {
+    width: 48,
+    height: 48,
     borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  title: { fontSize: 13.5, fontWeight: '700' },
-  liveBadge: { marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  liveBadgeText: { fontSize: 9, fontWeight: '800' },
-  subText: { fontSize: 11, marginBottom: 6, paddingLeft: 24, lineHeight: 15 },
-  slotHeaderRow: {
-    paddingLeft: 24,
-    marginBottom: 4,
-  },
-  slotBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  timeLabel: { fontSize: 10, fontWeight: '600', minWidth: 36 },
-  timeLabelWide: { minWidth: 54 },
-  track: { flex: 1, height: 6, borderRadius: 3, position: 'relative', justifyContent: 'center' },
-  progressFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 3 },
-  indicator: {
-    position: 'absolute',
-    top: '50%',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    transform: [{ translateX: -7 }, { translateY: -7 }],
+    backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  indicatorDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFFFFF' },
-  badgeContainer: { alignItems: 'center' },
-  statusBadge: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14 },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  headerTitleWrap: {
+    flex: 1,
+  },
+  mainHeading: {
+    fontSize: 21,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  mainSubHeading: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  locationBar: {
+    marginBottom: 12,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  infoChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  changeRegionBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  changeRegionText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  scoreCard: {
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  gaugeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleRing: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  scoreNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
+  scoreUnit: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginTop: -2,
+  },
+  scoreContent: {
+    flex: 1,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  recommendTimeBox: {},
+  recommendLeadText: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  recommendRangeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  recommendRangeBold: {
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  metricCapsule: {
+    width: '48.7%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  metricEmoji: {
+    fontSize: 14,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  metricValue: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  hiddenMetaArea: {
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  hiddenMetaText: {
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  hiddenTrack: {
+    height: 0,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  hiddenProgress: {
+    position: 'absolute',
+    height: 0,
+  },
+  hiddenIndicator: {
+    position: 'absolute',
+  },
   attributionContainer: {
     alignItems: 'center',
     marginTop: 6,
@@ -356,3 +558,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

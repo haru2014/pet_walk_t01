@@ -83,7 +83,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onStartWalk={onStartWalk}
       />
 
-      {/* 3. 산책하기 좋은 시간 (지면온도 골든타임 위젯 실데이터 연동) */}
+      {/* 3. 오늘 강아지 산책지수 위젯 (지면온도/기상청 연동 산책지수, trail_quotient.jpg) */}
       <GoldenTimeWidget weather={weather} />
 
       {/* (선택) 최근 피드백 AI 보정 브리핑 (전체 메시지 가독성 확보) */}
