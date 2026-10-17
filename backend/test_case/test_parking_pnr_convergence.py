@@ -30,6 +30,8 @@ def test_get_nearby_parking_lots_pilot_zones():
 
 @pytest.mark.parametrize("parking_id, expected_zone", [
     ("pkg_yurim_02", "유림공원"),
+    ("opr_doan_a", "도안호수공원"),
+    ("opr_doan_b", "도안호수공원"),
 ])
 def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: str):
     """P&R 주차장 출입구 좌표가 순환 코스의 시작/종료점에 강제 바인딩되고 루프가 닫히는지 검증."""
@@ -72,6 +74,8 @@ def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: s
     ("pkg_songgang_01", "ORIGIN_NOT_CONNECTED"),
     ("pkg_sejong_01", "ORIGIN_NOT_CONNECTED"),
     ("pkg_doan_01", "ORIGIN_NOT_CONNECTED"),
+    # 갑천생태호수공원 남쪽 구역은 OSM 보행로가 1.3km 뿐이고 순환로가 없다 (주차장 C data_issue 참고)
+    ("opr_doan_c", "NO_VALID_LOOP"),
 ])
 def test_unconnected_or_unverified_parking_does_not_bypass_park_validation(parking_id, code):
     lot = next(p for p in _PILOT_PARKING_LOTS if p["parking_id"] == parking_id)

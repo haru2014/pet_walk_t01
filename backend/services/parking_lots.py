@@ -21,9 +21,11 @@ REQUIRED_FIELDS = {
     "is_public": bool, "fee_type": str, "fee_info": str, "capacity": int, "address": str,
     "source": str, "verified": bool, "status": str, "park_link_verified": bool, "park_link_basis": str,
 }
-OPTIONAL_FIELDS = {"official_id": str, "parking_type": str, "data_issue": str}
+OPTIONAL_FIELDS = {"official_id": str, "parking_type": str, "data_issue": str, "coordinate_basis": str}
 # official: 공식 표준데이터에서 가져온 값 / legacy_unverified: 기존 데이터(공식 자료와 대조 전 또는 불일치)
-STATUSES = {"official", "legacy_unverified"}
+# park_operator: 공원 관리기관 공식 안내(누리집)에서 확인한 공원 주차장. 표준데이터에 없어 좌표는 따로 구하므로
+#                coordinate_basis 에 좌표를 구한 방법을 적는다.
+STATUSES = {"official", "legacy_unverified", "park_operator"}
 FEE_TYPES = {"free", "paid"}
 # 대전·세종을 넉넉히 포함하는 범위 (좌표가 엉뚱한 지역으로 들어가는 실수를 막는 용도)
 REGION_LAT_RANGE = (36.1, 36.8)
@@ -67,6 +69,11 @@ def _status_problems(label: str, lot: Dict[str, Any]) -> List[str]:
         problems = [] if lot.get("verified") is True else [f"{label}: 공식 항목은 verified=true 여야 합니다"]
         if not str(lot.get("official_id") or "").strip():
             problems.append(f"{label}: 공식 항목은 official_id 가 있어야 합니다")
+        return problems
+    if status == "park_operator":
+        problems = [] if lot.get("verified") is True else [f"{label}: 공원 관리기관 항목은 verified=true 여야 합니다"]
+        if not str(lot.get("coordinate_basis") or "").strip():
+            problems.append(f"{label}: 공원 관리기관 항목은 coordinate_basis 에 좌표를 구한 방법을 적어야 합니다")
         return problems
     problems = [] if lot.get("verified") is False else [f"{label}: 기존(미검증) 항목은 verified=false 여야 합니다"]
     if not str(lot.get("data_issue") or "").strip():
