@@ -39,7 +39,6 @@ const LANDMARK_TO_PARK_ID: Record<string, string> = {
   엑스포다리: 'yurim',
   세종호수공원: 'sejong',
   세종호수: 'sejong',
-  호수공원: 'sejong',
   송강공원: 'songgang',
   송강근린공원: 'songgang',
   송강: 'songgang',
