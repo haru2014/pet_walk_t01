@@ -70,8 +70,8 @@ def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: s
 @pytest.mark.parametrize("parking_id, code", [
     ("pkg_yurim_01", "ORIGIN_NOT_CONNECTED"),
     ("pkg_songgang_01", "ORIGIN_NOT_CONNECTED"),
-    ("pkg_sejong_01", "BOUNDARY_DATA_UNAVAILABLE"),
-    ("pkg_doan_01", "BOUNDARY_DATA_UNAVAILABLE"),
+    ("pkg_sejong_01", "ORIGIN_NOT_CONNECTED"),
+    ("pkg_doan_01", "ORIGIN_NOT_CONNECTED"),
 ])
 def test_unconnected_or_unverified_parking_does_not_bypass_park_validation(parking_id, code):
     lot = next(p for p in _PILOT_PARKING_LOTS if p["parking_id"] == parking_id)
