@@ -18,10 +18,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import rasterio
-from affine import Affine
 from pyproj import Transformer
-from rasterio.errors import RasterioIOError
+
+# rasterio 가 없는 환경에서는 이 파일만 건너뛴다 (다른 테스트 수집까지 멈추지 않게).
+# 전부 실행하려면: pip install -r backend/requirements.txt
+rasterio = pytest.importorskip("rasterio", reason="rasterio 미설치: pip install -r backend/requirements.txt 후 DEM 테스트 실행")
+from affine import Affine  # noqa: E402  (rasterio 의존 패키지)
+from rasterio.errors import RasterioIOError  # noqa: E402
 
 from agent.surface_slope_evaluator import (
     MIN_SLOPE_BASELINE_M,
