@@ -127,7 +127,7 @@ class TestParkingLotPnRSearch:
     def test_filter_parking_lots_within_1500m(self):
         """1.5km 이내 주차장만 필터링되고 원거리(2.5km) 주차장은 제외되는지 검증."""
         mock_lots = [
-            {"id": "pkg-01", "name": "보라매공원 동문 공영주차장", "distance_m": 450.0, "fee_type": "paid"},
+            {"id": "pkg-01", "name": "유림공원 동문 공영주차장", "distance_m": 450.0, "fee_type": "paid"},
             {"id": "pkg-02", "name": "신대방 공영주차장", "distance_m": 1200.0, "fee_type": "free"},
             {"id": "pkg-03", "name": "여의도 한강 공영주차장", "distance_m": 2500.0, "fee_type": "paid"},  # 제외 대상
         ]
@@ -142,7 +142,7 @@ class TestParkingLotPnRSearch:
         """P&R 주차장 DTO 규격 및 위경도 유효성 검증."""
         dto = ParkingLotDTO(
             parking_id="pkg-001",
-            name="보라매공원 공영주차장",
+            name="유림공원 공영주차장",
             distance_m=420.0,
             entrance_lat=37.492,
             entrance_lon=126.923,

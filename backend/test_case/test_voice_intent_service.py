@@ -26,12 +26,12 @@ def test_extract_local_voice_intent_complex():
 
 
 def test_extract_local_voice_intent_stairs_allowed():
-    text = "보라매공원에서 계단 괜찮으니까 40분 활발하게 걷자"
+    text = "유림공원에서 계단 괜찮으니까 40분 활발하게 걷자"
     payload = extract_local_voice_intent(text, dog_name="초코")
 
     assert payload.target_duration_minutes == 40
     assert payload.avoid_stairs is False
-    assert payload.destination_landmark == "보라매공원"
+    assert payload.destination_landmark == "유림공원"
     assert payload.joint_care_level == 0
 
 

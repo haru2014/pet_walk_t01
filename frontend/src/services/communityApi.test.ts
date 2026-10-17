@@ -15,7 +15,7 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
       feeds: [
         {
           course_id: 'test_1',
-          title: '보라매 흙길',
+          title: '유림 흙길',
           masked_polyline: [[127.0, 37.5]],
           distance_m: 1200,
           duration_min: 20,
@@ -32,7 +32,7 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
 
     const res = await fetchCommunityFeeds();
     expect(res.feeds).toHaveLength(1);
-    expect(res.feeds[0].title).toBe('보라매 흙길');
+    expect(res.feeds[0].title).toBe('유림 흙길');
     expect(res.is_supabase).toBe(true);
   });
 

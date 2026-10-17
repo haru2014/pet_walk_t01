@@ -33,8 +33,6 @@ const LANDMARK_TO_PARK_ID: Record<string, string> = {
   유림공원: 'yurim',
   유림: 'yurim',
   갑천: 'yurim',
-  보라매공원: 'yurim',
-  보라매: 'yurim',
   한밭수목원: 'yurim',
   한밭: 'yurim',
   엑스포: 'yurim',
