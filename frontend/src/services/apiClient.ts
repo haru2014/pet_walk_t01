@@ -2,12 +2,12 @@
  * [편안하개 - PetWalk]
  * 탄력적 멀티 타깃 API 클라이언트 (US-F1, US-G1, US-A1)
  *
- * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01.onrender.com)
+ * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01-z095.onrender.com)
  * 2순위: 로컬 FastAPI 개발 서버 (http://127.0.0.1:8000)
  * 3순위: 양쪽 모두 실패 시 호출자(Service)가 오프라인 안전 폴백(Fallback) 수행
  */
 
-export const RENDER_API_BASE_URL = 'https://pet-walk-t01.onrender.com';
+export const RENDER_API_BASE_URL = 'https://pet-walk-t01-z095.onrender.com';
 export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
