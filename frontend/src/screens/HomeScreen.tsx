@@ -14,10 +14,13 @@ import { useAppTheme } from '../theme/themeManager';
 import { DogProfile } from '../types/dogProfile';
 import { HomeDogCard } from '../components/home/HomeDogCard';
 import { GoldenTimeWidget } from '../components/home/GoldenTimeWidget';
+import { TrailAccomplishmentWidget } from '../components/home/TrailAccomplishmentWidget';
 import { FeedbackContextService, FeedbackSummaryPayload } from '../services/feedbackContext';
 import { AppIcon } from '../components/common/AppIcon';
 import { fetchHeatRiskForecast } from '../services/weatherApi';
 import { HeatRiskResponse } from '../types/weather';
+import { LocalStorageService } from '../services/storage';
+import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -46,11 +49,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { colors } = useAppTheme();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     void fetchHeatRiskForecast(36.3628, 127.3592).then((res) => {
       if (isMounted) setWeather(res);
+    });
+    void LocalStorageService.getWalkHistory().then((history) => {
+      if (isMounted) {
+        setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
+      }
     });
     return () => {
       isMounted = false;
@@ -97,6 +106,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </Text>
         </View>
       )}
+
+      {/* 4. 이번 주 산책 달성도 위젯 (docs/reference/trail_ accomplishment.png 원형 디자인) */}
+      <TrailAccomplishmentWidget
+        stats={weeklyStats}
+        onPress={onOpenStats}
+      />
     </ScrollView>
   );
 };
