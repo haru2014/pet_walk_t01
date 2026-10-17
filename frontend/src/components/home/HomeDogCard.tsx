@@ -7,7 +7,7 @@
  * 3. 마지막 슬라이드: "+ 새로운 반려견 등록" 퀵 추가 카드 제공
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
   onPressProfile,
   onStartWalk,
 }) => {
-  const dogList = dogs && dogs.length > 0 ? dogs : [profile];
+  const dogList = useMemo(
+    () => (dogs && dogs.length > 0 ? dogs : [profile]),
+    [dogs, profile]
+  );
   const isMultiDog = dogList.length > 1;
 
   const [cardWidth, setCardWidth] = useState<number>(() => {
@@ -52,7 +55,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
   const [internalActiveIndex, setInternalActiveIndex] = useState<number>(() => {
     const initIdx = dogList.findIndex((d) => d.id === (selectedDogId ?? profile.id));
-    return initIdx >= 0 ? initIdx : 0;
+    return Math.max(0, initIdx);
   });
   const selectedIndex = selectedDogId
     ? dogList.findIndex((dog) => dog.id === selectedDogId)

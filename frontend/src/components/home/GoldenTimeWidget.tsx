@@ -329,18 +329,16 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         </View>
       </View>
 
-      {/* 4. 오픈메테오 일사량 데이터 출처 (라이선스 CC BY 4.0 표기) */}
-      {Boolean(weather?.attribution) && (
-        <View style={styles.attributionContainer}>
-          <Text style={[styles.attributionText, { color: colors.textMuted }]}>
-            {weather?.attribution}
-          </Text>
-        </View>
-      )}
+      {/* 4. 데이터 출처 표기 (공공누리 제1유형 & Open-Meteo CC BY 4.0 준수) */}
+      <View style={styles.attributionContainer}>
+        <Text style={[styles.attributionText, { color: colors.textMuted }]}>
+          데이터 출처: 기상청 · 한국환경공단(에어코리아) · Open-Meteo
+          {weather?.attribution ? ` · ${weather.attribution}` : ''}
+        </Text>
+      </View>
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     marginBottom: 4,
