@@ -28,7 +28,8 @@ describe('US-A1 & US-G1 대전 3대 공원 & 세종호수공원 플래너 연동
 
     const sejong = getPilotParkById('sejong');
     expect(sejong.name).toBe('세종호수공원');
-    expect(sejong.center.lat).toBeCloseTo(36.5020, 3);
+    expect(sejong.center.lat).toBeCloseTo(36.4972593, 6);
+    expect(sejong.center.lon).toBeCloseTo(127.2749633, 6);
 
     const songgang = getPilotParkById('songgang');
     expect(songgang.name).toBe('대전 송강근린공원');
