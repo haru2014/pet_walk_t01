@@ -14,7 +14,6 @@ on:
       - opened
       - synchronize
       - reopened
-      - closed
 
   workflow_dispatch:
 
@@ -86,9 +85,7 @@ jobs:
     name: Auto Merge on CI Success
     needs: [backend-test, mobile-app-ci]
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action != 'closed'
+    if: github.event_name == 'pull_request'
     permissions:
       contents: write
       pull-requests: write
@@ -105,74 +102,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Render 저장소 main으로 즉시 동기화
-        env:
-          FORK_REPO: ${{ vars.FORK_REPO }}
-          FORK_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -n "${FORK_REPO:-}" ] && [ -n "${FORK_REPO_TOKEN:-}" ]; then
-            git fetch origin main:main || true
-            git config --local --unset-all 'http.https://github.com/.extraheader' || true
-            git -c credential.helper= -c http.extraheader= push --force \
-              "https://${FORK_REPO_TOKEN}@github.com/${FORK_REPO}.git" \
-              main:refs/heads/main || true
-          fi
-
-  # ========================================================
-  # Job 4: 팀 저장소 main에 PR이 병합되거나 푸시된 경우 Render 저장소 main 동기화
-  # ========================================================
-  sync-render:
-    name: Sync Merged Main to Render Repository
-    needs: [backend-test, mobile-app-ci]
-    runs-on: ubuntu-latest
-    # 팀 원본 저장소의 main 브랜치에 실제로 커밋이 push/merge되었거나,
-    # PR이 main으로 실제로 병합(closed & merged)되었을 때 실행.
-    # 포크 저장소 자체에서의 무한 재귀 실행 방지.
-    if: >-
-      github.repository == 'haru2014/pet_walk_t01' &&
-      (
-        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main') ||
-        github.event_name == 'workflow_dispatch'
-      )
-
-    steps:
-      - name: 병합된 팀 main 체크아웃
-        uses: actions/checkout@v7
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Render 저장소 main으로 동기화
-        env:
-          FORK_REPO: ${{ vars.FORK_REPO }}
-          FORK_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${FORK_REPO:-}" ]; then
-            echo "::error::Repository variable FORK_REPO가 설정되지 않았습니다."
-            echo "값은 gigantess/pet_walk_t01 형식이어야 합니다."
-            exit 1
-          fi
-
-          if [ "$FORK_REPO" != "gigantess/pet_walk_t01" ]; then
-            echo "::error::FORK_REPO가 예상한 Render 저장소가 아닙니다: $FORK_REPO"
-            echo "GitHub Actions Variables에서 FORK_REPO=gigantess/pet_walk_t01 로 설정하세요."
-            exit 1
-          fi
-
-          if [ -z "${FORK_REPO_TOKEN:-}" ]; then
-            echo "::error::Secret FORK_REPO_TOKEN이 설정되지 않았습니다."
-            exit 1
-          fi
-
-          # 1. actions/checkout이 주입한 기본 GITHUB_TOKEN extraheader 제거
-          git config --local --unset-all 'http.https://github.com/.extraheader' || true
-
-          # 2. Render 배포용 미러 저장소 main으로 강제 동기화 (Git LFS 객체 포함)
-          git -c credential.helper= -c http.extraheader= push --force \
-            "https://${FORK_REPO_TOKEN}@github.com/${FORK_REPO}.git" \
-            HEAD:refs/heads/main

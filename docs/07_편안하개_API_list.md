@@ -64,7 +64,7 @@ flowchart TB
 ### 🌐 기본 엔드포인트 URL
 | 대상 시스템 | 기본 접속 주소 (Live / 개발) | 설명 |
 |---|---|---|
-| **FastAPI Core 서버** | 운영: `https://pet-walk-t01.onrender.com` / 로컬: `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | 운영은 Render 무료 플랜(팀장 계정, 잠자기 있음). Windows 로컬은 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 사용 (PR #28). 실행·배포 방법은 [`09_백엔드_서버_실행_배포_가이드.md`](09_백엔드_서버_실행_배포_가이드.md) |
+| **FastAPI Core 서버** | 운영: `https://pet-walk-t01-z095.onrender.com` / 로컬: `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | 운영은 Render 무료 플랜(팀장 계정, 잠자기 있음). Windows 로컬은 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 사용 (PR #28). 실행·배포 방법은 [`09_백엔드_서버_실행_배포_가이드.md`](09_백엔드_서버_실행_배포_가이드.md) |
 | **Supabase 클라우드** | `https://<project-id>.supabase.co` (환경변수: `EXPO_PUBLIC_SUPABASE_URL`) | 팀 공용 Supabase 프로젝트 `pet_walk`(팀장 소유), 앱은 Publishable Anon 키만 사용 (PR #24, #42) |
 | **OSM / OpenFreeMap 타일** | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | 실제 OpenStreetMap 래스터 타일 (차기: OpenFreeMap 벡터 타일 확장) |
 
