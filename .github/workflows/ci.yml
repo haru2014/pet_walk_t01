@@ -111,10 +111,10 @@ jobs:
           set -euo pipefail
           if [ -n "${RENDER_REPO:-}" ] && [ -n "${RENDER_REPO_TOKEN:-}" ]; then
             git fetch origin main:main || true
+            git config --global credential.helper store
+            printf "https://oauth2:%s@github.com\n" "$RENDER_REPO_TOKEN" > ~/.git-credentials
             git config --global lfs.locksverify false || true
-            git push --force --no-verify \
-              "https://x-access-token:${RENDER_REPO_TOKEN}@github.com/${RENDER_REPO}.git" \
-              main:refs/heads/main || true
+            git push --force "https://github.com/${RENDER_REPO}.git" main:refs/heads/main || true
           fi
 
   # ========================================================
@@ -167,10 +167,10 @@ jobs:
             exit 1
           fi
 
-          # 1. GitHub Actions runner의 Git LFS 잠금 검사 비활성화 및 push hook 건너뛰기
+          # 1. Git 및 Git LFS가 PAT로 정상 인증되도록 credential helper store 구성
+          git config --global credential.helper store
+          printf "https://oauth2:%s@github.com\n" "$RENDER_REPO_TOKEN" > ~/.git-credentials
           git config --global lfs.locksverify false || true
 
-          # 2. Render 배포용 미러 저장소 main으로 강제 동기화
-          git push --force --no-verify \
-            "https://x-access-token:${RENDER_REPO_TOKEN}@github.com/${RENDER_REPO}.git" \
-            HEAD:refs/heads/main
+          # 2. Render 배포용 미러 저장소 main으로 강제 동기화 (Git LFS 객체 포함)
+          git push --force "https://github.com/${RENDER_REPO}.git" HEAD:refs/heads/main
