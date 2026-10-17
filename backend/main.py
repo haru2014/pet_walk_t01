@@ -43,9 +43,13 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
-from services.kma_weather_client import KmaApiError
+from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
-from services.weather_context import build_heat_risk_response, weather_context_from_response
+from services.weather_context import (
+    build_heat_risk_response,
+    build_open_meteo_heat_risk_response,
+    weather_context_from_response,
+)
 from test_case.test_api_contracts import (
     apply_spatial_masking_to_course,
     WalkPlanResponseV1,
@@ -633,16 +637,23 @@ def get_community_feed():
     }
 
 
-def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
+MONTH_BASE_TEMP = {
+    1: 0.0, 2: 2.0, 3: 7.5, 4: 13.5, 5: 18.5, 6: 22.5,
+    7: 25.5, 8: 26.5, 9: 21.5, 10: 15.5, 11: 8.5, 12: 2.0,
+}
+
+
+def _generate_fallback_hourly_dtos(month: int = 10) -> List[Dict[str, Any]]:
+    base_temp = MONTH_BASE_TEMP.get(month, 15.5)
     hourly = []
     for h in range(24):
-        air_temp = round(26.5 + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
-        if 10 <= h <= 15:
+        air_temp = round(base_temp + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
+        if 20 <= h or h < 6:
+            sky = "night"  # 야간에는 일사량 0.0 (지면열 = 기온)
+        elif 10 <= h <= 15:
             sky = "clear"
-        elif 6 <= h <= 18:
-            sky = "partly_cloudy"
         else:
-            sky = "clear"
+            sky = "partly_cloudy"
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
         hourly.append(dto.model_dump() if hasattr(dto, "model_dump") else dto.dict())
     return hourly
@@ -686,11 +697,10 @@ def _determine_golden_window(safe_blocks: List[Tuple[int, int]], now_hour: int) 
 
 
 def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 호출이 불가능할 때 쓰는 고정 기온 곡선 기반 추정 (실제 날씨가 아님)."""
-    import datetime
-
-    now_hour = datetime.datetime.now().hour
-    hourly = _generate_fallback_hourly_dtos()
+    """기상청 및 실시간 날씨 조회가 불가능할 때 쓰는 계절/KST 기준 지면열 추정 (실제 날씨가 아님)."""
+    now_kst = to_kst(None)
+    now_hour = now_kst.hour
+    hourly = _generate_fallback_hourly_dtos(month=now_kst.month)
     safe_blocks = _extract_safe_blocks(hourly)
     golden_window = _determine_golden_window(safe_blocks, now_hour)
     current_dto = hourly[now_hour] if now_hour < len(hourly) else hourly[12]
@@ -716,19 +726,26 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
         "golden_time_window_day": "today",
         "grid": None,
         "bases": {},
-        "warnings": ["실시간 기상 정보를 가져오지 못해 고정 기온 곡선으로 추정한 값입니다."],
+        "warnings": ["실시간 기상 정보를 가져오지 못해 계절별 기온 곡선으로 추정한 값입니다."],
     }
 
 
 def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 고정 곡선 추정으로 대체한다."""
+    """1차 기상청 -> 2차 Open-Meteo 실시간 -> 3차 KST 계절 곡선 폴백 계층."""
+    # 1차: 기상청 단기예보 & 초단기실황
     try:
         return build_heat_risk_response(lat, lon)
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.warning("실시간 날씨 조회 실패, 고정 곡선 추정으로 대체합니다: %s", exc)
-        response = _fallback_heat_risk_response(lat, lon)
-        response["warnings"].append(f"사유: {exc}")
-        return response
+        logger.info("기상청 API 조회 실패 (%s), 2차 Open-Meteo 실시간 예보로 전환합니다.", exc)
+
+    # 2차: 무키 Open-Meteo 실시간 종합 날씨 (기상청 API 키 불필요, 실제 관측값 제공)
+    try:
+        return build_open_meteo_heat_risk_response(lat, lon)
+    except Exception as exc:
+        logger.warning("Open-Meteo 실시간 날씨 조회 실패 (%s), 3차 오프라인 계절 곡선으로 폴백합니다.", exc)
+
+    # 3차: 오프라인 계절별 KST 추정
+    return _fallback_heat_risk_response(lat, lon)
 
 
 @app.get("/api/v1/weather/heat-risk")

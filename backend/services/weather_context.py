@@ -272,6 +272,73 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     }
 
 
+def build_open_meteo_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = None, *,
+                                        timeout: float = kma.DEFAULT_TIMEOUT_S) -> Dict[str, Any]:
+    """기상청 호출이 불가능할 때 Open-Meteo 무키 실시간 예보를 기반으로 정확한 지면열 응답을 생성한다."""
+    when = kma.to_kst(now)
+    hour_start = when.replace(minute=0, second=0, microsecond=0)
+
+    weather_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, when, timeout=timeout)
+    radiation_map = {t: d["radiation"] for t, d in weather_data.items()}
+    insolation_provider = open_meteo_client.make_insolation_provider(radiation_map)
+
+    upcoming = sorted(t for t in weather_data if hour_start <= t < hour_start + timedelta(hours=24))
+    hourly = [
+        _entry(
+            t,
+            weather_data[t]["air"],
+            weather_data[t]["sky"],
+            weather_data[t]["pty"],
+            lat,
+            lon,
+            insolation_provider,
+            pop=weather_data[t]["pop"],
+        )
+        for t in upcoming
+    ]
+
+    curr_data = weather_data.get(hour_start)
+    if curr_data is not None:
+        current = _entry(
+            when,
+            curr_data["air"],
+            curr_data["sky"],
+            curr_data["pty"],
+            lat,
+            lon,
+            insolation_provider,
+            pop=curr_data["pop"],
+        )
+    elif hourly:
+        current = hourly[0]
+    else:
+        raise open_meteo_client.OpenMeteoError("Open-Meteo 예보 데이터가 비어 있습니다.")
+
+    if hourly and datetime.fromisoformat(hourly[0]["time"]) != hour_start:
+        hourly.insert(0, {**current, "time": hour_start.isoformat()})
+
+    window, window_day = golden_time_window(hourly, when, current["is_golden_time"])
+    air_quality = airkorea_client.fetch_air_quality(lat, lon, timeout=timeout)
+
+    return {
+        "status": "success",
+        "current": current,
+        "pop": current.get("pop", 0),
+        "air_quality": air_quality,
+        "golden_time_window": window,
+        "golden_time_window_day": window_day,
+        "hourly_forecast": hourly,
+        "notice": NOTICE,
+        "coordinates": {"lat": lat, "lon": lon},
+        "data_source": "open_meteo_live",
+        "insolation_source": "open_meteo",
+        "attribution": open_meteo_client.ATTRIBUTION,
+        "grid": None,
+        "bases": {},
+        "warnings": ["기상청 API 대신 Open-Meteo 실시간 기상 관측 데이터를 기반으로 지면열을 산출했습니다."],
+    }
+
+
 def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
     """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다."""
     return {

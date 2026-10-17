@@ -21,6 +21,7 @@ INSOLATION_WEIGHTS = {
     "partly_cloudy": 0.6,
     "overcast": 0.2,
     "rainy": 0.0,
+    "night": 0.0,
 }
 
 
