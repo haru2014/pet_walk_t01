@@ -21,6 +21,7 @@ import { fetchHeatRiskForecast } from '../services/weatherApi';
 import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
+import { useHomeResponsive } from '../hooks/useHomeResponsive';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -48,6 +49,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenStats,
 }) => {
   const { colors } = useAppTheme();
+  const responsive = useHomeResponsive();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
 
@@ -69,49 +71,77 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <ScrollView
       style={styles.scrollContainer}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {
+          paddingHorizontal: responsive.screenPaddingHorizontal,
+          paddingTop: responsive.screenPaddingTop,
+          paddingBottom: responsive.screenPaddingBottom,
+        },
+      ]}
       showsVerticalScrollIndicator={false}
+      bounces={false}
     >
-      {/* 1. 환영 인사 (컴팩트 헤더) */}
-      <View style={styles.greetingSection}>
-        <Text style={[styles.greetingSub, { color: colors.textMuted }]}>오늘도 편안하게,</Text>
-        <View style={styles.greetingMainRow}>
-          <Text style={[styles.greetingMain, { color: colors.textMain }]}>우리 아이와 걸어요.</Text>
-          <AppIcon name="paw" size={15} color={colors.primary} />
-        </View>
-      </View>
-
-      {/* 2. 메인 반려견 카드 / 다견 슬라이더 (좌우 스와이프 페이징 연동) */}
-      <HomeDogCard
-        profile={dog}
-        dogs={dogs}
-        selectedDogId={selectedDogId}
-        onSelectDog={onSelectDog}
-        onAddDog={onAddDog}
-        onPressProfile={onPressProfile}
-        onStartWalk={onStartWalk}
-      />
-
-      {/* 3. 오늘 강아지 산책지수 위젯 (지면온도/기상청 연동 산책지수, trail_quotient.jpg) */}
-      <GoldenTimeWidget weather={weather} />
-
-      {/* (선택) 최근 피드백 AI 보정 브리핑 (전체 메시지 가독성 확보) */}
-      {feedbackSummary && feedbackSummary.recent_walk_count > 0 && (
-        <View style={[styles.feedbackBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-          <View style={styles.feedbackIconWrap}>
-            <AppIcon name="sparkle" size={13} color={colors.primaryDark} />
-          </View>
-          <Text style={[styles.feedbackText, { color: colors.primaryDark }]}>
-            AI 맞춤 보정: {FeedbackContextService.generateBriefingNotice(feedbackSummary)}
+      <View style={[styles.mainColumn, { gap: responsive.screenGap }]}>
+        {/* 1. 환영 인사 (반응형 헤더) */}
+        <View style={[styles.greetingSection, { marginBottom: responsive.greetingMarginBottom }]}>
+          <Text style={[styles.greetingSub, { color: colors.textMuted, fontSize: responsive.greetingSubSize }]}>
+            오늘도 편안하게,
           </Text>
+          <View style={styles.greetingMainRow}>
+            <Text style={[styles.greetingMain, { color: colors.textMain, fontSize: responsive.greetingMainSize }]}>
+              우리 아이와 걸어요.
+            </Text>
+            <AppIcon name="paw" size={responsive.greetingPawIconSize} color={colors.primary} />
+          </View>
         </View>
-      )}
 
-      {/* 4. 이번 주 산책 달성도 위젯 (일주일 7일 발자국 게이지) */}
-      <TrailAccomplishmentWidget
-        stats={weeklyStats}
-        onPress={onOpenStats}
-      />
+        {/* 2. 메인 반려견 카드 / 다견 슬라이더 (반응형 스케일링) */}
+        <HomeDogCard
+          profile={dog}
+          dogs={dogs}
+          selectedDogId={selectedDogId}
+          onSelectDog={onSelectDog}
+          onAddDog={onAddDog}
+          onPressProfile={onPressProfile}
+          onStartWalk={onStartWalk}
+        />
+
+        {/* 3. 오늘 강아지 산책지수 위젯 (지면온도/기상청 연동 산책지수) */}
+        <GoldenTimeWidget weather={weather} />
+
+        {/* (선택) 최근 피드백 AI 보정 브리핑 */}
+        {feedbackSummary && feedbackSummary.recent_walk_count > 0 && (
+          <View
+            style={[
+              styles.feedbackBadge,
+              {
+                backgroundColor: colors.primaryLight,
+                borderColor: colors.primary,
+                paddingVertical: responsive.isSpacious ? 8 : 5,
+              },
+            ]}
+          >
+            <View style={styles.feedbackIconWrap}>
+              <AppIcon name="sparkle" size={responsive.isSpacious ? 15 : 13} color={colors.primaryDark} />
+            </View>
+            <Text
+              style={[
+                styles.feedbackText,
+                { color: colors.primaryDark, fontSize: responsive.isSpacious ? 11.5 : 10.5 },
+              ]}
+            >
+              AI 맞춤 보정: {FeedbackContextService.generateBriefingNotice(feedbackSummary)}
+            </Text>
+          </View>
+        )}
+
+        {/* 4. 이번 주 산책 달성도 위젯 (일주일 7일 발자국 게이지) */}
+        <TrailAccomplishmentWidget
+          stats={weeklyStats}
+          onPress={onOpenStats}
+        />
+      </View>
     </ScrollView>
   );
 };
@@ -122,26 +152,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 14,
-    paddingTop: 4,
-    paddingBottom: 8,
-    gap: 6,
+  },
+  mainColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   greetingSection: {
     marginBottom: 0,
   },
   greetingSub: {
-    fontSize: 11.5,
     fontWeight: '500',
-    marginBottom: 0,
+    marginBottom: 1,
   },
   greetingMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   greetingMain: {
-    fontSize: 16.5,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -149,7 +177,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 10,
     borderWidth: 1,
     gap: 6,
@@ -158,9 +185,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   feedbackText: {
-    fontSize: 10.5,
     lineHeight: 15,
     fontWeight: '600',
     flex: 1,
   },
 });
+

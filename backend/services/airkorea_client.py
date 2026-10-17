@@ -103,6 +103,50 @@ def fetch_open_meteo_air_quality(lat: float, lon: float, timeout: float = DEFAUL
     return None
 
 
+def _parse_airkorea_item(item: Dict[str, Any], sido: str) -> Optional[Dict[str, Any]]:
+    """에어코리아 개별 측정소 항목에서 유효한 pm10/pm25 데이터를 파싱."""
+    pm10_str = item.get("pm10Value")
+    pm25_str = item.get("pm25Value")
+    if not pm10_str or pm10_str in ("-", "통신장애"):
+        return None
+    try:
+        pm10_val = float(pm10_str)
+        pm25_val = float(pm25_str) if pm25_str and pm25_str != "-" else None
+        return {
+            "pm10": pm10_val,
+            "pm25": pm25_val,
+            "grade_label": pm10_to_grade_label(pm10_val),
+            "station_name": item.get("stationName", f"{sido} 측정소"),
+            "data_source": "airkorea",
+        }
+    except (ValueError, TypeError):
+        return None
+
+
+def _fetch_airkorea_api(sido: str, key: str, timeout: float) -> Optional[Dict[str, Any]]:
+    """에어코리아 공공데이터 API 호출 및 첫 번째 유효 항목 파싱."""
+    clean_key = urllib.parse.unquote(key.strip())
+    params = {
+        "serviceKey": clean_key,
+        "returnType": "json",
+        "numOfRows": "50",
+        "pageNo": "1",
+        "sidoName": sido,
+        "ver": "1.0",
+    }
+    query = urllib.parse.urlencode(params)
+    url = f"{DEFAULT_AIRKOREA_URL}?{query}"
+    request = urllib.request.Request(url, headers={"User-Agent": "PetWalk-app/1.0"})
+    with urllib.request.urlopen(request, timeout=timeout, context=ssl_context()) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        items = data.get("response", {}).get("body", {}).get("items", [])
+        for item in items:
+            parsed = _parse_airkorea_item(item, sido)
+            if parsed is not None:
+                return parsed
+    return None
+
+
 def fetch_air_quality(
     lat: float,
     lon: float,
@@ -121,42 +165,10 @@ def fetch_air_quality(
     # 1. 에어코리아 공공데이터 API 시도
     if key and key.strip():
         try:
-            # 공공데이터포털 일반 인증키(Encoding/Decoding) 모두 지원하도록 unquote 후 urlencode
-            clean_key = urllib.parse.unquote(key.strip())
-            params = {
-                "serviceKey": clean_key,
-                "returnType": "json",
-                "numOfRows": "50",
-                "pageNo": "1",
-                "sidoName": sido,
-                "ver": "1.0",
-            }
-            query = urllib.parse.urlencode(params)
-            url = f"{DEFAULT_AIRKOREA_URL}?{query}"
-            request = urllib.request.Request(url, headers={"User-Agent": "PetWalk-app/1.0"})
-            with urllib.request.urlopen(request, timeout=timeout, context=ssl_context()) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                body = data.get("response", {}).get("body", {})
-                items = body.get("items", [])
-                for item in items:
-                    pm10_str = item.get("pm10Value")
-                    pm25_str = item.get("pm25Value")
-                    if pm10_str and pm10_str not in ("-", "통신장애"):
-                        try:
-                            pm10_val = float(pm10_str)
-                            pm25_val = float(pm25_str) if pm25_str and pm25_str != "-" else None
-                            grade_label = pm10_to_grade_label(pm10_val)
-                            result = {
-                                "pm10": pm10_val,
-                                "pm25": pm25_val,
-                                "grade_label": grade_label,
-                                "station_name": item.get("stationName", f"{sido} 측정소"),
-                                "data_source": "airkorea",
-                            }
-                            _CACHE[cache_key] = (time.time(), result)
-                            return result
-                        except (ValueError, TypeError):
-                            continue
+            result = _fetch_airkorea_api(sido, key, timeout)
+            if result:
+                _CACHE[cache_key] = (time.time(), result)
+                return result
         except Exception as exc:
             logger.info("에어코리아 API 조회 실패 (%s), Open-Meteo 대기질 폴백 시도", exc)
 
@@ -176,3 +188,4 @@ def fetch_air_quality(
     }
     _CACHE[cache_key] = (time.time(), fallback)
     return fallback
+

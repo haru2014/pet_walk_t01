@@ -12,6 +12,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'rea
 import { HeatRiskLevel, HeatRiskResponse } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
+import { useHomeResponsive } from '../../hooks/useHomeResponsive';
 
 export interface GoldenTimeWidgetProps {
   readonly weather?: HeatRiskResponse | null;
@@ -234,20 +235,32 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
 
   const [modalVisible, setModalVisible] = useState(false);
+  const responsive = useHomeResponsive();
 
   return (
     <View
       style={styles.container}
       accessibilityLabel="산책하기 좋은 지면온도 시간"
     >
-      {/* 1. 상단 타이틀 영역 (컴팩트 헤더) */}
-      <View style={styles.topHeader}>
-        <View style={styles.pawIconBox}>
-          <AppIcon name="paw" size={17} color="#6366F1" />
+      {/* 1. 상단 타이틀 영역 (반응형 헤더) */}
+      <View style={[styles.topHeader, { marginBottom: responsive.weatherTopMarginBottom }]}>
+        <View
+          style={[
+            styles.pawIconBox,
+            {
+              width: responsive.weatherPawIconSize + 14,
+              height: responsive.weatherPawIconSize + 14,
+              borderRadius: (responsive.weatherPawIconSize + 14) / 3,
+            },
+          ]}
+        >
+          <AppIcon name="paw" size={responsive.weatherPawIconSize} color="#6366F1" />
         </View>
         <View style={styles.headerTitleWrap}>
-          <Text style={[styles.mainHeading, { color: colors.textMain }]}>오늘 강아지 산책지수</Text>
-          <Text style={[styles.mainSubHeading, { color: colors.textMuted }]}>
+          <Text style={[styles.mainHeading, { color: colors.textMain, fontSize: responsive.weatherHeadingSize }]}>
+            오늘 강아지 산책지수
+          </Text>
+          <Text style={[styles.mainSubHeading, { color: colors.textMuted, fontSize: responsive.weatherSubHeadingSize }]}>
             더위·추위·대기질을 함께 봐요
           </Text>
         </View>
@@ -264,15 +277,31 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
+            paddingVertical: responsive.weatherCardPaddingV,
+            paddingHorizontal: responsive.weatherCardPaddingH,
           },
         ]}
       >
         <View style={styles.cardMainRow}>
-          {/* 원형 점수 게이지 (컴팩트 66px) */}
+          {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
           <View style={styles.gaugeContainer}>
-            <View style={[styles.circleRing, { borderColor: quotient.ringColor }]}>
-              <Text style={[styles.scoreNumber, { color: colors.textMain }]}>{quotient.score}</Text>
-              <Text style={[styles.scoreUnit, { color: colors.textMuted }]}>점</Text>
+            <View
+              style={[
+                styles.circleRing,
+                {
+                  width: responsive.weatherGaugeSize,
+                  height: responsive.weatherGaugeSize,
+                  borderRadius: responsive.weatherGaugeSize / 2,
+                  borderColor: quotient.ringColor,
+                },
+              ]}
+            >
+              <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
+                {quotient.score}
+              </Text>
+              <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
+                점
+              </Text>
             </View>
           </View>
 
@@ -280,35 +309,86 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
           <View style={styles.scoreContent}>
             {/* 상단: 상태 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
             <View style={styles.badgeChipsRow}>
-              <View style={[styles.statusBadge, { backgroundColor: quotient.badgeBg }]}>
-                <Text style={[styles.statusBadgeText, { color: quotient.badgeColor }]}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: quotient.badgeBg,
+                    paddingVertical: responsive.weatherStatusBadgePadV,
+                    paddingHorizontal: responsive.weatherStatusBadgePadH,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+                  ]}
+                >
                   ✓ {quotient.statusLabel}
                 </Text>
               </View>
 
               <View style={styles.iconChipsRow}>
-                <View style={[styles.iconChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.iconChip,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      paddingVertical: responsive.weatherChipPadV,
+                      paddingHorizontal: responsive.weatherChipPadH,
+                    },
+                  ]}
+                >
                   <Text style={styles.iconChipEmoji}>🌧️</Text>
-                  <Text style={[styles.iconChipText, { color: colors.textMain }]}>{popPercent}%</Text>
+                  <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
+                    {popPercent}%
+                  </Text>
                 </View>
-                <View style={[styles.iconChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.iconChip,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      paddingVertical: responsive.weatherChipPadV,
+                      paddingHorizontal: responsive.weatherChipPadH,
+                    },
+                  ]}
+                >
                   <Text style={styles.iconChipEmoji}>🌫️</Text>
-                  <Text style={[styles.iconChipText, { color: airQualityColor }]}>{airQualityLabel}</Text>
+                  <Text style={[styles.iconChipText, { color: airQualityColor, fontSize: responsive.weatherChipFont }]}>
+                    {airQualityLabel}
+                  </Text>
                 </View>
               </View>
             </View>
 
             {/* 중단: 상태 메인 문구 */}
-            <Text style={[styles.statusTitle, { color: colors.textMain }]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.statusTitle,
+                { color: colors.textMain, fontSize: responsive.weatherStatusTitleSize },
+              ]}
+              numberOfLines={1}
+            >
               {quotient.statusTitle}
             </Text>
 
             {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
             <View style={styles.bottomHintRow}>
-              <Text style={[styles.recommendTimeInline, { color: colors.textMuted }]}>
+              <Text
+                style={[
+                  styles.recommendTimeInline,
+                  { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
+                ]}
+              >
                 {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
               </Text>
-              <Text style={styles.detailHintText}>상세보기 〉</Text>
+              <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
+                상세보기 〉
+              </Text>
             </View>
           </View>
         </View>
@@ -446,8 +526,8 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
       </View>
 
       {/* 5. 데이터 출처 표기 (화면 상시 마이크로 출처) */}
-      <View style={styles.attributionContainer}>
-        <Text style={[styles.attributionText, { color: colors.textMuted }]}>
+      <View style={[styles.attributionContainer, { marginTop: responsive.weatherAttributionMarginTop }]}>
+        <Text style={[styles.attributionText, { color: colors.textMuted, fontSize: responsive.weatherAttributionSize }]}>
           데이터 출처: 기상청 · 한국환경공단(에어코리아)
           {weather?.attribution ? ` · ${weather.attribution}` : ''}
         </Text>

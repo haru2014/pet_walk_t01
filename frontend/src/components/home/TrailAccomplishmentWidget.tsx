@@ -28,6 +28,7 @@ import NativeSvg, {
 } from 'react-native-svg';
 import { useAppTheme } from '../../theme/themeManager';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
+import { useHomeResponsive } from '../../hooks/useHomeResponsive';
 
 const isWeb = Platform.OS === 'web';
 
@@ -43,11 +44,11 @@ const Circle: React.ComponentType<any> = isWeb ? (props: any) => <circle {...cle
 const Ellipse: React.ComponentType<any> = isWeb ? (props: any) => <ellipse {...cleanWebProps(props)} /> : NativeEllipse;
 const Line: React.ComponentType<any> = isWeb ? (props: any) => <line {...cleanWebProps(props)} /> : NativeLine;
 
-/** 귀여운 강아지 아바타 (docs/reference/trail_ accomplishment.png 원형 복원 - 컴팩트 34px) */
-const PuppyAccomplishmentAvatar: React.FC = () => {
+/** 귀여운 강아지 아바타 (docs/reference/trail_ accomplishment.png 원형 복원 - 반응형 아바타) */
+const PuppyAccomplishmentAvatar: React.FC<{ size?: number }> = ({ size = 34 }) => {
   return (
-    <View style={styles.avatarWrap}>
-      <Svg width={34} height={34} viewBox="0 0 54 54" fill="none">
+    <View style={[styles.avatarWrap, { width: size, height: size }]}>
+      <Svg width={size} height={size} viewBox="0 0 54 54" fill="none">
         {/* 상단 우측 3개의 생기 넘치는 초록 스파클 대시 */}
         <Line x1="42" y1="12" x2="49" y2="8" stroke="#52B773" strokeWidth="2.4" strokeLinecap="round" />
         <Line x1="39" y1="6" x2="42" y2="1.5" stroke="#52B773" strokeWidth="2.4" strokeLinecap="round" />
@@ -119,19 +120,23 @@ interface AccomplishmentPawProps {
   filled: boolean;
   activeColor?: string;
   inactiveColor?: string;
+  width?: number;
+  height?: number;
 }
 
-/** 4개의 발가락 + 메인 패드로 구성된 둥근 강아지 발자국 아이콘 (컴팩트 28x25) */
+/** 4개의 발가락 + 메인 패드로 구성된 둥근 강아지 발자국 아이콘 (반응형 벡터) */
 const AccomplishmentPaw: React.FC<AccomplishmentPawProps> = ({
   filled,
   activeColor = '#58B273',
   inactiveColor = '#E2E8F0',
+  width = 28,
+  height = 25,
 }) => {
   const color = filled ? activeColor : inactiveColor;
 
   return (
     <View style={styles.pawWrap}>
-      <Svg width={28} height={25} viewBox="0 0 42 38" fill="none">
+      <Svg width={width} height={height} viewBox="0 0 42 38" fill="none">
         <G fill={color}>
           {/* 발가락 1 (좌측 외곽) */}
           <Ellipse cx="7" cy="15" rx="3.4" ry="4.4" transform="rotate(-18 7 15)" />
@@ -168,6 +173,7 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
   style,
 }) => {
   const { colors } = useAppTheme();
+  const responsive = useHomeResponsive();
 
   // 요일별 실제 산책 기록 매핑 (월: index 0 ~ 일: index 6)
   const hasDailyStats = Array.isArray(stats?.dailyStats) && stats.dailyStats.length > 0;
@@ -201,6 +207,8 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
+          paddingVertical: responsive.trailCardPaddingV,
+          paddingHorizontal: responsive.trailCardPaddingH,
         },
         style,
       ]}
@@ -208,32 +216,43 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
       {/* 1. 상단 아바타 & 타이틀 및 실시간 달성 배지 */}
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
-          <PuppyAccomplishmentAvatar />
-          <Text style={[styles.title, { color: colors.textMain }]}>
+          <PuppyAccomplishmentAvatar size={responsive.trailPuppyAvatarSize} />
+          <Text style={[styles.title, { color: colors.textMain, fontSize: responsive.trailTitleSize }]}>
             이번 주 산책 달성도
           </Text>
         </View>
 
-        <View style={styles.countBadge}>
-          <Text style={styles.countBadgeText}>
+        <View
+          style={[
+            styles.countBadge,
+            {
+              paddingVertical: responsive.trailCountBadgePadV,
+              paddingHorizontal: responsive.trailCountBadgePadH,
+            },
+          ]}
+        >
+          <Text style={[styles.countBadgeText, { fontSize: responsive.trailCountBadgeFont }]}>
             {completedDaysCount}/{totalSlots}일 완료
           </Text>
         </View>
       </View>
 
       {/* 2. 하단 7개 강아지 발자국(Paw) & 요일별 1:1 실데이터 게이지 바 */}
-      <View style={styles.pawsRow}>
+      <View style={[styles.pawsRow, { marginTop: responsive.trailPawsMarginTop }]}>
         {slots.map((slot) => (
           <View key={slot.id} style={styles.pawColumn}>
             <AccomplishmentPaw
               filled={slot.filled}
               activeColor="#58B273"
               inactiveColor="#E2E8F0"
+              width={responsive.trailPawWidth}
+              height={responsive.trailPawHeight}
             />
             <Text
               style={[
                 styles.dayText,
                 {
+                  fontSize: responsive.trailDayFontSize,
                   color: slot.filled
                     ? '#15803D'
                     : slot.isToday
@@ -246,7 +265,17 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
               {slot.dayLabel}
             </Text>
             {slot.isToday && (
-              <View style={[styles.todayIndicatorDot, { backgroundColor: slot.filled ? '#15803D' : '#2563EB' }]} />
+              <View
+                style={[
+                  styles.todayIndicatorDot,
+                  {
+                    width: responsive.trailTodayDotSize,
+                    height: responsive.trailTodayDotSize,
+                    borderRadius: responsive.trailTodayDotSize / 2,
+                    backgroundColor: slot.filled ? '#15803D' : '#2563EB',
+                  },
+                ]}
+              />
             )}
           </View>
         ))}
