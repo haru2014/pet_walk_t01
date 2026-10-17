@@ -20,6 +20,17 @@ export interface HeatRiskHourDTO {
 }
 
 /**
+ * 한국환경공단 에어코리아 및 실시간 대기질 DTO
+ */
+export interface AirQualityDTO {
+  readonly pm10?: number | null;
+  readonly pm25?: number | null;
+  readonly grade_label: string;
+  readonly station_name?: string;
+  readonly data_source?: string;
+}
+
+/**
  * 기상청 지면열 추정 API 응답 규격
  */
 export interface HeatRiskResponse {
@@ -31,6 +42,8 @@ export interface HeatRiskResponse {
   readonly is_current_golden: boolean;
   readonly golden_time_window: string;
   readonly golden_time_window_day?: GoldenTimeWindowDay;
+  readonly pop?: number;
+  readonly air_quality?: AirQualityDTO | null;
   readonly hourly_forecast: readonly HeatRiskHourDTO[];
   readonly notice: string;
   readonly attribution?: string | null;

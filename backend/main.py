@@ -517,6 +517,14 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
     return {
         "status": "success",
         "current": current_dto,
+        "pop": current_dto.get("pop", 10),
+        "air_quality": {
+            "pm10": 25.0,
+            "pm25": 14.0,
+            "grade_label": "좋음",
+            "station_name": "기본",
+            "data_source": "estimated",
+        },
         "golden_time_window": golden_window,
         "hourly_forecast": hourly,
         "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",

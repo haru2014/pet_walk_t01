@@ -24,6 +24,13 @@ export interface GoldenTimeWidgetProps {
 
 const TIME_REGEX = /^\d{1,2}:\d{2}$/;
 
+const AIR_QUALITY_COLOR_MAP: Record<string, string> = {
+  좋음: '#059669',
+  보통: '#0284C7',
+  나쁨: '#D97706',
+  매우나쁨: '#DC2626',
+};
+
 interface WindowRange {
   start: string;
   end: string;
@@ -230,6 +237,11 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     Alert.alert('산책 지역 변경', `지역이 "${nextLoc}"(으)로 변경되었습니다.`);
   };
 
+  const popPercent = typeof weather?.pop === 'number' ? weather.pop : 20;
+  const airQuality = weather?.air_quality;
+  const airQualityLabel = airQuality?.grade_label ?? '좋음';
+  const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
+
   return (
     <View
       style={styles.container}
@@ -253,7 +265,9 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         <View style={styles.chipsRow}>
           <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <AppIcon name="map" size={12} color="#64748B" />
-            <Text style={[styles.infoChipText, { color: colors.textMain }]}>{selectedLocation}</Text>
+            <Text style={[styles.infoChipText, { color: colors.textMain }]}>
+              {airQuality?.station_name ? `${airQuality.station_name}` : selectedLocation}
+            </Text>
           </View>
           <View style={[styles.infoChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.infoChipText, { color: colors.textMuted }]}>대략 위치</Text>
@@ -331,12 +345,12 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.metricEmoji}>🌧️</Text>
           <Text style={[styles.metricLabel, { color: colors.textMuted }]}>강수확률</Text>
-          <Text style={[styles.metricValue, { color: colors.textMain }]}>20%</Text>
+          <Text style={[styles.metricValue, { color: colors.textMain }]}>{popPercent}%</Text>
         </View>
         <View style={[styles.metricCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.metricEmoji}>🌫️</Text>
           <Text style={[styles.metricLabel, { color: colors.textMuted }]}>미세먼지</Text>
-          <Text style={[styles.metricValue, { color: colors.primaryDark }]}>좋음</Text>
+          <Text style={[styles.metricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
         </View>
       </View>
 
