@@ -166,6 +166,16 @@ export interface TrailAccomplishmentWidgetProps {
   style?: ViewStyle;
 }
 
+function getSlotTextColor(filled: boolean, isToday: boolean, defaultColor: string): string {
+  if (filled) {
+    return '#15803D';
+  }
+  if (isToday) {
+    return '#2563EB';
+  }
+  return defaultColor;
+}
+
 export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps> = ({
   stats,
   totalSlots = 7,
@@ -253,11 +263,7 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
                 styles.dayText,
                 {
                   fontSize: responsive.trailDayFontSize,
-                  color: slot.filled
-                    ? '#15803D'
-                    : slot.isToday
-                    ? '#2563EB'
-                    : colors.textMuted,
+                  color: getSlotTextColor(slot.filled, slot.isToday, colors.textMuted),
                   fontWeight: slot.isToday || slot.filled ? '800' : '600',
                 },
               ]}
