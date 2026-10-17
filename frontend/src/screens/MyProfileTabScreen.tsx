@@ -5,7 +5,7 @@
  * 3대 테마 선택(숲길/비비드 바이올렛/다크), 컴팩트 세그먼트 탭(스크롤 배제), 산책 기록 및 프로필 관리
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { DogProfile } from '../types/dogProfile';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -20,6 +20,9 @@ import { SupabaseService } from '../services/supabaseService';
 import { useAppTheme } from '../theme/themeManager';
 import { LegalTermsModal, LegalTabType } from '../components/common/LegalTermsModal';
 import { VoiceSettingCard } from '../components/voice/VoiceSettingCard';
+import { WeeklyWalkReportCard, RecentWalkInfo } from '../components/home/WeeklyWalkReportCard';
+import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
+import { LocalStorageService } from '../services/storage';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
@@ -282,6 +285,55 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   const [currentUser, setCurrentUser] = useState(() => SupabaseService.getCurrentUser());
   const { colors } = useAppTheme();
 
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
+    WalkStatisticsService.getWeeklyStats([])
+  );
+  const [recentStats, setRecentStats] = useState<RecentWalkInfo>({
+    title: '오늘의 산책',
+    distanceKm: 2.4,
+    durationMinutes: 38,
+    safeRatioPercent: 72,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    void LocalStorageService.getWalkHistory().then((history) => {
+      if (!isMounted || history.length === 0) return;
+      setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayList = history.filter((r) => r.completedAt.slice(0, 10) === todayStr);
+
+      if (todayList.length > 0) {
+        const totalDist = todayList.reduce((acc, r) => acc + r.totalDistanceKm, 0);
+        const totalDur = todayList.reduce((acc, r) => acc + r.durationMinutes, 0);
+        const avgSafe = Math.round(
+          (todayList.reduce((acc, r) => acc + r.safeSurfaceRatio, 0) / todayList.length) * 100
+        );
+        setRecentStats({
+          title: `오늘의 완주 (${todayList.length}회)`,
+          distanceKm: Math.round(totalDist * 10) / 10,
+          durationMinutes: totalDur,
+          safeRatioPercent: avgSafe,
+        });
+      } else {
+        const latest = history[0];
+        const dateStr = new Date(latest.completedAt).toLocaleDateString('ko-KR', {
+          month: 'numeric',
+          day: 'numeric',
+        });
+        setRecentStats({
+          title: `직전 완주 (${dateStr})`,
+          distanceKm: Math.round(latest.totalDistanceKm * 10) / 10,
+          durationMinutes: latest.durationMinutes,
+          safeRatioPercent: Math.round(latest.safeSurfaceRatio * 100),
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [resetCount, subTab]);
+
   const handleSubTabChange = (nextSubTab: SubTabKey) => {
     setSubTab(nextSubTab);
     setCurrentUser(SupabaseService.getCurrentUser());
@@ -386,9 +438,23 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         </View>
       )}
 
-      {/* 서브탭 3: 산책 활동 (완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
+      {/* 서브탭 3: 산책 활동 (이번 주 산책 달성도 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
       {subTab === 'walk_records' && (
-        <View style={styles.tabScrollContainer}>
+        <ScrollView
+          style={styles.tabScrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+        >
+          {/* 🌟 이번 주 산책 달성도 & 직전 완주 통계 위젯 */}
+          <WeeklyWalkReportCard
+            stats={weeklyStats}
+            recentWalk={recentStats}
+            onPress={() => setWalkSubFilter('history')}
+            onPressRecent={() => setWalkSubFilter('history')}
+            style={{ marginBottom: 10 }}
+          />
+
           <View style={[styles.filterChipContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -435,7 +501,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               dogSpeedKmH={dog.speedKmH}
             />
           )}
-        </View>
+        </ScrollView>
       )}
 
       {/* 서브탭 4: 안내 음성 설정 및 미리듣기, AI 시뮬레이터, 약관 및 데이터 초기화 */}
