@@ -210,7 +210,6 @@ export async function requestWalkPlan(
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
       };
     }
-
     if (!isCurrentLocation) {
       await throwParkError(response);
     }

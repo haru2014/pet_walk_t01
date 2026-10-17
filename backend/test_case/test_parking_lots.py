@@ -91,9 +91,22 @@ class TestFixtureData:
             assert lot["is_public"] is True and lot["verified"] is True
             assert "15012896" in lot["source"] and lot["official_id"], name
 
-    def test_only_yurim_official_lot_is_linked_to_its_park_by_name(self):
+    def test_official_lots_linked_to_their_park_by_name_or_within_300m_of_the_park_point(self):
         linked = {l["name"] for l in load_pilot_parking_lots() if l["park_link_verified"]}
-        assert linked == {"유림공원주차장"}
+        assert linked == {"유림공원주차장", "송강동(프라자옆)공영", "송강동(GS마트앞)공영"}
+
+    def test_park_link_flag_agrees_with_the_distance_to_the_reference_park_point(self):
+        import json
+        from agent.route_geometry import haversine_m
+        from services.parking_lots import DEFAULT_DATA_PATH
+        reference = DEFAULT_DATA_PATH.parents[2] / "docs" / "reference" / "parks_gis" / "park_locations.geojson"
+        points = {f["properties"]["name"]: f["geometry"]["coordinates"]
+                  for f in json.loads(reference.read_text(encoding="utf-8"))["features"] if f["geometry"]}
+        by_zone = {"송강근린공원": points["송강공원(송강동 근린공원)"], "도안호수공원": points["갑천생태호수공원(도안호수공원)"]}
+        for lot in load_pilot_parking_lots():
+            if lot["status"] == "official" and lot["park_zone"] in by_zone:
+                near = haversine_m(by_zone[lot["park_zone"]], [lot["entrance_lon"], lot["entrance_lat"]]) <= 300
+                assert lot["park_link_verified"] is near, lot["name"]
 
 
 class TestValidator:
