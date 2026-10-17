@@ -169,24 +169,33 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
 }) => {
   const { colors } = useAppTheme();
 
-  // 실제 이번 주 산책 완료 횟수 (기록이 없을 때는 기본 4회 완주 표시하여 레퍼런스 디자인과 일치)
-  const completedCount =
-    stats && typeof stats.totalWalks === 'number'
-      ? Math.max(0, Math.min(stats.totalWalks, totalSlots))
-      : 4;
+  // 요일별 실제 산책 기록 매핑 (월: index 0 ~ 일: index 6)
+  const hasDailyStats = Array.isArray(stats?.dailyStats) && stats.dailyStats.length > 0;
 
-  const slots = Array.from({ length: totalSlots }, (_, i) => ({
-    id: `paw_slot_step_${i + 1}`,
-    dayLabel: DAY_LABELS[i] ?? `${i + 1}`,
-    filled: i < completedCount,
-  }));
+  const slots = Array.from({ length: totalSlots }, (_, i) => {
+    const dayStat = hasDailyStats ? stats.dailyStats[i] : null;
+    const isWalked = dayStat
+      ? Boolean(dayStat.hasWalked || (dayStat.walkCount && dayStat.walkCount > 0))
+      : false;
+    const isToday = Boolean(dayStat?.isToday);
+
+    return {
+      id: `paw_slot_step_${i + 1}`,
+      dayLabel: DAY_LABELS[i] ?? `${i + 1}`,
+      filled: isWalked,
+      isToday,
+      walkCount: dayStat?.walkCount ?? 0,
+    };
+  });
+
+  const completedDaysCount = slots.filter((s) => s.filled).length;
 
   return (
     <TouchableOpacity
       activeOpacity={onPress ? 0.88 : 1}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`이번 주 산책 달성도: ${totalSlots}회 중 ${completedCount}회 달성`}
+      accessibilityLabel={`이번 주 산책 달성도: ${totalSlots}일 중 ${completedDaysCount}일 달성`}
       style={[
         styles.card,
         {
@@ -196,15 +205,23 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
         style,
       ]}
     >
-      {/* 1. 상단 아바타 & 타이틀 영역 (컴팩트) */}
+      {/* 1. 상단 아바타 & 타이틀 및 실시간 달성 배지 */}
       <View style={styles.topHeader}>
-        <PuppyAccomplishmentAvatar />
-        <Text style={[styles.title, { color: colors.textMain }]}>
-          이번 주 산책 달성도
-        </Text>
+        <View style={styles.headerLeft}>
+          <PuppyAccomplishmentAvatar />
+          <Text style={[styles.title, { color: colors.textMain }]}>
+            이번 주 산책 달성도
+          </Text>
+        </View>
+
+        <View style={styles.countBadge}>
+          <Text style={styles.countBadgeText}>
+            {completedDaysCount}/{totalSlots}일 완료
+          </Text>
+        </View>
       </View>
 
-      {/* 2. 하단 7개 강아지 발자국(Paw) & 요일 게이지 바 */}
+      {/* 2. 하단 7개 강아지 발자국(Paw) & 요일별 1:1 실데이터 게이지 바 */}
       <View style={styles.pawsRow}>
         {slots.map((slot) => (
           <View key={slot.id} style={styles.pawColumn}>
@@ -216,11 +233,21 @@ export const TrailAccomplishmentWidget: React.FC<TrailAccomplishmentWidgetProps>
             <Text
               style={[
                 styles.dayText,
-                { color: slot.filled ? '#15803D' : colors.textMuted },
+                {
+                  color: slot.filled
+                    ? '#15803D'
+                    : slot.isToday
+                    ? '#2563EB'
+                    : colors.textMuted,
+                  fontWeight: slot.isToday || slot.filled ? '800' : '600',
+                },
               ]}
             >
               {slot.dayLabel}
             </Text>
+            {slot.isToday && (
+              <View style={[styles.todayIndicatorDot, { backgroundColor: slot.filled ? '#15803D' : '#2563EB' }]} />
+            )}
           </View>
         ))}
       </View>
@@ -243,7 +270,25 @@ const styles = StyleSheet.create({
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  countBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  countBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#15803D',
   },
   avatarWrap: {
     width: 34,
@@ -274,7 +319,12 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 10,
-    fontWeight: '700',
+    marginTop: 1,
+  },
+  todayIndicatorDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     marginTop: 1,
   },
 });

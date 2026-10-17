@@ -18,34 +18,42 @@ vi.mock('react-native-svg', () => ({
 }));
 
 describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)', () => {
-  it('renders title and 7 paw prints with default 4 filled when stats is null', () => {
+  it('renders title and 7 empty paw prints when stats is null (no walks yet)', () => {
     const html = renderToStaticMarkup(
       <TrailAccomplishmentWidget stats={null} />
     );
 
     expect(html).toContain('이번 주 산책 달성도');
-    expect(html).toContain('이번 주 산책 달성도: 7회 중 4회 달성');
-    // activeColor #58B273 4회, inactiveColor #E2E8F0 3회 포함 확인
+    expect(html).toContain('0/7일 완료');
+    // activeColor #58B273 0개, inactiveColor #E2E8F0 7개 포함 확인
     const activeOccurrences = (html.match(/#58B273/g) || []).length;
     const inactiveOccurrences = (html.match(/#E2E8F0/g) || []).length;
-    expect(activeOccurrences).toBe(4);
-    expect(inactiveOccurrences).toBe(3);
+    expect(activeOccurrences).toBe(0);
+    expect(inactiveOccurrences).toBe(7);
     // 일주일 7일(월~일) 라벨 렌더링 확인
     expect(html).toContain('월');
     expect(html).toContain('일');
   });
 
-  it('renders exact completed count according to weeklyStats.totalWalks', () => {
+  it('renders exact 1:1 daily walked paws matching dailyStats.hasWalked', () => {
     const mockStats: WeeklyWalkStats = {
       weekRangeLabel: '10.12 ~ 10.18',
       totalDistanceKm: 8.5,
-      totalWalks: 5,
+      totalWalks: 3,
       targetWalks: 7,
-      completionRatePercent: 71,
+      completionRatePercent: 43,
       safeSurfaceRatioPercent: 75,
-      totalDurationMinutes: 120,
-      totalPoopCount: 4,
-      dailyStats: [],
+      totalDurationMinutes: 90,
+      totalPoopCount: 3,
+      dailyStats: [
+        { dayLabel: '월', dateStr: '2026-10-12', distanceKm: 2.5, durationMinutes: 30, walkCount: 1, targetCount: 1, achievementRatePercent: 100, hasWalked: true, isToday: false },
+        { dayLabel: '화', dateStr: '2026-10-13', distanceKm: 0, durationMinutes: 0, walkCount: 0, targetCount: 1, achievementRatePercent: 0, hasWalked: false, isToday: false },
+        { dayLabel: '수', dateStr: '2026-10-14', distanceKm: 3.0, durationMinutes: 30, walkCount: 1, targetCount: 1, achievementRatePercent: 100, hasWalked: true, isToday: false },
+        { dayLabel: '목', dateStr: '2026-10-15', distanceKm: 0, durationMinutes: 0, walkCount: 0, targetCount: 1, achievementRatePercent: 0, hasWalked: false, isToday: false },
+        { dayLabel: '금', dateStr: '2026-10-16', distanceKm: 3.0, durationMinutes: 30, walkCount: 1, targetCount: 1, achievementRatePercent: 100, hasWalked: true, isToday: true },
+        { dayLabel: '토', dateStr: '2026-10-17', distanceKm: 0, durationMinutes: 0, walkCount: 0, targetCount: 1, achievementRatePercent: 0, hasWalked: false, isToday: false },
+        { dayLabel: '일', dateStr: '2026-10-18', distanceKm: 0, durationMinutes: 0, walkCount: 0, targetCount: 1, achievementRatePercent: 0, hasWalked: false, isToday: false },
+      ],
       jointCareMessage: '관절 상태 양호',
     };
 
@@ -53,10 +61,11 @@ describe('TrailAccomplishmentWidget (docs/reference/trail_ accomplishment.png)',
       <TrailAccomplishmentWidget stats={mockStats} />
     );
 
-    expect(html).toContain('이번 주 산책 달성도: 7회 중 5회 달성');
+    expect(html).toContain('3/7일 완료');
     const activeOccurrences = (html.match(/#58B273/g) || []).length;
     const inactiveOccurrences = (html.match(/#E2E8F0/g) || []).length;
-    expect(activeOccurrences).toBe(5);
-    expect(inactiveOccurrences).toBe(2);
+    // 월, 수, 금 3일 산책 완료
+    expect(activeOccurrences).toBe(3);
+    expect(inactiveOccurrences).toBe(4);
   });
 });
