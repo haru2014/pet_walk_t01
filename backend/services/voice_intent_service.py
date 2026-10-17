@@ -8,7 +8,7 @@ docs/implementation_plan/gemini_api_적용_계획.md 준수:
    - 오프라인/키 부재 시 로컬 룰베이스 파서(extract_local_voice_intent) 안전망
    - 의료/공포 슬랭 원천 차단 (Zero Medical Slang: "탈진/화상" 배제, 웰니스 어휘 사용)
 2. [영역 2] 산책 경로 생성 오케스트레이션 연동 지원
-   - 대전/세종 4대 거점 공원 랜드마크 자동 식별 (유림공원, 보라매공원, 세종호수공원, 한밭수목원)
+   - 대전/세종 4대 거점 공원 랜드마크 자동 식별 (유림공원, 세종호수공원, 송강근린공원, 도안공원)
 """
 
 import json
@@ -143,7 +143,7 @@ def _build_system_prompt(dog_name: Optional[str]) -> str:
 - prefer_cushion: 흙길/잔디/폭신한 길 선호 여부 (기본 true)
 - avoid_stairs: 계단 회피 여부 (기본 true)
 - joint_care_level: 0(활발), 1(일반안심), 2(완만/슬개골 주의)
-- destination_landmark: 유림공원, 보라매공원, 세종호수공원, 한밭수목원 등 특정 거점/공원 언급 시 추출
+- destination_landmark: 유림공원, 세종호수공원, 송강근린공원, 도안공원 등 특정 거점/공원 언급 시 추출
 - briefing_message: 2문장 이내의 다정하고 안심되는 산책 코스 안내 브리핑 (예: "{name}와 함께 걷기 좋은 25분 그늘 흙길 코스를 준비했어요.")
 """
 
