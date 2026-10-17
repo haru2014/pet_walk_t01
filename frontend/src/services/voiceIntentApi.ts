@@ -32,23 +32,39 @@ export interface VoiceIntentResult {
 const LANDMARK_TO_PARK_ID: Record<string, string> = {
   유림공원: 'yurim',
   유림: 'yurim',
-  갑천: 'yurim',
   세종호수공원: 'sejong',
   세종호수: 'sejong',
-  호수공원: 'sejong',
   송강공원: 'songgang',
   송강근린공원: 'songgang',
   송강: 'songgang',
   도안공원: 'doan',
   도안호수공원: 'doan',
   도안: 'doan',
-  보라매공원: 'yurim',
-  보라매: 'yurim',
-  한밭수목원: 'yurim',
-  한밭: 'yurim',
-  엑스포: 'yurim',
-  엑스포다리: 'yurim',
 };
+
+/**
+ * 백엔드 랜드마크 ID, 한글 공원명, 또는 영문 식별자를 프론트엔드 PILOT_PARKS ID('yurim' | 'sejong' | 'songgang' | 'doan')로 정규화
+ */
+export function normalizeToFrontendParkId(rawIdOrName?: string | null): string {
+  if (!rawIdOrName) return 'yurim';
+  const val = rawIdOrName.trim().toLowerCase();
+
+  if (val.includes('sejong') || val.includes('세종')) return 'sejong';
+  if (val.includes('songgang') || val.includes('송강')) return 'songgang';
+  if (val.includes('doan') || val.includes('도안')) return 'doan';
+  if (val.includes('yurim') || val.includes('yulim') || val.includes('유림')) {
+    return 'yurim';
+  }
+
+  // 한글 랜드마크 딕셔너리 매핑
+  for (const [k, pId] of Object.entries(LANDMARK_TO_PARK_ID)) {
+    if (rawIdOrName.includes(k)) {
+      return pId;
+    }
+  }
+
+  return 'yurim';
+}
 
 /**
  * [오프라인 안전망] 네트워크 단절 또는 API 키 부재 시 온디바이스 정규식/키워드 파서
@@ -63,12 +79,10 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
     duration = 90;
   } else if (/(?:1\s*시간|한\s*시간|한시간)/.test(text)) {
     duration = 60;
-  } else if (text.includes('반시간')) {
-    duration = 30;
-  } else {
-    const match = text.match(/(\d{1,3})\s*(?:분|min)/);
+  } else if (!text.includes('반시간')) {
+    const match = /(\d{1,3})\s*(?:분|min)/.exec(text);
     if (match) {
-      duration = Math.max(10, Math.min(90, parseInt(match[1], 10)));
+      duration = Math.max(10, Math.min(90, Number.parseInt(match[1], 10)));
     }
   }
 
@@ -161,11 +175,11 @@ export async function analyzeVoiceIntent(
 
     if (response.ok) {
       const data = await response.json();
-      if (data && data.status === 'success' && data.intent) {
+      if (data?.status === 'success' && data.intent) {
         return {
           status: 'success',
           intent: data.intent,
-          landmark_park_id: data.landmark_park_id ?? null,
+          landmark_park_id: data.landmark_park_id ? normalizeToFrontendParkId(data.landmark_park_id) : null,
           model_used: data.model_used || 'gemini-3.5-flash-lite',
           data_source: data.data_source || 'gemini_live',
         };

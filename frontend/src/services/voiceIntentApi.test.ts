@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   extractLocalVoiceIntent,
   analyzeVoiceIntent,
+  normalizeToFrontendParkId,
 } from './voiceIntentApi';
 
 describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)', () => {
@@ -40,5 +41,19 @@ describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)'
     expect(result.data_source).toBe('local_fallback');
 
     globalThis.fetch = originalFetch;
+  });
+
+  it('normalizeToFrontendParkId normalizes various landmark IDs and names to 4 pilot parks', () => {
+    expect(normalizeToFrontendParkId('daejeon_yulim')).toBe('yurim');
+    expect(normalizeToFrontendParkId('yurim')).toBe('yurim');
+    expect(normalizeToFrontendParkId('유림공원')).toBe('yurim');
+    expect(normalizeToFrontendParkId('갑천')).toBe('yurim');
+    expect(normalizeToFrontendParkId('sejong_lake')).toBe('sejong');
+    expect(normalizeToFrontendParkId('세종호수공원')).toBe('sejong');
+    expect(normalizeToFrontendParkId('daejeon_songgang')).toBe('songgang');
+    expect(normalizeToFrontendParkId('송강근린공원')).toBe('songgang');
+    expect(normalizeToFrontendParkId('daejeon_boramae')).toBe('yurim');
+    expect(normalizeToFrontendParkId('도안호수공원')).toBe('doan');
+    expect(normalizeToFrontendParkId(null)).toBe('yurim');
   });
 });

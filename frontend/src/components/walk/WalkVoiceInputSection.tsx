@@ -33,6 +33,7 @@ export interface WalkVoiceInputSectionProps {
   onChangeText: (text: string) => void;
   onIntentParsed?: (result: VoiceIntentResult) => void;
   coords?: { lat: number; lon: number } | null;
+  onFindRouteDirectly?: () => void;
 }
 
 export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
@@ -41,6 +42,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
   onChangeText,
   onIntentParsed,
   coords,
+  onFindRouteDirectly,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -216,13 +218,23 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
           <View style={styles.badgeTop}>
             <AppIcon name="sparkle" size={14} color="#4F46E5" />
             <Text style={styles.badgeTitle}>
-              Gemini AI 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
+              Gemini AI 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단피하기 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
             </Text>
           </View>
           {analysisResult.intent.briefing_message && (
             <Text style={styles.briefingText}>
               {analysisResult.intent.briefing_message}
             </Text>
+          )}
+          {onFindRouteDirectly && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={onFindRouteDirectly}
+              style={styles.directFindBtn}
+            >
+              <AppIcon name="sparkle" size={13} color="#FFFFFF" />
+              <Text style={styles.directFindBtnText}>✨ 이 AI 맞춤 조건으로 산책로 바로 찾기</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -246,24 +258,25 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSub}>
-              터치하거나 직접 입력하시면 Gemini가 최적의 조건을 자동 설정합니다.
+              터치하시면 하단 설정(시간·공원·환경)에 즉시 반영되며 AI가 맞춤 산책로를 준비합니다.
             </Text>
 
             <View style={styles.scenarioList}>
               {[
-                `날씨가 더우니까 ${dogName}랑 25분만 그늘진 흙길로 유림공원 한 바퀴 돌고 싶어`,
-                `30분 동안 계단 없이 시원하고 폭신한 잔디길로 천천히 걸을래`,
-                `세종호수공원에서 40분 동안 완만한 길로 신나게 산책하자`,
-                `보라매공원 30분 관절에 무리 없는 그늘길 코스 찾아줘`,
-              ].map((item, idx) => (
+                { id: 'sc-shade-yurim', text: `날씨가 더우니까 ${dogName}랑 25분만 그늘진 흙길로 유림공원 한 바퀴 돌고 싶어` },
+                { id: 'sc-stairs-lawn', text: '30분 동안 계단 없이 시원하고 폭신한 잔디길로 천천히 걸을래' },
+                { id: 'sc-sejong-lake', text: '세종호수공원에서 40분 동안 완만한 길로 신나게 산책하자' },
+                { id: 'sc-joint-care', text: '유림공원 30분 관절에 무리 없는 그늘길 코스 찾아줘' },
+              ].map((item) => (
                 <TouchableOpacity
-                  key={`scenario-${idx}`}
+                  key={item.id}
                   activeOpacity={0.7}
-                  onPress={() => handleSelectScenario(item)}
+                  onPress={() => handleSelectScenario(item.text)}
                   style={styles.scenarioChip}
                 >
                   <AppIcon name="sparkle" size={12} color="#6366F1" />
-                  <Text style={styles.scenarioChipText}>{item}</Text>
+                  <Text style={styles.scenarioChipText}>{item.text}</Text>
+                  <Text style={styles.scenarioSelectLabel}>선택</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -451,5 +464,30 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: '#334155',
     lineHeight: 18,
+  },
+  scenarioSelectLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6366F1',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  directFindBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#4F46E5',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  directFindBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
