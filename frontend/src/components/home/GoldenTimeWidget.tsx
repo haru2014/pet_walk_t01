@@ -16,6 +16,7 @@ import { useHomeResponsive } from '../../hooks/useHomeResponsive';
 
 export interface GoldenTimeWidgetProps {
   readonly weather?: HeatRiskResponse | null;
+  readonly isLoading?: boolean;
   readonly currentTimeLabel?: string;
   readonly startTimeLabel?: string;
   readonly endTimeLabel?: string;
@@ -202,7 +203,10 @@ function getGrassTempDisplay(
   return `${fallbackTemp ?? 22}°C`;
 }
 
-function resolveAttributionText(weather?: HeatRiskResponse | null): string {
+function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: boolean): string {
+  if (isLoading || weather === null || weather === undefined) {
+    return '데이터 출처: 기상청 · 한국환경공단(에어코리아) 실시간 수신 중...';
+  }
   const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
   if (isVirtual) {
     return '데이터 출처: [가상 시뮬레이션 추정치] (실시간 네트워크 미연결 · 모의 데이터)';
@@ -469,6 +473,7 @@ interface ScoreCardProps {
   readonly isTomorrow: boolean;
   readonly timeRangeDisplay: string;
   readonly isVirtual?: boolean;
+  readonly isLoading?: boolean;
   readonly onOpenModal: () => void;
 }
 
@@ -482,23 +487,30 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
   isTomorrow,
   timeRangeDisplay,
   isVirtual,
+  isLoading,
   onOpenModal,
-}) => (
-  <TouchableOpacity
-    activeOpacity={0.88}
-    onPress={onOpenModal}
-    accessibilityRole="button"
-    accessibilityLabel="산책지수 상세 날씨 모달 열기"
-    style={[
-      styles.scoreCard,
-      {
-        backgroundColor: colors.surface,
-        borderColor: colors.border,
-        paddingVertical: responsive.weatherCardPaddingV,
-        paddingHorizontal: responsive.weatherCardPaddingH,
-      },
-    ]}
-  >
+}) => {
+  const dayPrefix = isTomorrow ? '내일 ' : '오늘 ';
+  const recommendTimeText = isLoading
+    ? '실시간 예보 분석 중'
+    : `${dayPrefix}${timeRangeDisplay}`;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      onPress={onOpenModal}
+      accessibilityRole="button"
+      accessibilityLabel="산책지수 상세 날씨 모달 열기"
+      style={[
+        styles.scoreCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          paddingVertical: responsive.weatherCardPaddingV,
+          paddingHorizontal: responsive.weatherCardPaddingH,
+        },
+      ]}
+    >
     <View style={styles.cardMainRow}>
       {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
       <View style={styles.gaugeContainer}>
@@ -514,10 +526,10 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
           ]}
         >
           <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
-            {quotient.score}
+            {isLoading ? '···' : quotient.score}
           </Text>
           <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
-            점
+            {isLoading ? '' : '점'}
           </Text>
         </View>
       </View>
@@ -531,7 +543,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
               style={[
                 styles.statusBadge,
                 {
-                  backgroundColor: quotient.badgeBg,
+                  backgroundColor: isLoading ? '#E0E7FF' : quotient.badgeBg,
                   paddingVertical: responsive.weatherStatusBadgePadV,
                   paddingHorizontal: responsive.weatherStatusBadgePadH,
                 },
@@ -540,13 +552,13 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
               <Text
                 style={[
                   styles.statusBadgeText,
-                  { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+                  { color: isLoading ? '#4338CA' : quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
                 ]}
               >
-                ✓ {quotient.statusLabel}
+                {isLoading ? '✓ 실시간 분석 중' : `✓ ${quotient.statusLabel}`}
               </Text>
             </View>
-            {isVirtual && (
+            {!isLoading && isVirtual && (
               <View style={styles.virtualIndicatorBadge}>
                 <Text style={styles.virtualIndicatorText}>가상 추정</Text>
               </View>
@@ -567,7 +579,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
             >
               <Text style={styles.iconChipEmoji}>🌧️</Text>
               <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
-                {popPercent}%
+                {isLoading ? '-' : `${popPercent}%`}
               </Text>
             </View>
             <View
@@ -582,8 +594,8 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
               ]}
             >
               <Text style={styles.iconChipEmoji}>🌫️</Text>
-              <Text style={[styles.iconChipText, { color: airQualityColor, fontSize: responsive.weatherChipFont }]}>
-                {airQualityLabel}
+              <Text style={[styles.iconChipText, { color: isLoading ? colors.textMuted : airQualityColor, fontSize: responsive.weatherChipFont }]}>
+                {isLoading ? '수신중' : airQualityLabel}
               </Text>
             </View>
           </View>
@@ -597,7 +609,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
           ]}
           numberOfLines={1}
         >
-          {quotient.statusTitle}
+          {isLoading ? '기상청·에어코리아 실시간 지수 분석 중...' : quotient.statusTitle}
         </Text>
 
         {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
@@ -608,7 +620,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
               { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
             ]}
           >
-            {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
+            {recommendTimeText}
           </Text>
           <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
             상세보기 〉
@@ -617,7 +629,8 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
       </View>
     </View>
   </TouchableOpacity>
-);
+  );
+};
 
 interface HiddenMetaAreaProps {
   readonly colors: any;
@@ -676,6 +689,7 @@ const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({
 
 export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   weather,
+  isLoading,
   currentTimeLabel,
   startTimeLabel,
   endTimeLabel,
@@ -686,6 +700,8 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const { colors } = useAppTheme();
   const responsive = useHomeResponsive();
   const [modalVisible, setModalVisible] = useState(initialModalVisible ?? false);
+
+  const effectiveLoading = Boolean(isLoading || weather === null);
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -750,6 +766,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         isTomorrow={isTomorrow}
         timeRangeDisplay={timeRangeDisplay}
         isVirtual={isVirtual}
+        isLoading={effectiveLoading}
         onOpenModal={() => setModalVisible(true)}
       />
 
@@ -786,7 +803,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
       {/* 5. 데이터 출처 표기 (화면 상시 마이크로 출처) */}
       <View style={[styles.attributionContainer, { marginTop: responsive.weatherAttributionMarginTop }]}>
         <Text style={[styles.attributionText, { color: colors.textMuted, fontSize: responsive.weatherAttributionSize }]}>
-          {resolveAttributionText(weather)}
+          {resolveAttributionText(weather, effectiveLoading)}
         </Text>
       </View>
     </View>

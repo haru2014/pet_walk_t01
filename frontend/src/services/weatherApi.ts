@@ -10,7 +10,7 @@
 import { HeatRiskHourDTO, HeatRiskLevel, HeatRiskResponse, GoldenTimeWindowDay } from '../types/weather';
 import { fetchWithServerFallback } from './apiClient';
 
-export const API_TIMEOUT_MS = 8000; // Render 무료 티어 콜드 스타트(10~15초) 대응을 위해 3초 -> 8초로 현실화
+export const API_TIMEOUT_MS = 15000; // Render 무료 티어 콜드 스타트 및 모바일 네트워크 환경 대응을 위해 15초로 현실화
 export const LIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 실서버 정상 응답: 1시간 TTL
 export const FALLBACK_CACHE_TTL_MS = 10 * 1000; // 오프라인 폴백 응답: 서버 기상 시 즉각 갱신되도록 10초만 임시 유지
 export const CACHE_TTL_MS = LIVE_CACHE_TTL_MS; // 하위 호환성 유지

@@ -6,14 +6,17 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-255%2F255%20Passed-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-180%2F180%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-507%2F507%20Passed-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-269%2F269%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 ## 테스트용 앱 다운로드 주소
-https://expo.dev/artifacts/eas/yVHDVL376oMHm00GuYS7K9jkgoEfEbRklaVMceDU23E.apk
+https://expo.dev/artifacts/eas/yVHDVL376oMHm00GuYS7K9jkgoEfEbRklaVMceDU23E.
+
+## 웹 서비스 운영 서버 주소
+https://pet-walk-t01-z095.onrender.com
 
 ## ⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)
 
@@ -130,11 +133,11 @@ open mockup/index.html
 백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.
 
 ```bash
-# 1. 백엔드 Pytest 전수 검증 (255개 테스트 100% Pass)
+# 1. 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (28개 파일, 141개 테스트 100% Pass)
+# 2. 프론트엔드 Vitest 단위 테스트 (48개 파일, 269개 테스트 100% Pass)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -269,42 +272,27 @@ graph TB
 
 ---
 
-## 📱 5. 핵심 사용자 여정 및 주요 화면 갤러리 (User Journey & Screens)
-
 ### 5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)
 
-편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 10월 14일 최신 고도화 화면 모음입니다. (고화질 원본: [`docs/screenshots/`](docs/screenshots/))
+편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 최신 실제 구동 화면 모음입니다. (고화질 원본: [`docs/screenshots/`](docs/screenshots/))
 
-#### 🌟 10월 14일 최신 구동 화면 (Zero-Scroll & UX 고도화 캡처)
-
-| 01. Zero-Scroll 메인 홈 | 02. 추천 안심 코스 | 03. 실시간 보행 트레일 | 04. 커뮤니티 안심 피드 |
+#### 🌟 1. 메인 홈 & 실시간 지면열 리포트 & 코스 탐색
+| 01. 메인 홈 화면 | 02. 오늘의 산책 날씨 리포트 | 03. 맞춤 산책 조건 설정 | 04. 추천 산책 코스 프리뷰 |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/1014-home1.png" width="220" alt="Zero-Scroll 메인 홈"/> | <img src="docs/screenshots/1014-course1.png" width="220" alt="추천 안심 코스"/> | <img src="docs/screenshots/1014-trail1.png" width="220" alt="실시간 보행 트레일"/> | <img src="docs/screenshots/1014-community1.png" width="220" alt="커뮤니티 안심 피드"/> |
-| **Zero-Scroll 단일 뷰포트**<br>• 주간 산책 리포트 7구간 바 차트<br>• 최근 산책 요약 인라인 풋터 병합<br>• 골든타임 오늘/내일 구분 안내 | **실시간 AI 코스 브리핑**<br>• 관절 안심 순환로 요약<br>• 경사/노면/그늘 3대 안심 지표<br>• 실제 도로망 지도 프리뷰 | **시선 해방 실시간 안내**<br>• 30m 전 음성 코칭 연동<br>• 백그라운드 실시간 위치 추적<br>• 긴급 복귀 & 출발지 안내 | **자택 200m 공간 마스킹**<br>• 이웃 동네 안심 산책로 공유<br>• 자택 위치 은폐 교차로 스냅<br>• 실시간 서버/오프라인 듀얼 모드 |
+| <img src="docs/screenshots/02_home_screen1.png" width="200" alt="메인 홈 화면"/> | <img src="docs/screenshots/02-1_golden_time_report1.png" width="200" alt="오늘의 산책 날씨 리포트"/> | <img src="docs/screenshots/03_walk_settings1.png" width="200" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/04_course_recommendation1.png" width="200" alt="추천 산책 코스 프리뷰"/> |
+| **반려견 맞춤 대시보드**<br>• 고양이3(골든 리트리버) 준비 카드<br>• **산책지수 100점** 골든타임 위젯<br>• 7일 산책 달성도 게이지 | **정밀 날씨 분석 모달**<br>• 4대 환경 메트릭 (기온/지면열/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교**<br>• 기상청·에어코리아 공식 출처 | **산책 조건 다중 선택**<br>• 목표 시간 슬라이더 (15~120분)<br>• 6대 선호 보행길 원터치 칩<br>• 대전·세종 5대 공원 거점 연계 | **실시간 AI 코스 요약**<br>• 실제 OSM 도로망 경로 라인<br>• 웨이포인트 핀 및 구간 분석<br>• 완만길/폭신한 길 비율 요약 |
 
-| 05. 🐾 반려견 프로필 편집 | 06. 🎨 3대 테마 & 안심 로그아웃 | 07. 📜 산책 활동 & 보관함 | 08. ⚙️ AI 음성 & 시뮬레이터 | 09. ⚙️ 투명 약관 & 데이터 관리 |
+#### 🌟 2. 4단계 온보딩 위저드 플로우
+| 01-1. 서비스 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 안내 | 01-4. 온보딩 완료 축하 |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/01_onboarding_wizard1.png" width="200" alt="온보딩 1단계"/> | <img src="docs/screenshots/01_onboarding_wizard2.png" width="200" alt="온보딩 2단계"/> | <img src="docs/screenshots/01_onboarding_wizard3.png" width="200" alt="온보딩 3단계"/> | <img src="docs/screenshots/01_onboarding_wizard4.png" width="200" alt="온보딩 4단계"/> |
+| **투명한 이용 약관**<br>• 필수 이용약관 & 개인정보 동의<br>• Local-First 프라이버시 원칙 | **아이 프로필 등록**<br>• 이름, 견종, 생년월일, 체중<br>• 관절 케어 필요 수준 설정 | **위치 정보 권한 동의**<br>• 산책 시작 안내용 한정 수집<br>• 200m 마스킹 원칙 사전 고지 | **산책 준비 완료**<br>• 프로필 세팅 완료 축하<br>• 원터치 메인 홈 화면 진입 |
+
+#### 🌟 3. 마이 프로필 & 안심 커뮤니티 피드
+| 08-1. 반려견 프로필 관리 | 08-2. 3대 테마 선택기 | 08-3. 완주 산책 활동 리포트 | 08-4. 설정 및 데이터 관리 | 09. 커뮤니티 안심 피드 |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/1014-setting0.png" width="180" alt="반려견 프로필 편집"/> | <img src="docs/screenshots/1014-setting1.png" width="180" alt="테마 및 계정 관리"/> | <img src="docs/screenshots/1014-setting2.png" width="180" alt="산책 활동 및 보관함"/> | <img src="docs/screenshots/1014-setting3.png" width="180" alt="음성 및 시뮬레이터"/> | <img src="docs/screenshots/1014-setting4.png" width="180" alt="약관 및 데이터 초기화"/> |
-| **반려견 맞춤 케어**<br>• 체중/나이/성별 관리<br>• 관절 케어 레벨 3단계<br>• 맞춤 보행 속도 설정 | **3대 테마 & 안심 계정**<br>• 숲길/비비드/다크 테마<br>• Supabase 클라우드 연동<br>• Local-First 안심 로그아웃 | **활동 기록 & 찜한 코스**<br>• 완주 산책 이력 뷰어<br>• 찜한 코스 0.1초 즉시 재산책<br>• 산책 기록 CSV 내보내기 | **AI 맞춤 보정 설정**<br>• 음성 안내 보이스 프로필<br>• TTS 미리듣기 시연<br>• 경사 체감 AI 보정 시뮬레이터 | **프라이버시 & 무결성**<br>• 위치정보 수집 투명 약관<br>• 개인정보 처리방침 전문<br>• 데이터 영구 초기화 보호 |
-
----
-
-#### 📱 9대 핵심 사용자 여정 아카이브 (MVP & Phase 2 기초 갤러리)
-
-| 01. 신규 온보딩 가이드 | 02. 메인 홈 화면 | 03. 맞춤 산책 조건 설정 |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/01_onboarding_wizard.png" width="240" alt="온보딩 가이드"/> | <img src="docs/screenshots/02_home_screen.png" width="240" alt="메인 홈"/> | <img src="docs/screenshots/03_walk_settings.png" width="240" alt="산책 설정"/> |
-| **관절 안심 & 시선 해방 투어**<br>• 계단 배제 완만길 원칙<br>• 30m 전 음성 코칭 안내<br>• Local-First 프라이버시 약속 | **반려견 맞춤 대시보드**<br>• 초코 프로필 & 권장 속도<br>• 지면온도 '산책 좋은 시간'<br>• AI 산책 도우미 & 최근 산책 | **목표 시간 & 선호 환경**<br>• 20~60분 시간 선택 칩<br>• 6대 안심 보행길 다중 선택<br>• 자연어/음성 요청 입력 |
-
-| 04. 추천 산책 코스 | 05. 위치 정보 수집 동의 | 06. 초절전 다크 포켓 모드 |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/04_course_recommendation.png" width="240" alt="추천 산책 코스"/> | <img src="docs/screenshots/05_location_consent_modal.png" width="240" alt="위치 동의 모달"/> | <img src="docs/screenshots/06_dark_pocket_mode.png" width="240" alt="다크 포켓 모드"/> |
-| **실시간 AI 코스 & 지도 프리뷰**<br>• AI 맞춤 코스 뱃지 & 브리핑<br>• OSM 실제 지도 & 경로 핀<br>• 경사/노면/그늘 3대 안심 지표 | **프라이버시 3대 투명 고지**<br>• 30m 음성 안내용 한정 수집<br>• 기기에만 안전하게 로컬 보관<br>• 공유 시 출발/도착 200m 마스킹 | **시선 해방(Eyes-Free) HUD**<br>• True Black OLED 배터리 절감<br>• 시간/거리/속도 네온 그린 HUD<br>• 오터치 방지 슬라이드 잠금해제 |
-
-| 07. 완주 인포그래픽 리포트 | 08. 마이 프로필 & 보관함 | 09. 커뮤니티 안심 피드 |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/07_walk_report.png" width="240" alt="완주 리포트"/> | <img src="docs/screenshots/08_my_profile_and_bookmarks.png" width="240" alt="마이 프로필"/> | <img src="docs/screenshots/09_community_feed.png" width="240" alt="커뮤니티 피드"/> |
-| **보행 통계 & 체감 피드백**<br>• 4대 핵심 보행 지표 4분할<br>• 3초 체감 만족도 피드백<br>• 오늘 산책 코스 보관함 찜하기 | **아이 정보 & 즐겨찾기 코스**<br>• 나이/체중/관절 케어 3단계<br>• 찜한 코스 0.1초 즉시 재산책<br>• 프로필 백업 및 전체 데이터 초기화 | **이웃 코스 공유 & 안심 보호**<br>• 동네 이웃 안심 산책로 공유<br>• 집 위치 200m 자동 블러링<br>• 실시간 서버 / 오프라인 듀얼 모드 |
+| <img src="docs/screenshots/08-1_my_profile1.png" width="160" alt="반려견 프로필 관리"/> | <img src="docs/screenshots/08-2_my_theme1.png" width="160" alt="3대 테마 선택기"/> | <img src="docs/screenshots/08-3_my_walk_report.png" width="160" alt="완주 산책 활동 리포트"/> | <img src="docs/screenshots/08-4_my_setting1.png" width="160" alt="설정 및 데이터 관리"/> | <img src="docs/screenshots/09_community_feed1.png" width="160" alt="커뮤니티 안심 피드"/> |
+| **아이 맞춤 케어**<br>• 나이/체중/성별 관리<br>• 다견 가정을 위한 전환 | **야외 시인성 테마**<br>• 숲길 / 비비드 / 다크 테마<br>• 눈부심 방지 고대비 토큰 | **보행 통계 & 피드백**<br>• 지난 산책 활동 기록 뷰어<br>• 찜한 코스 원터치 재산책 | **프라이버시 & 무결성**<br>• AI 음성 안내 설정<br>• 로컬 백업 & 데이터 초기화 | **200m 공간 마스킹**<br>• 이웃 동네 안심 산책로 공유<br>• 자택 은폐 교차로 스냅 |
 
 ---
 
@@ -369,12 +357,12 @@ graph LR
 #### 1) 종합 품질 검증 지표
 | 구분 | 검증 항목 | 달성 지표 | 상태 | 세부 내용 |
 | :--- | :--- | :---: | :---: | :--- |
-| **Backend** | Pytest TDD 스위트 | **255 / 255** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
-| **Frontend** | Vitest 단위 테스트 | **141 / 141** | `PASS` | 28개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹) |
+| **Backend** | Pytest TDD 스위트 | **507 / 507** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
+| **Frontend** | Vitest 단위 테스트 | **269 / 269** | `PASS` | 48개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임) |
 | **Frontend** | TypeScript 컴파일 검사 | **0 Errors** | `PASS` | `tsc --noEmit` 완벽 무결성 통과 (Strict Mode) |
 | **Code Quality** | SonarLint 단일 파일 줄수 | **100% 준수** | `PASS` | 모든 신규/수정 파일 250줄 이하 가드레일 엄수 (`App.tsx` 249줄) |
 | **UX & Copy** | 전문 용어 순화 가드레일 | **100% 완료** | `PASS` | 스토리 번호(`US-xx`) 및 개발자 용어 전면 배제, 웰니스 어휘 적용 |
-| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (255) + `mobile-app-ci` (141) 통과 시 자동 머지 파이프라인 |
+| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (507) + `mobile-app-ci` (269) 통과 시 자동 머지 파이프라인 |
 
 #### 2) 최근 완성된 주요 기능 구현 내용
 1. **대전 3대 공원 & 세종 2대 공원 5대 파일럿 실증 거점 연동**:
@@ -385,20 +373,24 @@ graph LR
 3. **기상청 단기예보 실시간 연동 (KMA Weather Client & Grid Converter)**:
    - 위경도-기상청 격자(X, Y) 실시간 좌표 변환 및 기온, 하늘상태, 강수확률 연동.
    - 경험적 지면열 수지식 기반 지면온도 추정 및 시간대별 산책 골든타임 알림 (1시간 클라이언트 캐싱).
-4. **AI 음성 가이드 보이스 프로필 4종 & 스마트 돌발 짖음 감지 자동 음소거/복구**:
+4. **기상청 지면열 & 에어코리아 대기질 실시간 연동 성능 최적화 (US-F1, US-B2)**:
+   - 백엔드 1.1km 격자 단위 10분 TTL 메모리 캐시 구축으로 반복 요청 0.001초 응답 보장.
+   - Open-Meteo 일사량 429 감지 및 2.0초 타임아웃 캡, 에어코리아 대기질 2.5초 타임아웃 캡 적용.
+   - 프론트엔드 네트워크 타임아웃 15초 현실화 및 백엔드 사전 웜업(`warmupBackendServer`), 정직한 실시간 지수 분석 로딩 상태(···) 적용으로 가상 데이터 전환 오인 방지.
+5. **AI 음성 가이드 보이스 프로필 4종 & 스마트 돌발 짖음 감지 자동 음소거/복구**:
    - 4대 맞춤형 AI 보이스 프로필(`calm_female`, `bright_female`, `calm_male`, `friendly_male`) 및 독립 볼륨 슬라이더 제공.
    - 73dB 이상 돌발 소음/짖음 감지 시 즉시 음성 안내 일시 차단(Ducking) 후 3초 뒤 자동 복구 (Auto-Resume).
    - 산책 중 긴급 상황 시 한 손으로 터치 가능한 다크 포켓 내 56px 대형 긴급 원터치 음소거 버튼 구축.
-5. **팀장 컨펌 4단계 온보딩 플로우 & 회원가입 약관/개인정보 처리방침**:
+6. **팀장 컨펌 4단계 온보딩 플로우 & 회원가입 약관/개인정보 처리방침**:
    - 1단계(가입 & 필수 약관 동의) → 2단계(반려견 프로필 등록) → 3단계(산책 시작 시점 위치 동의) → 4단계(현위치 기반 주변 인기 코스/산책견 탐색 지도 진입)로 사용자 이탈 방지.
-6. **산책 시간 15분 단위 세분화 & 무제한 자유 산책 모드**:
+7. **산책 시간 15분 단위 세분화 & 무제한 자유 산책 모드**:
    - 15~120분+ 슬라이더 및 직접 분 입력 지원, 목표 시간 도달 후에도 누적 기록이 유지되는 '자유 산책 모드' 탑재.
-7. **한 손 원터치 배변 마킹 FAB (US-18)**:
+8. **한 손 원터치 배변 마킹 FAB (US-18)**:
    - 산책 중 한 손 Thumb Zone 52px 원터치 플로팅 버튼(💩 대변 / 💧 소변), 햅틱 진동(60ms), 완주 리포트 타임라인 표출.
-8. **나만의 안심 코스 즐겨찾기(Bookmark) 보관함 (US-29)**:
+9. **나만의 안심 코스 즐겨찾기(Bookmark) 보관함 (US-29)**:
    - 마음에 든 코스를 로컬 `@편안하개:bookmarked_routes`에 원터치 저장, 서버 재호출 없이 0.1초 만에 즉시 재산책.
-9. **OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 구현 계획 수립**:
-   - 구글 맵 종속성 및 API 키 유출 위험을 원천 차단하고 100% 무료 오픈소스 GPU 가속 벡터 지도 도입 계획 확립.
+10. **OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 구현 계획 수립**:
+    - 구글 맵 종속성 및 API 키 유출 위험을 원천 차단하고 100% 무료 오픈소스 GPU 가속 벡터 지도 도입 계획 확립.
 
 ---
 
@@ -409,7 +401,7 @@ graph LR
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
 ```bash
-# 전체 백엔드 TDD 테스트 스위트 실행 (21개 파일, 255개 테스트 100% Pass)
+# 전체 백엔드 TDD 테스트 스위트 실행 (507개 테스트 100% Pass)
 python -m pytest
 # 또는: cd backend && pytest test_case/ -v
 ```
@@ -417,38 +409,45 @@ python -m pytest
 ```text
 ============================= test session starts =============================
 platform win32 -- Python 3.14.x / pytest-9.x
-rootdir: d:\코디세이\pet_walk_t01, configfile: pytest.ini, testpaths: backend/test_case
-collected 255 items
+rootdir: d:\코디세이\pet_walk_t01\backend, configfile: pytest.ini
+collected 507 items / 1 skipped
 
-backend\test_case\test_api_contracts.py ...                              [  1%]
-backend\test_case\test_building_avoidance.py .....                       [  3%]
-backend\test_case\test_kma_grid_converter.py ........................... [ 13%]
-............                                                             [ 18%]
-backend\test_case\test_kma_weather_client.py ........................... [ 29%]
-.........                                                                [ 32%]
-backend\test_case\test_langgraph_walk_agent.py ......                    [ 34%]
-backend\test_case\test_loop_target_duration.py ............              [ 39%]
-backend\test_case\test_mobile_and_voice_navigation.py ........           [ 42%]
-backend\test_case\test_origin_mode.py ...                                [ 43%]
-backend\test_case\test_phase2_extended_features.py ..........            [ 47%]
-backend\test_case\test_rest_api_v1_endpoints.py ..................       [ 54%]
-backend\test_case\test_route_geometry_validation.py .............        [ 60%]
-backend\test_case\test_spatial_masking.py ...                            [ 61%]
-backend\test_case\test_supabase_repository.py ...                        [ 62%]
-backend\test_case\test_surface_cost_model.py ....................        [ 70%]
-backend\test_case\test_surface_slope_evaluation.py ..................... [ 78%]
-.                                                                        [ 78%]
-backend\test_case\test_thermal_and_parking.py ......                     [ 81%]
-backend\test_case\test_vision_safety_inspector.py .............          [ 86%]
-backend\test_case\test_walk_plan_agent_schema.py .............           [ 91%]
-backend\test_case\test_walk_plan_latency.py .............                [ 96%]
-backend\test_case\test_walk_tracking_and_feedback.py .........           [100%]
+test_case\test_airkorea_client.py ....                                   [  0%]
+test_case\test_api_contracts.py ...                                      [  1%]
+test_case\test_building_avoidance.py .....                               [  2%]
+test_case\test_kma_grid_converter.py ................................... [  9%]
+test_case\test_kma_weather_client.py ................................... [ 16%]
+test_case\test_langgraph_walk_agent.py ..............                    [ 21%]
+test_case\test_loop_target_duration.py ............                      [ 24%]
+test_case\test_mobile_and_voice_navigation.py ........                   [ 25%]
+test_case\test_open_meteo_client.py .................................... [ 32%]
+test_case\test_origin_mode.py ........                                   [ 35%]
+test_case\test_park_route_guardrail.py ................................. [ 41%]
+test_case\test_parking_endpoint_wiring.py ...                            [ 42%]
+test_case\test_parking_lots.py ......................................... [ 50%]
+test_case\test_parking_pnr_convergence.py ..........                     [ 55%]
+test_case\test_phase2_extended_features.py ..........                    [ 57%]
+test_case\test_rest_api_v1_endpoints.py ..................               [ 61%]
+test_case\test_route_geometry_validation.py .............                [ 63%]
+test_case\test_spatial_masking.py ...                                    [ 64%]
+test_case\test_supabase_repository.py ...                                [ 64%]
+test_case\test_surface_cost_model.py ....................                [ 68%]
+test_case\test_surface_slope_evaluation.py ......................        [ 73%]
+test_case\test_thermal_and_parking.py ......                             [ 74%]
+test_case\test_vision_safety_inspector.py .............                  [ 76%]
+test_case\test_voice_intent_service.py .....                             [ 77%]
+test_case\test_walk_agent_weather_binding.py ...                         [ 78%]
+test_case\test_walk_plan_agent_schema.py .............                   [ 81%]
+test_case\test_walk_plan_latency.py ..............                       [ 83%]
+test_case\test_walk_tracking_and_feedback.py .........                   [ 85%]
+test_case\test_weather_context.py ...................................... [ 93%]
+test_case\test_weather_endpoint_wiring.py .........                      [100%]
 
-============================ 255 passed in 6.94s ==============================
+======================= 507 passed, 1 skipped in 17.70s =======================
 ```
 
 ```bash
-# 모바일 프론트엔드 Vitest 단위 테스트 실행 (28개 파일, 141개 테스트 100% Pass)
+# 모바일 프론트엔드 Vitest 단위 테스트 실행 (48개 파일, 269개 테스트 100% Pass)
 cd frontend && npm test
 ```
 
