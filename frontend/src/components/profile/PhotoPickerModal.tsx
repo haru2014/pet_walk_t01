@@ -36,11 +36,10 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!visible) {
-      setIsProcessing(false);
-    }
-  }, [visible]);
+  const handleClose = () => {
+    if (isProcessing) return;
+    onClose();
+  };
 
   const handlePickGallery = async () => {
     if (isProcessing) return;
@@ -91,9 +90,9 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.sheetContainer}>
@@ -146,6 +145,7 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                       key={p.id}
                       activeOpacity={0.8}
                       onPress={() => handleSelectPreset(p.id)}
+                      disabled={isProcessing}
                       style={[
                         styles.presetItem,
                         { backgroundColor: p.color },
@@ -164,6 +164,7 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={handleRemovePhoto}
+                  disabled={isProcessing}
                   style={styles.removeBtn}
                 >
                   <Text style={styles.removeText}>🗑️ 기본 아이콘으로 초기화</Text>
@@ -172,7 +173,8 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
 
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={onClose}
+                onPress={handleClose}
+                disabled={isProcessing}
                 style={styles.closeBtn}
               >
                 <Text style={styles.closeText}>닫기</Text>
