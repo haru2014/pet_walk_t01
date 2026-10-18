@@ -34,28 +34,54 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
   onClose,
   onSelectPhoto,
 }) => {
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setIsProcessing(false);
+    }
+  }, [visible]);
+
   const handlePickGallery = async () => {
-    onClose();
-    const result = await PhotoPickerService.pickFromGallery();
-    if (!result.canceled && result.uri) {
-      onSelectPhoto(result.uri);
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const result = await PhotoPickerService.pickFromGallery();
+      onClose();
+      if (!result.canceled && result.uri) {
+        onSelectPhoto(result.uri);
+      }
+    } catch {
+      onClose();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleCaptureCamera = async () => {
-    onClose();
-    const result = await PhotoPickerService.captureFromCamera();
-    if (!result.canceled && result.uri) {
-      onSelectPhoto(result.uri);
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const result = await PhotoPickerService.captureFromCamera();
+      onClose();
+      if (!result.canceled && result.uri) {
+        onSelectPhoto(result.uri);
+      }
+    } catch {
+      onClose();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleSelectPreset = (presetId: string) => {
+    if (isProcessing) return;
     onClose();
     onSelectPhoto(`preset:${presetId}`);
   };
 
   const handleRemovePhoto = () => {
+    if (isProcessing) return;
     onClose();
     onSelectPhoto(undefined);
   };
@@ -82,21 +108,27 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handlePickGallery}
-                  style={styles.actionBtn}
+                  disabled={isProcessing}
+                  style={[styles.actionBtn, isProcessing && { opacity: 0.6 }]}
                 >
                   <Text style={styles.actionIcon}>📸</Text>
                   <Text style={styles.actionText}>사진 보관함</Text>
-                  <Text style={styles.actionSub}>앨범에서 선택</Text>
+                  <Text style={styles.actionSub}>
+                    {isProcessing ? '불러오는 중...' : '앨범에서 선택'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handleCaptureCamera}
-                  style={styles.actionBtn}
+                  disabled={isProcessing}
+                  style={[styles.actionBtn, isProcessing && { opacity: 0.6 }]}
                 >
                   <Text style={styles.actionIcon}>📷</Text>
                   <Text style={styles.actionText}>카메라</Text>
-                  <Text style={styles.actionSub}>직접 촬영하기</Text>
+                  <Text style={styles.actionSub}>
+                    {isProcessing ? '카메라 연결 중...' : '직접 촬영하기'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
