@@ -43,6 +43,7 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
+from services import open_meteo_client
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -704,7 +705,6 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
     # Open-Meteo 실시간 기상 조회 가능 시 현재 기온과 일사량 실측값으로 정밀 보정 (단위 테스트 환경에서는 외부 네트워크 호출 생략)
     if "PYTEST_CURRENT_TEST" not in os.environ:
         try:
-            from services import open_meteo_client
             om_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, now_kst, timeout=0.3, forecast_days=1)
             hour_start = now_kst.replace(minute=0, second=0, microsecond=0)
             curr = om_data.get(hour_start)
@@ -727,7 +727,8 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "is_golden_time": is_golden,
                     "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
                 }
-        except (OSError, ValueError, KeyError):
+        except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError):
+            # Open-Meteo 실패(시간 초과·연결 오류 포함)는 OpenMeteoError 로 감싸여 온다. 놓치면 /walk/plan 전체가 500 이 된다.
             pass
 
     safe_blocks = _extract_safe_blocks(hourly)
