@@ -62,7 +62,7 @@ Gemini는 새로운 코드를 제안하거나 기존 코드를 수정할 때, �
    - 프론트엔드 파일명 및 컴포넌트명: PascalCase (`WalkMapScreen.tsx`, `SafetySummaryCard.tsx`)
    - 프론트엔드 함수, 변수, 훅명: camelCase (`useWalkTracking`, `isTrackingActive`)
    - 백엔드 파일명 및 함수/변수명: snake_case (`generate_loop_route`, `safety_score`)
-   - 데이터 모델 및 DB 필드명: 선언된 스키마 규칙에 맞게 정확히 일치시킵니다.
+   - 데이터 모델 및 DB 필드명: 선언된 스키마 규칙에 맞게 정확히 일치시킵니다.(docs\sql\supabase_schema.sql)
 
 ---
 

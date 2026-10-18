@@ -181,6 +181,15 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
     const weight = getInsolationWeightForHour(h);
     const surfaceTemp = Math.round((airTemp + weight * 15.0) * 10) / 10;
     const { riskLevel, isGolden } = evaluateRisk(surfaceTemp);
+    const solarRadiation = Math.round(weight * 1000 * 10) / 10;
+    const surfaceTemps = {
+      asphalt: Math.round((airTemp + weight * 18.0) * 10) / 10,
+      paved: Math.round((airTemp + weight * 14.0) * 10) / 10,
+      rubber: Math.round((airTemp + weight * 12.0) * 10) / 10,
+      dirt: Math.round((airTemp + weight * 8.0) * 10) / 10,
+      grass: Math.round((airTemp + weight * 4.0) * 10) / 10,
+      gravel: Math.round((airTemp + weight * 10.0) * 10) / 10,
+    };
 
     hourly.push({
       hour: h,
@@ -189,6 +198,8 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
       risk_level: riskLevel,
       is_golden_time: isGolden,
       notice: '본 지수는 기상청 예보 모델 기반 추정치입니다.',
+      solar_radiation_w_m2: solarRadiation,
+      surface_temps: surfaceTemps,
     });
   }
 
@@ -206,6 +217,8 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
     golden_time_window: goldenWindow,
     golden_time_window_day: goldenWindowDay,
     pop: 10,
+    solar_radiation_w_m2: currentDto.solar_radiation_w_m2,
+    surface_temps: currentDto.surface_temps,
     air_quality: {
       pm10: 24.0,
       pm25: 12.0,
@@ -217,6 +230,7 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
     notice: '본 지수는 기상청 예보 모델 기반 추정치입니다.',
     attribution: null,
     insolation_source: 'sky_fallback',
+    data_source: 'fallback_estimate',
     fetched_at: now.toISOString(),
   };
 }
@@ -232,6 +246,17 @@ function resolveGoldenTimeWindowDay(
     return 'tomorrow';
   }
   return 'today';
+}
+
+function resolveSolarRadiation(
+  currentVal?: number,
+  dataVal?: unknown,
+  rawCurrentVal?: unknown
+): number | undefined {
+  if (typeof currentVal === 'number') return currentVal;
+  if (typeof dataVal === 'number') return dataVal;
+  if (typeof rawCurrentVal === 'number') return rawCurrentVal;
+  return undefined;
 }
 
 /**
@@ -283,6 +308,12 @@ export async function fetchHeatRiskForecast(
         golden_time_window: goldenWindow,
         golden_time_window_day: goldenWindowDay,
         pop: typeof data.pop === 'number' ? data.pop : (current.pop ?? 0),
+        solar_radiation_w_m2: resolveSolarRadiation(
+          current.solar_radiation_w_m2,
+          data.solar_radiation_w_m2,
+          rawCurrent.solar_radiation_w_m2
+        ),
+        surface_temps: current.surface_temps ?? rawCurrent.surface_temps ?? data.surface_temps,
         air_quality: data.air_quality ?? {
           pm10: 25.0,
           pm25: 14.0,
@@ -294,6 +325,7 @@ export async function fetchHeatRiskForecast(
         notice: data.notice ?? '본 지수는 기상청 예보 모델 기반 추정치입니다.',
         attribution: data.attribution ?? null,
         insolation_source: data.insolation_source,
+        data_source: data.data_source,
         fetched_at: new Date().toISOString(),
       };
       weatherMemoryCache.set(cacheKey, { timestamp: Date.now(), data: response });
