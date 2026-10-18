@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 import main
 from services.kma_weather_client import KmaApiError
+from services import open_meteo_client
+from services.open_meteo_client import OpenMeteoError
 
 _DAEJEON = {"lat": 36.3610, "lon": 127.3577}
 
@@ -93,3 +95,20 @@ def test_plan_route_keeps_a_weather_context_sent_by_the_client(client, monkeypat
     client.post("/api/v1/walk/plan", json={"origin_lat": _DAEJEON["lat"], "origin_lon": _DAEJEON["lon"],
                                            "target_duration_minutes": 30, "weather_context": sent})
     assert captured["weather_context"] == sent
+
+
+@pytest.mark.parametrize("error", [OpenMeteoError("Open-Meteo 연결 실패 (TimeoutError)"), TimeoutError("timed out")])
+def test_fallback_survives_open_meteo_failure_outside_pytest(client, monkeypatch, error):
+    """대체 응답의 Open-Meteo 보정이 실패해도 500 이 아니라 대체 응답을 준다 (운영 500 회귀 방지).
+
+    대체 응답은 pytest 중에는 Open-Meteo 호출을 건너뛰므로, 표시를 지워 운영과 같은 경로를 탄다.
+    """
+    def boom(*args, **kwargs):
+        raise error
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(open_meteo_client, "fetch_hourly_weather_forecast", boom)
+    weather = client.get("/api/v1/weather/heat-risk", params=_DAEJEON)
+    assert weather.status_code == 200 and weather.json()["data_source"] == "fallback_estimate"
+    plan = client.post("/api/v1/walk/plan", json={"origin_lat": 36.3510, "origin_lon": 127.3780,
+                                                  "target_duration_minutes": 30})
+    assert plan.status_code == 200, plan.text
