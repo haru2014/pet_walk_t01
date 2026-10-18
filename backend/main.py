@@ -46,6 +46,7 @@ from agent.hazard_service import (
 from agent.surface_slope_evaluator import build_segmented_geojson
 from services import open_meteo_client
 from services.dem import elevation_source
+from services.route_profile import measure_route_profile
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -404,6 +405,16 @@ def _build_course_plans_map(agent_result: Any, fallback_coords: Any) -> Dict[str
     return course_plans
 
 
+def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Optional[str]) -> Dict[str, Any]:
+    """후보 경로별 실측 지표 (경사·노면·계단). 카드의 고정 프로필 값과 별도로 실제 좌표로 계산한다."""
+    profiles: Dict[str, Any] = {}
+    for scored in agent_result.all_scored_candidates or []:
+        cand = scored.candidate
+        coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
+        profiles[cand.route_id] = measure_route_profile(coords, park_id)
+    return profiles
+
+
 def _build_walk_plan_response(
     agent_result: Any,
     request_id: str,
@@ -428,6 +439,8 @@ def _build_walk_plan_response(
         "weather": agent_result.weather_context,
         # 경사·구간 색을 계산한 고도 자료와 출처 문구 (DEM 을 쓰지 않으면 None, 앱이 출처를 표시한다)
         "elevation_source": elevation_source(),
+        # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
+        "course_profiles": _build_course_profiles(agent_result, coords, selected_park if park_mode else None),
     }
     if park_mode:
         resp_data["route_validation"] = validations
@@ -506,7 +519,8 @@ def plan_walk_route(req: Dict[str, Any]):
                 "request_id": request_id,
                 "origin_mode": origin_mode,
                 "park_id": selected_park,
-                "origin": [origin_lon, origin_lat],
+                # 현재 위치 출발은 자택일 수 있어 운영 로그에는 약 1km 단위(소수 둘째 자리)로만 남긴다 (200m 마스킹 감사)
+                "origin_approx": [round(origin_lon, 2), round(origin_lat, 2)],
                 "target_minutes": target_duration,
             },
             ensure_ascii=False,
