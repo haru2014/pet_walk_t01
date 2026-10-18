@@ -54,24 +54,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadWeather = useCallback(async (forceRefresh = false) => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const res = await fetchHeatRiskForecast(36.3628, 127.3592, { forceRefresh });
+      const res = await fetchHeatRiskForecast(36.3628, 127.3592, { forceRefresh: true });
       setWeather(res);
     } catch {
       // 오프라인 폴백 처리
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadWeather(true);
-    setRefreshing(false);
-  }, [loadWeather]);
-
   useEffect(() => {
     let isMounted = true;
-    void loadWeather();
+    void fetchHeatRiskForecast(36.3628, 127.3592).then((res) => {
+      if (isMounted) {
+        setWeather(res);
+      }
+    });
     void LocalStorageService.getWalkHistory().then((history) => {
       if (isMounted) {
         setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
@@ -80,7 +81,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [loadWeather]);
+  }, []);
 
   return (
     <ScrollView
