@@ -66,6 +66,8 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       expect(noon.surface_temps).toBeDefined();
       expect(noon.surface_temps?.asphalt).toBeCloseTo(noon.air_temp_celsius + 18.0, 1);
       expect(noon.surface_temps?.grass).toBeCloseTo(noon.air_temp_celsius + 4.0, 1);
+      // 흙 상승폭 12.6℃: 기상청 ASOS 관측 지면온도(맨땅) 적합값, 서버 SURFACE_HEAT_GAIN_MAP 과 같음
+      expect(noon.surface_temps?.dirt).toBeCloseTo(noon.air_temp_celsius + 12.6, 1);
       expect(fallback.surface_temps).toBeDefined();
       expect(fallback.data_source).toBe('fallback_estimate');
     });

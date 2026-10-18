@@ -190,7 +190,7 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
       asphalt: Math.round((airTemp + weight * 18.0) * 10) / 10,
       paved: Math.round((airTemp + weight * 14.0) * 10) / 10,
       rubber: Math.round((airTemp + weight * 12.0) * 10) / 10,
-      dirt: Math.round((airTemp + weight * 8.0) * 10) / 10,
+      dirt: Math.round((airTemp + weight * 12.6) * 10) / 10, // 서버 SURFACE_HEAT_GAIN_MAP["dirt"] 와 같은 값 (ASOS 관측 적합)
       grass: Math.round((airTemp + weight * 4.0) * 10) / 10,
       gravel: Math.round((airTemp + weight * 10.0) * 10) / 10,
     };

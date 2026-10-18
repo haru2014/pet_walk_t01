@@ -50,6 +50,7 @@ from services.route_profile import measure_route_profile
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
+    SURFACE_HEAT_GAIN_MAP,
     build_heat_risk_response,
     build_open_meteo_heat_risk_response,
     weather_context_from_response,
@@ -683,7 +684,7 @@ def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
         d["surface_temps"] = {
             "asphalt": round(air_temp + weight * 18.0, 1),
             "paved": round(air_temp + weight * 14.0, 1),
-            "dirt": round(air_temp + weight * 8.0, 1),
+            "dirt": round(air_temp + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
             "grass": round(air_temp + weight * 4.0, 1),
         }
         hourly.append(d)
@@ -758,7 +759,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "surface_temps": {
                         "asphalt": round(curr["air"] + weight * 18.0, 1),
                         "paved": round(curr["air"] + weight * 14.0, 1),
-                        "dirt": round(curr["air"] + weight * 8.0, 1),
+                        "dirt": round(curr["air"] + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
                         "grass": round(curr["air"] + weight * 4.0, 1),
                     },
                     "risk_level": risk_lvl,
