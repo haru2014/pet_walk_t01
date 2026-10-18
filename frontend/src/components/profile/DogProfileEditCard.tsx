@@ -376,16 +376,17 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
             >
               새 반려견 등록 완료 ✓
             </GradientButton>
-
-            <PhotoPickerModal
-              visible={newPhotoPickerVisible}
-              currentPhotoUri={newPhotoUri}
-              onClose={() => setNewPhotoPickerVisible(false)}
-              onSelectPhoto={(uri) => setNewPhotoUri(uri)}
-            />
           </View>
         </View>
       </Modal>
+
+      {/* 5. 신규 등록용 프로필 사진 모달 (중첩 모달 충돌 방지) */}
+      <PhotoPickerModal
+        visible={newPhotoPickerVisible}
+        currentPhotoUri={newPhotoUri}
+        onClose={() => setNewPhotoPickerVisible(false)}
+        onSelectPhoto={(uri) => setNewPhotoUri(uri)}
+      />
     </CardWrapper>
   );
 };

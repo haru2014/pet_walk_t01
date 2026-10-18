@@ -302,6 +302,13 @@ export async function fetchHeatRiskForecast(
       const goldenWindow = data.golden_time_window ?? '18:00 ~ 20:00';
       const goldenWindowDay = resolveGoldenTimeWindowDay(data.golden_time_window_day, goldenWindow);
 
+      let resolvedPty: number | undefined;
+      if (typeof current.pty === 'number') {
+        resolvedPty = current.pty;
+      } else if (typeof data.pty === 'number') {
+        resolvedPty = data.pty;
+      }
+
       const response: HeatRiskResponse = {
         isLiveServer: true,
         current_hour: current.hour ?? deviceHour,
@@ -312,6 +319,8 @@ export async function fetchHeatRiskForecast(
         golden_time_window: goldenWindow,
         golden_time_window_day: goldenWindowDay,
         pop: typeof data.pop === 'number' ? data.pop : (current.pop ?? 0),
+        pty: resolvedPty,
+        condition: current.condition ?? data.condition,
         solar_radiation_w_m2: resolveSolarRadiation(
           current.solar_radiation_w_m2,
           data.solar_radiation_w_m2,

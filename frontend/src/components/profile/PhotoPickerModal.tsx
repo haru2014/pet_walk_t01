@@ -34,28 +34,53 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
   onClose,
   onSelectPhoto,
 }) => {
-  const handlePickGallery = async () => {
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const handleClose = () => {
+    if (isProcessing) return;
     onClose();
-    const result = await PhotoPickerService.pickFromGallery();
-    if (!result.canceled && result.uri) {
-      onSelectPhoto(result.uri);
+  };
+
+  const handlePickGallery = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const result = await PhotoPickerService.pickFromGallery();
+      if (!result.canceled && result.uri) {
+        onSelectPhoto(result.uri);
+      }
+      onClose();
+    } catch {
+      onClose();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleCaptureCamera = async () => {
-    onClose();
-    const result = await PhotoPickerService.captureFromCamera();
-    if (!result.canceled && result.uri) {
-      onSelectPhoto(result.uri);
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const result = await PhotoPickerService.captureFromCamera();
+      if (!result.canceled && result.uri) {
+        onSelectPhoto(result.uri);
+      }
+      onClose();
+    } catch {
+      onClose();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleSelectPreset = (presetId: string) => {
+    if (isProcessing) return;
     onClose();
     onSelectPhoto(`preset:${presetId}`);
   };
 
   const handleRemovePhoto = () => {
+    if (isProcessing) return;
     onClose();
     onSelectPhoto(undefined);
   };
@@ -65,9 +90,9 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.sheetContainer}>
@@ -82,21 +107,27 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handlePickGallery}
-                  style={styles.actionBtn}
+                  disabled={isProcessing}
+                  style={[styles.actionBtn, isProcessing && { opacity: 0.6 }]}
                 >
                   <Text style={styles.actionIcon}>📸</Text>
                   <Text style={styles.actionText}>사진 보관함</Text>
-                  <Text style={styles.actionSub}>앨범에서 선택</Text>
+                  <Text style={styles.actionSub}>
+                    {isProcessing ? '불러오는 중...' : '앨범에서 선택'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handleCaptureCamera}
-                  style={styles.actionBtn}
+                  disabled={isProcessing}
+                  style={[styles.actionBtn, isProcessing && { opacity: 0.6 }]}
                 >
                   <Text style={styles.actionIcon}>📷</Text>
                   <Text style={styles.actionText}>카메라</Text>
-                  <Text style={styles.actionSub}>직접 촬영하기</Text>
+                  <Text style={styles.actionSub}>
+                    {isProcessing ? '카메라 연결 중...' : '직접 촬영하기'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -114,6 +145,7 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                       key={p.id}
                       activeOpacity={0.8}
                       onPress={() => handleSelectPreset(p.id)}
+                      disabled={isProcessing}
                       style={[
                         styles.presetItem,
                         { backgroundColor: p.color },
@@ -132,6 +164,7 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={handleRemovePhoto}
+                  disabled={isProcessing}
                   style={styles.removeBtn}
                 >
                   <Text style={styles.removeText}>🗑️ 기본 아이콘으로 초기화</Text>
@@ -140,7 +173,8 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
 
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={onClose}
+                onPress={handleClose}
+                disabled={isProcessing}
                 style={styles.closeBtn}
               >
                 <Text style={styles.closeText}>닫기</Text>
