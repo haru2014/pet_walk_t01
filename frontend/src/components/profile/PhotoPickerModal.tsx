@@ -46,10 +46,10 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
     setIsProcessing(true);
     try {
       const result = await PhotoPickerService.pickFromGallery();
-      onClose();
       if (!result.canceled && result.uri) {
         onSelectPhoto(result.uri);
       }
+      onClose();
     } catch {
       onClose();
     } finally {
@@ -62,10 +62,10 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
     setIsProcessing(true);
     try {
       const result = await PhotoPickerService.captureFromCamera();
-      onClose();
       if (!result.canceled && result.uri) {
         onSelectPhoto(result.uri);
       }
+      onClose();
     } catch {
       onClose();
     } finally {
