@@ -248,6 +248,17 @@ function resolveGoldenTimeWindowDay(
   return 'today';
 }
 
+function resolveSolarRadiation(
+  currentVal?: number,
+  dataVal?: unknown,
+  rawCurrentVal?: unknown
+): number | undefined {
+  if (typeof currentVal === 'number') return currentVal;
+  if (typeof dataVal === 'number') return dataVal;
+  if (typeof rawCurrentVal === 'number') return rawCurrentVal;
+  return undefined;
+}
+
 /**
  * 현위치 위경도 기준 실시간 기상청 지면열 정보 요청 (1시간 캐싱 적용)
  */
@@ -297,7 +308,11 @@ export async function fetchHeatRiskForecast(
         golden_time_window: goldenWindow,
         golden_time_window_day: goldenWindowDay,
         pop: typeof data.pop === 'number' ? data.pop : (current.pop ?? 0),
-        solar_radiation_w_m2: current.solar_radiation_w_m2 ?? (typeof data.solar_radiation_w_m2 === 'number' ? data.solar_radiation_w_m2 : (typeof rawCurrent.solar_radiation_w_m2 === 'number' ? rawCurrent.solar_radiation_w_m2 : undefined)),
+        solar_radiation_w_m2: resolveSolarRadiation(
+          current.solar_radiation_w_m2,
+          data.solar_radiation_w_m2,
+          rawCurrent.solar_radiation_w_m2
+        ),
         surface_temps: current.surface_temps ?? rawCurrent.surface_temps ?? data.surface_temps,
         air_quality: data.air_quality ?? {
           pm10: 25.0,
