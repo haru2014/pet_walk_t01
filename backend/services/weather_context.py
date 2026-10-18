@@ -361,8 +361,48 @@ def build_open_meteo_heat_risk_response(lat: float, lon: float, now: Optional[da
     }
 
 
+RAIN_POP_THRESHOLD = 60  # 기상청 예보 표기 관례: 강수확률 60% 이상이면 비 예보로 본다
+PLANNING_FORECAST_HOURS = 12  # 경로 생성에 넘기는 시간대별 예보 수 (현재 시각부터)
+_FORECAST_KEYS = ("time", "hour", "air_temp_celsius", "estimated_surface_temp", "risk_level", "is_golden_time",
+                  "condition", "pop")
+
+
+def _upcoming_hours(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """현재 시각부터의 시간대별 예보. 대체 응답(0~23시 고정 곡선, time 없음)은 현재 시각 이후만 고른다."""
+    hourly = list(response.get("hourly_forecast") or [])
+    if hourly and "time" not in hourly[0]:
+        start = (response.get("current") or {}).get("hour", 0)
+        hourly = [h for h in hourly if h.get("hour", -1) >= start]
+    return hourly[:PLANNING_FORECAST_HOURS]
+
+
+def _is_rain(entry: Dict[str, Any]) -> bool:
+    return entry.get("condition") == "rainy" or (entry.get("pop") or 0) >= RAIN_POP_THRESHOLD
+
+
+def precipitation_summary(response: Dict[str, Any]) -> Dict[str, Any]:
+    """지금 비가 오는지, 강수확률, 6시간 안에 비가 예상되는 시각. 대체 응답이면 known=false (알 수 없음)."""
+    current = response.get("current") or {}
+    upcoming = _upcoming_hours(response)
+    if response.get("data_source") == "fallback_estimate" or "condition" not in current:
+        return {"known": False, "is_precipitating_now": None, "pop_now": None, "max_pop_next_3h": None,
+                "rain_expected_times": [], "threshold_pop": RAIN_POP_THRESHOLD}
+    return {
+        "known": True,
+        "is_precipitating_now": current.get("condition") == "rainy",
+        "pop_now": current.get("pop"),
+        "max_pop_next_3h": max((h.get("pop") or 0 for h in upcoming[:3]), default=current.get("pop") or 0),
+        "rain_expected_times": [h.get("time") or h.get("hour") for h in upcoming[:6] if _is_rain(h)],
+        "threshold_pop": RAIN_POP_THRESHOLD,
+    }
+
+
 def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
-    """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다."""
+    """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다.
+
+    현재값·골든타임에 더해, 비 정보(precipitation)와 앞으로 12시간 예보 요약(forecast_next_hours)을 넘긴다.
+    경로 생성·안내 문구가 비 예보와 산책 예정 시각의 날씨를 쓸 수 있게 하기 위해서다.
+    """
     return {
         "current": response["current"],
         "golden_time_window": response["golden_time_window"],
@@ -373,6 +413,9 @@ def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
         "attribution": response["attribution"],
         "grid": response["grid"],
         "warnings": response["warnings"],
+        "precipitation": precipitation_summary(response),
+        "forecast_next_hours": [{k: h[k] for k in _FORECAST_KEYS if k in h} for h in _upcoming_hours(response)],
+        "air_quality": response.get("air_quality"),
     }
 
 

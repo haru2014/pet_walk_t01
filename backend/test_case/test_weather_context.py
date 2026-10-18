@@ -490,7 +490,37 @@ class TestWeatherContext:
         context = wc.weather_context_from_response(response)
         assert context["current"] == response["current"]
         assert context["golden_time_window"] == response["golden_time_window"]
-        assert "hourly_forecast" not in context  # 에이전트에는 현재값과 골든타임만 넘긴다
+        assert "hourly_forecast" not in context  # 전체 목록 대신 앞으로 12시간 요약만 넘긴다
+        upcoming = context["forecast_next_hours"]
+        assert len(upcoming) == wc.PLANNING_FORECAST_HOURS
+        assert upcoming[0]["time"] == response["hourly_forecast"][0]["time"]
+        assert set(upcoming[0]) <= set(wc._FORECAST_KEYS) and "pop" in upcoming[0]
+
+    def test_dry_weather_has_no_rain(self, monkeypatch):
+        _default_server(monkeypatch)
+        rain = wc.build_weather_context(*DOAN, now=NOW)["precipitation"]
+        assert rain["known"] is True and rain["is_precipitating_now"] is False
+        assert rain["rain_expected_times"] == [] and rain["threshold_pop"] == 60
+
+    def test_rain_now_and_ahead_is_passed_to_the_planner(self, monkeypatch):
+        """비가 오면 지면온도는 낮게 나오지만, 비 자체를 경로 생성이 알 수 있어야 한다."""
+        _default_server(monkeypatch, pty=1)
+        context = wc.build_weather_context(*DOAN, now=NOW)
+        rain = context["precipitation"]
+        assert rain["known"] is True and rain["is_precipitating_now"] is True
+        assert rain["pop_now"] == 100 and rain["max_pop_next_3h"] == 100
+        assert len(rain["rain_expected_times"]) == 6
+        assert context["current"]["is_golden_time"] is True  # 지면온도만 보면 '안전'이라 비 정보가 따로 필요하다
+
+    def test_fallback_estimate_marks_rain_as_unknown(self):
+        hourly = [{"hour": h, "air_temp_celsius": 25.0, "estimated_surface_temp": 30.0, "risk_level": "SAFE",
+                   "is_golden_time": True} for h in range(24)]
+        response = {"current": hourly[15], "golden_time_window": "06:00 ~ 08:00", "golden_time_window_day": "today",
+                    "data_source": "fallback_estimate", "insolation_source": None, "attribution": None, "grid": None,
+                    "warnings": [], "hourly_forecast": hourly}
+        context = wc.weather_context_from_response(response)
+        assert context["precipitation"]["known"] is False and context["precipitation"]["is_precipitating_now"] is None
+        assert [h["hour"] for h in context["forecast_next_hours"]] == list(range(15, 24))
 
     def test_failure_propagates_so_the_caller_can_decide(self, monkeypatch):
         _server(monkeypatch, ncst=urllib.error.URLError("down"))
