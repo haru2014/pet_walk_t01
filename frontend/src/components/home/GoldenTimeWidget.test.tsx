@@ -187,5 +187,38 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
       expect(html).toContain('산책하기 좋은 지면온도 시간');
       expect(html).not.toContain('Weather data by Open-Meteo.com');
     });
+
+    it('surface_temps와 solar_radiation_w_m2가 주어지면 노면별 온도 비교와 일사량이 표시되어야 한다', () => {
+      const weatherWithSurface: HeatRiskResponse = {
+        isLiveServer: true,
+        current_hour: 14,
+        current_air_temp: 28.0,
+        current_surface_temp: 38.8,
+        solar_radiation_w_m2: 720.0,
+        surface_temps: {
+          asphalt: 41.0,
+          paved: 38.1,
+          dirt: 33.8,
+          grass: 29.0,
+        },
+        current_risk_level: 'CAUTION',
+        is_current_golden: false,
+        golden_time_window: '18:00 ~ 20:00',
+        golden_time_window_day: 'today',
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+        fetched_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(<GoldenTimeWidget weather={weatherWithSurface} />);
+
+      expect(html).toContain('노면별 발바닥 체감온도 비교');
+      expect(html).toContain('아스팔트');
+      expect(html).toContain('41°C');
+      expect(html).toContain('흙길 / 잔디');
+      expect(html).toContain('29°C');
+      expect(html).toContain('아스팔트 대비 잔디밭이 약 12℃ 더 시원해요!');
+      expect(html).toContain('일사 720W/m²');
+    });
   });
 });

@@ -8,6 +8,18 @@ export type HeatRiskLevel = 'SAFE' | 'CAUTION' | 'DANGER';
 export type GoldenTimeWindowDay = 'today' | 'tomorrow' | null;
 
 /**
+ * 노면 재질별 추정 지면온도 DTO (US-B2)
+ */
+export interface SurfaceTempsDTO {
+  readonly asphalt?: number;
+  readonly paved?: number;
+  readonly rubber?: number;
+  readonly dirt?: number;
+  readonly grass?: number;
+  readonly gravel?: number;
+}
+
+/**
  * 시간대별 지면열 및 안심 산책 위험 지수 DTO
  */
 export interface HeatRiskHourDTO {
@@ -17,6 +29,8 @@ export interface HeatRiskHourDTO {
   readonly risk_level: HeatRiskLevel;
   readonly is_golden_time: boolean;
   readonly notice: string;
+  readonly solar_radiation_w_m2?: number;
+  readonly surface_temps?: SurfaceTempsDTO;
 }
 
 /**
@@ -43,11 +57,14 @@ export interface HeatRiskResponse {
   readonly golden_time_window: string;
   readonly golden_time_window_day?: GoldenTimeWindowDay;
   readonly pop?: number;
+  readonly solar_radiation_w_m2?: number;
+  readonly surface_temps?: SurfaceTempsDTO;
   readonly air_quality?: AirQualityDTO | null;
   readonly hourly_forecast: readonly HeatRiskHourDTO[];
   readonly notice: string;
   readonly attribution?: string | null;
   readonly insolation_source?: string;
+  readonly data_source?: string;
   readonly fetched_at: string;
 }
 

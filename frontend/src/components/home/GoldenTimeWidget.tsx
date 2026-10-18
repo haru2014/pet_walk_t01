@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { HeatRiskLevel, HeatRiskResponse } from '../../types/weather';
+import { HeatRiskLevel, HeatRiskResponse, SurfaceTempsDTO } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { useHomeResponsive } from '../../hooks/useHomeResponsive';
@@ -21,6 +21,7 @@ export interface GoldenTimeWidgetProps {
   readonly endTimeLabel?: string;
   readonly progressPercent?: number;
   readonly statusNotice?: string;
+  readonly initialModalVisible?: boolean;
 }
 
 const TIME_REGEX = /^\d{1,2}:\d{2}$/;
@@ -181,6 +182,461 @@ function buildNoticeMessages(
   };
 }
 
+function getSurfaceSubText(solarRadiation?: number, riskLevel?: HeatRiskLevel): string {
+  if (typeof solarRadiation === 'number') {
+    return `일사 ${Math.round(solarRadiation)}W/m²`;
+  }
+  return riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의';
+}
+
+function getGrassTempDisplay(
+  surfaceTemps?: SurfaceTempsDTO,
+  fallbackTemp?: number
+): string {
+  if (surfaceTemps?.grass !== undefined) {
+    return `${surfaceTemps.grass}°C`;
+  }
+  if (surfaceTemps?.dirt !== undefined) {
+    return `${surfaceTemps.dirt}°C`;
+  }
+  return `${fallbackTemp ?? 22}°C`;
+}
+
+interface WeatherDetailModalProps {
+  readonly visible: boolean;
+  readonly onClose: () => void;
+  readonly colors: any;
+  readonly quotient: WalkQuotientScore;
+  readonly subtitleText: string;
+  readonly currentAirTemp: number;
+  readonly roundedSurfaceTemp: number;
+  readonly riskLevel: HeatRiskLevel;
+  readonly popPercent: number;
+  readonly airQualityColor: string;
+  readonly airQualityLabel: string;
+  readonly airQuality?: any;
+  readonly isTomorrow: boolean;
+  readonly timeRangeDisplay: string;
+  readonly weather?: HeatRiskResponse | null;
+}
+
+const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
+  visible,
+  onClose,
+  colors,
+  quotient,
+  subtitleText,
+  currentAirTemp,
+  roundedSurfaceTemp,
+  riskLevel,
+  popPercent,
+  airQualityColor,
+  airQualityLabel,
+  airQuality,
+  isTomorrow,
+  timeRangeDisplay,
+  weather,
+}) => {
+  const surfaceSubText = getSurfaceSubText(weather?.solar_radiation_w_m2, riskLevel);
+  const surfaceTemps = weather?.surface_temps;
+  const asphaltTemp = surfaceTemps?.asphalt !== undefined ? `${surfaceTemps.asphalt}°C` : `${roundedSurfaceTemp}°C`;
+  const pavedTemp = surfaceTemps?.paved !== undefined ? `${surfaceTemps.paved}°C` : `${roundedSurfaceTemp}°C`;
+  const grassTemp = getGrassTempDisplay(surfaceTemps, currentAirTemp);
+  const grassDiff = typeof surfaceTemps?.asphalt === 'number' && typeof surfaceTemps?.grass === 'number'
+    ? Math.round(surfaceTemps.asphalt - surfaceTemps.grass)
+    : null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdropTouchable}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* 모달 상단 헤더 */}
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderTitleRow}>
+              <Text style={styles.modalHeaderPaw}>🐾</Text>
+              <Text style={[styles.modalTitle, { color: colors.textMain }]}>오늘의 산책 날씨 리포트</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.modalCloseBtn}
+              accessibilityLabel="모달 닫기"
+            >
+              <Text style={[styles.modalCloseText, { color: colors.textMuted }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
+            {/* 산책 지수 총평 배지 */}
+            <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
+              <Text style={[styles.modalScoreNumber, { color: quotient.badgeColor }]}>{quotient.score}점</Text>
+              <View style={styles.modalScoreBannerTextWrap}>
+                <Text style={[styles.modalScoreLabel, { color: quotient.badgeColor }]}>✓ {quotient.statusLabel}</Text>
+                <Text style={[styles.modalScoreTitle, { color: quotient.badgeColor }]}>{quotient.statusTitle}</Text>
+              </View>
+            </View>
+
+            {/* 지면온도 & 산책 가이드 브리핑 */}
+            <View style={[styles.modalGuideBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.modalGuideText, { color: colors.textMain }]}>{subtitleText}</Text>
+            </View>
+
+            {/* 4대 환경 상세 메트릭 카드 2x2 그리드 */}
+            <Text style={[styles.modalSectionTitle, { color: colors.textMain }]}>4대 환경 메트릭 상세 분석</Text>
+            <View style={styles.modalMetricsGrid}>
+              {/* 1. 기온 */}
+              <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={styles.modalMetricEmoji}>🌡️</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>현재 기온</Text>
+                <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{currentAirTemp}°C</Text>
+                <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>대기 관측 온도</Text>
+              </View>
+
+              {/* 2. 발바닥 체감 지면온도 */}
+              <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={styles.modalMetricEmoji}>🔥</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>체감 지면열</Text>
+                <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
+                <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
+                  {surfaceSubText}
+                </Text>
+              </View>
+
+              {/* 3. 강수확률 */}
+              <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={styles.modalMetricEmoji}>🌧️</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>강수확률</Text>
+                <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
+                <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
+                  {popPercent > 30 ? '우산 준비 권장' : '비 소식 없음'}
+                </Text>
+              </View>
+
+              {/* 4. 미세먼지 */}
+              <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={styles.modalMetricEmoji}>🌫️</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>미세먼지</Text>
+                <Text style={[styles.modalMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
+                <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
+                  {airQuality?.station_name ? `${airQuality.station_name} 측정소` : '실시간 공공데이터'}
+                </Text>
+              </View>
+            </View>
+
+            {/* 노면별 발바닥 체감온도 실시간 분석 (US-B2) */}
+            {surfaceTemps && (
+              <View style={[styles.modalSurfaceBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <View style={styles.modalSurfaceHeaderRow}>
+                  <Text style={styles.modalSurfaceEmoji}>🐾</Text>
+                  <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>노면별 발바닥 체감온도 비교</Text>
+                </View>
+                <View style={styles.modalSurfaceGrid}>
+                  <View style={styles.modalSurfaceItem}>
+                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>아스팔트</Text>
+                    <Text style={[styles.modalSurfaceItemVal, { color: '#DC2626' }]}>{asphaltTemp}</Text>
+                    <Text style={styles.modalSurfaceItemStatus}>🔥 고열 주의</Text>
+                  </View>
+                  <View style={styles.modalSurfaceItem}>
+                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>보도블록</Text>
+                    <Text style={[styles.modalSurfaceItemVal, { color: '#D97706' }]}>{pavedTemp}</Text>
+                    <Text style={styles.modalSurfaceItemStatus}>주의</Text>
+                  </View>
+                  <View style={styles.modalSurfaceItem}>
+                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>흙길 / 잔디</Text>
+                    <Text style={[styles.modalSurfaceItemVal, { color: '#059669' }]}>{grassTemp}</Text>
+                    <Text style={styles.modalSurfaceItemStatus}>🌱 시원·안전</Text>
+                  </View>
+                </View>
+                {grassDiff !== null && (
+                  <View style={styles.modalSurfaceTipRow}>
+                    <Text style={styles.modalSurfaceTipText}>
+                      💡 아스팔트 대비 잔디밭이 약 {grassDiff}℃ 더 시원해요!
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 추천 골든타임 상세 윈도우 */}
+            <View style={[styles.modalGoldenBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={styles.modalGoldenEmoji}>⏰</Text>
+              <View style={styles.modalGoldenTextWrap}>
+                <Text style={[styles.modalGoldenTitle, { color: colors.textMain }]}>
+                  {isTomorrow ? '내일 추천 산책 시간' : '오늘 추천 산책 시간'}
+                </Text>
+                <Text style={[styles.modalGoldenTime, { color: '#2563EB' }]}>{timeRangeDisplay}</Text>
+              </View>
+            </View>
+
+            {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
+            <View style={styles.modalAttributionBox}>
+              <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
+                데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)
+                {weather?.attribution ? ` · ${weather.attribution}` : ' · Open-Meteo'}
+              </Text>
+            </View>
+          </ScrollView>
+
+          {/* 모달 닫기 버튼 */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onClose}
+            style={styles.modalConfirmBtn}
+          >
+            <Text style={styles.modalConfirmBtnText}>확인</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+interface TopHeaderProps {
+  readonly colors: any;
+  readonly responsive: any;
+}
+
+const TopHeader: React.FC<TopHeaderProps> = ({ colors, responsive }) => (
+  <View style={[styles.topHeader, { marginBottom: responsive.weatherTopMarginBottom }]}>
+    <View
+      style={[
+        styles.pawIconBox,
+        {
+          width: responsive.weatherPawIconSize + 14,
+          height: responsive.weatherPawIconSize + 14,
+          borderRadius: (responsive.weatherPawIconSize + 14) / 3,
+        },
+      ]}
+    >
+      <AppIcon name="paw" size={responsive.weatherPawIconSize} color="#6366F1" />
+    </View>
+    <View style={styles.headerTitleWrap}>
+      <Text style={[styles.mainHeading, { color: colors.textMain, fontSize: responsive.weatherHeadingSize }]}>
+        오늘 강아지 산책지수
+      </Text>
+      <Text style={[styles.mainSubHeading, { color: colors.textMuted, fontSize: responsive.weatherSubHeadingSize }]}>
+        더위·추위·대기질을 함께 봐요
+      </Text>
+    </View>
+  </View>
+);
+
+interface ScoreCardProps {
+  readonly colors: any;
+  readonly responsive: any;
+  readonly quotient: WalkQuotientScore;
+  readonly popPercent: number;
+  readonly airQualityColor: string;
+  readonly airQualityLabel: string;
+  readonly isTomorrow: boolean;
+  readonly timeRangeDisplay: string;
+  readonly onOpenModal: () => void;
+}
+
+const ScoreCard: React.FC<ScoreCardProps> = ({
+  colors,
+  responsive,
+  quotient,
+  popPercent,
+  airQualityColor,
+  airQualityLabel,
+  isTomorrow,
+  timeRangeDisplay,
+  onOpenModal,
+}) => (
+  <TouchableOpacity
+    activeOpacity={0.88}
+    onPress={onOpenModal}
+    accessibilityRole="button"
+    accessibilityLabel="산책지수 상세 날씨 모달 열기"
+    style={[
+      styles.scoreCard,
+      {
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        paddingVertical: responsive.weatherCardPaddingV,
+        paddingHorizontal: responsive.weatherCardPaddingH,
+      },
+    ]}
+  >
+    <View style={styles.cardMainRow}>
+      {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
+      <View style={styles.gaugeContainer}>
+        <View
+          style={[
+            styles.circleRing,
+            {
+              width: responsive.weatherGaugeSize,
+              height: responsive.weatherGaugeSize,
+              borderRadius: responsive.weatherGaugeSize / 2,
+              borderColor: quotient.ringColor,
+            },
+          ]}
+        >
+          <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
+            {quotient.score}
+          </Text>
+          <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
+            점
+          </Text>
+        </View>
+      </View>
+
+      {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
+      <View style={styles.scoreContent}>
+        {/* 상단: 상태 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
+        <View style={styles.badgeChipsRow}>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: quotient.badgeBg,
+                paddingVertical: responsive.weatherStatusBadgePadV,
+                paddingHorizontal: responsive.weatherStatusBadgePadH,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+              ]}
+            >
+              ✓ {quotient.statusLabel}
+            </Text>
+          </View>
+
+          <View style={styles.iconChipsRow}>
+            <View
+              style={[
+                styles.iconChip,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  paddingVertical: responsive.weatherChipPadV,
+                  paddingHorizontal: responsive.weatherChipPadH,
+                },
+              ]}
+            >
+              <Text style={styles.iconChipEmoji}>🌧️</Text>
+              <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
+                {popPercent}%
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.iconChip,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  paddingVertical: responsive.weatherChipPadV,
+                  paddingHorizontal: responsive.weatherChipPadH,
+                },
+              ]}
+            >
+              <Text style={styles.iconChipEmoji}>🌫️</Text>
+              <Text style={[styles.iconChipText, { color: airQualityColor, fontSize: responsive.weatherChipFont }]}>
+                {airQualityLabel}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 중단: 상태 메인 문구 */}
+        <Text
+          style={[
+            styles.statusTitle,
+            { color: colors.textMain, fontSize: responsive.weatherStatusTitleSize },
+          ]}
+          numberOfLines={1}
+        >
+          {quotient.statusTitle}
+        </Text>
+
+        {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
+        <View style={styles.bottomHintRow}>
+          <Text
+            style={[
+              styles.recommendTimeInline,
+              { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
+            ]}
+          >
+            {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
+          </Text>
+          <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
+            상세보기 〉
+          </Text>
+        </View>
+      </View>
+    </View>
+  </TouchableOpacity>
+);
+
+interface HiddenMetaAreaProps {
+  readonly colors: any;
+  readonly subtitleText: string;
+  readonly badgeNotice: string;
+  readonly startDisplay: string;
+  readonly timeRangeDisplay: string;
+  readonly progress: number;
+  readonly weather?: HeatRiskResponse | null;
+}
+
+function renderSurfaceSummary(weather?: HeatRiskResponse | null): string {
+  if (!weather?.surface_temps) return '';
+  const asphalt = weather.surface_temps.asphalt !== undefined ? `${weather.surface_temps.asphalt}°C` : '';
+  const grass = weather.surface_temps.grass !== undefined ? `${weather.surface_temps.grass}°C` : '';
+  const diffNotice =
+    typeof weather.surface_temps.asphalt === 'number' && typeof weather.surface_temps.grass === 'number'
+      ? ` 아스팔트 대비 잔디밭이 약 ${Math.round(weather.surface_temps.asphalt - weather.surface_temps.grass)}℃ 더 시원해요!`
+      : '';
+  return `노면별 발바닥 체감온도 비교: 아스팔트 ${asphalt}, 흙길 / 잔디 ${grass}.${diffNotice}`;
+}
+
+const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({
+  colors,
+  subtitleText,
+  badgeNotice,
+  startDisplay,
+  timeRangeDisplay,
+  progress,
+  weather,
+}) => {
+  const surfaceSummary = renderSurfaceSummary(weather);
+  const solarRadiation = weather?.solar_radiation_w_m2;
+
+  return (
+    <View style={styles.hiddenMetaArea}>
+      <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{subtitleText}</Text>
+      <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
+      <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{startDisplay}</Text>
+      <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{timeRangeDisplay}</Text>
+      {surfaceSummary.length > 0 && (
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{surfaceSummary}</Text>
+      )}
+      {typeof solarRadiation === 'number' && (
+        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>
+          일사 {Math.round(solarRadiation)}W/m²
+        </Text>
+      )}
+      <View style={styles.hiddenTrack}>
+        <View style={[styles.hiddenProgress, { width: `${progress}%` }]} />
+        <View style={[styles.hiddenIndicator, { left: `${progress}%` }]} />
+      </View>
+    </View>
+  );
+};
+
 export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   weather,
   currentTimeLabel,
@@ -188,8 +644,11 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   endTimeLabel,
   progressPercent,
   statusNotice,
+  initialModalVisible,
 }) => {
   const { colors } = useAppTheme();
+  const responsive = useHomeResponsive();
+  const [modalVisible, setModalVisible] = useState(initialModalVisible ?? false);
 
   const now = new Date();
   const currentHour = now.getHours();
@@ -234,296 +693,56 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const responsive = useHomeResponsive();
-
   return (
     <View
       style={styles.container}
       accessibilityLabel="산책하기 좋은 지면온도 시간"
     >
       {/* 1. 상단 타이틀 영역 (반응형 헤더) */}
-      <View style={[styles.topHeader, { marginBottom: responsive.weatherTopMarginBottom }]}>
-        <View
-          style={[
-            styles.pawIconBox,
-            {
-              width: responsive.weatherPawIconSize + 14,
-              height: responsive.weatherPawIconSize + 14,
-              borderRadius: (responsive.weatherPawIconSize + 14) / 3,
-            },
-          ]}
-        >
-          <AppIcon name="paw" size={responsive.weatherPawIconSize} color="#6366F1" />
-        </View>
-        <View style={styles.headerTitleWrap}>
-          <Text style={[styles.mainHeading, { color: colors.textMain, fontSize: responsive.weatherHeadingSize }]}>
-            오늘 강아지 산책지수
-          </Text>
-          <Text style={[styles.mainSubHeading, { color: colors.textMuted, fontSize: responsive.weatherSubHeadingSize }]}>
-            더위·추위·대기질을 함께 봐요
-          </Text>
-        </View>
-      </View>
+      <TopHeader colors={colors} responsive={responsive} />
 
       {/* 2. 메인 산책지수 카드 (원터치 터치 시 상세 모달 오픈) */}
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={() => setModalVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="산책지수 상세 날씨 모달 열기"
-        style={[
-          styles.scoreCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            paddingVertical: responsive.weatherCardPaddingV,
-            paddingHorizontal: responsive.weatherCardPaddingH,
-          },
-        ]}
-      >
-        <View style={styles.cardMainRow}>
-          {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
-          <View style={styles.gaugeContainer}>
-            <View
-              style={[
-                styles.circleRing,
-                {
-                  width: responsive.weatherGaugeSize,
-                  height: responsive.weatherGaugeSize,
-                  borderRadius: responsive.weatherGaugeSize / 2,
-                  borderColor: quotient.ringColor,
-                },
-              ]}
-            >
-              <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
-                {quotient.score}
-              </Text>
-              <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
-                점
-              </Text>
-            </View>
-          </View>
-
-          {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
-          <View style={styles.scoreContent}>
-            {/* 상단: 상태 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
-            <View style={styles.badgeChipsRow}>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor: quotient.badgeBg,
-                    paddingVertical: responsive.weatherStatusBadgePadV,
-                    paddingHorizontal: responsive.weatherStatusBadgePadH,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusBadgeText,
-                    { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
-                  ]}
-                >
-                  ✓ {quotient.statusLabel}
-                </Text>
-              </View>
-
-              <View style={styles.iconChipsRow}>
-                <View
-                  style={[
-                    styles.iconChip,
-                    {
-                      backgroundColor: colors.background,
-                      borderColor: colors.border,
-                      paddingVertical: responsive.weatherChipPadV,
-                      paddingHorizontal: responsive.weatherChipPadH,
-                    },
-                  ]}
-                >
-                  <Text style={styles.iconChipEmoji}>🌧️</Text>
-                  <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
-                    {popPercent}%
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.iconChip,
-                    {
-                      backgroundColor: colors.background,
-                      borderColor: colors.border,
-                      paddingVertical: responsive.weatherChipPadV,
-                      paddingHorizontal: responsive.weatherChipPadH,
-                    },
-                  ]}
-                >
-                  <Text style={styles.iconChipEmoji}>🌫️</Text>
-                  <Text style={[styles.iconChipText, { color: airQualityColor, fontSize: responsive.weatherChipFont }]}>
-                    {airQualityLabel}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 중단: 상태 메인 문구 */}
-            <Text
-              style={[
-                styles.statusTitle,
-                { color: colors.textMain, fontSize: responsive.weatherStatusTitleSize },
-              ]}
-              numberOfLines={1}
-            >
-              {quotient.statusTitle}
-            </Text>
-
-            {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
-            <View style={styles.bottomHintRow}>
-              <Text
-                style={[
-                  styles.recommendTimeInline,
-                  { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
-                ]}
-              >
-                {isTomorrow ? '내일 ' : '오늘 '}{timeRangeDisplay}
-              </Text>
-              <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
-                상세보기 〉
-              </Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
+      <ScoreCard
+        colors={colors}
+        responsive={responsive}
+        quotient={quotient}
+        popPercent={popPercent}
+        airQualityColor={airQualityColor}
+        airQualityLabel={airQualityLabel}
+        isTomorrow={isTomorrow}
+        timeRangeDisplay={timeRangeDisplay}
+        onOpenModal={() => setModalVisible(true)}
+      />
 
       {/* 3. 상세 정보 모달 화면 (터치 시 팝업) */}
-      <Modal
+      <WeatherDetailModal
         visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdropTouchable}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {/* 모달 상단 헤더 */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleRow}>
-                <Text style={styles.modalHeaderPaw}>🐾</Text>
-                <Text style={[styles.modalTitle, { color: colors.textMain }]}>오늘의 산책 날씨 리포트</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={styles.modalCloseBtn}
-                accessibilityLabel="모달 닫기"
-              >
-                <Text style={[styles.modalCloseText, { color: colors.textMuted }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
-              {/* 산책 지수 총평 배지 */}
-              <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
-                <Text style={[styles.modalScoreNumber, { color: quotient.badgeColor }]}>{quotient.score}점</Text>
-                <View style={styles.modalScoreBannerTextWrap}>
-                  <Text style={[styles.modalScoreLabel, { color: quotient.badgeColor }]}>✓ {quotient.statusLabel}</Text>
-                  <Text style={[styles.modalScoreTitle, { color: quotient.badgeColor }]}>{quotient.statusTitle}</Text>
-                </View>
-              </View>
-
-              {/* 지면온도 & 산책 가이드 브리핑 */}
-              <View style={[styles.modalGuideBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                <Text style={[styles.modalGuideText, { color: colors.textMain }]}>{subtitleText}</Text>
-              </View>
-
-              {/* 4대 환경 상세 메트릭 카드 2x2 그리드 */}
-              <Text style={[styles.modalSectionTitle, { color: colors.textMain }]}>4대 환경 메트릭 상세 분석</Text>
-              <View style={styles.modalMetricsGrid}>
-                {/* 1. 기온 */}
-                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={styles.modalMetricEmoji}>🌡️</Text>
-                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>현재 기온</Text>
-                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{currentAirTemp}°C</Text>
-                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>대기 관측 온도</Text>
-                </View>
-
-                {/* 2. 발바닥 체감 지면온도 */}
-                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={styles.modalMetricEmoji}>🔥</Text>
-                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>체감 지면열</Text>
-                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
-                  <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
-                    {riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의'}
-                  </Text>
-                </View>
-
-                {/* 3. 강수확률 */}
-                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={styles.modalMetricEmoji}>🌧️</Text>
-                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>강수확률</Text>
-                  <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
-                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
-                    {popPercent > 30 ? '우산 준비 권장' : '비 소식 없음'}
-                  </Text>
-                </View>
-
-                {/* 4. 미세먼지 */}
-                <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={styles.modalMetricEmoji}>🌫️</Text>
-                  <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>미세먼지</Text>
-                  <Text style={[styles.modalMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
-                  <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
-                    {airQuality?.station_name ? `${airQuality.station_name} 측정소` : '실시간 공공데이터'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* 추천 골든타임 상세 윈도우 */}
-              <View style={[styles.modalGoldenBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                <Text style={styles.modalGoldenEmoji}>⏰</Text>
-                <View style={styles.modalGoldenTextWrap}>
-                  <Text style={[styles.modalGoldenTitle, { color: colors.textMain }]}>
-                    {isTomorrow ? '내일 추천 산책 시간' : '오늘 추천 산책 시간'}
-                  </Text>
-                  <Text style={[styles.modalGoldenTime, { color: '#2563EB' }]}>{timeRangeDisplay}</Text>
-                </View>
-              </View>
-
-              {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
-              <View style={styles.modalAttributionBox}>
-                <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
-                  데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)
-                  {weather?.attribution ? ` · ${weather.attribution}` : ' · Open-Meteo'}
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* 모달 닫기 버튼 */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setModalVisible(false)}
-              style={styles.modalConfirmBtn}
-            >
-              <Text style={styles.modalConfirmBtnText}>확인</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setModalVisible(false)}
+        colors={colors}
+        quotient={quotient}
+        subtitleText={subtitleText}
+        currentAirTemp={currentAirTemp}
+        roundedSurfaceTemp={roundedSurfaceTemp}
+        riskLevel={riskLevel}
+        popPercent={popPercent}
+        airQualityColor={airQualityColor}
+        airQualityLabel={airQualityLabel}
+        airQuality={airQuality}
+        isTomorrow={isTomorrow}
+        timeRangeDisplay={timeRangeDisplay}
+        weather={weather}
+      />
 
       {/* 4. 보조 세부 안내 및 진행도 (테스트 호환성 & 접근성) */}
-      <View style={styles.hiddenMetaArea}>
-        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{subtitleText}</Text>
-        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
-        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{startDisplay}</Text>
-        <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{timeRangeDisplay}</Text>
-        <View style={styles.hiddenTrack}>
-          <View style={[styles.hiddenProgress, { width: `${progress}%` }]} />
-          <View style={[styles.hiddenIndicator, { left: `${progress}%` }]} />
-        </View>
-      </View>
+      <HiddenMetaArea
+        colors={colors}
+        subtitleText={subtitleText}
+        badgeNotice={badgeNotice}
+        startDisplay={startDisplay}
+        timeRangeDisplay={timeRangeDisplay}
+        progress={progress}
+        weather={weather}
+      />
 
       {/* 5. 데이터 출처 표기 (화면 상시 마이크로 출처) */}
       <View style={[styles.attributionContainer, { marginTop: responsive.weatherAttributionMarginTop }]}>
@@ -793,6 +1012,65 @@ const styles = StyleSheet.create({
   modalMetricSub: {
     fontSize: 9.5,
     fontWeight: '500',
+  },
+  modalSurfaceBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 10,
+  },
+  modalSurfaceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  modalSurfaceEmoji: {
+    fontSize: 14,
+  },
+  modalSurfaceTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalSurfaceGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  modalSurfaceItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+  },
+  modalSurfaceItemLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  modalSurfaceItemVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  modalSurfaceItemStatus: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalSurfaceTipRow: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  modalSurfaceTipText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#059669',
+    textAlign: 'center',
   },
   modalGoldenBox: {
     flexDirection: 'row',

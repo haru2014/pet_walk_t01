@@ -43,6 +43,7 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
+from services import open_meteo_client
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -649,12 +650,23 @@ def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
         air_temp = round(26.5 + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
         if 20 <= h or h < 6:
             sky = "night"  # 야간에는 일사량 0.0 (지면열 = 기온)
+            weight = 0.0
         elif 10 <= h <= 15:
             sky = "clear"  # 한낮에는 일사량 1.0 (지면열 = 기온 + 15도)
+            weight = 1.0
         else:
             sky = "partly_cloudy"
+            weight = 0.6
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
-        hourly.append(dto.model_dump() if hasattr(dto, "model_dump") else dto.dict())
+        d = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
+        d["solar_radiation_w_m2"] = round(weight * 1000.0, 1)
+        d["surface_temps"] = {
+            "asphalt": round(air_temp + weight * 18.0, 1),
+            "paved": round(air_temp + weight * 14.0, 1),
+            "dirt": round(air_temp + weight * 8.0, 1),
+            "grass": round(air_temp + weight * 4.0, 1),
+        }
+        hourly.append(d)
     return hourly
 
 
@@ -704,8 +716,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
     # Open-Meteo 실시간 기상 조회 가능 시 현재 기온과 일사량 실측값으로 정밀 보정 (단위 테스트 환경에서는 외부 네트워크 호출 생략)
     if "PYTEST_CURRENT_TEST" not in os.environ:
         try:
-            from services import open_meteo_client
-            om_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, now_kst, timeout=0.3, forecast_days=1)
+            om_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, now_kst, timeout=1.5, forecast_days=1)
             hour_start = now_kst.replace(minute=0, second=0, microsecond=0)
             curr = om_data.get(hour_start)
             if curr:
@@ -723,11 +734,19 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "hour": now_hour,
                     "air_temp_celsius": curr["air"],
                     "estimated_surface_temp": surface,
+                    "solar_radiation_w_m2": round(weight * 1000.0, 1),
+                    "surface_temps": {
+                        "asphalt": round(curr["air"] + weight * 18.0, 1),
+                        "paved": round(curr["air"] + weight * 14.0, 1),
+                        "dirt": round(curr["air"] + weight * 8.0, 1),
+                        "grass": round(curr["air"] + weight * 4.0, 1),
+                    },
                     "risk_level": risk_lvl,
                     "is_golden_time": is_golden,
                     "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
                 }
-        except (OSError, ValueError, KeyError):
+        except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError):
+            # Open-Meteo 실패(시간 초과·연결 오류 포함)는 OpenMeteoError 또는 OSError(TimeoutError 포함)로 온다. 놓치면 /walk/plan 전체가 500 이 된다 (#104).
             pass
 
     safe_blocks = _extract_safe_blocks(hourly)
@@ -760,11 +779,17 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
 
 
 def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 KST 기반 추정으로 대체한다."""
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
     try:
         return build_heat_risk_response(lat, lon)
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.warning("기상청 API 조회 실패, KST 기반 대체 추정을 반환합니다: %s", exc)
+        logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
+        # [제안 1 & 이슈 #104] 운영 환경(테스트 환경 격리 외)에서는 Open-Meteo 무키 실시간 예보를 2순위로 호출
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            try:
+                return build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+            except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
+                logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
         response = _fallback_heat_risk_response(lat, lon)
         response["warnings"].append(f"사유: {exc}")
         return response
