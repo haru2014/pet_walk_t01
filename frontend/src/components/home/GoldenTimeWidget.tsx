@@ -489,22 +489,28 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
   isVirtual,
   isLoading,
   onOpenModal,
-}) => (
-  <TouchableOpacity
-    activeOpacity={0.88}
-    onPress={onOpenModal}
-    accessibilityRole="button"
-    accessibilityLabel="산책지수 상세 날씨 모달 열기"
-    style={[
-      styles.scoreCard,
-      {
-        backgroundColor: colors.surface,
-        borderColor: colors.border,
-        paddingVertical: responsive.weatherCardPaddingV,
-        paddingHorizontal: responsive.weatherCardPaddingH,
-      },
-    ]}
-  >
+}) => {
+  const dayPrefix = isTomorrow ? '내일 ' : '오늘 ';
+  const recommendTimeText = isLoading
+    ? '실시간 예보 분석 중'
+    : `${dayPrefix}${timeRangeDisplay}`;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      onPress={onOpenModal}
+      accessibilityRole="button"
+      accessibilityLabel="산책지수 상세 날씨 모달 열기"
+      style={[
+        styles.scoreCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          paddingVertical: responsive.weatherCardPaddingV,
+          paddingHorizontal: responsive.weatherCardPaddingH,
+        },
+      ]}
+    >
     <View style={styles.cardMainRow}>
       {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
       <View style={styles.gaugeContainer}>
@@ -614,7 +620,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
               { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
             ]}
           >
-            {isLoading ? '실시간 예보 분석 중' : `${isTomorrow ? '내일 ' : '오늘 '}${timeRangeDisplay}`}
+            {recommendTimeText}
           </Text>
           <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
             상세보기 〉
@@ -623,7 +629,8 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
       </View>
     </View>
   </TouchableOpacity>
-);
+  );
+};
 
 interface HiddenMetaAreaProps {
   readonly colors: any;

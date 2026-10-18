@@ -35,7 +35,7 @@ export function getFallbackApiBaseUrl(): string | null {
  */
 export function warmupBackendServer(): void {
   const primary = getPrimaryApiBaseUrl();
-  if (primary && primary.startsWith('http')) {
+  if (primary?.startsWith('http')) {
     fetch(`${primary}/health`).catch(() => {});
   }
 }

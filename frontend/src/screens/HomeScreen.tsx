@@ -74,7 +74,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   useEffect(() => {
     warmupBackendServer();
     let isMounted = true;
-    setIsLoadingWeather(true);
     void fetchHeatRiskForecast(36.3628, 127.3592)
       .then((res) => {
         if (isMounted) {
