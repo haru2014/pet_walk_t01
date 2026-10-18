@@ -35,6 +35,8 @@ export interface RoutePlanResult {
   readonly stepPins: readonly RouteStepPin[];
   readonly briefingMessage: string;
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
+  /** 경사·구간 색을 계산한 고도 자료의 출처 문구 (서버 elevation_source.attribution, DEM 미사용 시 null) */
+  readonly elevationAttribution?: string | null;
 }
 
 const API_TIMEOUT_MS = 3500;
@@ -207,6 +209,7 @@ export async function requestWalkPlan(
         route: data.geojson ?? defaultPlan.route,
         stepPins: data.step_pins ?? defaultPlan.stepPins,
         coursePlans: data.course_plans,
+        elevationAttribution: data.elevation_source?.attribution ?? null,
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
       };
     }
