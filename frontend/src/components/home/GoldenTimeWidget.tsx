@@ -21,6 +21,7 @@ export interface GoldenTimeWidgetProps {
   readonly endTimeLabel?: string;
   readonly progressPercent?: number;
   readonly statusNotice?: string;
+  readonly initialModalVisible?: boolean;
 }
 
 const TIME_REGEX = /^\d{1,2}:\d{2}$/;
@@ -188,6 +189,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   endTimeLabel,
   progressPercent,
   statusNotice,
+  initialModalVisible,
 }) => {
   const { colors } = useAppTheme();
 
@@ -234,7 +236,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
 
-  const [modalVisible, setModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(initialModalVisible ?? false);
   const responsive = useHomeResponsive();
 
   return (
@@ -456,7 +458,9 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
                   <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>체감 지면열</Text>
                   <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
                   <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
-                    {riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의'}
+                    {typeof weather?.solar_radiation_w_m2 === 'number'
+                      ? `일사 ${Math.round(weather.solar_radiation_w_m2)}W/m²`
+                      : riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의'}
                   </Text>
                 </View>
 
@@ -480,6 +484,46 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
                   </Text>
                 </View>
               </View>
+
+              {/* 노면별 발바닥 체감온도 실시간 분석 (US-B2) */}
+              {weather?.surface_temps && (
+                <View style={[styles.modalSurfaceBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <View style={styles.modalSurfaceHeaderRow}>
+                    <Text style={styles.modalSurfaceEmoji}>🐾</Text>
+                    <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>노면별 발바닥 체감온도 비교</Text>
+                  </View>
+                  <View style={styles.modalSurfaceGrid}>
+                    <View style={styles.modalSurfaceItem}>
+                      <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>아스팔트</Text>
+                      <Text style={[styles.modalSurfaceItemVal, { color: '#DC2626' }]}>
+                        {weather.surface_temps.asphalt !== undefined ? `${weather.surface_temps.asphalt}°C` : `${roundedSurfaceTemp}°C`}
+                      </Text>
+                      <Text style={styles.modalSurfaceItemStatus}>🔥 고열 주의</Text>
+                    </View>
+                    <View style={styles.modalSurfaceItem}>
+                      <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>보도블록</Text>
+                      <Text style={[styles.modalSurfaceItemVal, { color: '#D97706' }]}>
+                        {weather.surface_temps.paved !== undefined ? `${weather.surface_temps.paved}°C` : `${roundedSurfaceTemp}°C`}
+                      </Text>
+                      <Text style={styles.modalSurfaceItemStatus}>주의</Text>
+                    </View>
+                    <View style={styles.modalSurfaceItem}>
+                      <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>흙길 / 잔디</Text>
+                      <Text style={[styles.modalSurfaceItemVal, { color: '#059669' }]}>
+                        {weather.surface_temps.grass !== undefined ? `${weather.surface_temps.grass}°C` : `${weather.surface_temps.dirt ?? currentAirTemp}°C`}
+                      </Text>
+                      <Text style={styles.modalSurfaceItemStatus}>🌱 시원·안전</Text>
+                    </View>
+                  </View>
+                  {typeof weather.surface_temps.asphalt === 'number' && typeof weather.surface_temps.grass === 'number' && (
+                    <View style={styles.modalSurfaceTipRow}>
+                      <Text style={styles.modalSurfaceTipText}>
+                        💡 아스팔트 대비 잔디밭이 약 {Math.round(weather.surface_temps.asphalt - weather.surface_temps.grass)}℃ 더 시원해요!
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* 추천 골든타임 상세 윈도우 */}
               <View style={[styles.modalGoldenBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -519,6 +563,19 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{badgeNotice}</Text>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{startDisplay}</Text>
         <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>{timeRangeDisplay}</Text>
+        {weather?.surface_temps && (
+          <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>
+            노면별 발바닥 체감온도 비교: 아스팔트 {weather.surface_temps.asphalt !== undefined ? `${weather.surface_temps.asphalt}°C` : ''}, 흙길 / 잔디 {weather.surface_temps.grass !== undefined ? `${weather.surface_temps.grass}°C` : ''}.
+            {typeof weather.surface_temps.asphalt === 'number' && typeof weather.surface_temps.grass === 'number'
+              ? ` 아스팔트 대비 잔디밭이 약 ${Math.round(weather.surface_temps.asphalt - weather.surface_temps.grass)}℃ 더 시원해요!`
+              : ''}
+          </Text>
+        )}
+        {typeof weather?.solar_radiation_w_m2 === 'number' && (
+          <Text style={[styles.hiddenMetaText, { color: colors.textMuted }]}>
+            일사 {Math.round(weather.solar_radiation_w_m2)}W/m²
+          </Text>
+        )}
         <View style={styles.hiddenTrack}>
           <View style={[styles.hiddenProgress, { width: `${progress}%` }]} />
           <View style={[styles.hiddenIndicator, { left: `${progress}%` }]} />
@@ -793,6 +850,65 @@ const styles = StyleSheet.create({
   modalMetricSub: {
     fontSize: 9.5,
     fontWeight: '500',
+  },
+  modalSurfaceBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 10,
+  },
+  modalSurfaceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  modalSurfaceEmoji: {
+    fontSize: 14,
+  },
+  modalSurfaceTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalSurfaceGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  modalSurfaceItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+  },
+  modalSurfaceItemLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  modalSurfaceItemVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  modalSurfaceItemStatus: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalSurfaceTipRow: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  modalSurfaceTipText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#059669',
+    textAlign: 'center',
   },
   modalGoldenBox: {
     flexDirection: 'row',
