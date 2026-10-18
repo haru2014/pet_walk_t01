@@ -221,7 +221,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
           <View style={styles.badgeTop}>
             <AppIcon name="sparkle" size={14} color="#4F46E5" />
             <Text style={styles.badgeTitle}>
-              Gemini AI 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단피하기 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
+              {analysisResult.data_source === 'local_fallback' ? '[로컬 가상/규칙 대체]' : 'Gemini AI'} 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단피하기 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
             </Text>
           </View>
           {analysisResult.intent.briefing_message && (

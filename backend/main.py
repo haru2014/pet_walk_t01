@@ -771,7 +771,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
         },
         "golden_time_window": golden_window,
         "hourly_forecast": hourly,
-        "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
+        "notice": "본 지수는 기상청 예보 모델 기반 추정치(실시간 기상 미연결 시 제공되는 [가상 시뮬레이션 추정치])입니다.",
         "coordinates": {"lat": lat, "lon": lon},
         "data_source": "fallback_estimate",
         "insolation_source": None,
@@ -779,7 +779,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
         "golden_time_window_day": "today",
         "grid": None,
         "bases": {},
-        "warnings": ["실시간 기상 정보를 가져오지 못해 KST 기준 추정 곡선으로 산출한 값입니다."],
+        "warnings": ["실시간 기상 정보를 가져오지 못해 KST 기준 [가상 시뮬레이션 추정치]로 산출한 값입니다."],
     }
 
 

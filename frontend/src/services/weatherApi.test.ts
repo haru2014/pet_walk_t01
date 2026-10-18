@@ -34,7 +34,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(fallback.isLiveServer).toBe(false);
       expect(fallback.hourly_forecast).toHaveLength(24);
-      expect(fallback.notice).toContain('기상청 예보 모델 기반 추정치');
+      expect(fallback.notice).toContain('[가상 시뮬레이션 추정치]');
       expect(fallback.golden_time_window).toBeTruthy();
     });
 
@@ -168,7 +168,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(result.isLiveServer).toBe(false);
       expect(result.hourly_forecast).toHaveLength(24);
-      expect(result.notice).toContain('기상청 예보 모델 기반 추정치');
+      expect(result.notice).toContain('[가상 시뮬레이션 추정치]');
     });
 
     it('1시간 TTL 메모리 캐싱으로 동일 위치 재호출 시 네트워크를 중복 요청하지 않아야 한다', async () => {
@@ -187,6 +187,29 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       // forceRefresh 옵션 전달 시 캐시를 무시하고 재요청
       await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
       expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+    });
+
+    it('오프라인 폴백 응답은 10초(FALLBACK_CACHE_TTL_MS) 후 만료되어 서버 재시도를 허용해야 한다', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Offline'));
+
+      // 1. 첫 호출: 실패하여 폴백 생성
+      await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+      // 2. 5초 경과: 폴백 캐시 유효
+      const realNow = Date.now;
+      try {
+        const baseNow = realNow();
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 5000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+        // 3. 11초 경과: 폴백 캐시 만료되어 null 반환 (실서버 재조회 준비)
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 11000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).toBeNull();
+      } finally {
+        vi.restoreAllMocks();
+      }
     });
   });
 

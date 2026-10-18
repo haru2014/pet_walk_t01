@@ -10,8 +10,10 @@
 import { HeatRiskHourDTO, HeatRiskLevel, HeatRiskResponse, GoldenTimeWindowDay } from '../types/weather';
 import { fetchWithServerFallback } from './apiClient';
 
-const API_TIMEOUT_MS = 3000;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 TTL
+export const API_TIMEOUT_MS = 8000; // Render 무료 티어 콜드 스타트(10~15초) 대응을 위해 3초 -> 8초로 현실화
+export const LIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 실서버 정상 응답: 1시간 TTL
+export const FALLBACK_CACHE_TTL_MS = 10 * 1000; // 오프라인 폴백 응답: 서버 기상 시 즉각 갱신되도록 10초만 임시 유지
+export const CACHE_TTL_MS = LIVE_CACHE_TTL_MS; // 하위 호환성 유지
 
 interface CacheEntry {
   readonly timestamp: number;
@@ -36,13 +38,15 @@ export function clearWeatherCache(): void {
 
 /**
  * 캐시된 날씨 데이터 조회
+ * (실서버 응답은 1시간 유지, 오프라인 폴백 데이터는 10초 후 자동 만료)
  */
 export function getCachedWeather(lat: number, lon: number): HeatRiskResponse | null {
   const key = buildWeatherCacheKey(lat, lon);
   const entry = weatherMemoryCache.get(key);
   if (!entry) return null;
 
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+  const ttl = entry.data.isLiveServer ? LIVE_CACHE_TTL_MS : FALLBACK_CACHE_TTL_MS;
+  if (Date.now() - entry.timestamp > ttl) {
     weatherMemoryCache.delete(key);
     return null;
   }
@@ -227,7 +231,7 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
       data_source: 'estimated',
     },
     hourly_forecast: hourly,
-    notice: '본 지수는 기상청 예보 모델 기반 추정치입니다.',
+    notice: '본 지수는 기상청 예보 모델 기반 추정치(실시간 기상 미연결 시 제공되는 [가상 시뮬레이션 추정치])입니다.',
     attribution: null,
     insolation_source: 'sky_fallback',
     data_source: 'fallback_estimate',

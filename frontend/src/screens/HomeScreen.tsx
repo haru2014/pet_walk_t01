@@ -8,8 +8,8 @@
  * 4. 최근 피드백 AI 보정 브리핑 (선택)
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useAppTheme } from '../theme/themeManager';
 import { DogProfile } from '../types/dogProfile';
 import { HomeDogCard } from '../components/home/HomeDogCard';
@@ -52,11 +52,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const responsive = useHomeResponsive();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetchHeatRiskForecast(36.3628, 127.3592, { forceRefresh: true });
+      setWeather(res);
+    } catch {
+      // 오프라인 폴백 처리
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
     void fetchHeatRiskForecast(36.3628, 127.3592).then((res) => {
-      if (isMounted) setWeather(res);
+      if (isMounted) {
+        setWeather(res);
+      }
     });
     void LocalStorageService.getWalkHistory().then((history) => {
       if (isMounted) {
@@ -80,7 +95,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         },
       ]}
       showsVerticalScrollIndicator={false}
-      bounces={false}
+      bounces={true}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      }
     >
       <View style={[styles.mainColumn, { gap: responsive.screenGap }]}>
         {/* 1. 환영 인사 (반응형 헤더) */}
