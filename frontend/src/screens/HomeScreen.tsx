@@ -23,6 +23,8 @@ import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { useHomeResponsive } from '../hooks/useHomeResponsive';
 
+import { warmupBackendServer } from '../services/apiClient';
+
 export interface HomeScreenProps {
   dog: DogProfile;
   dogs?: readonly DogProfile[];
@@ -51,28 +53,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const { colors } = useAppTheme();
   const responsive = useHomeResponsive();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setIsLoadingWeather(true);
     try {
       const res = await fetchHeatRiskForecast(36.3628, 127.3592, { forceRefresh: true });
       setWeather(res);
     } catch {
       // 오프라인 폴백 처리
     } finally {
+      setIsLoadingWeather(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
+    warmupBackendServer();
     let isMounted = true;
-    void fetchHeatRiskForecast(36.3628, 127.3592).then((res) => {
-      if (isMounted) {
-        setWeather(res);
-      }
-    });
+    setIsLoadingWeather(true);
+    void fetchHeatRiskForecast(36.3628, 127.3592)
+      .then((res) => {
+        if (isMounted) {
+          setWeather(res);
+          setIsLoadingWeather(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsLoadingWeather(false);
+        }
+      });
     void LocalStorageService.getWalkHistory().then((history) => {
       if (isMounted) {
         setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
@@ -131,7 +145,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         />
 
         {/* 3. 오늘 강아지 산책지수 위젯 (지면온도/기상청 연동 산책지수) */}
-        <GoldenTimeWidget weather={weather} />
+        <GoldenTimeWidget weather={weather} isLoading={isLoadingWeather} />
 
         {/* (선택) 최근 피드백 AI 보정 브리핑 */}
         {feedbackSummary && feedbackSummary.recent_walk_count > 0 && (

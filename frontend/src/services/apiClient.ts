@@ -31,9 +31,19 @@ export function getFallbackApiBaseUrl(): string | null {
 }
 
 /**
- * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 8초)
+ * 백엔드 서버(Render 콜드 스타트 대응) 비동기 사전 웜업
  */
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
+export function warmupBackendServer(): void {
+  const primary = getPrimaryApiBaseUrl();
+  if (primary && primary.startsWith('http')) {
+    fetch(`${primary}/health`).catch(() => {});
+  }
+}
+
+/**
+ * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 15초)
+ */
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -64,7 +74,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 800
 export async function fetchWithServerFallback(
   endpoint: string,
   init?: RequestInit,
-  primaryTimeoutMs = 8000,
+  primaryTimeoutMs = 15000,
   fallbackTimeoutMs = 2000
 ): Promise<Response> {
   const primaryBase = getPrimaryApiBaseUrl();

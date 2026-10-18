@@ -239,7 +239,7 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     vilage = _optional(kma.fetch_vilage_fcst, "단기예보", warnings, nx, ny, **options)
     forecasts = _merge_forecasts(ultra, vilage)
     insolation_provider, insolation_source, attribution = _resolve_insolation(
-        lat, lon, when, insolation_provider, use_open_meteo, timeout, warnings)
+        lat, lon, when, insolation_provider, use_open_meteo, min(timeout, 2.0), warnings)
 
     hour_start = when.replace(minute=0, second=0, microsecond=0)
     upcoming = sorted(t for t in forecasts if hour_start <= t < hour_start + timedelta(hours=24))
@@ -269,7 +269,7 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     window, window_day = golden_time_window(hourly, when, current["is_golden_time"])
 
     # 한국환경공단 에어코리아(AirKorea) 실시간 대기질(미세먼지) 조회
-    air_quality = airkorea_client.fetch_air_quality(lat, lon, service_key=service_key, timeout=timeout)
+    air_quality = airkorea_client.fetch_air_quality(lat, lon, service_key=service_key, timeout=min(timeout, 2.5))
 
     return {
         "status": "success",

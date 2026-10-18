@@ -28,7 +28,7 @@ from services.kma_weather_client import to_kst
 
 ENV_BASE_URL = "OPEN_METEO_BASE_URL"
 DEFAULT_BASE_URL = "https://api.open-meteo.com/v1/forecast"
-DEFAULT_TIMEOUT_S = 5.0
+DEFAULT_TIMEOUT_S = 2.0
 CACHE_TTL_S = 1800.0  # 예보는 시간 단위로 갱신되므로 30분 캐시로 호출 한도를 아낀다
 MAX_RADIATION_W_M2 = 1000.0
 ATTRIBUTION = "Weather data by Open-Meteo.com (CC BY 4.0)"

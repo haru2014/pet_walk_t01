@@ -15,6 +15,7 @@ import os
 import json
 import logging
 import math
+import time
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -783,16 +784,37 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
     }
 
 
+_HEAT_RISK_CACHE: Dict[Tuple[float, float], Tuple[float, Dict[str, Any]]] = {}
+_HEAT_RISK_CACHE_TTL_S = 600.0  # 10분 TTL
+
+
+def clear_heat_risk_cache() -> None:
+    _HEAT_RISK_CACHE.clear()
+
+
 def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
     """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
+    # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
+    cache_key = (round(lat, 2), round(lon, 2))
+    now_ts = time.time()
+    if "PYTEST_CURRENT_TEST" not in os.environ and cache_key in _HEAT_RISK_CACHE:
+        cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
+        if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
+            return cached_resp
+
     try:
-        return build_heat_risk_response(lat, lon)
+        res = build_heat_risk_response(lat, lon)
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            _HEAT_RISK_CACHE[cache_key] = (now_ts, res)
+        return res
     except (KmaApiError, ValueError, OSError) as exc:
         logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
         # [제안 1 & 이슈 #104] 운영 환경(테스트 환경 격리 외)에서는 Open-Meteo 무키 실시간 예보를 2순위로 호출
         if "PYTEST_CURRENT_TEST" not in os.environ:
             try:
-                return build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+                om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+                _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
+                return om_res
             except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
                 logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
         response = _fallback_heat_risk_response(lat, lon)
