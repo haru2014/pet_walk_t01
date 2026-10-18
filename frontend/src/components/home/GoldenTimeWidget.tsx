@@ -674,124 +674,124 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
         },
       ]}
     >
-    <View style={styles.cardMainRow}>
-      {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
-      <View style={styles.gaugeContainer}>
-        <View
-          style={[
-            styles.circleRing,
-            {
-              width: responsive.weatherGaugeSize,
-              height: responsive.weatherGaugeSize,
-              borderRadius: responsive.weatherGaugeSize / 2,
-              borderColor: quotient.ringColor,
-            },
-          ]}
-        >
-          <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
-            {isLoading ? '···' : quotient.score}
-          </Text>
-          <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
-            {isLoading ? '' : '점'}
-          </Text>
-        </View>
-      </View>
-
-      {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
-      <View style={styles.scoreContent}>
-        {/* 상단: 상태 뱃지 + 가상추정 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
-        <View style={styles.badgeChipsRow}>
-          <View style={styles.statusBadgeWrap}>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor: isLoading ? '#E0E7FF' : quotient.badgeBg,
-                  paddingVertical: responsive.weatherStatusBadgePadV,
-                  paddingHorizontal: responsive.weatherStatusBadgePadH,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  { color: isLoading ? '#4338CA' : quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
-                ]}
-              >
-                {isLoading ? '✓ 실시간 분석 중' : `✓ ${quotient.statusLabel}`}
-              </Text>
-            </View>
-            {!isLoading && isVirtual && (
-              <View style={styles.virtualIndicatorBadge}>
-                <Text style={styles.virtualIndicatorText}>가상 추정</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.iconChipsRow}>
-            <View
-              style={[
-                styles.iconChip,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  paddingVertical: responsive.weatherChipPadV,
-                  paddingHorizontal: responsive.weatherChipPadH,
-                },
-              ]}
-            >
-              <Text style={styles.iconChipEmoji}>🌧️</Text>
-              <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
-                {isLoading ? '-' : `${popPercent}%`}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.iconChip,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  paddingVertical: responsive.weatherChipPadV,
-                  paddingHorizontal: responsive.weatherChipPadH,
-                },
-              ]}
-            >
-              <Text style={styles.iconChipEmoji}>🌫️</Text>
-              <Text style={[styles.iconChipText, { color: isLoading ? colors.textMuted : airQualityColor, fontSize: responsive.weatherChipFont }]}>
-                {isLoading ? '수신중' : airQualityLabel}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 중단: 상태 메인 문구 */}
-        <Text
-          style={[
-            styles.statusTitle,
-            { color: colors.textMain, fontSize: responsive.weatherStatusTitleSize },
-          ]}
-          numberOfLines={1}
-        >
-          {isLoading ? '기상청·에어코리아 실시간 지수 분석 중...' : quotient.statusTitle}
-        </Text>
-
-        {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
-        <View style={styles.bottomHintRow}>
-          <Text
+      <View style={styles.cardMainRow}>
+        {/* 원형 점수 게이지 (반응형 66px ~ 82px) */}
+        <View style={styles.gaugeContainer}>
+          <View
             style={[
-              styles.recommendTimeInline,
-              { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
+              styles.circleRing,
+              {
+                width: responsive.weatherGaugeSize,
+                height: responsive.weatherGaugeSize,
+                borderRadius: responsive.weatherGaugeSize / 2,
+                borderColor: quotient.ringColor,
+              },
             ]}
           >
-            {recommendTimeText}
+            <Text style={[styles.scoreNumber, { color: colors.textMain, fontSize: responsive.weatherScoreFontSize }]}>
+              {isLoading ? '···' : quotient.score}
+            </Text>
+            <Text style={[styles.scoreUnit, { color: colors.textMuted, fontSize: responsive.weatherScoreUnitSize }]}>
+              {isLoading ? '' : '점'}
+            </Text>
+          </View>
+        </View>
+
+        {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
+        <View style={styles.scoreContent}>
+          {/* 상단: 상태 뱃지 + 가상추정 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
+          <View style={styles.badgeChipsRow}>
+            <View style={styles.statusBadgeWrap}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: isLoading ? '#E0E7FF' : quotient.badgeBg,
+                    paddingVertical: responsive.weatherStatusBadgePadV,
+                    paddingHorizontal: responsive.weatherStatusBadgePadH,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: isLoading ? '#4338CA' : quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+                  ]}
+                >
+                  {isLoading ? '✓ 실시간 분석 중' : `✓ ${quotient.statusLabel}`}
+                </Text>
+              </View>
+              {!isLoading && isVirtual && (
+                <View style={styles.virtualIndicatorBadge}>
+                  <Text style={styles.virtualIndicatorText}>가상 추정</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.iconChipsRow}>
+              <View
+                style={[
+                  styles.iconChip,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    paddingVertical: responsive.weatherChipPadV,
+                    paddingHorizontal: responsive.weatherChipPadH,
+                  },
+                ]}
+              >
+                <Text style={styles.iconChipEmoji}>🌧️</Text>
+                <Text style={[styles.iconChipText, { color: colors.textMain, fontSize: responsive.weatherChipFont }]}>
+                  {isLoading ? '-' : `${popPercent}%`}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.iconChip,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    paddingVertical: responsive.weatherChipPadV,
+                    paddingHorizontal: responsive.weatherChipPadH,
+                  },
+                ]}
+              >
+                <Text style={styles.iconChipEmoji}>🌫️</Text>
+                <Text style={[styles.iconChipText, { color: isLoading ? colors.textMuted : airQualityColor, fontSize: responsive.weatherChipFont }]}>
+                  {isLoading ? '수신중' : airQualityLabel}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 중단: 상태 메인 문구 */}
+          <Text
+            style={[
+              styles.statusTitle,
+              { color: colors.textMain, fontSize: responsive.weatherStatusTitleSize },
+            ]}
+            numberOfLines={1}
+          >
+            {isLoading ? '기상청·에어코리아 실시간 지수 분석 중...' : quotient.statusTitle}
           </Text>
-          <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
-            상세보기 〉
-          </Text>
+
+          {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
+          <View style={styles.bottomHintRow}>
+            <Text
+              style={[
+                styles.recommendTimeInline,
+                { color: colors.textMuted, fontSize: responsive.weatherRecommendTimeSize },
+              ]}
+            >
+              {recommendTimeText}
+            </Text>
+            <Text style={[styles.detailHintText, { fontSize: responsive.weatherDetailHintSize }]}>
+              상세보기 〉
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
-  </TouchableOpacity>
+    </TouchableOpacity>
   );
 };
 
