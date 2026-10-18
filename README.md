@@ -13,7 +13,7 @@
 
 ---
 ## 테스트용 앱 다운로드 주소
-https://expo.dev/artifacts/eas/yVHDVL376oMHm00GuYS7K9jkgoEfEbRklaVMceDU23E.
+[https://expo.dev/artifacts/eas/yVHDVL376oMHm00GuYS7K9jkgoEfEbRklaVMceDU23E.](https://expo.dev/artifacts/eas/oIBJxHEk8DXctLnCoMa-H8Qs5wNUNsPY5rQt35va51w.apk)
 
 ## 웹 서비스 운영 서버 주소
 https://pet-walk-t01-z095.onrender.com
