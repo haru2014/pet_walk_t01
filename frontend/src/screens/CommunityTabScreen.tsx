@@ -154,7 +154,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
       <View style={styles.badgeRow}>
         <View style={[styles.statusBadge, isSupabase ? styles.badgeSupabase : styles.badgeOffline]}>
           <Text style={[styles.badgeText, isSupabase ? styles.textSupabase : styles.textOffline]}>
-            {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 안심 피드 모드'}
+            {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 [가상 데모 코스]'}
           </Text>
         </View>
         <TouchableOpacity
@@ -251,6 +251,13 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 {feed.is_origin_masked && (
                   <View style={styles.maskedChip}>
                     <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>🔒 200m 보호</Text>
+                  </View>
+                )}
+                {!isSupabase && (
+                  <View style={styles.demoBadge}>
+                    <Text style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>
+                      가상 데모
+                    </Text>
                   </View>
                 )}
               </View>
@@ -431,6 +438,19 @@ const styles = StyleSheet.create({
   feedTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
   maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
   maskedChipText: { fontSize: 10, color: '#16A34A', fontWeight: '700' },
+  demoBadge: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  demoBadgeText: {
+    fontSize: 10,
+    color: '#92400E',
+    fontWeight: '700',
+  },
   feedMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   feedMetaText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '500' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

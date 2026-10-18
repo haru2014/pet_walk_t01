@@ -202,6 +202,24 @@ function getGrassTempDisplay(
   return `${fallbackTemp ?? 22}°C`;
 }
 
+function resolveAttributionText(weather?: HeatRiskResponse | null): string {
+  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  if (isVirtual) {
+    return '데이터 출처: [가상 시뮬레이션 추정치] (실시간 네트워크 미연결 · 모의 데이터)';
+  }
+  const base = '데이터 출처: 기상청 · 한국환경공단(에어코리아)';
+  return weather?.attribution ? `${base} · ${weather.attribution}` : base;
+}
+
+function resolveModalAttributionText(weather?: HeatRiskResponse | null): string {
+  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  if (isVirtual) {
+    return '데이터 출처: [가상 시뮬레이션 추정치] (실시간 네트워크 미연결 시 모의 추정 모델 적용)';
+  }
+  const base = '데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)';
+  return weather?.attribution ? `${base} · ${weather.attribution}` : `${base} · Open-Meteo`;
+}
+
 interface WeatherDetailModalProps {
   readonly visible: boolean;
   readonly onClose: () => void;
@@ -246,6 +264,8 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
     ? Math.round(surfaceTemps.asphalt - surfaceTemps.grass)
     : null;
 
+  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+
   return (
     <Modal
       visible={visible}
@@ -277,6 +297,15 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
+            {/* 가상 데이터 사용 시 투명 고지 배너 */}
+            {isVirtual && (
+              <View style={styles.modalVirtualNoticeBox}>
+                <Text style={styles.modalVirtualNoticeText}>
+                  ⚠️ [가상 시뮬레이션 데이터] 실시간 기상 서버에 연결되지 않아 KST 모의 추정 모델이 적용되었습니다.
+                </Text>
+              </View>
+            )}
+
             {/* 산책 지수 총평 배지 */}
             <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
               <Text style={[styles.modalScoreNumber, { color: quotient.badgeColor }]}>{quotient.score}점</Text>
@@ -381,8 +410,7 @@ const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
             {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
             <View style={styles.modalAttributionBox}>
               <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
-                데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)
-                {weather?.attribution ? ` · ${weather.attribution}` : ' · Open-Meteo'}
+                {resolveModalAttributionText(weather)}
               </Text>
             </View>
           </ScrollView>
@@ -440,6 +468,7 @@ interface ScoreCardProps {
   readonly airQualityLabel: string;
   readonly isTomorrow: boolean;
   readonly timeRangeDisplay: string;
+  readonly isVirtual?: boolean;
   readonly onOpenModal: () => void;
 }
 
@@ -452,6 +481,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
   airQualityLabel,
   isTomorrow,
   timeRangeDisplay,
+  isVirtual,
   onOpenModal,
 }) => (
   <TouchableOpacity
@@ -494,26 +524,33 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
 
       {/* 상태 뱃지, 아이콘 칩(강수/미세먼지), 타이틀, 추천 시간 */}
       <View style={styles.scoreContent}>
-        {/* 상단: 상태 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
+        {/* 상단: 상태 뱃지 + 가상추정 뱃지 + 강수확률/미세먼지 아이콘 칩 */}
         <View style={styles.badgeChipsRow}>
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor: quotient.badgeBg,
-                paddingVertical: responsive.weatherStatusBadgePadV,
-                paddingHorizontal: responsive.weatherStatusBadgePadH,
-              },
-            ]}
-          >
-            <Text
+          <View style={styles.statusBadgeWrap}>
+            <View
               style={[
-                styles.statusBadgeText,
-                { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+                styles.statusBadge,
+                {
+                  backgroundColor: quotient.badgeBg,
+                  paddingVertical: responsive.weatherStatusBadgePadV,
+                  paddingHorizontal: responsive.weatherStatusBadgePadH,
+                },
               ]}
             >
-              ✓ {quotient.statusLabel}
-            </Text>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
+                ]}
+              >
+                ✓ {quotient.statusLabel}
+              </Text>
+            </View>
+            {isVirtual && (
+              <View style={styles.virtualIndicatorBadge}>
+                <Text style={styles.virtualIndicatorText}>가상 추정</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.iconChipsRow}>
@@ -692,6 +729,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   const airQuality = weather?.air_quality;
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
+  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
 
   return (
     <View
@@ -711,6 +749,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
         airQualityLabel={airQualityLabel}
         isTomorrow={isTomorrow}
         timeRangeDisplay={timeRangeDisplay}
+        isVirtual={isVirtual}
         onOpenModal={() => setModalVisible(true)}
       />
 
@@ -747,8 +786,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
       {/* 5. 데이터 출처 표기 (화면 상시 마이크로 출처) */}
       <View style={[styles.attributionContainer, { marginTop: responsive.weatherAttributionMarginTop }]}>
         <Text style={[styles.attributionText, { color: colors.textMuted, fontSize: responsive.weatherAttributionSize }]}>
-          데이터 출처: 기상청 · 한국환경공단(에어코리아)
-          {weather?.attribution ? ` · ${weather.attribution}` : ''}
+          {resolveAttributionText(weather)}
         </Text>
       </View>
     </View>
@@ -834,6 +872,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 2,
   },
+  statusBadgeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   statusBadge: {
     paddingHorizontal: 6,
     paddingVertical: 1.5,
@@ -842,6 +885,19 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 10.5,
     fontWeight: '800',
+  },
+  virtualIndicatorBadge: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#9CA3AF',
+    borderWidth: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  virtualIndicatorText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#4B5563',
   },
   iconChipsRow: {
     flexDirection: 'row',
@@ -941,6 +997,20 @@ const styles = StyleSheet.create({
   },
   modalScrollBody: {
     paddingBottom: 6,
+  },
+  modalVirtualNoticeBox: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 10,
+  },
+  modalVirtualNoticeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+    lineHeight: 15,
   },
   modalScoreBanner: {
     flexDirection: 'row',
