@@ -64,6 +64,24 @@ def estimate_surface_temp(air_temp_c: float, insolation_weight: float) -> float:
     return round(air_temp_c + insolation_weight * SURFACE_HEAT_GAIN_C, 1)
 
 
+SURFACE_HEAT_GAIN_MAP = {
+    "asphalt": 18.0,
+    "paved": 14.0,
+    "rubber": 12.0,
+    "dirt": 8.0,
+    "grass": 4.0,
+    "gravel": 10.0,
+}
+
+
+def calculate_surface_temps(air_temp_c: float, insolation_weight: float) -> Dict[str, float]:
+    """노면 재질별 추정 지면온도 (US-B2 노면 비용 모델 연동)."""
+    return {
+        surface: round(air_temp_c + insolation_weight * gain, 1)
+        for surface, gain in SURFACE_HEAT_GAIN_MAP.items()
+    }
+
+
 def risk_level(surface_temp_c: float) -> str:
     if surface_temp_c <= SAFE_MAX_C:
         return "SAFE"
@@ -82,6 +100,8 @@ def _entry(when: datetime, air_temp_c: float, sky_code: Optional[int], pty_code:
             weight = min(1.0, max(0.0, float(provided)))
             source = "provider"
     surface = estimate_surface_temp(air_temp_c, weight)
+    solar_radiation_w_m2 = round(weight * 1000.0, 1)
+    surface_temps = calculate_surface_temps(air_temp_c, weight)
     if pop is not None:
         pop_val = int(pop)
     elif pty_code:
@@ -91,6 +111,8 @@ def _entry(when: datetime, air_temp_c: float, sky_code: Optional[int], pty_code:
 
     return {
         "hour": when.hour, "air_temp_celsius": air_temp_c, "estimated_surface_temp": surface,
+        "solar_radiation_w_m2": solar_radiation_w_m2,
+        "surface_temps": surface_temps,
         "risk_level": risk_level(surface), "is_golden_time": surface <= SAFE_MAX_C, "notice": NOTICE,
         "condition": condition, "insolation_weight": weight, "insolation_source": source,
         "pop": pop_val,
