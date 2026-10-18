@@ -179,6 +179,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             onPinSelect={onPinSelect}
           />
         </View>
+
+        {/* 고도 자료 출처 (Copernicus DEM 라이선스 6조 (b), #76) */}
+        {planResult?.elevationAttribution ? (
+          <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+            고도·경사: {planResult.elevationAttribution}
+          </Text>
+        ) : null}
       </ScrollView>
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
@@ -294,6 +301,7 @@ const styles = StyleSheet.create({
   mainScroll: { flex: 1 },
   mainScrollContent: { flexGrow: 1 },
   mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+  elevationAttribution: { fontSize: 9, lineHeight: 12, marginTop: 6, paddingHorizontal: 4 },
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,

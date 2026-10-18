@@ -10,6 +10,7 @@ export const DATA_SOURCES_ATTRIBUTION = [
   'OpenStreetMap(OSM) (ODbL)',
   '기상청 공공데이터포털 단기예보 오픈 API',
   'Open-Meteo.com (CC BY 4.0)',
+  'Copernicus DEM GLO-30 (© DLR e.V. 2010-2014, © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA)',
 ] as const;
 
 export const TERMS_OF_SERVICE = `

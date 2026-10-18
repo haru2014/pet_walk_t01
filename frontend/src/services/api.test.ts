@@ -32,6 +32,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
       briefing: '실시간 AI 코스가 생성되었습니다.',
       validated_park_id: 'yurim',
       route_validation: { live_1: { passed: true, park_id: 'yurim' } },
+      elevation_source: { name: 'Copernicus DEM GLO-30', attribution: 'produced using Copernicus WorldDEM-30 © DLR e.V.' },
       geojson: { type: 'FeatureCollection', features: [{ geometry: { type: 'LineString', coordinates: [[127, 36], [127.001, 36]] } }] },
       course_plans: {
         live_1: {
@@ -52,6 +53,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(result.courses[0].name).toBe('실시간 생성 코스');
     expect(result.briefingMessage).toBe('실시간 AI 코스가 생성되었습니다.');
     expect(result.coursePlans?.live_1).toBeDefined();
+    expect(result.elevationAttribution).toBe('produced using Copernicus WorldDEM-30 © DLR e.V.');
   });
 
   it('진입 경로 1: 현재 위치 기반(current_location) 요청 시 실측 GPS 좌표를 전송해야 한다', async () => {
