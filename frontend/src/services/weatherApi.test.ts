@@ -188,6 +188,29 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
       expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
     });
+
+    it('오프라인 폴백 응답은 10초(FALLBACK_CACHE_TTL_MS) 후 만료되어 서버 재시도를 허용해야 한다', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Offline'));
+
+      // 1. 첫 호출: 실패하여 폴백 생성
+      await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+      // 2. 5초 경과: 폴백 캐시 유효
+      const realNow = Date.now;
+      try {
+        const baseNow = realNow();
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 5000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+        // 3. 11초 경과: 폴백 캐시 만료되어 null 반환 (실서버 재조회 준비)
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 11000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).toBeNull();
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
   });
 
   describe('computeFocusedGoldenWindow (1.5~2시간 슬롯 압축)', () => {

@@ -31,9 +31,9 @@ export function getFallbackApiBaseUrl(): string | null {
 }
 
 /**
- * 타임아웃 지원 fetch 래퍼
+ * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 8초)
  */
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 3500): Promise<Response> {
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -64,7 +64,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 350
 export async function fetchWithServerFallback(
   endpoint: string,
   init?: RequestInit,
-  primaryTimeoutMs = 3500,
+  primaryTimeoutMs = 8000,
   fallbackTimeoutMs = 2000
 ): Promise<Response> {
   const primaryBase = getPrimaryApiBaseUrl();
