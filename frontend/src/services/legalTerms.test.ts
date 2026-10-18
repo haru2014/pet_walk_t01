@@ -18,6 +18,10 @@ describe('회원가입약관 및 개인정보보호정책 규격 검증', () => 
     expect(DATA_SOURCES_ATTRIBUTION).toContain('Open-Meteo.com (CC BY 4.0)');
   });
 
+  it('DEM 을 쓰므로 데이터 출처 목록에 Copernicus DEM GLO-30 저작권 표기가 있어야 한다 (#76)', () => {
+    expect(DATA_SOURCES_ATTRIBUTION.some((s) => s.startsWith('Copernicus DEM GLO-30') && s.includes('© DLR e.V. 2010-2014'))).toBe(true);
+  });
+
   it('개인정보보호정책(PRIVACY_POLICY)에 Local-First 및 공간 마스킹 원칙이 포함되어야 한다', () => {
     expect(PRIVACY_POLICY).toBeDefined();
     expect(PRIVACY_POLICY.length).toBeGreaterThan(100);

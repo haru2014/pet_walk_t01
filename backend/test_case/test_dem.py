@@ -6,7 +6,7 @@
 1. 읽기: 위경도 파일, 투영 좌표계(EPSG:5179) 파일, 방향(북쪽으로 갈수록 +), 경계.
 2. 여러 파일: 가장 촘촘한 파일 우선, 범위 밖/NoData 이면 다음 파일.
 3. 폴더 읽기: 하위 폴더, 확장자, 깨진 파일 건너뛰기, ERDAS .img.
-4. 기본 DEM(DEM_DIR): 환경변수 변경, 비어 있음.
+4. 기본 DEM(DEM_DIR): 환경변수 변경, 비어 있음/off(끔), 없음(저장소 Copernicus 파일).
 5. 연결: estimate_elevation_m 이 실제 DEM 을 먼저 쓰고, 없으면 근사 모델로 대신.
 6. 저장소 포함 파일(backend/data/dem): 읽기, 파일럿 지점 고도, 출처 고지 파일, DEM_DIR 상대 경로.
 7. 실제 파일 시험(로컬 전용): REAL_DEM_DIR=/폴더 pytest backend/test_case/test_dem.py -k RealDem
@@ -422,8 +422,39 @@ class TestBundledDem:
     def test_points_outside_the_pilot_area_fall_back_to_the_approximation(self, bundled):
         assert bundled.elevation(37.5665, 126.9780) is None  # 서울시청
 
-    def test_dem_stays_off_by_default(self):
-        assert not dem.get_dem_set()  # DEM_DIR 이 비어 있으면 저장소 파일이 있어도 쓰지 않는다
+    def test_empty_dem_dir_turns_dem_off(self):
+        assert not dem.get_dem_set()  # DEM_DIR 이 비어 있으면 저장소 파일이 있어도 쓰지 않는다 (테스트 기본)
+        assert dem.elevation_source() is None
+
+    def test_unset_dem_dir_uses_the_bundled_copernicus_file(self, monkeypatch):
+        """#76: 운영처럼 DEM_DIR 이 아예 없으면 저장소의 Copernicus 파일을 쓰고 출처 문구를 알려 준다."""
+        monkeypatch.delenv(dem.ENV_DEM_DIR)
+        assert dem.configured_dem_dir() == str(dem.BUNDLED_DEM_DIR)
+        assert [r.path.name for r in dem.get_dem_set().rasters] == ["copernicus_glo30_daejeon_sejong.tif"]
+        source = dem.elevation_source()
+        assert source["name"] == "Copernicus DEM GLO-30"
+        assert source["attribution"].startswith("produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014")
+        notice = (dem.BUNDLED_DEM_DIR / "NOTICE.md").read_text(encoding="utf-8")
+        assert source["attribution"] in notice
+
+    @pytest.mark.parametrize("value", ["off", "OFF", " none ", "false", "0", "   "])
+    def test_off_values_turn_dem_off(self, monkeypatch, value):
+        monkeypatch.setenv(dem.ENV_DEM_DIR, value)
+        assert dem.configured_dem_dir() is None and not dem.get_dem_set()
+
+    def test_walk_plan_and_health_report_the_elevation_source(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main
+        client = TestClient(main.app)
+        body = {"origin_lat": 36.3607066, "origin_lon": 127.3579488, "target_duration_minutes": 30,
+                "origin_mode": "park", "pilot_park_id": "yurim"}
+        assert client.get("/health").json()["dem"] == "off"
+        assert client.post("/api/v1/walk/plan", json=body).json()["elevation_source"] is None
+        monkeypatch.delenv(dem.ENV_DEM_DIR)
+        assert client.get("/health").json()["dem"] == "Copernicus DEM GLO-30"
+        res = client.post("/api/v1/walk/plan", json=body)
+        assert res.status_code == 200, res.text
+        assert res.json()["elevation_source"]["attribution"] == dem.COPERNICUS_ATTRIBUTION
 
     def test_required_copernicus_notices_are_next_to_the_data(self):
         notice = (dem.BUNDLED_DEM_DIR / "NOTICE.md").read_text(encoding="utf-8")

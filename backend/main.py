@@ -44,6 +44,7 @@ from agent.hazard_service import (
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
 from services import open_meteo_client
+from services.dem import elevation_source
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -104,6 +105,8 @@ def health_check():
         "supabase_connected": community_repo.is_connected(),
         # 지금 서버에 올라가 있는 커밋(Render 가 자동으로 넣어 주는 값). 로컬 실행에서는 빈 문자열.
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
+        # 경사 계산에 쓰는 고도 자료 (운영 반영 확인용). DEM 을 끄면 "off"
+        "dem": (elevation_source() or {}).get("name") or "off",
     }
 
 
@@ -422,6 +425,8 @@ def _build_walk_plan_response(
         "score": agent_result.best_score,
         "is_live_server": True,
         "weather": agent_result.weather_context,
+        # 경사·구간 색을 계산한 고도 자료와 출처 문구 (DEM 을 쓰지 않으면 None, 앱이 출처를 표시한다)
+        "elevation_source": elevation_source(),
     }
     if park_mode:
         resp_data["route_validation"] = validations

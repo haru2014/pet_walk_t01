@@ -1,9 +1,9 @@
 """[US-B1] 로컬 DEM 래스터(GeoTIFF, ERDAS .img 등)에서 고도(m)를 읽는다.
 
 - 환경변수 DEM_DIR 폴더(하위 폴더 포함)의 .tif / .tiff / .img 파일을 모두 읽는다.
-  DEM_DIR 이 비어 있으면 DEM 을 쓰지 않고 근사 고도로 동작한다 (기본값).
-  저장소에는 파일럿 지역 Copernicus 파일이 backend/data/dem 에 있으며, DEM_DIR=data/dem 으로 켠다
-  (상대 경로는 backend 폴더 기준). 다른 자료(국토지리정보원 90m 등)는 각자 받아 다른 폴더를 지정한다.
+  DEM_DIR 이 **없으면** 저장소에 포함된 파일럿 지역 Copernicus 파일(backend/data/dem)을 쓴다 (기본값, #76).
+  DEM_DIR 이 비어 있거나 off 이면 DEM 을 쓰지 않고 근사 고도로 동작한다 (테스트는 빈 값으로 끈다).
+  다른 자료(국토지리정보원 90m 등)는 각자 받아 그 폴더를 지정한다 (상대 경로는 backend 폴더 기준).
 - 파일의 좌표계는 무엇이든 된다 (위경도, EPSG:5179, EPSG:5186 등). 위경도를 파일 좌표계로 바꿔 읽는다.
 - 여러 파일이 같은 지점을 덮으면 **칸이 가장 작은(촘촘한) 파일**을 우선하고, 그 파일에
   값이 없으면(범위 밖, NoData) 다음 파일로 넘어간다.
@@ -19,7 +19,7 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -42,7 +42,11 @@ logger = logging.getLogger(__name__)
 ENV_DEM_DIR = "DEM_DIR"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 BUNDLED_DEM_DIR = BACKEND_DIR / "data" / "dem"  # 저장소에 포함된 파일럿 지역 DEM (출처: data/dem/NOTICE.md)
+DISABLED_VALUES = {"off", "none", "false", "0"}  # DEM_DIR 에 이 값(또는 빈 값)을 넣으면 DEM 을 끈다
 SUPPORTED_SUFFIXES = {".tif", ".tiff", ".img"}
+# Copernicus 라이선스 6조 (b): 가공한 자료(경사 등)를 보여 줄 때의 출처 문구 (data/dem/NOTICE.md)
+COPERNICUS_ATTRIBUTION = ("produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space "
+                          "GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved")
 MAX_CELLS_IN_MEMORY = 25_000_000  # 이보다 크면 읽을 때마다 필요한 칸만 읽는다
 
 
@@ -168,10 +172,21 @@ def resolve_dem_dir(value: Optional[str]) -> Optional[Path]:
     return path if path.is_absolute() else BACKEND_DIR / path
 
 
+def configured_dem_dir() -> Optional[str]:
+    """DEM_DIR 설정을 해석한다. 없으면 저장소 포함 폴더, 비어 있거나 off 이면 None(끔), 그 밖에는 그 값."""
+    raw = os.getenv(ENV_DEM_DIR)
+    if raw is None:
+        return str(BUNDLED_DEM_DIR)
+    value = raw.strip()
+    if not value or value.lower() in DISABLED_VALUES:
+        return None
+    return value
+
+
 def get_dem_set() -> DemSet:
-    """DEM_DIR 환경변수 기준의 기본 DEM 묶음 (환경변수가 바뀌면 다시 읽는다). 비어 있으면 DEM 을 쓰지 않는다."""
+    """DEM_DIR 설정 기준의 기본 DEM 묶음 (설정이 바뀌면 다시 읽는다). 끈 상태이면 빈 묶음."""
     global _default
-    directory = os.getenv(ENV_DEM_DIR) or None
+    directory = configured_dem_dir()
     if _default is None or _default[0] != directory:
         reset_default_dem()
         folder = resolve_dem_dir(directory)
@@ -187,6 +202,17 @@ def reset_default_dem() -> None:
     if _default is not None:
         _default[1].close()
     _default = None
+
+
+def elevation_source() -> Optional[Dict[str, Optional[str]]]:
+    """지금 쓰는 고도 자료의 이름과 출처 문구. DEM 을 쓰지 않으면 None (근사 고도)."""
+    dem_set = get_dem_set()
+    if not dem_set:
+        return None
+    names = [raster.path.name for raster in dem_set.rasters]
+    if any(name.lower().startswith("copernicus") for name in names):
+        return {"name": "Copernicus DEM GLO-30", "attribution": COPERNICUS_ATTRIBUTION}
+    return {"name": ", ".join(names), "attribution": None}
 
 
 def get_elevation_m(lat: float, lon: float) -> Optional[float]:
