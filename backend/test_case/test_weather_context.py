@@ -526,3 +526,19 @@ class TestWeatherContext:
         _server(monkeypatch, ncst=urllib.error.URLError("down"))
         with pytest.raises(KmaApiError):
             wc.build_weather_context(*DOAN, now=NOW)
+
+
+class TestDirtHeatGain:
+    """흙 상승폭은 기상청 ASOS 관측 지면온도(맨땅)에 맞춘 값이다 (docs/reports/2026-10-18_지면온도_추정_오차_평가.md)."""
+
+    def test_dirt_gain_matches_the_observed_bare_ground_fit(self):
+        assert wc.SURFACE_HEAT_GAIN_MAP["dirt"] == 12.6
+        assert wc.calculate_surface_temps(30.0, 1.0)["dirt"] == 42.6
+        assert wc.SURFACE_HEAT_GAIN_MAP["grass"] < wc.SURFACE_HEAT_GAIN_MAP["dirt"] < wc.SURFACE_HEAT_GAIN_MAP["asphalt"]
+
+    def test_server_fallback_uses_the_same_dirt_gain(self):
+        import main
+        for entry in main._generate_fallback_hourly_dtos():
+            weight = entry["solar_radiation_w_m2"] / 1000.0
+            expected = round(entry["air_temp_celsius"] + weight * wc.SURFACE_HEAT_GAIN_MAP["dirt"], 1)
+            assert entry["surface_temps"]["dirt"] == expected, entry["hour"]
