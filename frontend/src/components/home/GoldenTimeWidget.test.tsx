@@ -11,8 +11,17 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GoldenTimeWidget } from './GoldenTimeWidget';
+import { GoldenTimeWidget, WeatherDetailModal } from './GoldenTimeWidget';
 import { HeatRiskResponse } from '../../types/weather';
+
+vi.mock('react-native', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    Modal: ({ visible, children }: any) =>
+      visible ? React.createElement('div', { 'data-testid': 'mock-modal' }, children) : null,
+  };
+});
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
@@ -219,6 +228,148 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
       expect(html).toContain('29°C');
       expect(html).toContain('아스팔트 대비 잔디밭이 약 12℃ 더 시원해요!');
       expect(html).toContain('일사 720W/m²');
+    });
+
+    it('일사량이 0이고 모든 노면이 22.1°C일 때 모든 노면 상태가 시원·안전으로 동적 표시되어야 한다', () => {
+      const cloudyRainWeather: HeatRiskResponse = {
+        isLiveServer: true,
+        current_hour: 17,
+        current_air_temp: 22.1,
+        current_surface_temp: 22.1,
+        solar_radiation_w_m2: 0,
+        surface_temps: {
+          asphalt: 22.1,
+          paved: 22.1,
+          dirt: 22.1,
+          grass: 22.1,
+        },
+        current_risk_level: 'SAFE',
+        is_current_golden: true,
+        golden_time_window: '17:00 ~ 23:00',
+        golden_time_window_day: 'today',
+        pop: 60,
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+        fetched_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(
+        <WeatherDetailModal
+          visible={true}
+          onClose={vi.fn()}
+          colors={{ surface: '#fff', border: '#eee', textMain: '#111', textMuted: '#666', background: '#fafafa' }}
+          quotient={{
+            score: 100,
+            ringColor: '#10B981',
+            badgeBg: '#D1FAE5',
+            badgeColor: '#065F46',
+            statusLabel: '좋음',
+            statusTitle: '산책하기 편한 시간이 있어요.',
+          }}
+          subtitleText="지면온도 22.1℃로 발바닥이 편안하고 안전해요."
+          currentAirTemp={22.1}
+          roundedSurfaceTemp={22.1}
+          riskLevel="SAFE"
+          popPercent={60}
+          airQualityColor="#059669"
+          airQualityLabel="좋음"
+          isTomorrow={false}
+          timeRangeDisplay="17:00 ~ 23:00"
+          weather={cloudyRainWeather}
+        />
+      );
+
+      expect(html).toContain('노면별 발바닥 체감온도 비교');
+      expect(html).toContain('22.1°C');
+      expect(html).toContain('🌱 시원·안전');
+      expect(html).toContain('직사광선이 없어 모든 노면이 시원하고 안전해요!');
+      expect(html).toContain('비 예보 · 우산 필수');
+      // 22.1도인데 아스팔트에 '고열 주의'가 붙지 않아야 함
+      expect(html).not.toContain('🔥 고열 주의');
+    });
+
+    it('강수확률이 60%일 때 지면이 서늘해도 100점이 아닌 65점(비 예보)으로 산정되어야 한다', () => {
+      const rainForecastWeather: HeatRiskResponse = {
+        isLiveServer: true,
+        current_hour: 17,
+        current_air_temp: 22.1,
+        current_surface_temp: 22.1,
+        solar_radiation_w_m2: 0,
+        surface_temps: {
+          asphalt: 22.1,
+          paved: 22.1,
+          dirt: 22.1,
+          grass: 22.1,
+        },
+        current_risk_level: 'SAFE',
+        is_current_golden: true,
+        golden_time_window: '17:00 ~ 23:00',
+        golden_time_window_day: 'today',
+        pop: 60,
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+        fetched_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(<GoldenTimeWidget weather={rainForecastWeather} />);
+
+      // 100점이 아니라 65점 및 비 예보로 감점 반영
+      expect(html).toContain('65');
+      expect(html).toContain('✓ 비 예보');
+      expect(html).toContain('비 예보(우산 필수)가 있어요');
+      expect(html).not.toContain('100');
+    });
+
+    it('현재 비가 내리는 중(pty=1)일 때는 우천 주의(42점)로 강등되어야 한다', () => {
+      const activeRainWeather: HeatRiskResponse = {
+        isLiveServer: true,
+        current_hour: 17,
+        current_air_temp: 20.0,
+        current_surface_temp: 20.0,
+        solar_radiation_w_m2: 0,
+        current_risk_level: 'SAFE',
+        is_current_golden: true,
+        golden_time_window: '17:00 ~ 23:00',
+        golden_time_window_day: 'today',
+        pop: 100,
+        pty: 1, // 비
+        condition: 'rainy',
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+        fetched_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(<GoldenTimeWidget weather={activeRainWeather} />);
+
+      expect(html).toContain('42');
+      expect(html).toContain('✓ 우천 주의');
+      expect(html).toContain('실내 놀이를 추천해요');
+    });
+
+    it('현재 눈이 내리는 중(pty=3)일 때는 강설 주의(38점)로 강등되어야 한다', () => {
+      const activeSnowWeather: HeatRiskResponse = {
+        isLiveServer: true,
+        current_hour: 17,
+        current_air_temp: -1.0,
+        current_surface_temp: -1.0,
+        solar_radiation_w_m2: 0,
+        current_risk_level: 'SAFE',
+        is_current_golden: true,
+        golden_time_window: '17:00 ~ 23:00',
+        golden_time_window_day: 'today',
+        pop: 90,
+        pty: 3, // 눈
+        condition: 'snowy',
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+        fetched_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(<GoldenTimeWidget weather={activeSnowWeather} />);
+
+      expect(html).toContain('38');
+      expect(html).toContain('✓ 강설 주의');
+      expect(html).toContain('동상 위험');
     });
   });
 });

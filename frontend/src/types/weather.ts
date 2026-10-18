@@ -31,6 +31,9 @@ export interface HeatRiskHourDTO {
   readonly notice: string;
   readonly solar_radiation_w_m2?: number;
   readonly surface_temps?: SurfaceTempsDTO;
+  readonly pop?: number;
+  readonly pty?: number;
+  readonly condition?: string;
 }
 
 /**
@@ -57,6 +60,8 @@ export interface HeatRiskResponse {
   readonly golden_time_window: string;
   readonly golden_time_window_day?: GoldenTimeWindowDay;
   readonly pop?: number;
+  readonly pty?: number;
+  readonly condition?: string;
   readonly solar_radiation_w_m2?: number;
   readonly surface_temps?: SurfaceTempsDTO;
   readonly air_quality?: AirQualityDTO | null;
