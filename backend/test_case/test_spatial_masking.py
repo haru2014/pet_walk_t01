@@ -6,6 +6,8 @@
 3. 궤적 코너(회전각 >= 35도) 변곡점 스냅 절단
 """
 
+import math
+
 import pytest
 from agent.spatial_masking import (
     apply_spatial_masking_to_course,
@@ -85,3 +87,60 @@ class TestSpatialMaskingWithIntersectionSnap:
         # 시작점이 직선 골목 중간(p_210m)이 아닌, 갈림길 코너(p_corner)로 스냅되어야 함
         assert res["masked_coordinates"][0] == p_corner
         assert res["start_intersection"]["type"] == "trajectory_corner_snap"
+
+
+class TestReentryAudit:
+    """200m 마스킹 감사(2026-10-18): 끝을 자른 뒤 경로 중간이 집 반경 안으로 다시 들어오는 경우."""
+    HOME = (127.3780, 36.3510)  # [lon, lat] 가상 자택 (대전 둔산동)
+
+    def _pt(self, dx_m, dy_m):
+        return [self.HOME[0] + dx_m / (111320 * math.cos(math.radians(self.HOME[1]))), self.HOME[1] + dy_m / 110570]
+
+    def _line(self, a, b, n):
+        return [self._pt(a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n) for i in range(n + 1)]
+
+    def _min_distance_to_home(self, coords):
+        """남은 경로의 선분까지 포함한 자택 최소 거리(m, 평면 근사)."""
+        kx, ky = 111320 * math.cos(math.radians(self.HOME[1])), 110570
+        best = float("inf")
+        for a, b in zip(coords, coords[1:]):
+            ax, ay = (a[0] - self.HOME[0]) * kx, (a[1] - self.HOME[1]) * ky
+            bx, by = (b[0] - self.HOME[0]) * kx, (b[1] - self.HOME[1]) * ky
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, -(ax * dx + ay * dy) / (dx * dx + dy * dy))) if dx or dy else 0.0
+            best = min(best, math.hypot(ax + t * dx, ay + t * dy))
+        return best
+
+    def test_figure_eight_passing_home_again_is_cut(self):
+        route = (self._line((0, 0), (500, 0), 25) + self._line((500, 0), (500, 300), 15)[1:]
+                 + self._line((500, 300), (-60, 30), 28)[1:] + self._line((-60, 30), (-500, 0), 22)[1:]
+                 + self._line((-500, 0), (-500, -300), 15)[1:] + self._line((-500, -300), (0, 0), 28)[1:])
+        res = apply_spatial_masking_to_course(route, masking_radius_m=200.0)
+        assert res["reentry_removed_points"] > 0
+        assert len(res["masked_coordinates"]) >= 2
+        assert self._min_distance_to_home(res["masked_coordinates"]) > 200.0  # 수정 전: 53m 까지 접근
+
+    def test_segment_crossing_the_home_circle_is_cut(self):
+        """GPS 점은 모두 반경 밖이지만 두 점을 잇는 선분이 집 원을 가로지르는 경우."""
+        route = [self._pt(0, 0), self._pt(0, 150), self._pt(0, 300), self._pt(300, 300), self._pt(300, -250),
+                 self._pt(-300, 250), self._pt(-300, -300), self._pt(0, -300), self._pt(0, -150), self._pt(0, 0)]
+        res = apply_spatial_masking_to_course(route, masking_radius_m=200.0)
+        assert self._min_distance_to_home(res["masked_coordinates"]) > 200.0
+
+    def test_ordinary_loop_is_unchanged(self):
+        route = (self._line((0, 0), (600, 0), 30) + self._line((600, 0), (600, 400), 20)[1:]
+                 + self._line((600, 400), (0, 400), 30)[1:] + self._line((0, 400), (0, 0), 20)[1:])
+        res = apply_spatial_masking_to_course(route, masking_radius_m=200.0)
+        assert res["reentry_removed_points"] == 0 and len(res["masked_coordinates"]) == 51
+
+
+def test_walk_plan_log_does_not_keep_the_exact_origin(caplog):
+    """현재 위치 출발 좌표(자택일 수 있음)를 운영 로그에 정밀하게 남기지 않는다 (200m 마스킹 감사)."""
+    from fastapi.testclient import TestClient
+    import main
+    with caplog.at_level("INFO"):
+        TestClient(main.app).post("/api/v1/walk/plan", json={"origin_lat": 36.351234, "origin_lon": 127.378456,
+                                                             "target_duration_minutes": 30})
+    logged = [r.getMessage() for r in caplog.records if "walk_plan_requested" in r.getMessage()]
+    assert logged and "127.378456" not in logged[0] and "36.351234" not in logged[0]
+    assert '"origin_approx": [127.38, 36.35]' in logged[0]

@@ -519,7 +519,8 @@ def plan_walk_route(req: Dict[str, Any]):
                 "request_id": request_id,
                 "origin_mode": origin_mode,
                 "park_id": selected_park,
-                "origin": [origin_lon, origin_lat],
+                # 현재 위치 출발은 자택일 수 있어 운영 로그에는 약 1km 단위(소수 둘째 자리)로만 남긴다 (200m 마스킹 감사)
+                "origin_approx": [round(origin_lon, 2), round(origin_lat, 2)],
                 "target_minutes": target_duration,
             },
             ensure_ascii=False,
