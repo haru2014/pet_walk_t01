@@ -28,6 +28,8 @@ import { WalkVoiceInputSection } from './WalkVoiceInputSection';
 import { WalkDurationSlider } from './WalkDurationSlider';
 import { getCurrentLocationCoords } from '../../services/locationService';
 import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voiceIntentApi';
+import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
+import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -76,21 +78,6 @@ function getAiBannerBody(
     return '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.';
   }
   return '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)';
-}
-
-function resolveAiEnvironments(
-  prev: EnvironmentId[],
-  intent: VoiceIntentResult['intent']
-): EnvironmentId[] {
-  const set = new Set<EnvironmentId>(prev);
-  if (intent.prefer_shade) set.add('shade');
-  if (intent.prefer_cushion) set.add('soft');
-  if (intent.avoid_stairs) {
-    set.add('stairs');
-  } else {
-    set.delete('stairs');
-  }
-  return Array.from(set);
 }
 
 function buildAiNoticeSummary(
@@ -143,6 +130,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [aiNotice, setAiNotice] = useState<{ summary: string; briefing?: string } | null>(null);
+  const [unsupportedLandmark, setUnsupportedLandmark] = useState<string | null>(null);
+
+  const clearVoiceWarning = () => {
+    setUnsupportedLandmark(null);
+    setAiNotice(null);
+  };
 
   const fetchUserLocation = async () => {
     setIsLocating(true);
@@ -185,9 +178,15 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
     // 3. 랜드마크 공원 자동 설정 (정규화 적용)
     let resolvedParkId = pilotParkId;
-    const rawTarget = landmark_park_id || intent.destination_landmark;
-    if (rawTarget) {
-      resolvedParkId = normalizeToFrontendParkId(rawTarget);
+    const rawTarget = intent.destination_landmark || landmark_park_id;
+    const parkId = normalizeToFrontendParkId(rawTarget);
+    setUnsupportedLandmark(rawTarget && !parkId ? rawTarget : null);
+    if (rawTarget && !parkId) {
+      setAiNotice({ summary: unsupportedParkMessage(rawTarget) });
+      return;
+    }
+    if (parkId) {
+      resolvedParkId = parkId;
       setOriginMode('park');
       setPilotParkId(resolvedParkId);
     }
@@ -203,6 +202,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const currentPark = getPilotParkById(pilotParkId);
 
   const handleSubmit = async () => {
+    if (unsupportedLandmark) return;
     const payloadDuration = isFreeWalk ? null : duration;
     if (originMode === 'current_location') {
       const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
@@ -269,7 +269,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           <View style={styles.aiFeedbackCard}>
             <View style={styles.aiFeedbackTop}>
               <AppIcon name="sparkle" size={14} color="#4338CA" />
-              <Text style={styles.aiFeedbackTitle}>AI 맞춤 산책 조건 적용 완료</Text>
+              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : 'AI 맞춤 산책 조건 적용 완료'}</Text>
             </View>
             <Text style={styles.aiFeedbackSummary}>{aiNotice.summary}</Text>
             {aiNotice.briefing ? (
@@ -278,6 +278,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleSubmit}
+              disabled={Boolean(unsupportedLandmark)}
               style={styles.aiFeedbackQuickBtn}
             >
               <AppIcon name="sparkle" size={13} color="#FFFFFF" />
@@ -292,6 +293,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             activeOpacity={0.8}
             onPress={() => {
               setOriginMode('current_location');
+              clearVoiceWarning();
               if (!userCoords && !isLocating) {
                 void fetchUserLocation();
               }
@@ -317,7 +319,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => setOriginMode('park')}
+            onPress={() => { setOriginMode('park'); clearVoiceWarning(); }}
             style={[
               styles.originModeBtn,
               {
@@ -359,7 +361,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   <TouchableOpacity
                     key={park.id}
                     activeOpacity={0.8}
-                    onPress={() => setPilotParkId(park.id)}
+                    onPress={() => { setPilotParkId(park.id); clearVoiceWarning(); }}
                     style={[
                       styles.parkChip,
                       {
@@ -513,7 +515,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       <View style={[styles.bottomBar, { paddingVertical: scale(8, 10, 14), backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.88}
-          disabled={isLocating}
+          disabled={isLocating || Boolean(unsupportedLandmark)}
           onPress={handleSubmit}
           style={[styles.submitButton, { height: scale(46, 50, 56), backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
         >

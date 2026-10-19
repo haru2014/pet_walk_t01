@@ -22,6 +22,7 @@ import {
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { TTSNavigationService } from '../../services/ttsNavigation';
+import { createVoiceTranscriptHandlers } from '../../services/voiceTranscript';
 import {
   analyzeVoiceIntent,
   VoiceIntentResult,
@@ -102,22 +103,12 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
         TTSNavigationService.speak('원하시는 산책 조건을 말씀해주세요.');
       };
 
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((res: any) => res[0]?.transcript)
-          .join('');
-        if (transcript) {
-          onChangeText(transcript);
-        }
-      };
-
-      recognition.onend = () => {
+      const transcriptHandlers = createVoiceTranscriptHandlers(onChangeText, (transcript) => {
         setIsListening(false);
-        // 음성 입력 종료 시 즉시 Gemini AI 의도 분석 가동
-        if (requestText.trim()) {
-          void runAnalysis(requestText);
-        }
-      };
+        if (transcript) void runAnalysis(transcript);
+      });
+      recognition.onresult = transcriptHandlers.onresult;
+      recognition.onend = transcriptHandlers.onend;
 
       recognition.onerror = () => {
         setIsListening(false);
