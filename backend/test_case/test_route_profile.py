@@ -73,3 +73,23 @@ def test_dem_on_marks_the_slope_source(monkeypatch):
         assert profile["slope_source"] == "dem" and profile["elevation_source"] == "Copernicus DEM GLO-30"
     finally:
         dem.reset_default_dem()  # 연 DEM 파일을 닫아 다음 테스트·종료에 남기지 않는다
+
+
+@pytest.mark.parametrize("park", ["yurim", "songgang"])
+def test_course_cards_show_measured_values_not_fixed_profiles(park):
+    """#114: 카드의 경사·폭신 노면·계단은 course_profiles 실측값이다. 그늘은 자료가 없어 아직 바꾸지 않는다."""
+    data = client.post("/api/v1/walk/plan", json=_park_body(park)).json()
+    for course in data["courses"]:
+        profile = data["course_profiles"][course["id"]]
+        assert course["maxSlopePercent"] == profile["max_slope_percent"]
+        assert course["stairsCount"] == f"{profile['stairs_count']}회"
+        assert f"실측 최대 경사 {profile['max_slope_percent']}%" in course["reason"]
+        if profile["surface_known_ratio"] >= 0.5:
+            assert course["softSurfacePercent"] == round(profile["soft_surface_ratio"] * 100)
+        else:
+            assert course["softSurfacePercent"] is None and course["softRatio"] == "정보 없음"
+
+
+def test_songgang_card_does_not_invent_soft_surface():
+    data = client.post("/api/v1/walk/plan", json=_park_body("songgang")).json()
+    assert all(c["softSurfacePercent"] is None and c["softRatio"] == "정보 없음" for c in data["courses"])
