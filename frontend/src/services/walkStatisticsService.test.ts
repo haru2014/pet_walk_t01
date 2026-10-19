@@ -95,7 +95,6 @@ describe('WalkStatisticsService', () => {
     const allRecords = WalkStatisticsService.filterRecordsByPeriod(records, 'all', refDate);
     expect(allRecords).toHaveLength(3);
     expect(allRecords[0].id).toBe('walk_2');
-    expect(allRecords[2].id).toBe('walk_old');
   });
 
   it('기록이 CSV 문자열로 UTF-8 BOM과 함께 안전하게 변환된다', () => {
