@@ -39,11 +39,75 @@ def test_slope_uses_the_same_method_as_the_route_metrics():
     assert profile["slope_source"] == "approximation" and profile["elevation_source"] is None  # 테스트는 DEM 끔
 
 
-def test_outside_parks_surface_and_stairs_are_unknown_not_guessed():
+def test_outside_parks_surface_is_unknown_and_stairs_come_from_osm_steps():
     profile = measure_route_profile([[127.3780, 36.3510], [127.3790, 36.3515], [127.3800, 36.3510]])
     assert profile["basis"] == "no_osm_tags"
     assert profile["surface_breakdown"] is None and profile["soft_surface_ratio"] is None
-    assert profile["stairs_count"] is None and profile["shade_ratio"] is None
+    assert profile["shade_ratio"] is None
+    assert profile["stairs_count"] == 0 and profile["stairs_source"] == "OpenStreetMap highway=steps (ODbL)"
+
+
+def test_outside_pilot_area_stairs_stay_unknown():
+    profile = measure_route_profile([[126.9780, 37.5665], [126.9790, 37.5670], [126.9800, 37.5665]])  # 서울
+    assert profile["stairs_count"] is None and profile["stairs_source"] is None
+
+
+class TestOsmSteps:
+    """공원 밖 경로 계단 수: 경로가 OSM 계단을 따라 지날 때만 센다."""
+    STEP_ID = "1346325105"  # 대전 충남대 부근 45m 계단
+
+    @staticmethod
+    def _step_coords(way_id):
+        import json as _json
+        from services import stairs
+        ways = _json.loads(stairs.STEPS_PATH.read_text(encoding="utf-8"))["ways"]
+        return next(w["coordinates"] for w in ways if w["way_id"] == way_id)
+
+    @staticmethod
+    def _offset(coords, metres):
+        """계단 방향에 수직으로 metres 만큼 옮긴 좌표 (나란한 옆길 흉내)."""
+        import math as _math
+        kx, ky = 111320.0 * _math.cos(_math.radians(coords[0][1])), 110570.0
+        dx, dy = (coords[-1][0] - coords[0][0]) * kx, (coords[-1][1] - coords[0][1]) * ky
+        norm = _math.hypot(dx, dy)
+        nx, ny = -dy / norm * metres, dx / norm * metres
+        return [[lon + nx / kx, lat + ny / ky] for lon, lat in coords]
+
+    def test_route_that_walks_the_steps_counts_one(self):
+        from services.stairs import count_route_steps
+        step = self._step_coords(self.STEP_ID)
+        before = [step[0][0] - 0.0003, step[0][1]]
+        after = [step[-1][0] + 0.0003, step[-1][1]]
+        assert count_route_steps([before, *step, after]) == 1
+
+    def test_route_running_beside_the_steps_is_not_counted(self):
+        from services.stairs import count_route_steps
+        assert count_route_steps(self._offset(self._step_coords(self.STEP_ID), 4.0)) == 0
+
+    def test_route_crossing_the_steps_is_not_counted(self):
+        from services.stairs import count_route_steps
+        step = self._step_coords(self.STEP_ID)
+        mid = [(step[0][0] + step[-1][0]) / 2, (step[0][1] + step[-1][1]) / 2]
+        dx, dy = step[-1][0] - step[0][0], step[-1][1] - step[0][1]
+        crossing = [[mid[0] - dy * 0.5, mid[1] + dx * 0.5], [mid[0] + dy * 0.5, mid[1] - dx * 0.5]]
+        assert count_route_steps(crossing) == 0
+
+    def test_missing_steps_file_is_unknown(self, monkeypatch, tmp_path):
+        from services import stairs
+        monkeypatch.setattr(stairs, "STEPS_PATH", tmp_path / "missing.json")
+        stairs._load.cache_clear()
+        try:
+            assert stairs.count_route_steps([[127.3780, 36.3510], [127.3790, 36.3515]]) is None
+        finally:
+            stairs._load.cache_clear()
+
+    def test_current_location_card_shows_counted_stairs(self):
+        data = client.post("/api/v1/walk/plan", json={"origin_lat": 36.3510, "origin_lon": 127.3780,
+                                                      "target_duration_minutes": 30}).json()
+        for course in data["courses"]:
+            profile = data["course_profiles"][course["id"]]
+            assert profile["stairs_source"] == "OpenStreetMap highway=steps (ODbL)"
+            assert course["stairsCount"] == f"{profile['stairs_count']}회"
 
 
 @pytest.mark.parametrize("park", ["yurim", "songgang", "sejong", "doan"])
