@@ -15,7 +15,7 @@
 | **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
 | **[#128](https://github.com/haru2014/pet_walk_t01/issues/128)** | 🟡 P1 (UX) | **산책 완료 후 내보내기 기능의 사용자 접근성 개선** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
 | **[#129](https://github.com/haru2014/pet_walk_t01/issues/129)** | 🟡 P1 (기능) | **산책 기록의 지도 시각화 (실제 이동 경로 및 배변 마킹)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
-| **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
+| **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
 
 ---
 
@@ -124,33 +124,43 @@
 
 ---
 
-## 5. 🟡 Issue #130: 산책 기록 누적에 따른 목록 관리
+## 5. 🟡 [완료] Issue #130: 산책 기록 누적에 따른 목록 관리
 
 - **이슈 링크**: [#130](https://github.com/haru2014/pet_walk_t01/issues/130) (부모 이슈 [#124](https://github.com/haru2014/pet_walk_t01/issues/124))
 - **작성자**: `@kululu81` (조현정)
 - **핵심 내용**:
-  산책 기록이 지속적으로 쌓일 때 홈 화면이나 목록 화면이 과도하게 길어지는 문제 방지. 최근 1주일간의 기록을 기본 노출하고, 주간 단위 묶음/날짜별 필터 및 과거 기록 더보기(페이징) 제공.
+  산책 기록이 지속적으로 쌓일 때 목록 화면이 과도하게 길어지는 문제 방지. 최근 1주일간의 기록을 기본 노출하고, 기간별 필터링(최근 7일/30일/전체)과 과거 기록 더보기(페이징) 제공.
+- **수정 결과**:
+  - `walkStatisticsService.ts`:
+    - `WalkStatisticsService.filterRecordsByPeriod(records, period, now)` 구현: 선택된 기간('7days' | '30days' | 'all')에 맞춰 기록을 필터링하고 최신순(내림차순) 정렬 보장.
+    - `getPeriodStats`와 동기화하여 지표와 목록의 기간 일치 보장.
+  - `MyWalkHistoryView.tsx`:
+    - 상단 필터 칩(`[최근 7일] [최근 30일] [전체 기록]`) 클릭 시 목록이 즉시 연동 필터링되도록 개선.
+    - 기본 5건 우선 노출 후, 초과 시 `[과거 기록 더보기 ▾ (+N건 남음)]` 버튼으로 점진적 페이징 지원.
+    - 선택 기간 내 기록이 없을 경우 깔끔한 Empty 안내 카드(`emptyPeriodBox`) 표출.
+    - 상단 타이틀에 현재 필터 건수 및 전체 누적 건수 병기 (`최근 7일 5회 / 누적 24회`).
 
 ### 📋 세부 작업 TODO
-- [ ] `frontend/src/services/walkStatisticsService.ts` / `storage.ts`
-  - [ ] `filterRecordsByPeriod(records, 'week' | 'month' | 'all')` 필터 유틸 함수 추가
-  - [ ] 최근 7일(1주일) 기본 필터링 로직 구현
-- [ ] `frontend/src/components/walk/WalkRecordListView.tsx` (또는 홈 화면 위젯)
-  - [ ] 기본 보기: "최근 1주일 산책 기록" (최신순 최대 5~7건 노출)
-  - [ ] 필터 탭 또는 버튼: `[최근 1주일] [이번 달] [전체 기록]`
-  - [ ] 주간 단위 접기/펼치기 아코디언 또는 날짜 그룹핑 지원
-- [ ] 단위 테스트 작성 및 통과
-  - [ ] `walkStatisticsService.test.ts` 기간별 필터링 단위 테스트 추가
+- [x] `frontend/src/services/walkStatisticsService.ts`
+  - [x] `filterRecordsByPeriod(records, '7days' | '30days' | 'all')` 유틸 함수 구현
+  - [x] 최신순 정렬 및 'week' / 'month' 별칭 호환
+- [x] `frontend/src/components/profile/MyWalkHistoryView.tsx`
+  - [x] 기본 보기: 최근 1주일 필터 기본 적용
+  - [x] 페이징 지원: 기본 5건 노출 + `[과거 기록 더보기 ▾]` 버튼
+  - [x] 기간 필터 변경 시 페이징 카운트 리셋 및 즉시 목록 갱신
+  - [x] 기간 Empty 상태 카드 UI 추가
+- [x] 단위 테스트 작성 및 통과
+  - [x] `walkStatisticsService.test.ts` 기간별 필터링 및 최신순 정렬 테스트 통과
+  - [x] `MyWalkHistoryView.test.tsx` 페이징(더보기) 및 Empty 상태 테스트 2건 추가 (총 7건 통과)
+  - [x] `tsc --noEmit` 무결점 통과
+  - [x] 전체 61개 테스트 파일 (352개 테스트) 100% 통과
 
 ---
 
-## 🚀 권장 작업 순서 및 마일스톤
+## 🚀 전체 할당 이슈 완료 현황 요약
 
-1. **Step 1 (P0 버그 신속 해결):**
-   - **#117** 공유 실패 처리 버그 수정 (`communityApi.ts`)
-   - **#127** 음성 안내 남성/여성 성별 음색 불일치 수정 (`voiceSettings.ts`)
-2. **Step 2 (P1 산책 완료 및 시각화 개선):**
-   - **#128** 산책 완료 모달 내보내기 위계 조정 및 활동 성과 중심 개편 (`WalkCompletionModal.tsx`)
-   - **#129** 산책 기록 상세 지도 시각화 (실제 보행 경로 + 배변 위치 마커)
-3. **Step 3 (P1 기록 누적 목록 관리):**
-   - **#130** 최근 1주일 우선 표시 및 주간/월간 기간별 필터링 기능 구현
+- **#117** (P0 버그): 코스 공유 실패 시 완료 오안내 처리 완료 (`communityApi.ts`, `WalkReportScreen.tsx`)
+- **#127** (P0 버그): TTS 남성 음성 선택 시 여성 음색 출력 버그 수정 (`ttsNavigation.ts`, `voiceSettings.ts`)
+- **#128** (P1 UX): 산책 성과 지표 중심 개편 및 CSV/JSON 접이식 아코디언 위계 조정 (`MyWalkHistoryView.tsx`)
+- **#129** (P1 기능): 산책 기록의 지도 시각화 (실제 GPS 경로 + 배변/소변 마커) (`WalkRecordDetailModal.tsx`)
+- **#130** (P1 기능): 산책 기록 누적에 따른 목록 관리 (최근 1주일 우선 + 페이징 더보기) (`MyWalkHistoryView.tsx`, `walkStatisticsService.ts`)

@@ -124,4 +124,58 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(parsed.records).toHaveLength(1);
     expect(parsed.records[0].id).toBe('walk-1');
   });
+
+  describe('Issue #130 목록 관리 및 페이징 (최근 1주일 우선/더보기)', () => {
+    it('다수의 산책 기록(7건)이 주어졌을 때 기본 5건만 노출되고 과거 기록 더보기 버튼이 표시된다', () => {
+      const now = new Date();
+      const manyRecords: WalkRecord[] = Array.from({ length: 7 }, (_, i) => ({
+        id: `walk-multi-${i}`,
+        dogId: 'dog-1',
+        startedAt: new Date(now.getTime() - i * 3600000).toISOString(),
+        completedAt: new Date(now.getTime() - i * 3600000 + 1800000).toISOString(),
+        durationMinutes: 30,
+        totalDistanceKm: 1.5 + i * 0.1,
+        averageSpeedKmH: 3.5,
+        safeSurfaceRatio: 0.9,
+        gpsTrack: [],
+      }));
+
+      const html = renderToStaticMarkup(
+        <MyWalkHistoryView dogName="초코" initialRecords={manyRecords} />
+      );
+
+      // 상단 타이틀에 필터링된 건수 및 누적 건수 표시 확인
+      expect(html).toContain('최근 7일 7회');
+      expect(html).toContain('누적 7회');
+
+      // 더보기 버튼 노출 확인
+      expect(html).toContain('과거 기록 더보기 ▾ (+2건 남음)');
+    });
+
+    it('선택한 기간에 산책 기록이 없을 때 빈 기간 안내 문구를 표시한다', () => {
+      // 60일 전 과거 기록 1건만 있는 경우
+      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 3600000).toISOString();
+      const oldOnlyRecords: WalkRecord[] = [
+        {
+          id: 'walk-old',
+          dogId: 'dog-1',
+          startedAt: sixtyDaysAgo,
+          completedAt: sixtyDaysAgo,
+          durationMinutes: 20,
+          totalDistanceKm: 1.0,
+          averageSpeedKmH: 3.0,
+          safeSurfaceRatio: 0.9,
+          gpsTrack: [],
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <MyWalkHistoryView dogName="초코" initialRecords={oldOnlyRecords} />
+      );
+
+      // 기본이 최근 7일이므로 60일 전 기록은 필터링되어 emptyPeriodBox 안내가 노출됨
+      expect(html).toContain('최근 7일 동안의 산책 기록이 없습니다');
+      expect(html).toContain('상단 필터를 [전체 기록]으로 변경하거나 새로운 산책을 시작해보세요!');
+    });
+  });
 });

@@ -3,7 +3,7 @@
  * 마이페이지 산책 기록 목록 및 커뮤니티 후기 공개(is_public) 토글 뷰 (US-G2, PR #42)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { CardWrapper } from '../common/CardWrapper';
@@ -34,6 +34,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
+  const [visibleCount, setVisibleCount] = useState<number>(5);
   const [isExportExpanded, setIsExportExpanded] = useState<boolean>(defaultExportExpanded);
   const [selectedRecord, setSelectedRecord] = useState<WalkRecord | null>(null);
 
@@ -44,6 +45,16 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   }, [initialRecords]);
 
   const periodStats = WalkStatisticsService.getPeriodStats(records, period);
+
+  const filteredRecords = useMemo(
+    () => WalkStatisticsService.filterRecordsByPeriod(records, period),
+    [records, period]
+  );
+
+  const handlePeriodChange = (nextPeriod: StatsPeriodType) => {
+    setPeriod(nextPeriod);
+    setVisibleCount(5);
+  };
 
   const handleExportCsv = () => {
     if (records.length === 0) {
@@ -125,14 +136,20 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
     );
   }
 
+  const displayedRecords = filteredRecords.slice(0, visibleCount);
+  const hasMore = filteredRecords.length > visibleCount;
+  const remainingCount = filteredRecords.length - visibleCount;
+
   return (
     <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
-      {/* 1. 상단 타이틀 */}
+      {/* 1. 상단 타이틀 (Issue #130 기간별 건수 및 누적 표시) */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>🐾 산책 통계 및 기록 ({records.length}회)</Text>
+          <Text style={styles.title}>
+            🐾 산책 통계 및 기록 ({periodStats.periodLabel} {filteredRecords.length}회)
+          </Text>
           <Text style={styles.subDesc}>
-            {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요
+            {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
           </Text>
         </View>
         <View style={styles.badge}><Text style={styles.badgeText}>DB 동기화</Text></View>
@@ -147,7 +164,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
             <TouchableOpacity
               key={p}
               activeOpacity={0.8}
-              onPress={() => setPeriod(p)}
+              onPress={() => handlePeriodChange(p)}
               style={[styles.periodChip, isSelected && styles.periodChipActive]}
             >
               <Text style={[styles.periodChipText, isSelected && styles.periodChipTextActive]}>
@@ -189,77 +206,103 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
         </View>
       </View>
 
-      {/* 4. 누적된 산책 기록 목록 (사용자 중심 최우선 배치) */}
+      {/* 4. 누적된 산책 기록 목록 (최근 1주일 우선 + 페이징 더보기) */}
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
       >
-        {records.map((rec) => {
-          const isPublic = publicMap[rec.id] ?? false;
-          const dateStr = new Date(rec.completedAt).toLocaleDateString('ko-KR', {
-            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-          });
+        {filteredRecords.length === 0 ? (
+          <View style={styles.emptyPeriodBox}>
+            <Text style={styles.emptyPeriodEmoji}>🍃</Text>
+            <Text style={styles.emptyPeriodText}>
+              {periodStats.periodLabel} 동안의 산책 기록이 없습니다.
+            </Text>
+            <Text style={styles.emptyPeriodSub}>
+              상단 필터를 [전체 기록]으로 변경하거나 새로운 산책을 시작해보세요!
+            </Text>
+          </View>
+        ) : (
+          displayedRecords.map((rec) => {
+            const isPublic = publicMap[rec.id] ?? false;
+            const dateStr = new Date(rec.completedAt).toLocaleDateString('ko-KR', {
+              month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
 
-          return (
-            <View key={rec.id} style={[styles.recordCard, isPublic && styles.recordCardPublic]}>
-              <View style={styles.recordTop}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <View style={styles.recordHeaderRow}>
-                    <Text style={styles.recordDate}>{dateStr}</Text>
-                    {rec.dogSummary ? (
-                      <View style={styles.dogBadge}>
-                        <DogAvatar photoUri={rec.dogSummary.photoUri} size={15} />
-                        <Text style={styles.dogBadgeText}>
-                          {rec.dogSummary.name} ({rec.dogSummary.breed})
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.dogBadge}>
-                        <Text style={styles.dogBadgeText}>🐾 {dogName}</Text>
-                      </View>
+            return (
+              <View key={rec.id} style={[styles.recordCard, isPublic && styles.recordCardPublic]}>
+                <View style={styles.recordTop}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <View style={styles.recordHeaderRow}>
+                      <Text style={styles.recordDate}>{dateStr}</Text>
+                      {rec.dogSummary ? (
+                        <View style={styles.dogBadge}>
+                          <DogAvatar photoUri={rec.dogSummary.photoUri} size={15} />
+                          <Text style={styles.dogBadgeText}>
+                            {rec.dogSummary.name} ({rec.dogSummary.breed})
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.dogBadge}>
+                          <Text style={styles.dogBadgeText}>🐾 {dogName}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.recordMetrics}>
+                      {rec.totalDistanceKm.toFixed(1)}km · {rec.durationMinutes}분 · 평균 {rec.averageSpeedKmH.toFixed(1)}km/h
+                    </Text>
+                  </View>
+                  <View style={styles.recordActionCol}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedRecord(rec)}
+                      style={styles.mapViewBtn}
+                      accessibilityLabel="경로 지도 보기"
+                    >
+                      <Text style={styles.mapViewBtnText}>🗺️ 지도 보기</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => void handleTogglePublic(rec)}
+                      style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
+                    >
+                      <AppIcon name="users" size={13} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
+                      <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
+                        {isPublic ? '공개 중 ✓' : '후기 공유'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {rec.feedback && (
+                  <View style={styles.feedbackRow}>
+                    <Text style={styles.feedbackComfort}>
+                      만족도 {rec.feedback.comfortScore}점 · {rec.feedback.tags.join(', ')}
+                    </Text>
+                    {Boolean(rec.feedback.comment) && (
+                      <Text style={styles.feedbackComment}>&quot;{rec.feedback.comment}&quot;</Text>
                     )}
                   </View>
-                  <Text style={styles.recordMetrics}>
-                    {rec.totalDistanceKm.toFixed(1)}km · {rec.durationMinutes}분 · 평균 {rec.averageSpeedKmH.toFixed(1)}km/h
-                  </Text>
-                </View>
-                <View style={styles.recordActionCol}>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setSelectedRecord(rec)}
-                    style={styles.mapViewBtn}
-                    accessibilityLabel="경로 지도 보기"
-                  >
-                    <Text style={styles.mapViewBtnText}>🗺️ 지도 보기</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => void handleTogglePublic(rec)}
-                    style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
-                  >
-                    <AppIcon name="users" size={13} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
-                    <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
-                      {isPublic ? '공개 중 ✓' : '후기 공유'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                )}
               </View>
+            );
+          })
+        )}
 
-              {rec.feedback && (
-                <View style={styles.feedbackRow}>
-                  <Text style={styles.feedbackComfort}>
-                    만족도 {rec.feedback.comfortScore}점 · {rec.feedback.tags.join(', ')}
-                  </Text>
-                  {Boolean(rec.feedback.comment) && (
-                    <Text style={styles.feedbackComment}>&quot;{rec.feedback.comment}&quot;</Text>
-                  )}
-                </View>
-              )}
-            </View>
-          );
-        })}
+        {/* 4-1. 페이징 더보기 버튼 */}
+        {hasMore && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setVisibleCount((prev) => prev + 5)}
+            style={styles.loadMoreBtn}
+            accessibilityLabel="과거 기록 더보기"
+          >
+            <Text style={styles.loadMoreBtnText}>
+              과거 기록 더보기 ▾ (+{remainingCount}건 남음)
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* 5. 데이터 백업 및 병원 제출용 내보내기 (접이식 아코디언 UX) */}
@@ -564,5 +607,45 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingRight: 4,
     paddingBottom: 4,
+  },
+  emptyPeriodBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    padding: 20,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  emptyPeriodEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  emptyPeriodText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+    textAlign: 'center',
+  },
+  emptyPeriodSub: {
+    fontSize: 11,
+    color: TOKENS.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  loadMoreBtn: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  loadMoreBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
   },
 });
