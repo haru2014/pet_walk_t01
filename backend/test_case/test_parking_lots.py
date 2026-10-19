@@ -41,7 +41,7 @@ class TestFixtureData:
         assert self._count_by_zone("official") == {"유림공원": 1, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 1}
 
     def test_legacy_lots_per_zone(self):
-        assert self._count_by_zone("legacy_unverified") == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 4}
+        assert self._count_by_zone("legacy_unverified") == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 1}
 
     def test_every_lot_records_its_source_and_verification_state(self):
         for lot in load_pilot_parking_lots():
@@ -101,7 +101,8 @@ class TestFixtureData:
         from services.parking_lots import DEFAULT_DATA_PATH
         polygons = json.loads((DEFAULT_DATA_PATH.parent / "park_polygons_pilot.json").read_text(encoding="utf-8"))
         doan = next(shape(f["geometry"]) for f in polygons["features"] if f["properties"]["park_id"] == "doan")
-        lots = {l["name"]: l for l in load_pilot_parking_lots() if l["status"] == "park_operator"}
+        lots = {l["name"]: l for l in load_pilot_parking_lots()
+                if l["status"] == "park_operator" and l["park_zone"] == "도안호수공원"}
         assert {name: lot["capacity"] for name, lot in lots.items()} == {
             "갑천생태호수공원 주차장A": 108, "갑천생태호수공원 주차장B": 168, "갑천생태호수공원 주차장C": 196}
         for name, lot in lots.items():
@@ -110,6 +111,28 @@ class TestFixtureData:
             assert doan.covers(Point(lot["entrance_lon"], lot["entrance_lat"])), name
         assert "추정" in lots["갑천생태호수공원 주차장C"]["coordinate_basis"]
         assert "추정" in lots["갑천생태호수공원 주차장C"]["data_issue"]
+
+    def test_sejong_lake_lots_use_official_names_and_osm_positions(self):
+        """세종호수공원 제1~3주차장 (공단 431·239·300대): 앱 오프라인 목록과 같은 ID 를 유지하고 OSM 도형 좌표를 쓴다.
+
+        카카오 로컬 API 결과는 운영정책상 저장하지 않으므로 좌표·주소 대신 장소 ID 만 근거로 남긴다.
+        """
+        from shapely.geometry import Point, shape
+        from agent.route_geometry import haversine_m
+        from services.parking_lots import DEFAULT_DATA_PATH
+        polygons = json.loads((DEFAULT_DATA_PATH.parent / "park_polygons_pilot.json").read_text(encoding="utf-8"))
+        sejong = next(shape(f["geometry"]) for f in polygons["features"] if f["properties"]["park_id"] == "sejong")
+        lots = {l["parking_id"]: l for l in load_pilot_parking_lots() if l["park_zone"] == "세종호수공원"}
+        expected = {"pkg_sejong_01": 431, "pkg_sejong_02": 239, "pkg_sejong_03": 300}
+        for parking_id, capacity in expected.items():
+            lot = lots[parking_id]
+            assert lot["status"] == "park_operator" and lot["capacity"] == capacity, parking_id
+            assert "sjfmc.or.kr" in lot["source"] and "OSM way/" in lot["coordinate_basis"], parking_id
+            assert "카카오맵 장소 ID" in lot["coordinate_basis"], parking_id
+            boundary = sejong.boundary
+            nearest = boundary.interpolate(boundary.project(Point(lot["entrance_lon"], lot["entrance_lat"])))
+            assert haversine_m([lot["entrance_lon"], lot["entrance_lat"]], [nearest.x, nearest.y]) < 300, parking_id
+        assert lots["pkg_sejong_04"]["status"] == "legacy_unverified"  # 제4주차장은 공식 안내에 없어 그대로 둔다
 
     def test_park_link_flag_agrees_with_the_distance_to_the_reference_park_point(self):
         import json
