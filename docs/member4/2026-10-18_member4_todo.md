@@ -1,11 +1,7 @@
 # ✅ [팀원 4 TODO] 김승현 (Frontend & Mobile App Lead) — 2026-10-18
 
 > 파일: `docs/member4/2026-10-18_member4_todo.md`  
-<<<<<<< HEAD
 > 생성: 2026-10-18 23:23 KST · `python scripts/generate_member4_report.py`  
-=======
-> 생성: 2026-10-18 22:39 KST · `python scripts/generate_member4_report.py`  
->>>>>>> 8173fd693a94efb6eb9375e9dc312fff904fb1bd
 > 근거: 팀원 PR 본문 최근 60건 + [`docs/implementation_plan/김승현_향후_구현계획.md`](/docs/implementation_plan/김승현_향후_구현계획.md)  
 > 완료한 항목은 `[ ]` → `[x]` 로 바꿔 두면 다음 생성 때도 완료 상태가 유지됩니다.
 
