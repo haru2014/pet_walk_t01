@@ -15,6 +15,10 @@ export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000';
  */
 export function getPrimaryApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  // 구 Render 주소(pet-walk-t01.onrender.com)가 설정된 경우 실제 배포 인스턴스(-z095)로 자동 보정
+  if (envUrl === 'https://pet-walk-t01.onrender.com' || envUrl === 'http://pet-walk-t01.onrender.com') {
+    return RENDER_API_BASE_URL;
+  }
   return envUrl || RENDER_API_BASE_URL;
 }
 
@@ -88,8 +92,8 @@ export async function fetchWithServerFallback(
   // 1순위 시도: Render 서버 (또는 EXPO_PUBLIC_API_URL)
   try {
     const res = await fetchWithTimeout(`${primaryBase}${cleanEndpoint}`, init, primaryTimeoutMs);
-    // 502/503/504 등 게이트웨이 또는 서버 인프라 다운 상태일 때는 2순위 로컬 백엔드로 시도 허용
-    if (res && res.status >= 502 && res.status <= 504 && fallbackBase) {
+    // 500~504 등 서버 오류 또는 게이트웨이 다운 상태일 때는 2순위 로컬 백엔드로 시도 허용
+    if (res && res.status >= 500 && res.status <= 504 && fallbackBase) {
       primaryFailed = true;
     } else if (res) {
       return res;

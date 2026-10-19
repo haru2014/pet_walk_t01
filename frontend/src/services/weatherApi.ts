@@ -344,8 +344,8 @@ export async function fetchHeatRiskForecast(
       weatherMemoryCache.set(cacheKey, { timestamp: Date.now(), data: response });
       return response;
     }
-  } catch {
-    // 타임아웃 또는 서버 미연결 시 오프라인 폴백으로 전환
+  } catch (err) {
+    console.warn('[weatherApi] 실시간 기상청 지면열 조회 실패, 오프라인 폴백으로 전환:', err);
   } finally {
     clearTimeout(timer);
   }

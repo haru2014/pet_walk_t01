@@ -33,6 +33,11 @@ describe('apiClient - 탄력적 멀티 타깃 API 통신', () => {
     expect(getPrimaryApiBaseUrl()).toBe('https://custom-api.example.com');
   });
 
+  it('구 Render 주소(pet-walk-t01.onrender.com)는 실제 운영 인스턴스(-z095)로 자동 보정되어야 한다', () => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://pet-walk-t01.onrender.com';
+    expect(getPrimaryApiBaseUrl()).toBe(RENDER_API_BASE_URL);
+  });
+
   it('1순위가 Render일 때 2순위 폴백 주소는 127.0.0.1:8000이어야 한다', () => {
     expect(getFallbackApiBaseUrl()).toBe(LOCAL_API_BASE_URL);
   });
