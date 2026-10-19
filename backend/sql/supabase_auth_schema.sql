@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.walk_records (
     distance_m        DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (distance_m >= 0),
     duration_min      INTEGER NOT NULL DEFAULT 0 CHECK (duration_min >= 0),
     route_coords      JSONB NOT NULL DEFAULT '[]'::jsonb, -- 실제 걸은 [[lon, lat], ...] 전체
+    public_route_coords JSONB,                          -- 공개 후기용: 서버가 출발·도착 200m 를 가린 좌표 (앱은 직접 쓰지 못함)
     photo_paths       JSONB NOT NULL DEFAULT '[]'::jsonb, -- Storage 경로 목록 ['<user_id>/walks/...jpg']
     note              TEXT,
     rating            INTEGER CHECK (rating BETWEEN 1 AND 5),
@@ -44,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.walk_records (
 CREATE INDEX IF NOT EXISTS idx_walk_records_user_started ON public.walk_records (user_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_walk_records_public       ON public.walk_records (is_public, created_at DESC);
 
--- 3) RLS: 본인 행만 읽고 쓸 수 있다. 공개 후기(is_public) 는 누구나 읽기 가능.
+-- 3) RLS: 본인 행만 읽고 쓸 수 있다. 공개 후기는 서버가 마스킹한 좌표만 전용 창구(view)로 공개한다.
 --    서버(service_role) 는 RLS 를 우회하므로 영향 없음.
 ALTER TABLE public.dog_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.walk_records ENABLE ROW LEVEL SECURITY;
@@ -57,9 +58,11 @@ DROP POLICY IF EXISTS "own_walk_records" ON public.walk_records;
 CREATE POLICY "own_walk_records" ON public.walk_records
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- ※ 예전에는 여기서 "is_public=true 인 행은 누구나 읽기" 정책(public_walk_reviews)을 만들었다.
+--   그 정책은 행 전체(원본 route_coords 포함)를 공개해 버리므로 없앴다. (이슈 #116)
+--   공개 후기는 supabase_walk_public_migration.sql 의 전용 창구(view) public_walk_reviews_v 로만 읽는다.
+--   이 파일을 다시 실행해도 예전 정책이 되살아나지 않도록, 남아 있으면 지운다.
 DROP POLICY IF EXISTS "public_walk_reviews" ON public.walk_records;
-CREATE POLICY "public_walk_reviews" ON public.walk_records
-    FOR SELECT USING (is_public = true);
 
 -- 4) Storage 정책: pet-photos 보관함에서 본인 폴더(<user_id>/...) 만 올리고/보고/지울 수 있다.
 DROP POLICY IF EXISTS "pet_photos_own_read"   ON storage.objects;
