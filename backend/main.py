@@ -485,7 +485,7 @@ def _build_walk_plan_response(
 )
 def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
-    dog_name = req.get("dog_name", "아이")
+    dog_name = req.get("dog_name", "강아지")
     request_id = str(uuid4())
 
     params = _validate_and_parse_walk_plan_request(req)

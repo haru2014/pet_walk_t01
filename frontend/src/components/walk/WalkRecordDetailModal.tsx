@@ -169,7 +169,7 @@ export const WalkRecordDetailModal: React.FC<WalkRecordDetailModalProps> = ({
   visible,
   onClose,
   record,
-  dogName = '우리 아이',
+  dogName = '우리 강아지',
 }) => {
   const mapData = useMemo(() => buildWalkRecordMapData(record), [record]);
 

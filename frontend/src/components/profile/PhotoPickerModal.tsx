@@ -97,7 +97,7 @@ export const PhotoPickerModal: React.FC<PhotoPickerModalProps> = ({
           <TouchableWithoutFeedback>
             <View style={styles.sheetContainer}>
               <View style={styles.handleBar} />
-              <Text style={styles.title}>🐾 우리 아이 대표 사진 등록</Text>
+              <Text style={styles.title}>🐾 우리 강아지 대표 사진 등록</Text>
               <Text style={styles.subtitle}>
                 앨범 사진 또는 귀여운 견종 캐릭터를 선택하세요.
               </Text>

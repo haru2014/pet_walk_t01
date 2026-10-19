@@ -150,7 +150,7 @@ function HomeScreen({ onSelectDog }: { onSelectDog: () => void }) {
         {/* Greeting */}
         <div style={{ padding: '4px 20px 20px' }}>
           <p style={{ fontSize: '14px', color: '#6B756F', fontWeight: '400', marginBottom: '4px', lineHeight: '1.4' }}>오늘도 편안하게,</p>
-          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 아이와 걸어요. 🐾</p>
+          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 강아지와 걸어요. 🐾</p>
         </div>
 
         {/* Main Walk Card */}
@@ -481,9 +481,9 @@ function StatusBar() {
     <div className="flex h-11 shrink-0 items-center justify-between px-6 text-sm font-semibold">
       <span>9:41</span>
       <div className="flex items-center gap-1.5 text-text-main" aria-hidden="true">
-        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx="1"/><rect x="4.5" y="3" width="3" height="9" rx="1"/><rect x="9" y="1" width="3" height="11" rx="1"/><rect x="13.5" y="0" width="2.5" height="12" rx="1" opacity="0.3"/></svg>
-        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.4C5.2 2.4 2.7 3.6 1 5.5L0 4.4C2 2.2 4.8.8 8 .8s6 1.4 8 3.6l-1 1.1C13.3 3.6 10.8 2.4 8 2.4z"/><path d="M8 5.6c-1.7 0-3.3.7-4.5 1.9l-1-1.1C4 4.9 5.9 4 8 4s4 .9 5.5 2.4l-1 1.1C11.3 6.3 9.7 5.6 8 5.6z"/><circle cx="8" cy="10" r="1.5"/></svg>
-        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity=".35"/><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" fillOpacity=".4"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx="1" /><rect x="4.5" y="3" width="3" height="9" rx="1" /><rect x="9" y="1" width="3" height="11" rx="1" /><rect x="13.5" y="0" width="2.5" height="12" rx="1" opacity="0.3" /></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.4C5.2 2.4 2.7 3.6 1 5.5L0 4.4C2 2.2 4.8.8 8 .8s6 1.4 8 3.6l-1 1.1C13.3 3.6 10.8 2.4 8 2.4z" /><path d="M8 5.6c-1.7 0-3.3.7-4.5 1.9l-1-1.1C4 4.9 5.9 4 8 4s4 .9 5.5 2.4l-1 1.1C11.3 6.3 9.7 5.6 8 5.6z" /><circle cx="8" cy="10" r="1.5" /></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity=".35" /><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor" /><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" fillOpacity=".4" /></svg>
       </div>
     </div>
   )
@@ -570,7 +570,7 @@ function DogSelection({ dogs, selectedId, onSelect, onRegister, onContinue, onBa
             <div className="rounded-[20px] border border-border bg-card px-6 py-9 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-light text-primary-dark"><PawOutlineIcon /></div>
               <p className="font-semibold">아직 등록한 강아지가 없어요</p>
-              <p className="mt-2 text-sm leading-relaxed text-text-sub">우리 아이를 등록하고 편안한 산책을 시작해보세요.</p>
+              <p className="mt-2 text-sm leading-relaxed text-text-sub">우리 강아지를 등록하고 편안한 산책을 시작해보세요.</p>
             </div>
           )}
           <button type="button" onClick={() => setShowRegistration(true)} className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-primary bg-card text-sm font-semibold text-primary-dark transition-colors hover:bg-primary-light/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
@@ -643,12 +643,12 @@ function SparkleIcon() {
 
 function EnvironmentIcon({ kind }: { kind: EnvironmentId }) {
   const paths: Record<EnvironmentId, React.ReactNode> = {
-    soft: <><ellipse cx="5" cy="7" rx="1.4" ry="2"/><ellipse cx="10" cy="4.5" rx="1.4" ry="2"/><ellipse cx="15" cy="4.5" rx="1.4" ry="2"/><ellipse cx="20" cy="7" rx="1.4" ry="2"/><path d="M12.5 11c-2 0-3 1.8-4.5 3.2-1.2 1.1-2.4 2-2.4 3.6A3.2 3.2 0 0 0 8.8 21c1.3 0 2.2-.8 3.7-.8s2.4.8 3.7.8a3.2 3.2 0 0 0 3.2-3.2c0-1.6-1.2-2.5-2.4-3.6C15.5 12.8 14.5 11 12.5 11Z"/></>,
-    shade: <><path d="M12 3a7 7 0 0 0-7 7c-1.7 0-3 1.3-3 3s1.3 3 3 3h14c1.7 0 3-1.3 3-3s-1.3-3-3-3a7 7 0 0 0-7-7Z"/><path d="M12 16v6m-3 0h6"/></>,
-    stairs: <><path d="M2 20h5v-5h5v-5h5V5h5"/><path d="M3 4 21 22"/></>,
-    traffic: <><path d="m5 11 1.5-5A2 2 0 0 1 8.4 4h7.2a2 2 0 0 1 1.9 2L19 11M5 11h14a2 2 0 0 1 2 2v5H3v-5a2 2 0 0 1 2-2Z"/><path d="M6 18v2m12-2v2M7 14h2m6 0h2"/></>,
-    quiet: <><path d="M20 4C9 4 4 9 4 16a4 4 0 0 0 4 4c7 0 12-5 12-16Z"/><path d="M5 19c3-4 6-7 11-10"/></>,
-    rest: <><path d="M5 12h14v4H5zM7 16v5m10-5v5M5 12V8m14 4V8M8 8h8"/><path d="M12 2v2m-3-1 1 1m5-1-1 1"/></>,
+    soft: <><ellipse cx="5" cy="7" rx="1.4" ry="2" /><ellipse cx="10" cy="4.5" rx="1.4" ry="2" /><ellipse cx="15" cy="4.5" rx="1.4" ry="2" /><ellipse cx="20" cy="7" rx="1.4" ry="2" /><path d="M12.5 11c-2 0-3 1.8-4.5 3.2-1.2 1.1-2.4 2-2.4 3.6A3.2 3.2 0 0 0 8.8 21c1.3 0 2.2-.8 3.7-.8s2.4.8 3.7.8a3.2 3.2 0 0 0 3.2-3.2c0-1.6-1.2-2.5-2.4-3.6C15.5 12.8 14.5 11 12.5 11Z" /></>,
+    shade: <><path d="M12 3a7 7 0 0 0-7 7c-1.7 0-3 1.3-3 3s1.3 3 3 3h14c1.7 0 3-1.3 3-3s-1.3-3-3-3a7 7 0 0 0-7-7Z" /><path d="M12 16v6m-3 0h6" /></>,
+    stairs: <><path d="M2 20h5v-5h5v-5h5V5h5" /><path d="M3 4 21 22" /></>,
+    traffic: <><path d="m5 11 1.5-5A2 2 0 0 1 8.4 4h7.2a2 2 0 0 1 1.9 2L19 11M5 11h14a2 2 0 0 1 2 2v5H3v-5a2 2 0 0 1 2-2Z" /><path d="M6 18v2m12-2v2M7 14h2m6 0h2" /></>,
+    quiet: <><path d="M20 4C9 4 4 9 4 16a4 4 0 0 0 4 4c7 0 12-5 12-16Z" /><path d="M5 19c3-4 6-7 11-10" /></>,
+    rest: <><path d="M5 12h14v4H5zM7 16v5m10-5v5M5 12V8m14 4V8M8 8h8" /><path d="M12 2v2m-3-1 1 1m5-1-1 1" /></>,
   }
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg>
 }
@@ -768,7 +768,7 @@ function WalkSettings({ dog, onBack, onFindRoute }: { dog: Dog; onBack: () => vo
           <div className="relative rounded-[20px] border border-border bg-card p-4 focus-within:border-primary">
             <textarea aria-labelledby="request-title" value={request} onChange={(event) => setRequest(event.target.value)} placeholder={`예) ${dog.name}랑 30분 정도 천천히 걷고 싶어.\n계단은 피하고 그늘이 많은 길로 찾아줘.`} className="block h-24 w-full resize-none bg-transparent pr-7 text-sm leading-6 text-text-main outline-none placeholder:text-text-sub/80" />
             <button type="button" onClick={startVoiceInput} aria-label={listening ? '음성 입력 중지' : '음성으로 산책 조건 입력'} title="음성 입력" className={`absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${listening ? 'bg-primary text-white' : 'bg-bg-app text-text-sub hover:text-primary-dark'}`}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"/></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8" /></svg>
             </button>
           </div>
           {voiceMessage && <p role="status" className="mt-2 text-xs text-text-sub">{voiceMessage}</p>}

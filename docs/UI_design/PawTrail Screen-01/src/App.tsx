@@ -150,7 +150,7 @@ export default function App() {
         {/* Greeting */}
         <div style={{ padding: '4px 20px 20px' }}>
           <p style={{ fontSize: '14px', color: '#6B756F', fontWeight: '400', marginBottom: '4px', lineHeight: '1.4' }}>오늘도 편안하게,</p>
-          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 아이와 걸어요. 🐾</p>
+          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 강아지와 걸어요. 🐾</p>
         </div>
 
         {/* Main Walk Card */}

@@ -83,7 +83,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
 
   const handleStep2Next = () => {
     if (!dogName.trim()) {
-      Alert.alert('반려견 정보', '우리 아이의 이름을 입력해 주세요.');
+      Alert.alert('반려견 정보', '우리 강아지의 이름을 입력해 주세요.');
       return;
     }
     setCurrentStep(3);
@@ -181,7 +181,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           <View style={styles.stepCard}>
             <Text style={styles.stepBadge}>Step 1. 가입 및 약관 동의</Text>
             <Text style={styles.stepTitle}>보호자님, 환영합니다! 👋</Text>
-            <Text style={styles.stepSubtitle}>아이와의 안심 산책을 위한 계정을 생성하세요.</Text>
+            <Text style={styles.stepSubtitle}>강아지와의 안심 산책을 위한 계정을 생성하세요.</Text>
 
             <TextInput
               value={email}
@@ -247,13 +247,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
         {currentStep === 2 && (
           <View style={styles.stepCard}>
             <Text style={styles.stepBadge}>Step 2. 반려견 프로필 등록</Text>
-            <Text style={styles.stepTitle}>우리 아이를 소개해 주세요 🐕</Text>
+            <Text style={styles.stepTitle}>우리 강아지를 소개해 주세요 🐕</Text>
             <Text style={styles.stepSubtitle}>체급과 보폭에 맞는 안심 산책로를 분석합니다.</Text>
 
             <TextInput
               value={dogName}
               onChangeText={setDogName}
-              placeholder="아이 이름 (예: 초코)"
+              placeholder="강아지 이름 (예: 초코)"
               style={styles.input}
             />
             <TextInput

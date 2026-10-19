@@ -136,7 +136,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
                   onPress={onAddDog ?? onPressProfile}
                   style={styles.addBtnSmall}
                 >
-                  <Text style={styles.addBtnSmallText}>+ 아이 추가</Text>
+                  <Text style={styles.addBtnSmallText}>+ 강아지 추가</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.subtitleRow}>
@@ -334,7 +334,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
               <View style={styles.addIconCircle}>
                 <Text style={styles.addIconText}>＋</Text>
               </View>
-              <Text style={styles.addCardTitle}>우리 아이 한 마리 더 등록하기</Text>
+              <Text style={styles.addCardTitle}>우리 강아지 한 마리 더 등록하기</Text>
               <Text style={styles.addCardSubtitle}>
                 새로운 반려견을 추가하고 맞춤 안심 코스를 추천받아보세요
               </Text>

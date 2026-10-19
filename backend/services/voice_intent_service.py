@@ -104,7 +104,7 @@ def _extract_joint_level(text: str) -> int:
 def extract_local_voice_intent(speech_text: str, dog_name: Optional[str] = None) -> VoiceWalkIntentPayload:
     """[오프라인 안전망] 네트워크 단절 또는 API 키 부재 시 정규식/키워드 기반 즉각 파싱."""
     text = speech_text.strip()
-    name = dog_name or "아이"
+    name = dog_name or "강아지"
 
     duration = _extract_duration(text)
     prefer_shade = any(w in text for w in ["그늘", "시원", "더위", "덥", "뜨거", "햇빛", "햇볕"])

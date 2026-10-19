@@ -33,7 +33,7 @@ SlopePreference = Literal["gentle", "very_gentle", "steep_avoid", "none"]
 class ClientDogContext(BaseModel):
     """클라이언트 로컬(AsyncStorage)에서 무상태로 동봉하는 반려견 프로필 DTO."""
     dog_id: str = Field(default="dog-001", min_length=1)
-    name: str = Field(default="아이", min_length=1)
+    name: str = Field(default="강아지", min_length=1)
     breed: str = Field(default="말티즈", min_length=1)
     age_years: int = Field(default=4, ge=0, le=30)
     weight_kg: float = Field(default=4.0, gt=0.0, le=120.0)
@@ -571,7 +571,7 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     golden_window = weather.get("golden_time_window", "17시 이후 또는 일몰 후")
     score = state.get("best_score", 95.0)
 
-    dog_name = dog_ctx_dict.get("name", "아이")
+    dog_name = dog_ctx_dict.get("name", "강아지")
     breed = dog_ctx_dict.get("breed", "반려견")
     duration = selected_dict.get("estimated_duration_minutes", intent_dict.get("target_duration_minutes", 20))
     route_name = selected_dict.get("name", "안심 산책로")
