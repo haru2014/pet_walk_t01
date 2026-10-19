@@ -41,7 +41,9 @@ export interface RoutePlanResult {
   readonly elevationAttribution?: string | null;
 }
 
-const API_TIMEOUT_MS = 3500;
+// 코스 계산 요청은 서버가 잠들었다 깨는 시간(Render 무료, 10~15초)과 계산 시간을 합쳐도 기다린다.
+// 예전 3.5초는 운영 서버 응답(평균 6초)보다 짧아, 공원 모드는 경로가 안 나오고 현재 위치 모드는 샘플(유림)로 바뀌었다. (이슈 #125)
+const API_TIMEOUT_MS = 20000;
 
 function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
   const count = 8;
