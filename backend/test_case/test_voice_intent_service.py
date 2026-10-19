@@ -39,8 +39,11 @@ def test_resolve_landmark_park_id():
     assert resolve_landmark_park_id("유림공원") == "yurim"
     assert resolve_landmark_park_id("갑천 둔치") == "yurim"
     assert resolve_landmark_park_id("세종호수공원") == "sejong"
+    assert resolve_landmark_park_id("송강공원") == "songgang"
     assert resolve_landmark_park_id("송강근린공원") == "songgang"
     assert resolve_landmark_park_id("도안호수공원") == "doan"
+    assert resolve_landmark_park_id("갑천생태공원") == "doan"
+    assert resolve_landmark_park_id("도안호수공원(갑천생태공원)") == "doan"
     assert resolve_landmark_park_id("알 수 없는 장소") is None
     assert resolve_landmark_park_id(None) is None
 

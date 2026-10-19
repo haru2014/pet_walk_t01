@@ -52,19 +52,21 @@ describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)'
     expect(normalizeToFrontendParkId('세종호수공원')).toBe('sejong');
     expect(normalizeToFrontendParkId('daejeon_songgang')).toBe('songgang');
     expect(normalizeToFrontendParkId('송강근린공원')).toBe('songgang');
-    expect(normalizeToFrontendParkId('daejeon_boramae')).toBeNull();
+    expect(normalizeToFrontendParkId('unknown_park')).toBeNull();
     expect(normalizeToFrontendParkId('도안호수공원')).toBe('doan');
+    expect(normalizeToFrontendParkId('갑천생태공원')).toBe('doan');
+    expect(normalizeToFrontendParkId('송강공원')).toBe('songgang');
     expect(normalizeToFrontendParkId(null)).toBeNull();
   });
 
   it('preserves unsupported park names and announces selection instead of a prepared course', () => {
-    const result = extractLocalVoiceIntent('보라매공원에서 그늘 위주로 30분 산책할래');
-    expect(result.intent.destination_landmark).toBe('보라매공원');
+    const result = extractLocalVoiceIntent('올림픽공원에서 그늘 위주로 30분 산책할래');
+    expect(result.intent.destination_landmark).toBe('올림픽공원');
     expect(result.intent.target_duration_minutes).toBe(30);
     expect(result.intent.prefer_shade).toBe(true);
     expect(result.landmark_park_id).toBeNull();
     expect(result.intent.briefing_message).toContain('지원하지 않는 공원');
-    expect(normalizeToFrontendParkId('보라매호수공원')).toBeNull();
+    expect(normalizeToFrontendParkId('올림픽공원')).toBeNull();
     expect(normalizeToFrontendParkId('한밭수목원')).toBeNull();
   });
 
