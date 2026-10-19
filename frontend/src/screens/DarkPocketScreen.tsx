@@ -18,6 +18,8 @@ import { VoiceQuickControlBar } from '../components/voice/VoiceQuickControlBar';
 import { AmbientNoiseMonitorService } from '../services/ambientNoiseMonitor';
 import { BarkMuteState, SoundSettings } from '../types/voiceSettings';
 import { TTSNavigationService } from '../services/ttsNavigation';
+import { HazardReportModal } from '../components/walk/HazardReportModal';
+import { RerouteResult } from '../types/hazard';
 
 export interface DarkPocketScreenProps {
   readonly dogName: string;
@@ -27,6 +29,10 @@ export interface DarkPocketScreenProps {
   readonly isFreeWalk?: boolean;
   readonly onMarkPoop?: (type: 'poop' | 'pee') => void;
   readonly poopCount?: number;
+  readonly currentCoords?: { lat: number; lon: number } | null;
+  readonly startCoords?: { lat: number; lon: number } | null;
+  readonly routeCoords?: readonly (readonly [number, number])[];
+  readonly onReroute?: (result: RerouteResult) => void;
 }
 
 const HudItem: React.FC<{ value: string; unit: string; label: string }> = ({ value, unit, label }) => (
@@ -47,8 +53,13 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   isFreeWalk,
   onMarkPoop,
   poopCount = 0,
+  currentCoords,
+  startCoords,
+  routeCoords,
+  onReroute,
 }) => {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [showHazardModal, setShowHazardModal] = useState(false);
   const [barkState, setBarkState] = useState<BarkMuteState>(() => AmbientNoiseMonitorService.getState());
   const [soundSettings, setSoundSettings] = useState<SoundSettings>(() => TTSNavigationService.getSettings());
 
@@ -182,9 +193,37 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </View>
       </View>
 
+      {/* 4. 현장 위험 제보 & 안전 우회 버튼 */}
+      <View style={styles.hazardActionRow}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowHazardModal(true)}
+          style={styles.hazardBtn}
+          accessibilityLabel="현장 위험 제보 및 안전 우회"
+        >
+          <Text style={styles.hazardBtnIcon}>⚠️</Text>
+          <Text style={styles.hazardBtnText}>위험 제보 & 안전 우회</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.unlockArea}>
         <SlideToUnlock onUnlock={onUnlock} />
       </View>
+
+      <HazardReportModal
+        visible={showHazardModal}
+        onClose={() => setShowHazardModal(false)}
+        currentLat={currentCoords?.lat ?? 36.3628}
+        currentLon={currentCoords?.lon ?? 127.3592}
+        startLat={startCoords?.lat}
+        startLon={startCoords?.lon}
+        currentRouteCoords={routeCoords}
+        onRerouteApplied={(res) => {
+          if (onReroute) onReroute(res);
+          setToastMsg(res.isEmergencyReturn ? '🚨 출발지 복귀 경로 안내 시작' : '✨ 안전 우회 경로 적용 완료');
+          setTimeout(() => setToastMsg(null), 3500);
+        }}
+      />
     </View>
   );
 };
@@ -295,6 +334,30 @@ const styles = StyleSheet.create({
   testBarkChipText: {
     color: '#FBBF24',
     fontSize: 10,
+    fontWeight: '700',
+  },
+  hazardActionRow: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  hazardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  hazardBtnIcon: {
+    fontSize: 13,
+  },
+  hazardBtnText: {
+    color: '#FCA5A5',
+    fontSize: 12,
     fontWeight: '700',
   },
 });

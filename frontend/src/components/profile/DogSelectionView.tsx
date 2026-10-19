@@ -98,7 +98,7 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
         {/* 타이틀 안내 */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>누구와 산책할까요?</Text>
-          <Text style={styles.subTitle}>오늘 함께 걸을 우리 아이를 선택해주세요.</Text>
+          <Text style={styles.subTitle}>오늘 함께 걸을 우리 강아지를 선택해주세요.</Text>
         </View>
 
         {/* 내 강아지 리스트 */}

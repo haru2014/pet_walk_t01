@@ -401,6 +401,21 @@ export default function App() {
             onUnlock={handlePocketUnlock}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
+            currentCoords={walk.getTrackBuffer().length > 0 ? {
+              lat: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].latitude,
+              lon: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].longitude,
+            } : null}
+            startCoords={walk.route.features[0]?.geometry?.coordinates[0] ? {
+              lat: walk.route.features[0].geometry.coordinates[0][1],
+              lon: walk.route.features[0].geometry.coordinates[0][0],
+            } : null}
+            routeCoords={walk.route.features[0]?.geometry?.coordinates as any}
+            onReroute={(res) => {
+              walk.applyReroute(res.newRoute);
+              if (res.voiceAlert) {
+                TTSNavigationService.speak(res.voiceAlert);
+              }
+            }}
           />
         )}
         {subScreen === 'report' && completedRecord && (

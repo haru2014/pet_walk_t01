@@ -48,7 +48,14 @@
 ### [PR #49](https://github.com/haru2014/pet_walk_t01/pull/49) feat(data): 공영주차장 데이터를 공식 표준데이터 기준으로 정리하고 읽기·검증·반경 검색 모듈 추가 (US-G1)
 > 요청자 @hippie-jin · 병합 2026-10-14
 
-- [ ] 🟡 기존 주차장 목록(`parkingApi.ts`, `main.py`)의 좌표·주소와 공식 자료의 차이를 확인해 주세요. <!-- key:pr49-b3328d80 -->
+- [x] 🟡 기존 주차장 목록(`parkingApi.ts`, `main.py`)의 좌표·주소와 공식 자료의 차이를 확인해 주세요. <!-- key:pr49-b3328d80 -->
+  - 공공데이터포털 전국주차장정보표준데이터(15012896) 및 대전시 공원 누리집 공식 안내 기준으로 기존 11개 주차장 정밀 대조 완료
+  - 정밀 대조 보고서 작성 완료: `docs/reports/2026-10-19_공영주차장_공식_표준데이터_대조_보고서.md`
+  - 주요 차이 발견:
+    1) **도안호수공원**: 레거시 좌표(`pkg_doan_01/02`)가 도안동 공식 주차장보다 2.1~2.4km 북쪽(작은내수변공원)으로 치우침 → 대전시 공원 누리집 안내 공원 주차장 A/B/C(`opr_doan_a~c`, 원신흥동/도안동)로 대체 필요
+    2) **유림·송강공원**: 레거시 5곳 중 4곳이 보행망 100m 기준 초과(118m~693m)로 422 실패 → 공식 `std_186-1-000005`(유림 30m), `std_186-2-000002`(송강 32m)만 200 OK 출발 가능
+    3) **세종호수공원**: 레거시 4곳이 구 연기면 세종리 지번 주소 사용(공식 공원 주소: 다솜로 216), 공식 어진동 주차장과 0.5~1.3km 이격
+  - 프론트엔드 조치: `parking.ts` 메타데이터 및 `verified_only` 옵션 추가, `parkingApi.ts`에 공식 9개 주차장 통합 반영 및 오프라인 폴백 연동, `parkingApi.test.ts` (13 passed) 및 백엔드 `test_parking_lots.py` (69 passed) 완료
 
 ---
 
@@ -56,12 +63,18 @@
 
 ### 🔴 P0
 
-- [ ] api.ts의 공원 검증 실패/폴백과 PlanSourceBadge를 점검해 미검증 코스를 정상 추천으로 표시하지 않도록 서버와 E2E 검증한다. <!-- key:plan-bac8a2c7 -->
+- [x] api.ts의 공원 검증 실패/폴백과 PlanSourceBadge를 점검해 미검증 코스를 정상 추천으로 표시하지 않도록 서버와 E2E 검증한다. <!-- key:plan-bac8a2c7 -->
+  - 실제 Render 운영 서버(/api/v1/walk/plan) E2E 검증 완료 (유림공원 3개 후보 루프 validation.passed=true 확인, 미검증 공원 요청 시 422 BOUNDARY_DATA_UNAVAILABLE 거부 및 RoutePlanError 발생 확인)
+  - PlanSourceBadge.test.tsx 및 CourseRecommendationView.test.tsx 단위 테스트 추가 완료 (미검증 코스 노출 차단 및 Live/Offline 뱃지 검증)
 
 ### 🟡 P1
 
+- [x] 위험 제보→보행망 우회→경로 교체→TTS 및 실제 보행 경로 기반 긴급 복귀를 구현한다. <!-- key:plan-d0807fb3 -->
+  - `HazardReportModal.tsx` 현장 위험 제보 UI(공사구역, 높은턱, 파편, 들개출몰) 및 [안전 우회 / 긴급 복귀] 액션 구현
+  - `hazardApi.ts` 구현: POST /api/v1/hazards 제보, POST /api/v1/walk/reroute 우회 재산출 및 오프라인 로컬 기하 폴백 연동
+  - `DarkPocketScreen.tsx` 및 `App.tsx` 연동: HUD 내 위험 제보 버튼, 지도 경로 실시간 갱신 및 TTSNavigationService 안내 발화
+  - 단위 테스트 완료: `hazardApi.test.ts` (6 passed), `HazardReportModal.test.tsx` (2 passed), TypeScript(`tsc --noEmit`) 무오류 검증
 - [ ] 지도 크기 변경·재진입·테마·타일 장애를 Web/실기기에서 검증한다. <!-- key:plan-c5a74f42 -->
-- [ ] 위험 제보→보행망 우회→경로 교체→TTS 및 실제 보행 경로 기반 긴급 복귀를 구현한다. <!-- key:plan-d0807fb3 -->
 - [ ] GPS 백그라운드 1시간·권한 거부·재시작, 네이티브 소음 입력 범위를 검증한다. <!-- key:plan-1ac48752 -->
 
 ---

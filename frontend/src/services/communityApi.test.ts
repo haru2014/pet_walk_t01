@@ -36,9 +36,11 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
     expect(res.is_supabase).toBe(true);
   });
 
-  it('코스 공유 요청 실패 시에도 에러를 던지지 않고 오프라인 완료 처리해야 한다', async () => {
+  it('코스 공유 요청 실패 시 success: false와 안내 메시지를 반환해야 한다 (이슈 #117)', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Timeout'));
     const result = await shareCommunityCourse('테스트 코스', [[127.0, 37.5], [127.01, 37.51]]);
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.is_supabase).toBe(false);
+    expect(result.errorMessage).toBe('지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.');
   });
 });

@@ -7,7 +7,7 @@
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
 [![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-507%2F507%20Passed-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-269%2F269%20Passed-brightgreen.svg)](frontend)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-358%2F358%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -137,7 +137,7 @@ open mockup/index.html
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (48개 파일, 269개 테스트 100% Pass)
+# 2. 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -168,8 +168,11 @@ cd frontend && npm run check
    - [8.2 전체 프로젝트 디렉터리 트리](#82-전체-프로젝트-디렉터리-트리)
 9. [🚀 시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
    - [9.1 환경 요구사항](#91-환경-요구사항)
-   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트)
+   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트-backend--supabase)
    - [9.3 프론트엔드 모바일 앱/웹 가동](#93-프론트엔드-모바일-앱웹-가동)
+   - [9.4 의존성 설치 및 TDD/단위 테스트 실행](#94-의존성-설치-및-tdd단위-테스트-실행)
+   - [9.5 주요 개발 현황 보고서 및 설계 문서](#95-주요-개발-현황-보고서-및-설계-문서)
+   - [9.6 인터랙티브 목업 갤러리 확인](#96-인터랙티브-목업-갤러리-확인)
 10. [📜 라이선스 및 저작권 (License)](#-10-라이선스-및-저작권-license)
 
 ---
@@ -280,19 +283,19 @@ graph TB
 | 01. 메인 홈 화면 | 02. 오늘의 산책 날씨 리포트 | 03. 맞춤 산책 조건 설정 | 04. 추천 산책 코스 프리뷰 |
 | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/02_home_screen1.png" width="200" alt="메인 홈 화면"/> | <img src="docs/screenshots/02-1_golden_time_report1.png" width="200" alt="오늘의 산책 날씨 리포트"/> | <img src="docs/screenshots/03_walk_settings1.png" width="200" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/04_course_recommendation1.png" width="200" alt="추천 산책 코스 프리뷰"/> |
-| **반려견 맞춤 대시보드**<br>• 고양이3(골든 리트리버) 준비 카드<br>• **산책지수 100점** 골든타임 위젯<br>• 7일 산책 달성도 게이지 | **정밀 날씨 분석 모달**<br>• 4대 환경 메트릭 (기온/지면열/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교**<br>• 기상청·에어코리아 공식 출처 | **산책 조건 다중 선택**<br>• 목표 시간 슬라이더 (15~120분)<br>• 6대 선호 보행길 원터치 칩<br>• 대전·세종 5대 공원 거점 연계 | **실시간 AI 코스 요약**<br>• 실제 OSM 도로망 경로 라인<br>• 웨이포인트 핀 및 구간 분석<br>• 완만길/폭신한 길 비율 요약 |
+| **반려견 맞춤 대시보드**<br>• 초코(골든 리트리버) 준비 카드<br>• **산책지수 100점** 골든타임 위젯<br>• 7일 산책 달성도 게이지 | **정밀 날씨 분석 모달**<br>• 4대 환경 메트릭 (기온/지면열/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교**<br>• 기상청·에어코리아 공식 출처 | **산책 조건 다중 선택**<br>• 목표 시간 슬라이더 (15~120분)<br>• 6대 선호 보행길 원터치 칩<br>• 대전·세종 5대 공원 거점 연계 | **실시간 AI 코스 요약**<br>• 실제 OSM 도로망 경로 라인<br>• 웨이포인트 핀 및 구간 분석<br>• 완만길/폭신한 길 비율 요약 |
 
 #### 🌟 2. 4단계 온보딩 위저드 플로우
 | 01-1. 서비스 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 안내 | 01-4. 온보딩 완료 축하 |
 | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/01_onboarding_wizard1.png" width="200" alt="온보딩 1단계"/> | <img src="docs/screenshots/01_onboarding_wizard2.png" width="200" alt="온보딩 2단계"/> | <img src="docs/screenshots/01_onboarding_wizard3.png" width="200" alt="온보딩 3단계"/> | <img src="docs/screenshots/01_onboarding_wizard4.png" width="200" alt="온보딩 4단계"/> |
-| **투명한 이용 약관**<br>• 필수 이용약관 & 개인정보 동의<br>• Local-First 프라이버시 원칙 | **아이 프로필 등록**<br>• 이름, 견종, 생년월일, 체중<br>• 관절 케어 필요 수준 설정 | **위치 정보 권한 동의**<br>• 산책 시작 안내용 한정 수집<br>• 200m 마스킹 원칙 사전 고지 | **산책 준비 완료**<br>• 프로필 세팅 완료 축하<br>• 원터치 메인 홈 화면 진입 |
+| **투명한 이용 약관**<br>• 필수 이용약관 & 개인정보 동의<br>• Local-First 프라이버시 원칙 | **강아지 프로필 등록**<br>• 이름, 견종, 생년월일, 체중<br>• 관절 케어 필요 수준 설정 | **위치 정보 권한 동의**<br>• 산책 시작 안내용 한정 수집<br>• 200m 마스킹 원칙 사전 고지 | **산책 준비 완료**<br>• 프로필 세팅 완료 축하<br>• 원터치 메인 홈 화면 진입 |
 
 #### 🌟 3. 마이 프로필 & 안심 커뮤니티 피드
 | 08-1. 반려견 프로필 관리 | 08-2. 3대 테마 선택기 | 08-3. 완주 산책 활동 리포트 | 08-4. 설정 및 데이터 관리 | 09. 커뮤니티 안심 피드 |
 | :---: | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/08-1_my_profile1.png" width="160" alt="반려견 프로필 관리"/> | <img src="docs/screenshots/08-2_my_theme1.png" width="160" alt="3대 테마 선택기"/> | <img src="docs/screenshots/08-3_my_walk_report.png" width="160" alt="완주 산책 활동 리포트"/> | <img src="docs/screenshots/08-4_my_setting1.png" width="160" alt="설정 및 데이터 관리"/> | <img src="docs/screenshots/09_community_feed1.png" width="160" alt="커뮤니티 안심 피드"/> |
-| **아이 맞춤 케어**<br>• 나이/체중/성별 관리<br>• 다견 가정을 위한 전환 | **야외 시인성 테마**<br>• 숲길 / 비비드 / 다크 테마<br>• 눈부심 방지 고대비 토큰 | **보행 통계 & 피드백**<br>• 지난 산책 활동 기록 뷰어<br>• 찜한 코스 원터치 재산책 | **프라이버시 & 무결성**<br>• AI 음성 안내 설정<br>• 로컬 백업 & 데이터 초기화 | **200m 공간 마스킹**<br>• 이웃 동네 안심 산책로 공유<br>• 자택 은폐 교차로 스냅 |
+| **강아지 맞춤 케어**<br>• 나이/체중/성별 관리<br>• 다견 가정을 위한 전환 | **야외 시인성 테마**<br>• 숲길 / 비비드 / 다크 테마<br>• 눈부심 방지 고대비 토큰 | **보행 통계 & 상세 지도**<br>• GPS 경로·배변 지도 뷰어<br>• 찜한 코스 원터치 재산책 | **프라이버시 & 무결성**<br>• AI 음성 안내 설정<br>• CSV/JSON 내보내기 & 초기화 | **200m 공간 마스킹**<br>• 복합 기간 필터(7/30일/전체)<br>• 안심 코스 찜하기(즐겨찾기) |
 
 ---
 
@@ -358,11 +361,11 @@ graph LR
 | 구분 | 검증 항목 | 달성 지표 | 상태 | 세부 내용 |
 | :--- | :--- | :---: | :---: | :--- |
 | **Backend** | Pytest TDD 스위트 | **507 / 507** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
-| **Frontend** | Vitest 단위 테스트 | **269 / 269** | `PASS` | 48개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임) |
+| **Frontend** | Vitest 단위 테스트 | **358 / 358** | `PASS` | 62개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임, 커뮤니티/마이페이지) |
 | **Frontend** | TypeScript 컴파일 검사 | **0 Errors** | `PASS` | `tsc --noEmit` 완벽 무결성 통과 (Strict Mode) |
 | **Code Quality** | SonarLint 단일 파일 줄수 | **100% 준수** | `PASS` | 모든 신규/수정 파일 250줄 이하 가드레일 엄수 (`App.tsx` 249줄) |
 | **UX & Copy** | 전문 용어 순화 가드레일 | **100% 완료** | `PASS` | 스토리 번호(`US-xx`) 및 개발자 용어 전면 배제, 웰니스 어휘 적용 |
-| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (507) + `mobile-app-ci` (269) 통과 시 자동 머지 파이프라인 |
+| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (507) + `mobile-app-ci` (358) 통과 시 자동 머지 파이프라인 |
 
 #### 2) 최근 완성된 주요 기능 구현 내용
 1. **대전 3대 공원 & 세종 2대 공원 5대 파일럿 실증 거점 연동**:
@@ -391,6 +394,18 @@ graph LR
    - 마음에 든 코스를 로컬 `@편안하개:bookmarked_routes`에 원터치 저장, 서버 재호출 없이 0.1초 만에 즉시 재산책.
 10. **OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 구현 계획 수립**:
     - 구글 맵 종속성 및 API 키 유출 위험을 원천 차단하고 100% 무료 오픈소스 GPU 가속 벡터 지도 도입 계획 확립.
+11. **산책 완료 후 내보내기 기능의 사용자 접근성 개선 (Issue #128)**:
+    - 산책 완료 후 누적된 보행 지표를 동물병원 수의사 제출용(CSV 엑셀) 및 기기 이전/개인 소장용(JSON 백업)으로 손쉽게 내보낼 수 있는 접이식 아코디언 컴포넌트 탑재.
+12. **산책 기록 상세 지도 모달 및 실제 GPS 이동 경로·배변 마킹 오버레이 (Issue #129, US-G2)**:
+    - 과거 완주 기록의 상세 지도 보기 터치 시 MapLibre 기반 고해상도 벡터 지도 위에 실제 보행 GPS 경로(LineString)와 출발(🚩)·도착(🏁) 핀, 산책 중 기록된 배변(대변 💩 / 소변 💧) 위치를 시간대별로 정확히 시각화.
+13. **마이페이지 활동 탭 UI 통일 및 기간별 보행 지표 통계 요약 (Issue #130)**:
+    - 마이페이지 산책 기록 카드를 커뮤니티 피드와 일치하는 풍부하고 일관된 카드 레이아웃(완주 인증 뱃지, 안심 마스킹 뱃지, 4대 보행 지표 칩, 별점 만족도, 피드백 태그)으로 전면 통일.
+    - 기간 필터(`최근 7일` / `최근 30일` / `전체`) 선택에 따른 산책 횟수, 총 거리, 총 시간, 완만 노면율, 총 배변 수 집계 통계 요약 위젯 제공.
+14. **커뮤니티 화면 복합 기간 필터링 및 안심 코스 찜(북마크) 보관함 양방향 복원**:
+    - 커뮤니티 화면 목록에 기존 랜드마크 필터와 결합된 기간 필터(`최근 7일` / `최근 30일` / `전체 기간`) 복합(AND) 필터링 도입.
+    - 각 피드 카드 및 모달 내 찜하기(북마크) 버튼을 복원 배치하여 오프라인에서도 마이페이지 "⭐ 찜한 안심 코스" 보관함과 즉각 연동 및 원터치 산책 시작 지원.
+15. **다견 가정 맞춤형 강아지 프로필 관리 및 직관적 추가 플로우 (Issue #127, US-A2)**:
+    - 상단 등록된 다견 선택 칩 바(`[🐾 초코] [🐾 콩이 ✓] [+ 새 강아지 추가]`), 강아지별 대표 사진 및 맞춤 체중/나이/관절 케어 레벨 독립 관리 모달 지원.
 
 ---
 
@@ -447,7 +462,7 @@ test_case\test_weather_endpoint_wiring.py .........                      [100%]
 ```
 
 ```bash
-# 모바일 프론트엔드 Vitest 단위 테스트 실행 (48개 파일, 269개 테스트 100% Pass)
+# 모바일 프론트엔드 Vitest 단위 테스트 실행 (62개 파일, 358개 테스트 100% Pass)
 cd frontend && npm test
 ```
 
@@ -532,7 +547,7 @@ pet_walk_t01/
 │   │   ├── kma_grid_converter.py              # 위경도 <-> 기상청 격자(X, Y) 양방향 변환기
 │   │   └── kma_weather_client.py              # 기상청 단기예보 실시간 수집 및 캐시 클라이언트
 │   ├── fixtures/                              # 테스트용 서울시 건물 외곽선 GeoJSON
-│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (255개 Pytest 전수 Pass)
+│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (507개 Pytest 전수 Pass)
 ├── frontend/                                  # 📱 [Expo 모바일 앱 & 웹] React Native / Expo SDK 57
 │   ├── README.md                              # 프론트엔드 모바일 아키텍처 및 실행 가이드
 │   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~05 통합 라우팅)
@@ -541,7 +556,7 @@ pet_walk_t01/
 │   ├── package.json                           # React Native, Expo, Vitest 의존성
 │   └── src/                                   # components, screens, services, theme, hooks, types
 └── .github/workflows/                         # GitHub Actions CI 파이프라인
-    └── ci.yml                                 # pytest(255개) + mobile vitest(141개) & tsc 자동 머지
+    └── ci.yml                                 # pytest(507개) + mobile vitest(358개) & tsc 자동 머지
 ```
 
 ---
@@ -576,7 +591,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # 5. 브라우저에서 Swagger UI 접속하여 실시간 API 테스트
 # URL: http://localhost:8000/docs
 
-# 6. 백엔드 255개 전수 단위 테스트 실행
+# 6. 백엔드 507개 전수 단위 테스트 실행
 pytest test_case/ -v
 ```
 
@@ -614,14 +629,14 @@ npm run ota:update
 ### 9.4 의존성 설치 및 TDD/단위 테스트 실행
 
 ```bash
-# 백엔드 Pytest 전수 검증 (255개 테스트 100% Pass)
+# 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
 # 방법 1) 루트에서 바로 실행 (pytest.ini 기반 backend/test_case 자동 탐색)
 python -m pytest
 
 # 방법 2) backend 폴더로 이동 후 실행
 cd backend && pytest test_case/ -v
 
-# 프론트엔드 Vitest 단위 테스트 (180개 테스트 100% Pass)
+# 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
 cd frontend && npm test
 
 # 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -631,6 +646,7 @@ cd frontend && npm run check
 ---
 
 ### 9.5 주요 개발 현황 보고서 및 설계 문서
+- 🐾 [10월 19일 GitHub Issues 진행 작업 현황 (Member 4)](docs/member4/2026-10-19_github_issues_todo.md)
 - 🐾 [10월 14일 김승현(앱 리드) 개발 현황 보고서](docs/reports/10월14일_김승현_구현현황보고서.md)
 - 🐾 [10월 13일 개발 결과 보고서](docs/reports/10월13일_작업결과보고서.md)
 - 🐾 [김승현 향후 구현 계획서 (v2.4 개정판)](docs/implementation_plan/김승현_향후_구현계획.md)
@@ -638,7 +654,7 @@ cd frontend && npm run check
 
 ---
 
-### 9.5 인터랙티브 목업 갤러리 확인
+### 9.6 인터랙티브 목업 갤러리 확인
 
 프로젝트의 6대 핵심 시나리오 화면을 브라우저에서 바로 확인할 수 있습니다:
 ```bash

@@ -152,6 +152,28 @@ export class WalkStatisticsService {
   }
 
   /**
+   * 기간별(최근 7일 '7days' | 'week', 최근 30일 '30days' | 'month', 전체 'all') 산책 기록 필터링 및 최신순 정렬 (Issue #130)
+   */
+  static filterRecordsByPeriod(
+    records: WalkRecord[],
+    period: StatsPeriodType | 'week' | 'month' = '7days',
+    now = new Date()
+  ): WalkRecord[] {
+    const normalizedPeriod = period === 'week' ? '7days' : period === 'month' ? '30days' : period;
+    let filtered = [...records];
+
+    if (normalizedPeriod === '7days') {
+      const sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter((r) => new Date(r.completedAt) >= sinceDate);
+    } else if (normalizedPeriod === '30days') {
+      const sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter((r) => new Date(r.completedAt) >= sinceDate);
+    }
+
+    return filtered.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  }
+
+  /**
    * 기간별(주간 7일, 월간 30일, 전체) 산책 헬스케어 통계 집계
    */
   static getPeriodStats(
@@ -159,18 +181,8 @@ export class WalkStatisticsService {
     period: StatsPeriodType = '7days',
     now = new Date()
   ): PeriodWalkStats {
-    let filtered = records;
-    let periodLabel = '전체 기간';
-
-    if (period === '7days') {
-      const sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = records.filter((r) => new Date(r.completedAt) >= sinceDate);
-      periodLabel = '최근 7일';
-    } else if (period === '30days') {
-      const sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filtered = records.filter((r) => new Date(r.completedAt) >= sinceDate);
-      periodLabel = '최근 30일';
-    }
+    const filtered = this.filterRecordsByPeriod(records, period, now);
+    const periodLabel = period === '7days' ? '최근 7일' : period === '30days' ? '최근 30일' : '전체 기간';
 
     if (filtered.length === 0) {
       return {

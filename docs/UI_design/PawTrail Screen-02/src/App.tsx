@@ -150,7 +150,7 @@ function HomeScreen({ onSelectDog }: { onSelectDog: () => void }) {
         {/* Greeting */}
         <div style={{ padding: '4px 20px 20px' }}>
           <p style={{ fontSize: '14px', color: '#6B756F', fontWeight: '400', marginBottom: '4px', lineHeight: '1.4' }}>오늘도 편안하게,</p>
-          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 아이와 걸어요. 🐾</p>
+          <p style={{ fontSize: '24px', color: '#17211C', fontWeight: '700', lineHeight: '1.3', letterSpacing: '-0.5px' }}>우리 강아지와 걸어요. 🐾</p>
         </div>
 
         {/* Main Walk Card */}
@@ -511,9 +511,9 @@ function DogSelection({ onBack }: { onBack: () => void }) {
       <div className="flex h-11 shrink-0 items-center justify-between px-6 text-sm font-semibold">
         <span>9:41</span>
         <div className="flex items-center gap-1.5 text-text-main" aria-hidden="true">
-          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx="1"/><rect x="4.5" y="3" width="3" height="9" rx="1"/><rect x="9" y="1" width="3" height="11" rx="1"/><rect x="13.5" y="0" width="2.5" height="12" rx="1" opacity="0.3"/></svg>
-          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.4C5.2 2.4 2.7 3.6 1 5.5L0 4.4C2 2.2 4.8.8 8 .8s6 1.4 8 3.6l-1 1.1C13.3 3.6 10.8 2.4 8 2.4z"/><path d="M8 5.6c-1.7 0-3.3.7-4.5 1.9l-1-1.1C4 4.9 5.9 4 8 4s4 .9 5.5 2.4l-1 1.1C11.3 6.3 9.7 5.6 8 5.6z"/><circle cx="8" cy="10" r="1.5"/></svg>
-          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity=".35"/><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" fillOpacity=".4"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx="1" /><rect x="4.5" y="3" width="3" height="9" rx="1" /><rect x="9" y="1" width="3" height="11" rx="1" /><rect x="13.5" y="0" width="2.5" height="12" rx="1" opacity="0.3" /></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.4C5.2 2.4 2.7 3.6 1 5.5L0 4.4C2 2.2 4.8.8 8 .8s6 1.4 8 3.6l-1 1.1C13.3 3.6 10.8 2.4 8 2.4z" /><path d="M8 5.6c-1.7 0-3.3.7-4.5 1.9l-1-1.1C4 4.9 5.9 4 8 4s4 .9 5.5 2.4l-1 1.1C11.3 6.3 9.7 5.6 8 5.6z" /><circle cx="8" cy="10" r="1.5" /></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity=".35" /><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor" /><path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" fillOpacity=".4" /></svg>
         </div>
       </div>
 
@@ -563,7 +563,7 @@ function DogSelection({ onBack }: { onBack: () => void }) {
             <div className="rounded-[20px] border border-border bg-card px-6 py-9 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-light text-primary-dark"><PawOutlineIcon /></div>
               <p className="font-semibold">아직 등록한 강아지가 없어요</p>
-              <p className="mt-2 text-sm leading-relaxed text-text-sub">우리 아이를 등록하고 편안한 산책을 시작해보세요.</p>
+              <p className="mt-2 text-sm leading-relaxed text-text-sub">우리 강아지를 등록하고 편안한 산책을 시작해보세요.</p>
             </div>
           )}
           <button type="button" onClick={() => setShowRegistration(true)} className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl border border-primary bg-card text-sm font-semibold text-primary-dark transition-colors hover:bg-primary-light/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">

@@ -2,7 +2,7 @@
  * [편안하개 - PetWalk]
  * 모바일 홈 화면 (Screen-02, docs/screenshots/02_home_screen.png 원형 복원 및 스크롤 방지 최적화)
  *
- * 1. 상단 환영 인사: "오늘도 편안하게, 우리 아이와 걸어요. 🐾"
+ * 1. 상단 환영 인사: "오늘도 편안하게, 우리 강아지와 걸어요. 🐾"
  * 2. 활성 반려견 카드: 프로필, 상태 뱃지, 30분/폭신한길 칩, 원터치 [산책 시작 →] 버튼
  * 3. 지면온도 골든타임 위젯: 실시간 기상청 예보 연동 지면온도 추천 바
  * 4. 최근 피드백 AI 보정 브리핑 (선택)
@@ -126,7 +126,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </Text>
           <View style={styles.greetingMainRow}>
             <Text style={[styles.greetingMain, { color: colors.textMain, fontSize: responsive.greetingMainSize }]}>
-              우리 아이와 걸어요.
+              우리 강아지와 걸어요.
             </Text>
             <AppIcon name="paw" size={responsive.greetingPawIconSize} color={colors.primary} />
           </View>

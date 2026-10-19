@@ -69,6 +69,34 @@ describe('WalkStatisticsService', () => {
     expect(emptyStats.totalDistanceKm).toBe(0);
   });
 
+  it('filterRecordsByPeriod: 기간별(최근 7일/30일/전체) 필터링 및 최신순 정렬을 정확히 수행한다', () => {
+    const oldRecord: WalkRecord = {
+      id: 'walk_old',
+      dogId: 'dog_1',
+      startedAt: '2026-09-01T10:00:00.000Z',
+      completedAt: '2026-09-01T10:30:00.000Z',
+      durationMinutes: 30,
+      totalDistanceKm: 2.0,
+      averageSpeedKmH: 4.0,
+      safeSurfaceRatio: 0.9,
+      gpsTrack: [],
+    };
+    const records = [...mockRecords, oldRecord];
+    const refDate = new Date('2026-10-14T12:00:00.000Z');
+
+    // 1. 최근 7일 (7days / week)
+    const weekRecords = WalkStatisticsService.filterRecordsByPeriod(records, '7days', refDate);
+    expect(weekRecords).toHaveLength(2);
+    expect(weekRecords[0].id).toBe('walk_2'); // 최신순 10/14가 먼저
+    expect(weekRecords[1].id).toBe('walk_1'); // 10/12
+
+    // 2. 전체 기간 (all)
+    const allRecords = WalkStatisticsService.filterRecordsByPeriod(records, 'all', refDate);
+    expect(allRecords).toHaveLength(3);
+    expect(allRecords[0].id).toBe('walk_2');
+    expect(allRecords[2].id).toBe('walk_old');
+  });
+
   it('기록이 CSV 문자열로 UTF-8 BOM과 함께 안전하게 변환된다', () => {
     const csv = WalkStatisticsService.exportWalkRecordsToCsv(mockRecords, '초코');
     expect(csv.startsWith('\uFEFF')).toBe(true);

@@ -32,7 +32,7 @@ def test_invalid_contract_is_rejected(values):
         VoiceWalkIntentPayload(**values)
 
 
-@pytest.mark.parametrize("park", ["보라매공원", "보라매호수공원"])
+@pytest.mark.parametrize("park", ["미지원공원", "알수없는공원"])
 def test_unknown_park_is_preserved_without_substitution(park):
     payload = service.extract_local_voice_intent(f"{park}에서 그늘 위주로 30분 산책할래")
     assert payload.destination_landmark == park

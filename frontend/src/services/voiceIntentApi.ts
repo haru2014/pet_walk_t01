@@ -37,7 +37,7 @@ export interface VoiceIntentResult {
  */
 export function extractLocalVoiceIntent(speechText: string, dogName?: string): VoiceIntentResult {
   const text = speechText.trim();
-  const name = dogName || '아이';
+  const name = dogName || '강아지';
 
   // 1. 산책 시간(분) 추출
   let duration = 30;

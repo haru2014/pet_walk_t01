@@ -50,14 +50,14 @@ describe('HomeDogCard 컴포넌트 및 다견 슬라이더 검증', () => {
     updatedAt: new Date().toISOString(),
   };
 
-  it('단일 반려견일 때 활성 반려견 정보와 아이 추가 버튼이 정상 렌더링되어야 한다', () => {
+  it('단일 반려견일 때 활성 반려견 정보와 강아지 추가 버튼이 정상 렌더링되어야 한다', () => {
     const html = renderToStaticMarkup(
       <HomeDogCard profile={sampleDog1} dogs={[sampleDog1]} />
     );
 
     expect(html).toContain('초코');
     expect(html).toContain('말티즈');
-    expect(html).toContain('+ 아이 추가');
+    expect(html).toContain('+ 강아지 추가');
     expect(html).toContain('산책 시작');
   });
 
@@ -73,6 +73,6 @@ describe('HomeDogCard 컴포넌트 및 다견 슬라이더 검증', () => {
     expect(html).toContain('초코');
     expect(html).toContain('콩이');
     expect(html).toContain('1/2 ⇄');
-    expect(html).toContain('우리 아이 한 마리 더 등록하기');
+    expect(html).toContain('우리 강아지 한 마리 더 등록하기');
   });
 });

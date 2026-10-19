@@ -3,7 +3,7 @@ export const LANDMARK_TO_PARK_ID: Record<string, string> = {
   유림공원: 'yurim', 유림: 'yurim', 갑천: 'yurim',
   세종호수공원: 'sejong', 세종호수: 'sejong', 호수공원: 'sejong',
   송강공원: 'songgang', 송강근린공원: 'songgang', 송강: 'songgang',
-  도안공원: 'doan', 도안호수공원: 'doan', 도안: 'doan',
+  도안공원: 'doan', 도안호수공원: 'doan', 갑천생태공원: 'doan', 갑천생태호수공원: 'doan', '도안호수공원(갑천생태공원)': 'doan', 도안: 'doan',
 };
 
 const PARK_IDS: Record<string, string> = {
