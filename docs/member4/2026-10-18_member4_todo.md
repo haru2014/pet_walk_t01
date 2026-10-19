@@ -62,8 +62,12 @@
 
 ### 🟡 P1
 
+- [x] 위험 제보→보행망 우회→경로 교체→TTS 및 실제 보행 경로 기반 긴급 복귀를 구현한다. <!-- key:plan-d0807fb3 -->
+  - `HazardReportModal.tsx` 현장 위험 제보 UI(공사구역, 높은턱, 파편, 들개출몰) 및 [안전 우회 / 긴급 복귀] 액션 구현
+  - `hazardApi.ts` 구현: POST /api/v1/hazards 제보, POST /api/v1/walk/reroute 우회 재산출 및 오프라인 로컬 기하 폴백 연동
+  - `DarkPocketScreen.tsx` 및 `App.tsx` 연동: HUD 내 위험 제보 버튼, 지도 경로 실시간 갱신 및 TTSNavigationService 안내 발화
+  - 단위 테스트 완료: `hazardApi.test.ts` (6 passed), `HazardReportModal.test.tsx` (2 passed), TypeScript(`tsc --noEmit`) 무오류 검증
 - [ ] 지도 크기 변경·재진입·테마·타일 장애를 Web/실기기에서 검증한다. <!-- key:plan-c5a74f42 -->
-- [ ] 위험 제보→보행망 우회→경로 교체→TTS 및 실제 보행 경로 기반 긴급 복귀를 구현한다. <!-- key:plan-d0807fb3 -->
 - [ ] GPS 백그라운드 1시간·권한 거부·재시작, 네이티브 소음 입력 범위를 검증한다. <!-- key:plan-1ac48752 -->
 
 ---
