@@ -6,9 +6,16 @@ on:
       - main
       - 'feat/**'
       - 'feature/**'
+
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+  workflow_dispatch:
 
 jobs:
   # ========================================================
@@ -78,9 +85,7 @@ jobs:
     name: Auto Merge on CI Success
     needs: [backend-test, mobile-app-ci]
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action != 'closed'
+    if: github.event_name == 'pull_request'
     permissions:
       contents: write
       pull-requests: write
@@ -88,64 +93,12 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: PR 자동 머지 활성화 (Squash & Merge)
+      - name: PR 자동 머지 실행 (Squash & Merge)
         run: |
           gh pr merge "${{ github.event.pull_request.number }}" --squash --auto --repo "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ========================================================
-  # Job 4: 팀 저장소 main에 PR이 병합된 경우 Render 저장소 main 동기화
-  # ========================================================
-  sync-render:
-    name: Sync Merged Main to Render Repository
-    needs: [backend-test, mobile-app-ci]
-    runs-on: ubuntu-latest
-    # PR이 팀 저장소의 main에 실제로 병합된 경우에만 실행한다.
-    # PR이 닫혔지만 병합되지 않은 경우에는 실행하지 않는다.
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.base.ref == 'main'
-
-    steps:
-      - name: 병합된 팀 main 체크아웃
-        uses: actions/checkout@v7
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Render 저장소 main으로 동기화
-        env:
-          RENDER_REPO: ${{ vars.FORK_REPO }}
-          RENDER_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${RENDER_REPO:-}" ]; then
-            echo "::error::Repository variable FORK_REPO가 설정되지 않았습니다."
-            echo "값은 gigantess/pet_walk_t01 형식이어야 합니다."
-            exit 1
-          fi
-
-          if [ "$RENDER_REPO" != "gigantess/pet_walk_t01" ]; then
-            echo "::error::FORK_REPO가 예상한 Render 저장소가 아닙니다: $RENDER_REPO"
-            echo "GitHub Actions Variables에서 FORK_REPO=gigantess/pet_walk_t01 로 설정하세요."
-            exit 1
-          fi
-
-          if [ -z "${RENDER_REPO_TOKEN:-}" ]; then
-            echo "::error::Secret FORK_REPO_TOKEN이 설정되지 않았습니다."
-            exit 1
-          fi
-
-          AUTH_HEADER="$(printf 'x-access-token:%s' "$RENDER_REPO_TOKEN" | base64 -w 0)"
-
-          # 병합된 팀 main의 커밋을 Render 저장소 main에 푸시한다.
-          # 대상 main이 별도 커밋으로 앞서 있으면 강제 덮어쓰지 않고 실패시킨다.
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH_HEADER}" \
-            push "https://github.com/${RENDER_REPO}.git" \
-            HEAD:refs/heads/main

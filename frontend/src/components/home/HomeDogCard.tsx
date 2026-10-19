@@ -7,7 +7,7 @@
  * 3. 마지막 슬라이드: "+ 새로운 반려견 등록" 퀵 추가 카드 제공
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { TOKENS } from '../../theme/tokens';
 import { DogProfile } from '../../types/dogProfile';
 import { AppIcon } from '../common/AppIcon';
 import { DogAvatar } from '../common/DogAvatar';
+import { useHomeResponsive } from '../../hooks/useHomeResponsive';
 
 export interface HomeDogCardProps {
   profile: DogProfile;
@@ -42,7 +43,11 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
   onPressProfile,
   onStartWalk,
 }) => {
-  const dogList = dogs && dogs.length > 0 ? dogs : [profile];
+  const responsive = useHomeResponsive();
+  const dogList = useMemo(
+    () => (dogs && dogs.length > 0 ? dogs : [profile]),
+    [dogs, profile]
+  );
   const isMultiDog = dogList.length > 1;
 
   const [cardWidth, setCardWidth] = useState<number>(() => {
@@ -52,7 +57,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
   const [internalActiveIndex, setInternalActiveIndex] = useState<number>(() => {
     const initIdx = dogList.findIndex((d) => d.id === (selectedDogId ?? profile.id));
-    return initIdx >= 0 ? initIdx : 0;
+    return Math.max(0, initIdx);
   });
   const selectedIndex = selectedDogId
     ? dogList.findIndex((dog) => dog.id === selectedDogId)
@@ -91,24 +96,38 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
     }
   };
 
+  const cardDynamicStyle = {
+    paddingVertical: responsive.dogCardPaddingV,
+    paddingHorizontal: responsive.dogCardPaddingH,
+  };
+
   // 단일 반려견일 때 (슬라이드 불필요)
   if (!isMultiDog) {
     return (
       <View style={styles.singleCardWrapper}>
-        <View style={styles.card}>
+        <View style={[styles.card, cardDynamicStyle]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={onPressProfile}
             style={styles.profileRow}
           >
             <View style={styles.avatarWrapper}>
-              <DogAvatar photoUri={profile.photoUri} size={48} />
-              <View style={styles.onlineBadge} />
+              <DogAvatar photoUri={profile.photoUri} size={responsive.dogAvatarSize} />
+              <View
+                style={[
+                  styles.onlineBadge,
+                  {
+                    width: responsive.dogAvatarSize > 50 ? 12 : 10,
+                    height: responsive.dogAvatarSize > 50 ? 12 : 10,
+                    borderRadius: responsive.dogAvatarSize > 50 ? 6 : 5,
+                  },
+                ]}
+              />
             </View>
 
             <View style={styles.infoContainer}>
               <View style={styles.nameRow}>
-                <Text style={styles.dogName}>{profile.name}</Text>
+                <Text style={[styles.dogName, { fontSize: responsive.dogNameSize }]}>{profile.name}</Text>
                 <View style={styles.readyBadge}>
                   <Text style={styles.readyBadgeText}>준비 완료</Text>
                 </View>
@@ -121,10 +140,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
                 </TouchableOpacity>
               </View>
               <View style={styles.subtitleRow}>
-                <Text style={styles.subtitle}>오늘 산책 준비됐어요</Text>
-                <AppIcon name="sun" size={14} color={TOKENS.colors.primaryDark} />
+                <Text style={[styles.subtitle, { fontSize: responsive.dogSubtitleSize }]}>오늘 산책 준비됐어요</Text>
+                <AppIcon name="sun" size={responsive.isSpacious ? 16 : 14} color={TOKENS.colors.primaryDark} />
               </View>
-              <Text style={styles.breedText}>
+              <Text style={[styles.breedText, { fontSize: responsive.dogBreedSize }]}>
                 {profile.breed} · {profile.ageYears}살 · {profile.speedKmH} km/h
               </Text>
             </View>
@@ -132,16 +151,32 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
           <View style={styles.actionRow}>
             <View style={styles.chipsContainer}>
-              <View style={styles.chip}>
+              <View
+                style={[
+                  styles.chip,
+                  {
+                    paddingVertical: responsive.dogChipPaddingV,
+                    paddingHorizontal: responsive.dogChipPaddingH,
+                  },
+                ]}
+              >
                 <View style={styles.chipContent}>
-                  <AppIcon name="clock" size={13} color={TOKENS.colors.primaryDark} />
-                  <Text style={styles.chipText}>30분 산책</Text>
+                  <AppIcon name="clock" size={responsive.dogChipIconSize} color={TOKENS.colors.primaryDark} />
+                  <Text style={[styles.chipText, { fontSize: responsive.dogChipFontSize }]}>30분 산책</Text>
                 </View>
               </View>
-              <View style={styles.chip}>
+              <View
+                style={[
+                  styles.chip,
+                  {
+                    paddingVertical: responsive.dogChipPaddingV,
+                    paddingHorizontal: responsive.dogChipPaddingH,
+                  },
+                ]}
+              >
                 <View style={styles.chipContent}>
-                  <AppIcon name="soft" size={13} color={TOKENS.colors.primaryDark} />
-                  <Text style={styles.chipText}>폭신한 길 우선</Text>
+                  <AppIcon name="soft" size={responsive.dogChipIconSize} color={TOKENS.colors.primaryDark} />
+                  <Text style={[styles.chipText, { fontSize: responsive.dogChipFontSize }]}>폭신한 길 우선</Text>
                 </View>
               </View>
             </View>
@@ -149,11 +184,17 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={onStartWalk}
-              style={styles.startButton}
+              style={[
+                styles.startButton,
+                {
+                  paddingVertical: responsive.dogStartBtnPaddingV,
+                  paddingHorizontal: responsive.dogStartBtnPaddingH,
+                },
+              ]}
             >
               <View style={styles.startButtonContent}>
-                <Text style={styles.startButtonText}>산책 시작</Text>
-                <AppIcon name="chevronRight" size={16} color={TOKENS.colors.textWhite} />
+                <Text style={[styles.startButtonText, { fontSize: responsive.dogStartBtnFontSize }]}>산책 시작</Text>
+                <AppIcon name="chevronRight" size={responsive.isSpacious ? 18 : 16} color={TOKENS.colors.textWhite} />
               </View>
             </TouchableOpacity>
           </View>
@@ -186,20 +227,29 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
           const isSelected = dogItem.id === (selectedDogId ?? profile.id);
           return (
             <View key={dogItem.id} style={[styles.cardSlide, { width: cardWidth }]}>
-              <View style={[styles.card, isSelected && styles.cardActiveHighlight]}>
+              <View style={[styles.card, cardDynamicStyle, isSelected && styles.cardActiveHighlight]}>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={onPressProfile}
                   style={styles.profileRow}
                 >
                   <View style={styles.avatarWrapper}>
-                    <DogAvatar photoUri={dogItem.photoUri} size={48} />
-                    <View style={styles.onlineBadge} />
+                    <DogAvatar photoUri={dogItem.photoUri} size={responsive.dogAvatarSize} />
+                    <View
+                      style={[
+                        styles.onlineBadge,
+                        {
+                          width: responsive.dogAvatarSize > 50 ? 12 : 10,
+                          height: responsive.dogAvatarSize > 50 ? 12 : 10,
+                          borderRadius: responsive.dogAvatarSize > 50 ? 6 : 5,
+                        },
+                      ]}
+                    />
                   </View>
 
                   <View style={styles.infoContainer}>
                     <View style={styles.nameRow}>
-                      <Text style={styles.dogName}>{dogItem.name}</Text>
+                      <Text style={[styles.dogName, { fontSize: responsive.dogNameSize }]}>{dogItem.name}</Text>
                       <View style={styles.readyBadge}>
                         <Text style={styles.readyBadgeText}>준비 완료</Text>
                       </View>
@@ -210,10 +260,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
                       </View>
                     </View>
                     <View style={styles.subtitleRow}>
-                      <Text style={styles.subtitle}>오늘 산책 준비됐어요</Text>
-                      <AppIcon name="sun" size={14} color={TOKENS.colors.primaryDark} />
+                      <Text style={[styles.subtitle, { fontSize: responsive.dogSubtitleSize }]}>오늘 산책 준비됐어요</Text>
+                      <AppIcon name="sun" size={responsive.isSpacious ? 16 : 14} color={TOKENS.colors.primaryDark} />
                     </View>
-                    <Text style={styles.breedText}>
+                    <Text style={[styles.breedText, { fontSize: responsive.dogBreedSize }]}>
                       {dogItem.breed} · {dogItem.ageYears}살 · {dogItem.speedKmH} km/h
                     </Text>
                   </View>
@@ -221,16 +271,32 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
                 <View style={styles.actionRow}>
                   <View style={styles.chipsContainer}>
-                    <View style={styles.chip}>
+                    <View
+                      style={[
+                        styles.chip,
+                        {
+                          paddingVertical: responsive.dogChipPaddingV,
+                          paddingHorizontal: responsive.dogChipPaddingH,
+                        },
+                      ]}
+                    >
                       <View style={styles.chipContent}>
-                        <AppIcon name="clock" size={13} color={TOKENS.colors.primaryDark} />
-                        <Text style={styles.chipText}>30분 산책</Text>
+                        <AppIcon name="clock" size={responsive.dogChipIconSize} color={TOKENS.colors.primaryDark} />
+                        <Text style={[styles.chipText, { fontSize: responsive.dogChipFontSize }]}>30분 산책</Text>
                       </View>
                     </View>
-                    <View style={styles.chip}>
+                    <View
+                      style={[
+                        styles.chip,
+                        {
+                          paddingVertical: responsive.dogChipPaddingV,
+                          paddingHorizontal: responsive.dogChipPaddingH,
+                        },
+                      ]}
+                    >
                       <View style={styles.chipContent}>
-                        <AppIcon name="soft" size={13} color={TOKENS.colors.primaryDark} />
-                        <Text style={styles.chipText}>폭신한 길 우선</Text>
+                        <AppIcon name="soft" size={responsive.dogChipIconSize} color={TOKENS.colors.primaryDark} />
+                        <Text style={[styles.chipText, { fontSize: responsive.dogChipFontSize }]}>폭신한 길 우선</Text>
                       </View>
                     </View>
                   </View>
@@ -238,11 +304,17 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={onStartWalk}
-                    style={styles.startButton}
+                    style={[
+                      styles.startButton,
+                      {
+                        paddingVertical: responsive.dogStartBtnPaddingV,
+                        paddingHorizontal: responsive.dogStartBtnPaddingH,
+                      },
+                    ]}
                   >
                     <View style={styles.startButtonContent}>
-                      <Text style={styles.startButtonText}>산책 시작</Text>
-                      <AppIcon name="chevronRight" size={16} color={TOKENS.colors.textWhite} />
+                      <Text style={[styles.startButtonText, { fontSize: responsive.dogStartBtnFontSize }]}>산책 시작</Text>
+                      <AppIcon name="chevronRight" size={responsive.isSpacious ? 18 : 16} color={TOKENS.colors.textWhite} />
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -256,7 +328,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={onAddDog ?? onPressProfile}
-            style={[styles.card, styles.addCard]}
+            style={[styles.card, styles.addCard, { minHeight: responsive.dogCarouselMinHeight }]}
           >
             <View style={styles.addCardContent}>
               <View style={styles.addIconCircle}>
@@ -272,7 +344,7 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
       </ScrollView>
 
       {/* 페이지네이션 도트 인디케이터 */}
-      <View style={styles.indicatorContainer}>
+      <View style={[styles.indicatorContainer, { marginTop: responsive.dogDotsMarginTop }]}>
         {dogList.map((dogItem, idx) => (
           <TouchableOpacity
             key={`dot_${dogItem.id}`}
@@ -308,10 +380,10 @@ export const HomeDogCard: React.FC<HomeDogCardProps> = ({
 
 const styles = StyleSheet.create({
   singleCardWrapper: {
-    marginBottom: 10,
+    marginBottom: 4,
   },
   sliderOuterContainer: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   scrollContent: {
     alignItems: 'stretch',
@@ -322,13 +394,14 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: TOKENS.colors.surface,
     borderRadius: TOKENS.borderRadius.card,
-    padding: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
     shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   cardActiveHighlight: {
@@ -337,8 +410,8 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 8,
   },
   avatarWrapper: {
     position: 'relative',
@@ -347,9 +420,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 1,
     right: 1,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: TOKENS.colors.primary,
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -362,71 +435,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   dogName: {
-    fontSize: 17,
+    fontSize: 15.5,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   readyBadge: {
     backgroundColor: TOKENS.colors.primarySubtle,
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 20,
   },
   readyBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primary,
   },
   slideNoticeBadge: {
     marginLeft: 'auto',
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
   },
   slideNoticeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   addBtnSmall: {
     marginLeft: 'auto',
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
   addBtnSmallText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: TOKENS.colors.textMuted,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breedText: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: TOKENS.colors.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 4,
-    gap: 8,
+    paddingTop: 2,
+    gap: 6,
   },
   chipsContainer: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
     flexWrap: 'wrap',
     flex: 1,
   },
@@ -434,30 +507,30 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
     borderWidth: 1,
     borderColor: TOKENS.colors.primaryMint,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 16,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
-  chipContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  chipContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   startButton: {
     backgroundColor: TOKENS.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 6.5,
+    borderRadius: 12,
     shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3,
   },
   startButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     letterSpacing: -0.2,
   },

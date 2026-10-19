@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, type StyleProp, type ViewStyle } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import {
@@ -18,6 +18,9 @@ export interface WalkDurationSliderProps {
   isFreeWalk: boolean;
   onChangeDuration: (minutes: number | null) => void;
   onChangeFreeWalk: (isFree: boolean) => void;
+  /** 상위 섹션 헤더가 이미 존재하는 경우 중복 헤더("얼마나 걸을까요?")를 숨김 */
+  hideHeader?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
@@ -25,6 +28,8 @@ export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
   isFreeWalk,
   onChangeDuration,
   onChangeFreeWalk,
+  hideHeader = false,
+  style,
 }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customMinutesText, setCustomMinutesText] = useState('');
@@ -55,13 +60,15 @@ export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>얼마나 걸을까요?</Text>
-        <Text style={styles.currentBadge}>
-          {formatDurationLabel(duration, isFreeWalk)}
-        </Text>
-      </View>
+    <View style={[styles.container, hideHeader && styles.containerCompact, style]}>
+      {!hideHeader && (
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>얼마나 걸을까요?</Text>
+          <Text style={styles.currentBadge}>
+            {formatDurationLabel(duration, isFreeWalk)}
+          </Text>
+        </View>
+      )}
 
       {/* 자유 산책 모드 토글 카드 */}
       <TouchableOpacity
@@ -174,6 +181,7 @@ export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
 
 const styles = StyleSheet.create({
   container: { marginBottom: 24 },
+  containerCompact: { marginBottom: 4 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
   currentBadge: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },

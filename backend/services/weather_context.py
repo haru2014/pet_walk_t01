@@ -25,6 +25,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from services import kma_weather_client as kma
 from services import open_meteo_client
+from services import airkorea_client
 from services.kma_grid_converter import latlon_to_grid
 
 SURFACE_HEAT_GAIN_C = 15.0
@@ -42,9 +43,11 @@ InsolationProvider = Callable[[datetime], Optional[float]]
 def is_daylight(when: datetime, lat: float, lon: float) -> bool:
     """해당 시각에 태양이 떠 있는지(태양 고도 > 0). 계산이 안 되면 06~19시로 본다."""
     try:
-        from suncalc import get_position
+        import importlib
+        suncalc = importlib.import_module("suncalc")
+        get_position = getattr(suncalc, "get_position")
         return float(get_position(when, lon, lat)["altitude"]) > 0.0
-    except (ImportError, ValueError, KeyError, TypeError):
+    except (ImportError, AttributeError, ValueError, KeyError, TypeError):
         return 6 <= when.hour < 19
 
 
@@ -61,6 +64,26 @@ def estimate_surface_temp(air_temp_c: float, insolation_weight: float) -> float:
     return round(air_temp_c + insolation_weight * SURFACE_HEAT_GAIN_C, 1)
 
 
+SURFACE_HEAT_GAIN_MAP = {
+    "asphalt": 18.0,
+    "paved": 14.0,
+    "rubber": 12.0,
+    # 흙: 기상청 ASOS 관측 지면온도(맨땅, 흙으로 얇게 덮은 센서) 낮 시간 최소제곱 적합값.
+    # 대전·세종 2026-06~10 3,845시간 (docs/reports/2026-10-18_지면온도_추정_오차_평가.md). 이전 값 8.0 은 근거 없음.
+    "dirt": 12.6,
+    "grass": 4.0,
+    "gravel": 10.0,
+}
+
+
+def calculate_surface_temps(air_temp_c: float, insolation_weight: float) -> Dict[str, float]:
+    """노면 재질별 추정 지면온도 (US-B2 노면 비용 모델 연동)."""
+    return {
+        surface: round(air_temp_c + insolation_weight * gain, 1)
+        for surface, gain in SURFACE_HEAT_GAIN_MAP.items()
+    }
+
+
 def risk_level(surface_temp_c: float) -> str:
     if surface_temp_c <= SAFE_MAX_C:
         return "SAFE"
@@ -68,7 +91,8 @@ def risk_level(surface_temp_c: float) -> str:
 
 
 def _entry(when: datetime, air_temp_c: float, sky_code: Optional[int], pty_code: Optional[int],
-           lat: float, lon: float, provider: Optional[InsolationProvider]) -> Dict[str, Any]:
+           lat: float, lon: float, provider: Optional[InsolationProvider],
+           pop: Optional[int] = None) -> Dict[str, Any]:
     condition = sky_condition(sky_code, pty_code, is_daylight(when + timedelta(minutes=30), lat, lon))
     weight = INSOLATION_WEIGHTS[condition]
     source = "sky"
@@ -78,10 +102,22 @@ def _entry(when: datetime, air_temp_c: float, sky_code: Optional[int], pty_code:
             weight = min(1.0, max(0.0, float(provided)))
             source = "provider"
     surface = estimate_surface_temp(air_temp_c, weight)
+    solar_radiation_w_m2 = round(weight * 1000.0, 1)
+    surface_temps = calculate_surface_temps(air_temp_c, weight)
+    if pop is not None:
+        pop_val = int(pop)
+    elif pty_code:
+        pop_val = 100
+    else:
+        pop_val = 0
+
     return {
         "hour": when.hour, "air_temp_celsius": air_temp_c, "estimated_surface_temp": surface,
+        "solar_radiation_w_m2": solar_radiation_w_m2,
+        "surface_temps": surface_temps,
         "risk_level": risk_level(surface), "is_golden_time": surface <= SAFE_MAX_C, "notice": NOTICE,
         "condition": condition, "insolation_weight": weight, "insolation_source": source,
+        "pop": pop_val,
         "time": when.isoformat(),
     }
 
@@ -151,15 +187,28 @@ def _slot_time(slot: Dict[str, Any]) -> datetime:
     return datetime.strptime(slot["fcst_date"] + slot["fcst_time"], "%Y%m%d%H%M").replace(tzinfo=kma.KST)
 
 
+def _apply_forecast_slot(slot: Dict[str, Any], temp_key: str, merged: Dict[datetime, Dict[str, Any]]) -> None:
+    values = slot.get("values", {})
+    temp = values.get(temp_key)
+    if not isinstance(temp, (int, float)):
+        return
+    t = _slot_time(slot)
+    existing = merged.get(t, {})
+    pop_val = values.get("POP") if values.get("POP") is not None else existing.get("pop")
+    merged[t] = {
+        "air": float(temp),
+        "sky": values.get("SKY") if values.get("SKY") is not None else existing.get("sky"),
+        "pty": values.get("PTY") if values.get("PTY") is not None else existing.get("pty"),
+        "pop": int(pop_val) if pop_val is not None else None,
+    }
+
+
 def _merge_forecasts(ultra: Optional[Dict[str, Any]], vilage: Optional[Dict[str, Any]]) -> Dict[datetime, Dict[str, Any]]:
-    """시각별 {air, sky, pty}. 단기예보를 깔고 초단기예보(더 최근)로 덮어쓴다."""
+    """시각별 {air, sky, pty, pop}. 단기예보를 깔고 초단기예보(더 최근)로 덮어쓴다."""
     merged: Dict[datetime, Dict[str, Any]] = {}
     for source, temp_key in ((vilage, "TMP"), (ultra, "T1H")):
         for slot in (source or {}).get("forecasts", []):
-            values = slot["values"]
-            if isinstance(values.get(temp_key), (int, float)):
-                merged[_slot_time(slot)] = {"air": float(values[temp_key]), "sky": values.get("SKY"),
-                                            "pty": values.get("PTY")}
+            _apply_forecast_slot(slot, temp_key, merged)
     return merged
 
 
@@ -192,29 +241,43 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     vilage = _optional(kma.fetch_vilage_fcst, "단기예보", warnings, nx, ny, **options)
     forecasts = _merge_forecasts(ultra, vilage)
     insolation_provider, insolation_source, attribution = _resolve_insolation(
-        lat, lon, when, insolation_provider, use_open_meteo, timeout, warnings)
+        lat, lon, when, insolation_provider, use_open_meteo, min(timeout, 2.0), warnings)
 
     hour_start = when.replace(minute=0, second=0, microsecond=0)
     upcoming = sorted(t for t in forecasts if hour_start <= t < hour_start + timedelta(hours=24))
     hourly = [_entry(t, forecasts[t]["air"], forecasts[t]["sky"], forecasts[t]["pty"], lat, lon,
-                     insolation_provider) for t in upcoming]
+                     insolation_provider, pop=forecasts[t].get("pop")) for t in upcoming]
 
     values = observed["values"]
-    air_now = values.get("T1H") if isinstance(values.get("T1H"), (int, float)) else (
-        forecasts[upcoming[0]]["air"] if upcoming else None)
+    first_forecast = forecasts[upcoming[0]] if upcoming else {}
+    air_val = values.get("T1H")
+    if isinstance(air_val, (int, float)):
+        air_now = float(air_val)
+    else:
+        air_now = first_forecast.get("air")
     if air_now is None:
         raise kma.KmaApiError("현재 기온을 알 수 없습니다 (관측값과 예보 모두 없음)")
-    sky_now = forecasts[upcoming[0]]["sky"] if upcoming else None
-    pty_now = values.get("PTY") if values.get("PTY") is not None else (forecasts[upcoming[0]]["pty"] if upcoming else None)
-    current = _entry(when, float(air_now), sky_now, pty_now, lat, lon, insolation_provider)
+
+    sky_now = first_forecast.get("sky")
+    if values.get("PTY") is not None:
+        pty_now = values.get("PTY")
+    else:
+        pty_now = first_forecast.get("pty")
+    pop_now = first_forecast.get("pop")
+    current = _entry(when, float(air_now), sky_now, pty_now, lat, lon, insolation_provider, pop=pop_now)
     if hourly and datetime.fromisoformat(hourly[0]["time"]) != hour_start:
         # 매시 45분 이후에는 예보가 다음 시각부터 시작하므로, 현재 시각 슬롯은 현재 관측으로 채운다
         hourly.insert(0, {**current, "time": hour_start.isoformat()})
     window, window_day = golden_time_window(hourly, when, current["is_golden_time"])
 
+    # 한국환경공단 에어코리아(AirKorea) 실시간 대기질(미세먼지) 조회
+    air_quality = airkorea_client.fetch_air_quality(lat, lon, service_key=service_key, timeout=min(timeout, 2.5))
+
     return {
         "status": "success",
         "current": current,
+        "pop": current.get("pop", 0),
+        "air_quality": air_quality,
         "golden_time_window": window,
         "golden_time_window_day": window_day,
         "hourly_forecast": hourly,
@@ -233,8 +296,115 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     }
 
 
+def build_open_meteo_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = None, *,
+                                        timeout: float = kma.DEFAULT_TIMEOUT_S) -> Dict[str, Any]:
+    """기상청 호출이 불가능할 때 Open-Meteo 무키 실시간 예보를 기반으로 정확한 지면열 응답을 생성한다."""
+    when = kma.to_kst(now)
+    hour_start = when.replace(minute=0, second=0, microsecond=0)
+
+    weather_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, when, timeout=timeout)
+    radiation_map = {t: d["radiation"] for t, d in weather_data.items()}
+    insolation_provider = open_meteo_client.make_insolation_provider(radiation_map)
+
+    upcoming = sorted(t for t in weather_data if hour_start <= t < hour_start + timedelta(hours=24))
+    hourly = [
+        _entry(
+            t,
+            weather_data[t]["air"],
+            weather_data[t]["sky"],
+            weather_data[t]["pty"],
+            lat,
+            lon,
+            insolation_provider,
+            pop=weather_data[t]["pop"],
+        )
+        for t in upcoming
+    ]
+
+    curr_data = weather_data.get(hour_start)
+    if curr_data is not None:
+        current = _entry(
+            when,
+            curr_data["air"],
+            curr_data["sky"],
+            curr_data["pty"],
+            lat,
+            lon,
+            insolation_provider,
+            pop=curr_data["pop"],
+        )
+    elif hourly:
+        current = hourly[0]
+    else:
+        raise open_meteo_client.OpenMeteoError("Open-Meteo 예보 데이터가 비어 있습니다.")
+
+    if hourly and datetime.fromisoformat(hourly[0]["time"]) != hour_start:
+        hourly.insert(0, {**current, "time": hour_start.isoformat()})
+
+    window, window_day = golden_time_window(hourly, when, current["is_golden_time"])
+    air_quality = airkorea_client.fetch_air_quality(lat, lon, timeout=timeout)
+
+    return {
+        "status": "success",
+        "current": current,
+        "pop": current.get("pop", 0),
+        "air_quality": air_quality,
+        "golden_time_window": window,
+        "golden_time_window_day": window_day,
+        "hourly_forecast": hourly,
+        "notice": NOTICE,
+        "coordinates": {"lat": lat, "lon": lon},
+        "data_source": "open_meteo_live",
+        "insolation_source": "open_meteo",
+        "attribution": open_meteo_client.ATTRIBUTION,
+        "grid": None,
+        "bases": {},
+        "warnings": ["기상청 API 대신 Open-Meteo 실시간 기상 관측 데이터를 기반으로 지면열을 산출했습니다."],
+    }
+
+
+RAIN_POP_THRESHOLD = 60  # 기상청 예보 표기 관례: 강수확률 60% 이상이면 비 예보로 본다
+PLANNING_FORECAST_HOURS = 12  # 경로 생성에 넘기는 시간대별 예보 수 (현재 시각부터)
+_FORECAST_KEYS = ("time", "hour", "air_temp_celsius", "estimated_surface_temp", "risk_level", "is_golden_time",
+                  "condition", "pop")
+
+
+def _upcoming_hours(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """현재 시각부터의 시간대별 예보. 대체 응답(0~23시 고정 곡선, time 없음)은 현재 시각 이후만 고른다."""
+    hourly = list(response.get("hourly_forecast") or [])
+    if hourly and "time" not in hourly[0]:
+        start = (response.get("current") or {}).get("hour", 0)
+        hourly = [h for h in hourly if h.get("hour", -1) >= start]
+    return hourly[:PLANNING_FORECAST_HOURS]
+
+
+def _is_rain(entry: Dict[str, Any]) -> bool:
+    return entry.get("condition") == "rainy" or (entry.get("pop") or 0) >= RAIN_POP_THRESHOLD
+
+
+def precipitation_summary(response: Dict[str, Any]) -> Dict[str, Any]:
+    """지금 비가 오는지, 강수확률, 6시간 안에 비가 예상되는 시각. 대체 응답이면 known=false (알 수 없음)."""
+    current = response.get("current") or {}
+    upcoming = _upcoming_hours(response)
+    if response.get("data_source") == "fallback_estimate" or "condition" not in current:
+        return {"known": False, "is_precipitating_now": None, "pop_now": None, "max_pop_next_3h": None,
+                "rain_expected_times": [], "threshold_pop": RAIN_POP_THRESHOLD}
+    return {
+        "known": True,
+        "is_precipitating_now": current.get("condition") == "rainy",
+        "pop_now": current.get("pop"),
+        "max_pop_next_3h": max((h.get("pop") or 0 for h in upcoming[:3]), default=current.get("pop") or 0),
+        "rain_expected_times": [h.get("time") or h.get("hour") for h in upcoming[:6] if _is_rain(h)],
+        "threshold_pop": RAIN_POP_THRESHOLD,
+    }
+
+
 def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
-    """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다."""
+    """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다.
+
+    현재값·골든타임에 더해, 비 정보(precipitation)와 앞으로 12시간 예보 요약(forecast_next_hours)을 넘긴다.
+    경로 생성·안내 문구가 비 예보와 산책 예정 시각의 날씨를 쓸 수 있게 하기 위해서다.
+    """
     return {
         "current": response["current"],
         "golden_time_window": response["golden_time_window"],
@@ -245,6 +415,9 @@ def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
         "attribution": response["attribution"],
         "grid": response["grid"],
         "warnings": response["warnings"],
+        "precipitation": precipitation_summary(response),
+        "forecast_next_hours": [{k: h[k] for k in _FORECAST_KEYS if k in h} for h in _upcoming_hours(response)],
+        "air_quality": response.get("air_quality"),
     }
 
 

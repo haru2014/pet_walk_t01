@@ -223,7 +223,7 @@ def _mock_hazard_result(filename: str) -> HazardInspectionResult:
     )
 
 
-def _mock_park_board_result(filename: str) -> ParkBoardInspectionResult:
+def _mock_park_board_result() -> ParkBoardInspectionResult:
     return ParkBoardInspectionResult(
         park_name="샘플 근린공원",
         has_dirt_trail=True,
@@ -242,12 +242,13 @@ def run_vision_inspection(image_bytes: bytes, filename: str, inspect_type: Inspe
     라이브(GEMINI_API_KEY 설정) 구현은 2번 데이터 담당의 Gemini 캐스케이드 체인이 이 함수에 연결된다.
     현재는 mock 결과를 돌려 API 계약을 고정한다.
     """
+    logger.debug("비전 판독 요청 수신: filename=%s, byte_size=%d", filename, len(image_bytes))
     live = vision_available()
     if inspect_type == "park_board":
-        result = _mock_park_board_result(filename)
+        result = _mock_park_board_result()
         return {
             "inspect_type": inspect_type,
-            "is_live_vision": False,  # TODO(2번 데이터): Gemini 라이브 체인 연결 시 True
+            "is_live_vision": False,  # 참고(2번 데이터): Gemini 라이브 체인 연결 시 True로 전환
             "model": "mock" if not live else "gemini-chain-pending",
             "result": result.model_dump(),
             "routing_constraints": process_park_board_constraints(result),

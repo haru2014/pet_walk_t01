@@ -16,6 +16,7 @@ import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
 import { useAppTheme } from '../../theme/themeManager';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import { AppIcon } from '../common/AppIcon';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
@@ -26,6 +27,7 @@ import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
+import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
 
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
@@ -45,6 +47,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onPinSelect,
 }) => {
   const { colors } = useAppTheme();
+  const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
@@ -167,7 +170,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
-        <View style={styles.mapSection}>
+        <View style={[styles.mapSection, { minHeight: courseRecommend.mapHeight }]}>
           <RouteMapView
             route={activeRoute}
             stepPins={activePins}
@@ -177,10 +180,17 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             onPinSelect={onPinSelect}
           />
         </View>
+
+        {/* 고도 자료 출처 (Copernicus DEM 라이선스 6조 (b), #76) */}
+        {planResult?.elevationAttribution ? (
+          <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+            고도·경사: {planResult.elevationAttribution}
+          </Text>
+        ) : null}
       </ScrollView>
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
-      <View style={[styles.bottomCard, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomCard, { paddingVertical: courseRecommend.cardPaddingV, paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         {/* 상단 핸들 바 & 대체 코스 퀵 칩 & 북마크 */}
         <View style={styles.sheetHeaderRow}>
           <View style={styles.courseChipRow}>
@@ -194,6 +204,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   style={[
                     styles.courseChip,
                     {
+                      paddingVertical: courseRecommend.altCourseChipPadV,
                       backgroundColor: isSelected ? colors.primaryLight : colors.surface,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
@@ -226,33 +237,50 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
-        <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{currentCourse.softRatio}</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.maxSlopePercent}%</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
-          </Text>
-        </View>
+        {(() => {
+          const surfaceInfo = formatCourseSurface(currentCourse);
+          const slopeInfo = formatCourseSlope(currentCourse);
+
+          return (
+            <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                {surfaceInfo.isUnknown ? (
+                  <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
+                ) : (
+                  <>폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                )}
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                {slopeInfo.isUnknown ? (
+                  <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>
+                ) : slopeInfo.isApproximation ? (
+                  <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>
+                ) : (
+                  <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>
+                )}
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* Thumb Zone 산책 시작 버튼 (04_course_recommendation.png 원형 복원) */}
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={() => onStartWalk(currentCourse, plan)}
-          style={[styles.startButton, { backgroundColor: colors.primary }]}
+          style={[styles.startButton, { height: scale(46, 48, 54), backgroundColor: colors.primary }]}
         >
           <View style={styles.btnContent}>
             <AppIcon name="paw" size={18} color={colors.textWhite} />
-            <Text style={[styles.startButtonText, { color: colors.textWhite }]}>
+            <Text style={[styles.startButtonText, { fontSize: courseRecommend.startButtonFontSize, color: colors.textWhite }]}>
               이 코스로 산책 시작하기
             </Text>
           </View>
@@ -291,6 +319,7 @@ const styles = StyleSheet.create({
   mainScroll: { flex: 1 },
   mainScrollContent: { flexGrow: 1 },
   mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+  elevationAttribution: { fontSize: 9, lineHeight: 12, marginTop: 6, paddingHorizontal: 4 },
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,

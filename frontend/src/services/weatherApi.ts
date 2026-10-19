@@ -10,8 +10,10 @@
 import { HeatRiskHourDTO, HeatRiskLevel, HeatRiskResponse, GoldenTimeWindowDay } from '../types/weather';
 import { fetchWithServerFallback } from './apiClient';
 
-const API_TIMEOUT_MS = 3000;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 TTL
+export const API_TIMEOUT_MS = 15000; // Render 무료 티어 콜드 스타트 및 모바일 네트워크 환경 대응을 위해 15초로 현실화
+export const LIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 실서버 정상 응답: 1시간 TTL
+export const FALLBACK_CACHE_TTL_MS = 10 * 1000; // 오프라인 폴백 응답: 서버 기상 시 즉각 갱신되도록 10초만 임시 유지
+export const CACHE_TTL_MS = LIVE_CACHE_TTL_MS; // 하위 호환성 유지
 
 interface CacheEntry {
   readonly timestamp: number;
@@ -36,13 +38,15 @@ export function clearWeatherCache(): void {
 
 /**
  * 캐시된 날씨 데이터 조회
+ * (실서버 응답은 1시간 유지, 오프라인 폴백 데이터는 10초 후 자동 만료)
  */
 export function getCachedWeather(lat: number, lon: number): HeatRiskResponse | null {
   const key = buildWeatherCacheKey(lat, lon);
   const entry = weatherMemoryCache.get(key);
   if (!entry) return null;
 
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+  const ttl = entry.data.isLiveServer ? LIVE_CACHE_TTL_MS : FALLBACK_CACHE_TTL_MS;
+  if (Date.now() - entry.timestamp > ttl) {
     weatherMemoryCache.delete(key);
     return null;
   }
@@ -181,6 +185,15 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
     const weight = getInsolationWeightForHour(h);
     const surfaceTemp = Math.round((airTemp + weight * 15.0) * 10) / 10;
     const { riskLevel, isGolden } = evaluateRisk(surfaceTemp);
+    const solarRadiation = Math.round(weight * 1000 * 10) / 10;
+    const surfaceTemps = {
+      asphalt: Math.round((airTemp + weight * 18.0) * 10) / 10,
+      paved: Math.round((airTemp + weight * 14.0) * 10) / 10,
+      rubber: Math.round((airTemp + weight * 12.0) * 10) / 10,
+      dirt: Math.round((airTemp + weight * 12.6) * 10) / 10, // 서버 SURFACE_HEAT_GAIN_MAP["dirt"] 와 같은 값 (ASOS 관측 적합)
+      grass: Math.round((airTemp + weight * 4.0) * 10) / 10,
+      gravel: Math.round((airTemp + weight * 10.0) * 10) / 10,
+    };
 
     hourly.push({
       hour: h,
@@ -189,6 +202,8 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
       risk_level: riskLevel,
       is_golden_time: isGolden,
       notice: '본 지수는 기상청 예보 모델 기반 추정치입니다.',
+      solar_radiation_w_m2: solarRadiation,
+      surface_temps: surfaceTemps,
     });
   }
 
@@ -205,10 +220,21 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
     is_current_golden: currentDto.is_golden_time,
     golden_time_window: goldenWindow,
     golden_time_window_day: goldenWindowDay,
+    pop: 10,
+    solar_radiation_w_m2: currentDto.solar_radiation_w_m2,
+    surface_temps: currentDto.surface_temps,
+    air_quality: {
+      pm10: 24.0,
+      pm25: 12.0,
+      grade_label: '좋음',
+      station_name: '주변 측정소',
+      data_source: 'estimated',
+    },
     hourly_forecast: hourly,
-    notice: '본 지수는 기상청 예보 모델 기반 추정치입니다.',
+    notice: '본 지수는 기상청 예보 모델 기반 추정치(실시간 기상 미연결 시 제공되는 [가상 시뮬레이션 추정치])입니다.',
     attribution: null,
     insolation_source: 'sky_fallback',
+    data_source: 'fallback_estimate',
     fetched_at: now.toISOString(),
   };
 }
@@ -224,6 +250,17 @@ function resolveGoldenTimeWindowDay(
     return 'tomorrow';
   }
   return 'today';
+}
+
+function resolveSolarRadiation(
+  currentVal?: number,
+  dataVal?: unknown,
+  rawCurrentVal?: unknown
+): number | undefined {
+  if (typeof currentVal === 'number') return currentVal;
+  if (typeof dataVal === 'number') return dataVal;
+  if (typeof rawCurrentVal === 'number') return rawCurrentVal;
+  return undefined;
 }
 
 /**
@@ -254,23 +291,54 @@ export async function fetchHeatRiskForecast(
 
     if (res.ok) {
       const data = await res.json();
-      const current = data.current || {};
+      const rawCurrent = data.current || {};
+      const hourlyForecast: HeatRiskHourDTO[] = data.hourly_forecast ?? [];
+      const deviceHour = new Date().getHours();
+
+      // 시차(UTC vs KST) 또는 시간차 방어: 단말기 현재 시각에 일치하는 hourly 항목 매칭
+      const matchedHourItem = hourlyForecast.find((h) => h.hour === deviceHour);
+      const current = (rawCurrent.hour === deviceHour ? rawCurrent : matchedHourItem) || rawCurrent;
+
       const goldenWindow = data.golden_time_window ?? '18:00 ~ 20:00';
       const goldenWindowDay = resolveGoldenTimeWindowDay(data.golden_time_window_day, goldenWindow);
 
+      let resolvedPty: number | undefined;
+      if (typeof current.pty === 'number') {
+        resolvedPty = current.pty;
+      } else if (typeof data.pty === 'number') {
+        resolvedPty = data.pty;
+      }
+
       const response: HeatRiskResponse = {
         isLiveServer: true,
-        current_hour: current.hour ?? new Date().getHours(),
-        current_air_temp: current.air_temp_celsius ?? 26.0,
-        current_surface_temp: current.estimated_surface_temp ?? 31.0,
+        current_hour: current.hour ?? deviceHour,
+        current_air_temp: current.air_temp_celsius ?? 17.5,
+        current_surface_temp: current.estimated_surface_temp ?? 17.5,
         current_risk_level: current.risk_level ?? 'SAFE',
         is_current_golden: current.is_golden_time ?? true,
         golden_time_window: goldenWindow,
         golden_time_window_day: goldenWindowDay,
+        pop: typeof data.pop === 'number' ? data.pop : (current.pop ?? 0),
+        pty: resolvedPty,
+        condition: current.condition ?? data.condition,
+        solar_radiation_w_m2: resolveSolarRadiation(
+          current.solar_radiation_w_m2,
+          data.solar_radiation_w_m2,
+          rawCurrent.solar_radiation_w_m2
+        ),
+        surface_temps: current.surface_temps ?? rawCurrent.surface_temps ?? data.surface_temps,
+        air_quality: data.air_quality ?? {
+          pm10: 25.0,
+          pm25: 14.0,
+          grade_label: '좋음',
+          station_name: '실시간 측정소',
+          data_source: 'estimated',
+        },
         hourly_forecast: data.hourly_forecast ?? [],
         notice: data.notice ?? '본 지수는 기상청 예보 모델 기반 추정치입니다.',
         attribution: data.attribution ?? null,
         insolation_source: data.insolation_source,
+        data_source: data.data_source,
         fetched_at: new Date().toISOString(),
       };
       weatherMemoryCache.set(cacheKey, { timestamp: Date.now(), data: response });

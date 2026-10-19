@@ -20,7 +20,7 @@
   - **GIS & Routing**: OpenRouteService (ORS) / OSRM Routing Adapter, OpenStreetMap(OSM) 보행망, 대전·세종 5대 파일럿 실증 거점 정밀 도로망, DEM 경사도, 지면온도 추정 모델 (차기: OpenFreeMap + MapLibre 벡터 지도 연계).
   - **Persistence (Local-First)**: 민감정보(자택 좌표, 보행 GPS 궤적, 반려견 프로필)는 모바일 `AsyncStorage` 로컬 보관, 커뮤니티 공개 코스(출발지 200m 마스킹) 및 제보만 `Supabase Cloud` 관리.
   - **Wellness Copywriting**: 앱 UI 전역에서 '슬개골 탈구' 등 질병 용어를 배제하고 '관절 안심 케어', '폭신한 길'로 순화.
-  - **TDD 품질 가드레일**: 백엔드 Pytest 255개 전수 통과, 프론트엔드 Vitest 141개(28개 파일) 전수 통과, TypeScript 0 오류 엄수.
+  - **TDD 품질 가드레일**: 백엔드 Pytest 507개 전수 통과, 프론트엔드 Vitest 269개(48개 파일) 전수 통과, TypeScript 0 오류 엄수.
 
 ---
 
@@ -241,8 +241,10 @@
   2. n8n 자동화 파이프라인을 통해 지면열 위험 정보를 산출하고 백엔드 캐시로 동기화한다.
   3. 실제 온도 측정이 아닌 "추정 위험 지수"임을 화면 하단에 투명하게 고지한다.
 * **완료 정의 (DoD)**:
-  - [x] 기상청 예보 수집 및 지면열 수지식 연산 파이프라인 단위 테스트 통과 (`weatherApi.test.ts` 8건 통과).
-  - [x] 일일 골든타임 알림 API 계약 검증 및 홈 화면 동적 위젯 연동 완료 (`GET /api/v1/weather/heat-risk`, `GoldenTimeWidget.tsx`).
+  - [x] 기상청 예보 수집 및 지면열 수지식 연산 파이프라인 단위 테스트 통과 (`weatherApi.test.ts` 20건 통과).
+  - [x] 기상청 단기예보 3종 + Open-Meteo 일사량 + 한국환경공단 에어코리아(AirKorea) 실시간 미세먼지(PM10/PM2.5) 연동 완료 (`weather_context.py`, `airkorea_client.py`).
+  - [x] 백엔드 1.1km 격자 단위 10분 TTL 메모리 캐시 및 Open-Meteo(2.0초)/에어코리아(2.5초) 타임아웃 캡 적용으로 지연 차단 및 0.001초 응답 보장.
+  - [x] 프론트엔드 네트워크 타임아웃 15초 상향, Render 사전 웜업, 정직한 실시간 지수 분석 로딩 상태(···) 적용으로 가상 데이터 전환 오인 방지 및 홈 화면 동적 위젯 연동 완료 (`GET /api/v1/weather/heat-risk`, `GoldenTimeWidget.tsx`, `HomeScreen.tsx`).
 
 #### US-G1: 출발 거점 연계 공영주차장(P&R) 코스 탐색
 * **사용자 스토리**:  

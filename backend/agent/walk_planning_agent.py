@@ -140,7 +140,7 @@ def _extract_target_duration(query_str: str) -> Optional[int]:
     if re.search(r"(?:1\s*시간|한\s*시간)\s*(?:반|30\s*분)", query_str):
         return 90
     # 2. 1시간, 한시간 등 60분 표현
-    if re.search(r"(?:1\s*시간|한\s*시간|한시간)", query_str):
+    if re.search(r"(?:1\s*시간|한\s*시간)", query_str):
         return 60
     # 3. 반시간 (30분)
     if "반시간" in query_str:

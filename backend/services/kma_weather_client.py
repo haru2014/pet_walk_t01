@@ -123,7 +123,7 @@ def _call(operation: str, params: Dict[str, Any], service_key: Optional[str],
         text = _http_get(f"{base}/{operation}?{query}", timeout)
     except urllib.error.HTTPError as exc:
         raise KmaApiError(f"기상청 HTTP 오류 {exc.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except OSError as exc:
         raise KmaApiError(f"기상청 서버 연결 실패 ({type(exc).__name__})") from None
 
     try:

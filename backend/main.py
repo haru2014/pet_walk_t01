@@ -15,6 +15,7 @@ import os
 import json
 import logging
 import math
+import time
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -26,14 +27,15 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, statu
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
-from agent.pilot_park_routes import resolve_pilot_park_key
+from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
 from agent.supabase_repository import community_repo
+from services.route_warmup import start_background_warmup
 from agent.hazard_service import (
     HazardReportRepository,
     HazardReportRequest,
@@ -43,9 +45,17 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
-from services.kma_weather_client import KmaApiError
+from services import open_meteo_client
+from services.dem import elevation_source
+from services.route_profile import measure_route_profile
+from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
-from services.weather_context import build_heat_risk_response, weather_context_from_response
+from services.weather_context import (
+    SURFACE_HEAT_GAIN_MAP,
+    build_heat_risk_response,
+    build_open_meteo_heat_risk_response,
+    weather_context_from_response,
+)
 from test_case.test_api_contracts import (
     apply_spatial_masking_to_course,
     WalkPlanResponseV1,
@@ -53,6 +63,11 @@ from test_case.test_api_contracts import (
     CommunityCourseSummary,
 )
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
+from services.voice_intent_service import (
+    VoiceWalkIntentPayload,
+    parse_voice_walk_intent,
+    resolve_landmark_park_id,
+)
 
 app = FastAPI(
     title="편안하개 (PetWalk) API",
@@ -86,6 +101,15 @@ def read_root():
     }
 
 
+@app.on_event("startup")
+def _warm_up_route_caches() -> None:
+    """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
+    start_background_warmup(
+        weather_fetch=_live_heat_risk_response,
+        weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
+    )
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -94,6 +118,32 @@ def health_check():
         "supabase_connected": community_repo.is_connected(),
         # 지금 서버에 올라가 있는 커밋(Render 가 자동으로 넣어 주는 값). 로컬 실행에서는 빈 문자열.
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
+        # 경사 계산에 쓰는 고도 자료 (운영 반영 확인용). DEM 을 끄면 "off"
+        "dem": (elevation_source() or {}).get("name") or "off",
+    }
+
+
+class VoiceIntentRequest(BaseModel):
+    speech_text: str = Field(..., min_length=1)
+    dog_name: Optional[str] = None
+    origin_lat: Optional[float] = None
+    origin_lon: Optional[float] = None
+
+
+@app.post("/api/v1/voice/intent")
+def parse_voice_intent_endpoint(body: VoiceIntentRequest):
+    """[영역 1] 보호자의 음성/자연어 발화에서 산책 의도 파라미터를 Gemini API로 분석."""
+    payload, model_used, data_source = parse_voice_walk_intent(
+        speech_text=body.speech_text,
+        dog_name=body.dog_name,
+    )
+    landmark_park_id = resolve_landmark_park_id(payload.destination_landmark)
+    return {
+        "status": "success",
+        "intent": payload.model_dump(),
+        "landmark_park_id": landmark_park_id,
+        "model_used": model_used,
+        "data_source": data_source,
     }
 
 
@@ -172,6 +222,257 @@ def _build_step_pins(cand: Any, coords: List[List[float]]) -> List[Dict[str, Any
     return pins
 
 
+def _parse_origin_coords(req: Dict[str, Any]) -> Tuple[float, float]:
+    """출발 위경도 좌표 검증 및 파싱."""
+    try:
+        lat = float(req.get("origin_lat", 37.5665))
+        lon = float(req.get("origin_lon", 126.9780))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="유효한 숫자 형식의 출발 좌표(origin_lat, origin_lon)가 필요합니다.")
+
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
+    return lat, lon
+
+
+def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]:
+    """출발 좌표, 공원 ID, 출발 모드, 산책 시간 및 속도 입력 유효성 검증."""
+    origin_lat, origin_lon = _parse_origin_coords(req)
+
+    pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
+    if not pilot_park_id:
+        hint_text = str(req.get("user_query") or req.get("request_text") or "")
+        pilot_park_id = resolve_landmark_park_id(hint_text)
+    if pilot_park_id is not None and not isinstance(pilot_park_id, str):
+        raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
+
+    origin_mode = req.get("origin_mode")
+    if not origin_mode:
+        origin_mode = "park" if pilot_park_id else "current_location"
+    if origin_mode not in ("park", "parking_pnr", "current_location"):
+        raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
+
+    try:
+        target_duration = float(req.get("target_duration_minutes", 30))
+        speed_kmh = float(req.get("speed_kmh", 2.8))
+        if not math.isfinite(target_duration) or not 10 <= target_duration <= 90 or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="산책 시간(10~90분)과 양수 보행 속도가 필요합니다.")
+
+    return {
+        "origin_lat": origin_lat,
+        "origin_lon": origin_lon,
+        "pilot_park_id": pilot_park_id,
+        "origin_mode": origin_mode,
+        "target_duration": target_duration,
+        "speed_kmh": speed_kmh,
+        "parking_lot_id": req.get("parking_lot_id") or req.get("parking_id"),
+    }
+
+
+def _resolve_parking_snap(
+    origin_lat: float, origin_lon: float, parking_lot_id: Optional[str], origin_mode: str
+) -> Tuple[float, float, Optional[Dict[str, Any]]]:
+    """공영주차장 P&R 모드 또는 지정된 주차장의 출입구 좌표로 스냅 바인딩."""
+    if parking_lot_id:
+        for lot in _PILOT_PARKING_LOTS:
+            if lot["parking_id"] == parking_lot_id:
+                return lot["entrance_lat"], lot["entrance_lon"], lot
+    elif origin_mode == "parking_pnr":
+        closest = min(
+            _PILOT_PARKING_LOTS,
+            key=lambda lot: _haversine_distance_meters(origin_lat, origin_lon, lot["entrance_lat"], lot["entrance_lon"]),
+        )
+        return closest["entrance_lat"], closest["entrance_lon"], closest
+    return origin_lat, origin_lon, None
+
+
+def _validate_candidate_route(
+    candidate: Any,
+    selected_park: str,
+    speed_kmh: float,
+    target_duration: float,
+    origin_coords: Tuple[float, float],
+    request_id: str,
+) -> Dict[str, Any]:
+    """단일 후보 경로의 공원 경계 내 적합성 검증 및 속성 갱신."""
+    validation = validate_park_route(
+        candidate.geojson_coordinates, selected_park, speed_kmh, target_duration, origin_coords
+    )
+    candidate.total_distance_m = validation["distance_m"]
+    candidate.estimated_duration_minutes = validation["estimated_minutes"]
+    candidate.turn_by_turn_steps = build_turn_steps(candidate.geojson_coordinates)
+    validation["route_source"] = candidate.route_source
+    logger.info(
+        json.dumps(
+            {
+                "event": "walk_candidate_validated",
+                "request_id": request_id,
+                "route_id": candidate.route_id,
+                "source": candidate.route_source,
+                "point_count": len(candidate.geojson_coordinates),
+                **validation,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return validation
+
+
+def _update_park_briefing(
+    agent_result: Any, best: Any, weather_context: Dict[str, Any], validations: Dict[str, Any]
+) -> None:
+    """공원 경로의 최종 요약 브리핑 메시지 구성."""
+    agent_result.briefing_message = (
+        f"{best.name}: 실제 보행로 기준 약 {best.estimated_duration_minutes:.0f}분, {best.total_distance_m:.0f}m 코스입니다."
+    )
+    current_weather = weather_context.get("current", weather_context)
+    surface_temp = current_weather.get("estimated_surface_temp")
+    if isinstance(surface_temp, (int, float)):
+        heat_notice = f"지면온도 {surface_temp:.1f}℃입니다. "
+        if surface_temp > 35:
+            heat_notice += (
+                f"그늘 숲길을 이용하고 뜨거운 지면을 피해 "
+                f"{weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
+            )
+        agent_result.briefing_message = heat_notice + agent_result.briefing_message
+    if validations[best.route_id]["duration_is_alternative"]:
+        agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
+
+
+def _validate_and_finalize_park_candidates(
+    agent_result: Any,
+    selected_park: Optional[str],
+    speed_kmh: float,
+    target_duration: float,
+    origin_lon: float,
+    origin_lat: float,
+    weather_context: Dict[str, Any],
+    request_id: str,
+) -> Dict[str, Any]:
+    """공원 모드 후보 경로 일괄 검증 및 최고 경로 확정."""
+    if not selected_park:
+        raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
+
+    best = agent_result.best_route
+    scored_candidates = agent_result.all_scored_candidates
+    candidates = [s.candidate for s in scored_candidates] or [best]
+    valid_scored = []
+    validations: Dict[str, Any] = {}
+    last_error = None
+
+    for index, candidate in enumerate(candidates):
+        try:
+            validation = _validate_candidate_route(
+                candidate, selected_park, speed_kmh, target_duration, (origin_lon, origin_lat), request_id
+            )
+            validations[candidate.route_id] = validation
+            if scored_candidates:
+                valid_scored.append(scored_candidates[index])
+            else:
+                best = candidate
+        except RoutePlanningError as exc:
+            last_error = exc
+            logger.warning(
+                json.dumps(
+                    {
+                        "event": "walk_candidate_rejected",
+                        "request_id": request_id,
+                        "route_id": candidate.route_id,
+                        "source": candidate.route_source,
+                        "park_id": selected_park,
+                        "point_count": len(candidate.geojson_coordinates),
+                        "code": exc.code,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            continue
+
+    if not validations:
+        raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
+
+    agent_result.all_scored_candidates = valid_scored
+    if valid_scored:
+        best = valid_scored[0].candidate
+        agent_result.best_score = valid_scored[0].total_score
+    agent_result.best_route = best
+    _update_park_briefing(agent_result, best, weather_context, validations)
+    return validations
+
+
+def _build_course_plans_map(agent_result: Any, fallback_coords: Any) -> Dict[str, Any]:
+    """스코어링된 후보 경로별 geojson 및 stepPins 맵 구성."""
+    course_plans: Dict[str, Any] = {}
+    if agent_result.all_scored_candidates:
+        for scored in agent_result.all_scored_candidates:
+            cand = scored.candidate
+            cand_coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
+            course_plans[cand.route_id] = {
+                "route": _build_segmented_geojson(cand_coords, cand.max_slope_percent),
+                "stepPins": _build_step_pins(cand, cand_coords),
+            }
+    return course_plans
+
+
+def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Optional[str]) -> Dict[str, Any]:
+    """후보 경로별 실측 지표 (경사·노면·계단). 카드의 고정 프로필 값과 별도로 실제 좌표로 계산한다."""
+    profiles: Dict[str, Any] = {}
+    for scored in agent_result.all_scored_candidates or []:
+        cand = scored.candidate
+        coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
+        profiles[cand.route_id] = measure_route_profile(coords, park_id)
+    return profiles
+
+
+def _build_walk_plan_response(
+    agent_result: Any,
+    request_id: str,
+    park_mode: bool,
+    selected_park: Optional[str],
+    matched_parking: Optional[Dict[str, Any]],
+    validations: Dict[str, Any],
+) -> Dict[str, Any]:
+    """산책 경로 계획 API 최종 응답 딕셔너리 생성."""
+    best = agent_result.best_route
+    coords = best.geojson_coordinates if best.geojson_coordinates else V1_ROAD_ALIGNED_COORDS
+    resp_data = {
+        "request_id": request_id,
+        "courses": _build_course_list(agent_result),
+        "geojson": _build_segmented_geojson(coords, best.max_slope_percent),
+        "step_pins": _build_step_pins(best, coords),
+        "course_plans": _build_course_plans_map(agent_result, coords),
+        "briefing": agent_result.briefing_message,
+        "summary": agent_result.briefing_message,
+        "score": agent_result.best_score,
+        "is_live_server": True,
+        "weather": agent_result.weather_context,
+        # 경사·구간 색을 계산한 고도 자료와 출처 문구 (DEM 을 쓰지 않으면 None, 앱이 출처를 표시한다)
+        "elevation_source": elevation_source(),
+        # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
+        "course_profiles": _build_course_profiles(agent_result, coords, selected_park if park_mode else None),
+    }
+    if park_mode:
+        resp_data["route_validation"] = validations
+        resp_data["validated_park_id"] = selected_park
+    logger.info(
+        json.dumps(
+            {
+                "event": "walk_plan_completed",
+                "request_id": request_id,
+                "park_id": selected_park,
+                "route_id": best.route_id,
+                "status": 200,
+            },
+            ensure_ascii=False,
+        )
+    )
+    if matched_parking:
+        resp_data["parking_lot"] = matched_parking
+    return resp_data
+
+
 @app.post(
     "/api/v1/walk/plan",
     responses={
@@ -183,56 +484,21 @@ def _build_step_pins(cand: Any, coords: List[List[float]]) -> List[Dict[str, Any
 def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
     dog_name = req.get("dog_name", "아이")
-    target_duration = req.get("target_duration_minutes", 30)
     request_id = str(uuid4())
 
-    # 1. 출발 좌표 유효성 및 범위 검증
-    try:
-        origin_lat = float(req.get("origin_lat", 37.5665))
-        origin_lon = float(req.get("origin_lon", 126.9780))
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="유효한 숫자 형식의 출발 좌표(origin_lat, origin_lon)가 필요합니다.")
+    params = _validate_and_parse_walk_plan_request(req)
+    origin_lat = params["origin_lat"]
+    origin_lon = params["origin_lon"]
+    pilot_park_id = params["pilot_park_id"]
+    origin_mode = params["origin_mode"]
+    target_duration = params["target_duration"]
+    speed_kmh = params["speed_kmh"]
+    parking_lot_id = params["parking_lot_id"]
 
-    if not (-90.0 <= origin_lat <= 90.0 and -180.0 <= origin_lon <= 180.0):
-        raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
+    origin_lat, origin_lon, matched_parking = _resolve_parking_snap(
+        origin_lat, origin_lon, parking_lot_id, origin_mode
+    )
 
-    pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
-    if pilot_park_id is not None and not isinstance(pilot_park_id, str):
-        raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
-    origin_mode = req.get("origin_mode")
-    if not origin_mode:
-        origin_mode = "park" if pilot_park_id else "current_location"
-    if origin_mode not in ("park", "parking_pnr", "current_location"):
-        raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
-    try:
-        target_duration = float(target_duration)
-        speed_kmh = float(req.get("speed_kmh", 2.8))
-        if not math.isfinite(target_duration) or not 10 <= target_duration <= 90 or not math.isfinite(speed_kmh) or speed_kmh <= 0:
-            raise ValueError()
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="산책 시간(10~90분)과 양수 보행 속도가 필요합니다.")
-    parking_lot_id = req.get("parking_lot_id") or req.get("parking_id")
-
-    # 🚗 [US-G1] 공영주차장 P&R 모드 또는 parking_lot_id 지정 시 출입구 좌표로 강제 스냅 바인딩
-    matched_parking = None
-    if parking_lot_id:
-        for lot in _PILOT_PARKING_LOTS:
-            if lot["parking_id"] == parking_lot_id:
-                matched_parking = lot
-                origin_lat = lot["entrance_lat"]
-                origin_lon = lot["entrance_lon"]
-                break
-    elif origin_mode == "parking_pnr":
-        # 현재 좌표에서 가장 가까운 파일럿 공영주차장 자동 탐색 및 스냅
-        closest = min(
-            _PILOT_PARKING_LOTS,
-            key=lambda lot: _haversine_distance_meters(origin_lat, origin_lon, lot["entrance_lat"], lot["entrance_lon"])
-        )
-        matched_parking = closest
-        origin_lat = closest["entrance_lat"]
-        origin_lon = closest["entrance_lon"]
-
-    # 🌤️ [US-F1] 기상청 지면열 추정 DTO 바인딩
     weather_context = req.get("weather_context")
     if not weather_context:
         weather_context = weather_context_from_response(_live_heat_risk_response(origin_lat, origin_lon))
@@ -257,9 +523,20 @@ def plan_walk_route(req: Dict[str, Any]):
     recent_feedback = _parse_recent_feedback(req)
     park_mode = origin_mode in ("park", "parking_pnr")
     selected_park = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id) if park_mode else None
-    logger.info(json.dumps({"event": "walk_plan_requested", "request_id": request_id,
-                           "origin_mode": origin_mode, "park_id": selected_park,
-                           "origin": [origin_lon, origin_lat], "target_minutes": target_duration}, ensure_ascii=False))
+    logger.info(
+        json.dumps(
+            {
+                "event": "walk_plan_requested",
+                "request_id": request_id,
+                "origin_mode": origin_mode,
+                "park_id": selected_park,
+                # 현재 위치 출발은 자택일 수 있어 운영 로그에는 약 1km 단위(소수 둘째 자리)로만 남긴다 (200m 마스킹 감사)
+                "origin_approx": [round(origin_lon, 2), round(origin_lat, 2)],
+                "target_minutes": target_duration,
+            },
+            ensure_ascii=False,
+        )
+    )
 
     try:
         agent_result = run_walk_planning_agent(
@@ -274,98 +551,40 @@ def plan_walk_route(req: Dict[str, Any]):
             pilot_park_id=pilot_park_id,
         )
 
-        best = agent_result.best_route
         validations = {}
         if park_mode:
-            if not selected_park:
-                raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
-            # Independently validate every candidate at the response boundary.
-            # An agent, cache, static route or fallback cannot bypass this gate.
-            valid_scored = []
-            last_error = None
-            scored_candidates = agent_result.all_scored_candidates
-            candidates = [s.candidate for s in scored_candidates] or [best]
-            for index, candidate in enumerate(candidates):
-                try:
-                    validation = validate_park_route(candidate.geojson_coordinates, selected_park, speed_kmh,
-                                                     target_duration, (origin_lon, origin_lat))
-                except RoutePlanningError as exc:
-                    last_error = exc
-                    logger.warning(json.dumps({"event": "walk_candidate_rejected", "request_id": request_id,
-                                               "route_id": candidate.route_id, "source": candidate.route_source,
-                                               "park_id": selected_park, "point_count": len(candidate.geojson_coordinates),
-                                               "code": exc.code}, ensure_ascii=False))
-                    continue
-                candidate.total_distance_m = validation["distance_m"]
-                candidate.estimated_duration_minutes = validation["estimated_minutes"]
-                candidate.turn_by_turn_steps = build_turn_steps(candidate.geojson_coordinates)
-                validation["route_source"] = candidate.route_source
-                validations[candidate.route_id] = validation
-                if scored_candidates:
-                    valid_scored.append(scored_candidates[index])
-                else:
-                    best = candidate
-                logger.info(json.dumps({"event": "walk_candidate_validated", "request_id": request_id,
-                                        "route_id": candidate.route_id, "source": candidate.route_source,
-                                        "point_count": len(candidate.geojson_coordinates), **validation}, ensure_ascii=False))
-            if not validations:
-                raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
-            agent_result.all_scored_candidates = valid_scored
-            if valid_scored:
-                best = valid_scored[0].candidate
-                agent_result.best_score = valid_scored[0].total_score
-            agent_result.best_route = best
-            agent_result.briefing_message = f"{best.name}: 실제 보행로 기준 약 {best.estimated_duration_minutes:.0f}분, {best.total_distance_m:.0f}m 코스입니다."
-            current_weather = weather_context.get("current", weather_context)
-            surface_temp = current_weather.get("estimated_surface_temp")
-            if isinstance(surface_temp, (int, float)):
-                heat_notice = f"지면온도 {surface_temp:.1f}℃입니다. "
-                if surface_temp > 35:
-                    heat_notice += f"그늘 숲길을 이용하고 뜨거운 지면을 피해 {weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
-                agent_result.briefing_message = heat_notice + agent_result.briefing_message
-            if validations[best.route_id]["duration_is_alternative"]:
-                agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
+            validations = _validate_and_finalize_park_candidates(
+                agent_result=agent_result,
+                selected_park=selected_park,
+                speed_kmh=speed_kmh,
+                target_duration=target_duration,
+                origin_lon=origin_lon,
+                origin_lat=origin_lat,
+                weather_context=weather_context,
+                request_id=request_id,
+            )
 
-        coords = best.geojson_coordinates if best.geojson_coordinates else V1_ROAD_ALIGNED_COORDS
-
-        geojson = _build_segmented_geojson(coords, best.max_slope_percent)
-        step_pins = _build_step_pins(best, coords)
-        courses = _build_course_list(agent_result)
-
-        course_plans: Dict[str, Any] = {}
-        if agent_result.all_scored_candidates:
-            for scored in agent_result.all_scored_candidates:
-                cand = scored.candidate
-                cand_coords = cand.geojson_coordinates if cand.geojson_coordinates else coords
-                course_plans[cand.route_id] = {
-                    "route": _build_segmented_geojson(cand_coords, cand.max_slope_percent),
-                    "stepPins": _build_step_pins(cand, cand_coords),
-                }
-
-        resp_data = {
-            "request_id": request_id,
-            "courses": courses,
-            "geojson": geojson,
-            "step_pins": step_pins,
-            "course_plans": course_plans,
-            "briefing": agent_result.briefing_message,
-            "summary": agent_result.briefing_message,
-            "score": agent_result.best_score,
-            "is_live_server": True,
-            "weather": agent_result.weather_context,
-        }
-        if park_mode:
-            resp_data["route_validation"] = validations
-            resp_data["validated_park_id"] = selected_park
-        logger.info(json.dumps({"event": "walk_plan_completed", "request_id": request_id,
-                                "park_id": selected_park, "route_id": best.route_id, "status": 200}, ensure_ascii=False))
-        if matched_parking:
-            resp_data["parking_lot"] = matched_parking
-
-        return resp_data
+        return _build_walk_plan_response(
+            agent_result=agent_result,
+            request_id=request_id,
+            park_mode=park_mode,
+            selected_park=selected_park,
+            matched_parking=matched_parking,
+            validations=validations,
+        )
     except RoutePlanningError as exc:
-        logger.warning(json.dumps({"event": "walk_plan_failed", "request_id": request_id,
-                                   "park_id": selected_park, "code": exc.code, "status": 422}, ensure_ascii=False))
+        logger.warning(
+            json.dumps(
+                {
+                    "event": "walk_plan_failed",
+                    "request_id": request_id,
+                    "park_id": selected_park,
+                    "code": exc.code,
+                    "status": 422,
+                },
+                ensure_ascii=False,
+            )
+        )
         return JSONResponse(status_code=422, content={"detail": str(exc), "code": exc.code, "request_id": request_id})
     except HTTPException:
         raise
@@ -456,70 +675,129 @@ def get_community_feed():
     }
 
 
-def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 호출이 불가능할 때 쓰는 고정 기온 곡선 기반 추정 (실제 날씨가 아님)."""
-    import datetime
-    import math
-
-    now_hour = datetime.datetime.now().hour
+def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
     hourly = []
-    golden_hours = []
-
     for h in range(24):
         air_temp = round(26.5 + 4.5 * math.cos(((h - 14) / 12) * math.pi), 1)
-        if 10 <= h <= 15:
-            sky = "clear"
-        elif 6 <= h <= 18:
-            sky = "partly_cloudy"
+        if 20 <= h or h < 6:
+            sky = "night"  # 야간에는 일사량 0.0 (지면열 = 기온)
+            weight = 0.0
+        elif 10 <= h <= 15:
+            sky = "clear"  # 한낮에는 일사량 1.0 (지면열 = 기온 + 15도)
+            weight = 1.0
         else:
-            sky = "clear"
+            sky = "partly_cloudy"
+            weight = 0.6
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
-        hourly.append(dto.model_dump() if hasattr(dto, "model_dump") else dto.dict())
-    # 6시~22시 사이 안전 골든타임 블록 추출 (1.5~2시간 슬롯 최적화)
-    safe_blocks = []
-    block_start = None
+        d = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
+        d["solar_radiation_w_m2"] = round(weight * 1000.0, 1)
+        d["surface_temps"] = {
+            "asphalt": round(air_temp + weight * 18.0, 1),
+            "paved": round(air_temp + weight * 14.0, 1),
+            "dirt": round(air_temp + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
+            "grass": round(air_temp + weight * 4.0, 1),
+        }
+        hourly.append(d)
+    return hourly
+
+
+def _extract_safe_blocks(hourly: List[Dict[str, Any]]) -> List[Tuple[int, int]]:
+    """6시~22시 사이 안전 골든타임 블록 추출 (1.5~2시간 슬롯 최적화)."""
+    safe_blocks: List[Tuple[int, int]] = []
+    block_start: Optional[int] = None
     for h in range(6, 23):
         is_safe = hourly[h]["is_golden_time"] if h < len(hourly) else False
         if is_safe:
             if block_start is None:
                 block_start = h
-        else:
-            if block_start is not None:
-                safe_blocks.append((block_start, h))
-                block_start = None
+        elif block_start is not None:
+            safe_blocks.append((block_start, h))
+            block_start = None
     if block_start is not None:
         safe_blocks.append((block_start, 22))
+    return safe_blocks
 
-    chosen_slot = None
-    # 1) 현재 진행 중인 골든타임 블록이 있는가?
+
+def _determine_golden_window(safe_blocks: List[Tuple[int, int]], now_hour: int) -> str:
+    """안전 블록들로부터 오늘 현재, 오늘 향후, 또는 익일 첫 골든타임 윈도우 문자열 산출."""
+    if not safe_blocks:
+        return "18:00 ~ 20:00"
+
+    # 1) 현재 진행 중인 골든타임 블록
     for b_start, b_end in safe_blocks:
         if b_start <= now_hour < b_end:
-            chosen_slot = (b_start, min(b_end, b_start + 2))
-            break
-    # 2) 오늘 앞으로 다가올 가장 가까운 골든타임 블록이 있는가?
-    if not chosen_slot:
-        for b_start, b_end in safe_blocks:
-            if b_start > now_hour:
-                chosen_slot = (b_start, min(b_end, b_start + 2))
-                break
+            return f"{b_start:02d}:00 ~ {min(b_end, b_start + 2):02d}:00"
+
+    # 2) 오늘 앞으로 다가올 가장 가까운 골든타임 블록
+    for b_start, b_end in safe_blocks:
+        if b_start > now_hour:
+            return f"{b_start:02d}:00 ~ {min(b_end, b_start + 2):02d}:00"
+
     # 3) 내일 첫 번째 골든타임 블록
-    if not chosen_slot and safe_blocks:
-        first = safe_blocks[0]
-        chosen_slot = (first[0], min(first[1], first[0] + 2))
+    first = safe_blocks[0]
+    return f"{first[0]:02d}:00 ~ {min(first[1], first[0] + 2):02d}:00"
 
-    if chosen_slot:
-        golden_window = f"{chosen_slot[0]:02d}:00 ~ {chosen_slot[1]:02d}:00"
-    else:
-        golden_window = "18:00 ~ 20:00"
 
+def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
+    """기상청 호출이 불가능할 때 쓰는 KST 시간대 기반 지면열 추정 (UTC 시차 오류 원천 차단)."""
+    now_kst = to_kst(None)
+    now_hour = now_kst.hour
+    hourly = _generate_fallback_hourly_dtos()
+
+    # Open-Meteo 실시간 기상 조회 가능 시 현재 기온과 일사량 실측값으로 정밀 보정 (단위 테스트 환경에서는 외부 네트워크 호출 생략)
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            om_data = open_meteo_client.fetch_hourly_weather_forecast(lat, lon, now_kst, timeout=1.5, forecast_days=1)
+            hour_start = now_kst.replace(minute=0, second=0, microsecond=0)
+            curr = om_data.get(hour_start)
+            if curr:
+                weight = open_meteo_client.radiation_to_weight(curr["radiation"]) if (6 <= now_hour < 20) else 0.0
+                surface = round(curr["air"] + weight * 15.0, 1)
+                is_golden = surface <= 35.0
+                if is_golden:
+                    risk_lvl = "SAFE"
+                elif surface <= 45.0:
+                    risk_lvl = "CAUTION"
+                else:
+                    risk_lvl = "DANGER"
+
+                hourly[now_hour] = {
+                    "hour": now_hour,
+                    "air_temp_celsius": curr["air"],
+                    "estimated_surface_temp": surface,
+                    "solar_radiation_w_m2": round(weight * 1000.0, 1),
+                    "surface_temps": {
+                        "asphalt": round(curr["air"] + weight * 18.0, 1),
+                        "paved": round(curr["air"] + weight * 14.0, 1),
+                        "dirt": round(curr["air"] + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
+                        "grass": round(curr["air"] + weight * 4.0, 1),
+                    },
+                    "risk_level": risk_lvl,
+                    "is_golden_time": is_golden,
+                    "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
+                }
+        except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError):
+            # Open-Meteo 실패(시간 초과·연결 오류 포함)는 OpenMeteoError 또는 OSError(TimeoutError 포함)로 온다. 놓치면 /walk/plan 전체가 500 이 된다 (#104).
+            pass
+
+    safe_blocks = _extract_safe_blocks(hourly)
+    golden_window = _determine_golden_window(safe_blocks, now_hour)
     current_dto = hourly[now_hour] if now_hour < len(hourly) else hourly[12]
 
     return {
         "status": "success",
         "current": current_dto,
+        "pop": current_dto.get("pop", 10),
+        "air_quality": {
+            "pm10": 25.0,
+            "pm25": 14.0,
+            "grade_label": "좋음",
+            "station_name": "기본",
+            "data_source": "estimated",
+        },
         "golden_time_window": golden_window,
         "hourly_forecast": hourly,
-        "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
+        "notice": "본 지수는 기상청 예보 모델 기반 추정치(실시간 기상 미연결 시 제공되는 [가상 시뮬레이션 추정치])입니다.",
         "coordinates": {"lat": lat, "lon": lon},
         "data_source": "fallback_estimate",
         "insolation_source": None,
@@ -527,16 +805,43 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
         "golden_time_window_day": "today",
         "grid": None,
         "bases": {},
-        "warnings": ["실시간 기상 정보를 가져오지 못해 고정 기온 곡선으로 추정한 값입니다."],
+        "warnings": ["실시간 기상 정보를 가져오지 못해 KST 기준 [가상 시뮬레이션 추정치]로 산출한 값입니다."],
     }
 
 
-def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
-    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 고정 곡선 추정으로 대체한다."""
+_HEAT_RISK_CACHE: Dict[Tuple[float, float], Tuple[float, Dict[str, Any]]] = {}
+_HEAT_RISK_CACHE_TTL_S = 600.0  # 10분 TTL
+
+
+def clear_heat_risk_cache() -> None:
+    _HEAT_RISK_CACHE.clear()
+
+
+def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False) -> Dict[str, Any]:
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
+    # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
+    cache_key = (round(lat, 2), round(lon, 2))
+    now_ts = time.time()
+    if "PYTEST_CURRENT_TEST" not in os.environ and not force_refresh and cache_key in _HEAT_RISK_CACHE:
+        cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
+        if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
+            return cached_resp
+
     try:
-        return build_heat_risk_response(lat, lon)
+        res = build_heat_risk_response(lat, lon)
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            _HEAT_RISK_CACHE[cache_key] = (now_ts, res)
+        return res
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.warning("실시간 날씨 조회 실패, 고정 곡선 추정으로 대체합니다: %s", exc)
+        logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
+        # [제안 1 & 이슈 #104] 운영 환경(테스트 환경 격리 외)에서는 Open-Meteo 무키 실시간 예보를 2순위로 호출
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            try:
+                om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+                _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
+                return om_res
+            except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
+                logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
         response = _fallback_heat_risk_response(lat, lon)
         response["warnings"].append(f"사유: {exc}")
         return response

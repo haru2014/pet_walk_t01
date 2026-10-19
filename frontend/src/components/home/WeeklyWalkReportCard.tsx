@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
@@ -26,6 +26,7 @@ export interface WeeklyWalkReportCardProps {
   onPress?: () => void;
   recentWalk?: RecentWalkInfo | null;
   onPressRecent?: () => void;
+  style?: ViewStyle;
 }
 
 export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
@@ -33,6 +34,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
   onPress,
   recentWalk,
   onPressRecent,
+  style,
 }) => {
   const { colors } = useAppTheme();
 
@@ -46,6 +48,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           backgroundColor: colors.surface,
           borderColor: colors.border,
         },
+        style,
       ]}
     >
       {/* 1. 카드 헤더 & 주간 목표 뱃지 */}

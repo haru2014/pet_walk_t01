@@ -2,12 +2,12 @@
  * [편안하개 - PetWalk]
  * 탄력적 멀티 타깃 API 클라이언트 (US-F1, US-G1, US-A1)
  *
- * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01.onrender.com)
+ * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01-z095.onrender.com)
  * 2순위: 로컬 FastAPI 개발 서버 (http://127.0.0.1:8000)
  * 3순위: 양쪽 모두 실패 시 호출자(Service)가 오프라인 안전 폴백(Fallback) 수행
  */
 
-export const RENDER_API_BASE_URL = 'https://pet-walk-t01.onrender.com';
+export const RENDER_API_BASE_URL = 'https://pet-walk-t01-z095.onrender.com';
 export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
@@ -31,9 +31,19 @@ export function getFallbackApiBaseUrl(): string | null {
 }
 
 /**
- * 타임아웃 지원 fetch 래퍼
+ * 백엔드 서버(Render 콜드 스타트 대응) 비동기 사전 웜업
  */
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 3500): Promise<Response> {
+export function warmupBackendServer(): void {
+  const primary = getPrimaryApiBaseUrl();
+  if (primary?.startsWith('http')) {
+    fetch(`${primary}/health`).catch(() => {});
+  }
+}
+
+/**
+ * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 15초)
+ */
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -64,7 +74,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 350
 export async function fetchWithServerFallback(
   endpoint: string,
   init?: RequestInit,
-  primaryTimeoutMs = 3500,
+  primaryTimeoutMs = 15000,
   fallbackTimeoutMs = 2000
 ): Promise<Response> {
   const primaryBase = getPrimaryApiBaseUrl();

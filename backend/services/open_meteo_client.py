@@ -21,20 +21,21 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Dict, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 from services.http_util import ssl_context
 from services.kma_weather_client import to_kst
 
 ENV_BASE_URL = "OPEN_METEO_BASE_URL"
 DEFAULT_BASE_URL = "https://api.open-meteo.com/v1/forecast"
-DEFAULT_TIMEOUT_S = 5.0
+DEFAULT_TIMEOUT_S = 2.0
 CACHE_TTL_S = 1800.0  # 예보는 시간 단위로 갱신되므로 30분 캐시로 호출 한도를 아낀다
 MAX_RADIATION_W_M2 = 1000.0
 ATTRIBUTION = "Weather data by Open-Meteo.com (CC BY 4.0)"
 
 InsolationProvider = Callable[[datetime], Optional[float]]
 _CACHE: Dict[Tuple, Tuple[float, Dict[datetime, float]]] = {}
+_FORECAST_CACHE: Dict[Tuple, Tuple[float, Dict[datetime, Dict[str, Any]]]] = {}
 
 
 class OpenMeteoError(Exception):
@@ -43,6 +44,7 @@ class OpenMeteoError(Exception):
 
 def clear_cache() -> None:
     _CACHE.clear()
+    _FORECAST_CACHE.clear()
 
 
 def _http_get(url: str, timeout: float) -> str:
@@ -88,7 +90,7 @@ def fetch_hourly_radiation(lat: float, lon: float, now: Optional[datetime] = Non
         text = _http_get(f"{base}?{query}", timeout)
     except urllib.error.HTTPError as exc:
         raise OpenMeteoError(f"Open-Meteo HTTP 오류 {exc.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except OSError as exc:
         raise OpenMeteoError(f"Open-Meteo 연결 실패 ({type(exc).__name__})") from None
 
     radiation = _parse(text)
@@ -126,3 +128,94 @@ def make_insolation_provider(radiation: Mapping[datetime, float]) -> InsolationP
         return None if value is None else radiation_to_weight(value)
 
     return provider
+
+
+def wmo_code_to_sky_pty(code: int) -> Tuple[int, int]:
+    """WMO weather_code -> (sky, pty).
+    sky: 1(맑음), 3(구름많음), 4(흐림)
+    pty: 0(없음), 1(비), 2(비/눈), 3(눈), 4(소나기)
+    """
+    if code in (0,):
+        return 1, 0  # 맑음
+    if code in (1, 2):
+        return 3, 0  # 구름많음
+    if code in (3, 45, 48):
+        return 4, 0  # 흐림/안개
+    if code in (51, 53, 55, 61, 63, 65, 80, 81, 82):
+        return 4, 1  # 비
+    if code in (66, 67):
+        return 4, 2  # 진눈깨비
+    if code in (71, 73, 75, 77, 85, 86):
+        return 4, 3  # 눈
+    if code in (95, 96, 99):
+        return 4, 4  # 뇌우/소나기
+    return 1, 0
+
+
+def _parse_hourly_forecast(payload: Dict[str, Any]) -> Dict[datetime, Dict[str, Any]]:
+    """시간별 날씨 예보 응답 JSON을 구조화된 딕셔너리로 변환한다."""
+    offset = timezone(timedelta(seconds=int(payload.get("utc_offset_seconds", 32400))))
+    hourly = payload["hourly"]
+    times = hourly["time"]
+    temps = hourly["temperature_2m"]
+    rads = hourly["shortwave_radiation"]
+    pops = hourly.get("precipitation_probability", [0] * len(times))
+    codes = hourly.get("weather_code", [0] * len(times))
+
+    parsed: Dict[datetime, Dict[str, Any]] = {}
+    for stamp, temp, rad, pop, code in zip(times, temps, rads, pops, codes):
+        t = datetime.fromisoformat(stamp).replace(tzinfo=offset)
+        sky, pty = wmo_code_to_sky_pty(int(code) if code is not None else 0)
+        parsed[t] = {
+            "air": float(temp) if temp is not None else 20.0,
+            "radiation": float(rad) if rad is not None else 0.0,
+            "sky": sky,
+            "pty": pty,
+            "pop": int(pop) if pop is not None else 0,
+        }
+    return parsed
+
+
+def fetch_hourly_weather_forecast(
+    lat: float, lon: float, now: Optional[datetime] = None, *,
+    timeout: float = DEFAULT_TIMEOUT_S,
+    forecast_days: int = 2
+) -> Dict[datetime, Dict[str, Any]]:
+    """시간별 종합 날씨 {시각: {air, radiation, sky, pty, pop}}를 조회한다 (무키 Open-Meteo 실시간 연동)."""
+    lat, lon = _finite("lat", lat), _finite("lon", lon)
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        raise ValueError(f"좌표 범위를 벗어났습니다: lat={lat}, lon={lon}")
+
+    today = to_kst(now).strftime("%Y%m%d%H")
+    cache_key = (round(lat, 2), round(lon, 2), today, forecast_days)
+    cached = _FORECAST_CACHE.get(cache_key)
+    if cached and time.monotonic() - cached[0] < CACHE_TTL_S:
+        return cached[1]
+
+    query = urllib.parse.urlencode({
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,shortwave_radiation,precipitation_probability,weather_code",
+        "timezone": "Asia/Seoul",
+        "forecast_days": forecast_days,
+    })
+    base = (os.getenv(ENV_BASE_URL) or DEFAULT_BASE_URL).rstrip("/")
+    try:
+        text = _http_get(f"{base}?{query}", timeout)
+    except urllib.error.HTTPError as exc:
+        raise OpenMeteoError(f"Open-Meteo HTTP 오류 {exc.code}") from None
+    except OSError as exc:
+        raise OpenMeteoError(f"Open-Meteo 연결 실패 ({type(exc).__name__})") from None
+
+    try:
+        payload = json.loads(text)
+        if payload.get("error"):
+            raise OpenMeteoError(f"Open-Meteo 오류: {str(payload.get('reason', ''))[:100]}")
+
+        parsed = _parse_hourly_forecast(payload)
+        _FORECAST_CACHE[cache_key] = (time.monotonic(), parsed)
+        return parsed
+    except OpenMeteoError:
+        raise
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise OpenMeteoError("해석할 수 없는 Open-Meteo 응답") from None
