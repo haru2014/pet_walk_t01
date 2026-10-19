@@ -219,7 +219,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
 
 const confirmAndSignOut = (onSuccess: () => void) => {
   const title = '로그아웃';
-  const message = '로그아웃하시겠습니까?\n\n💡 기기에 저장된 우리 아이 프로필과 최근 산책 기록은 로컬에 안전하게 유지됩니다.';
+  const message = '로그아웃하시겠습니까?\n\n💡 기기에 저장된 우리 강아지 프로필과 최근 산책 기록은 로컬에 안전하게 유지됩니다.';
 
   const performSignOut = async () => {
     try {
@@ -351,7 +351,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
       {/* 상단 헤더 */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 아이 정보 & 테마 설정 🐾</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 강아지 정보 & 테마 설정 🐾</Text>
       </View>
 
       {/* 🚀 Rule 11 컴팩트 세그먼트 네비게이션 (단일 뷰포트 / 스크롤 배제 4단 세그먼트) */}
@@ -502,7 +502,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             <MyWalkHistoryView dogName={dog.name} onOpenAuthModal={onOpenAuthModal} />
           ) : (
             <BookmarkListView
-              key={resetCount}
+              key={`${resetCount}_${walkSubFilter}_${subTab}`}
               onStartBookmark={onStartBookmark}
               dogSpeedKmH={dog.speedKmH}
             />

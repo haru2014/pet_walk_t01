@@ -22,9 +22,22 @@ vi.mock('../common/DogAvatar', () => ({
   DogAvatar: () => React.createElement('div', { 'data-testid': 'mock-dog-avatar' }),
 }));
 
+vi.mock('expo-haptics', () => ({
+  impactAsync: vi.fn(),
+  notificationAsync: vi.fn(),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+}));
+
 vi.mock('../walk/WalkRecordDetailModal', () => ({
   WalkRecordDetailModal: ({ visible, record }: any) =>
     visible ? React.createElement('div', { 'data-testid': 'mock-walk-record-detail-modal' }, record?.id) : null,
+  buildWalkRecordMapData: vi.fn(() => ({
+    route: { type: 'FeatureCollection', features: [] },
+    stepPins: [],
+    poopCount: 0,
+    peeCount: 0,
+  })),
 }));
 
 const mockRecords: WalkRecord[] = [
@@ -77,11 +90,12 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(html).toContain('완만 노면율');
     expect(html).toContain('총 배변');
 
-    // 2. 누적 산책 기록 목록이 렌더링되는지 확인
-    expect(html).toContain('1.8km · 30분 · 평균 3.6km/h');
-    expect(html).toContain('만족도 5점');
+    // 2. 누적 산책 기록 목록이 커뮤니티 피드와 일관된 형태로 렌더링되는지 확인
+    expect(html).toContain('1.8km · ⏱️ 30분 · 🌿 완만 90%');
+    expect(html).toContain('⭐ 5.0');
     expect(html).toContain('아주 편안했어요');
-    expect(html).toContain('🗺️ 지도 보기');
+    expect(html).toContain('🗺️ 경로 지도 보기');
+    expect(html).toContain('🏅 완주 인증');
   });
 
   it('기본 상태(접힘)에서는 기술적 내보내기 버튼(CSV/JSON)이 숨겨져 있고, 안내 헤더만 노출된다', () => {
