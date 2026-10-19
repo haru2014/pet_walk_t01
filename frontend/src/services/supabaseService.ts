@@ -237,8 +237,23 @@ class SupabaseServiceManager {
         console.warn('[SupabaseService] walk_records 동기화 건너뜀: 로그인 전이거나 id 가 UUID 형식이 아님 (로컬 유지)');
         return newRecord;
       }
+      // DB 로는 앱이 쓸 수 있는 칸만 보낸다. is_public·public_route_coords 는 서버(공개 API)만 쓰고,
+      // created_at 은 DB 가 정한다. 이 칸들은 값이 false/null 이어도 이름이 들어 있으면 DB 가 권한 오류로 거절한다. (이슈 #116)
       // dog_id 는 DB 의 개 프로필(UUID)을 가리키는 연결이다. 옛 형식이면 연결 없이 저장한다.
-      const payload = { ...newRecord, dog_id: isUuid(newRecord.dog_id) ? newRecord.dog_id : undefined };
+      const payload = {
+        id: newRecord.id,
+        user_id: newRecord.user_id,
+        dog_id: isUuid(newRecord.dog_id) ? newRecord.dog_id : undefined,
+        course_id: newRecord.course_id,
+        started_at: newRecord.started_at,
+        ended_at: newRecord.ended_at,
+        distance_m: newRecord.distance_m,
+        duration_min: newRecord.duration_min,
+        route_coords: newRecord.route_coords,
+        photo_paths: newRecord.photo_paths,
+        note: newRecord.note,
+        rating: newRecord.rating,
+      };
       try {
         const { error } = await this.client.from('walk_records').insert(payload);
         if (error) {
