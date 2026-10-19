@@ -23,9 +23,10 @@ from dotenv import load_dotenv
 # .env 를 가장 먼저 읽어야 agent.* 모듈 import 시 os.getenv(SUPABASE_URL 등) 가 값을 본다.
 load_dotenv()
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from uuid import UUID
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -36,6 +37,7 @@ from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
 from agent.supabase_repository import community_repo
 from services.route_warmup import start_background_warmup
+from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
     HazardReportRepository,
     HazardReportRequest,
@@ -664,6 +666,45 @@ def share_community_course(req: CommunityCourseShareRequest):
         "is_supabase": community_repo.is_connected(),
         "intersection_snapped": mask_result.get("intersection_snapped", False),
     }
+
+
+def _supabase_client():
+    """서버 전용 Supabase 클라이언트. 연결되지 않았으면 None. (테스트에서 교체한다)"""
+    return community_repo.raw_client()
+
+
+def _bearer_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    scheme, _, value = authorization.partition(" ")
+    return value.strip() if scheme.lower() == "bearer" and value.strip() else None
+
+
+def _run_walk_share(action, walk_id: str, authorization: Optional[str]):
+    try:
+        UUID(walk_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_WALK_ID", "message": "산책 기록 id 형식이 올바르지 않습니다."})
+    client = _supabase_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail={"code": "DB_NOT_CONNECTED", "message": "데이터베이스에 연결되어 있지 않습니다."})
+    try:
+        user_id = verify_user(client, _bearer_token(authorization))
+        return action(client, user_id, walk_id)
+    except WalkShareError as err:
+        raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
+
+
+@app.post("/api/v1/walks/{walk_id}/share")
+def share_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
+    """[US-G2 / #116] 본인 산책 기록을 서버가 200m 마스킹한 좌표로 공개한다. (Authorization: Bearer <로그인 토큰>)"""
+    return _run_walk_share(share_walk, walk_id, authorization)
+
+
+@app.post("/api/v1/walks/{walk_id}/unshare")
+def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
+    """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
+    return _run_walk_share(unshare_walk, walk_id, authorization)
 
 
 @app.get("/api/v1/community/feed")

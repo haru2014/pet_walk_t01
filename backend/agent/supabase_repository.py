@@ -107,6 +107,10 @@ class SupabaseCommunityRepository:
     def is_connected(self) -> bool:
         return self._client is not None
 
+    def raw_client(self):
+        """서비스 키로 만든 Supabase 클라이언트(미연결이면 None). 서버 전용 — 앱에 노출하지 않는다."""
+        return self._client
+
     def get_feeds(self) -> List[Dict[str, Any]]:
         """커뮤니티 피드 목록 조회 (Supabase DB 우선, 실패 시 인메모리)."""
         if self._client:
