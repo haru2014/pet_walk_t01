@@ -450,13 +450,25 @@ flowchart TB
 - **컬럼**: `id`, `user_id`, `name`, `breed`, `age_years`, `weight_kg`, `joint_care_level`, `speed_kmh`, `photo_path`, `is_primary`
 - **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`DogProfileEditCard.tsx`, `supabaseService.saveDogProfile`)
 
-#### 14) `POST /rest/v1/walk_records` & `PATCH ...` - 산책 기록 적재 및 후기 공개(`is_public`) 토글
+#### 14) `POST /rest/v1/walk_records` - 산책 기록 적재 (DB, 본인 것만)
 - **테이블**: `public.walk_records`
-- **컬럼**: `id`, `user_id`, `dog_id`, `started_at`, `ended_at`, `distance_m`, `duration_min`, `route_coords`, `note`, `rating`, `is_public`
-- **후기 공개 제어**:
-  - `is_public = false` (기본값): 본인만 조회 가능한 비공개 기록 (RLS: `auth.uid() = user_id`)
-  - `is_public = true` (후기 공유 클릭 시): 전체 커뮤니티에 공개 후기로 노출 (RLS: `is_public = true`)
-- **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`MyWalkHistoryView.tsx`, `supabaseService.toggleWalkRecordPublic`)
+- **앱이 직접 쓰는 컬럼**: `id`, `user_id`, `dog_id`, `course_id`, `started_at`, `ended_at`, `distance_m`, `duration_min`, `route_coords`, `photo_paths`, `note`, `rating`
+- **앱이 쓸 수 없는 컬럼**: `is_public`, `public_route_coords` (DB 권한으로 막음, 서버만 씀)
+- **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`supabaseService.createWalkRecord`)
+
+#### 15) `POST /api/v1/walks/{walk_id}/share` - 후기 공개 (서버가 200m 마스킹 후 공개) · 이슈 #116
+- **인증**: `Authorization: Bearer <Supabase 로그인 토큰>` (서버가 토큰·소유자 확인)
+- **동작**: 본인 `walk_records.route_coords` 에서 출발·도착 200m 를 가린 좌표를 `public_route_coords` 에 저장하고 `is_public=true`. 원본 좌표는 공개되지 않음
+- **응답 200**: `{ "walk_id": "<uuid>", "is_public": true, "masked_point_count": 80 }`
+- **오류**: `401 AUTH_REQUIRED / AUTH_INVALID`, `404 WALK_NOT_FOUND`(없거나 남의 기록), `422 ROUTE_TOO_SHORT_TO_MASK / INVALID_ROUTE / INVALID_WALK_ID`, `503 DB_NOT_CONNECTED`
+- **담당자**: 3번 노희선 (서버·DB), 4번 김승현 (`supabaseService.setWalkRecordPublic`, `MyWalkHistoryView.tsx`)
+
+#### 16) `POST /api/v1/walks/{walk_id}/unshare` - 후기 공개 해제
+- 같은 인증·오류 규칙. `is_public=false`, `public_route_coords=null`
+- **응답 200**: `{ "walk_id": "<uuid>", "is_public": false }`
+
+#### 17) `GET /rest/v1/public_walk_reviews_v` - 공개 후기 읽기 (누구나)
+- **전용 창구(view)**: `id`, `course_id`, `distance_m`, `duration_min`, `rating`, `note`, `public_route_coords`, `walked_on`(날짜만). 원본 경로·사용자 id·개 id·사진은 없음
 
 ---
 

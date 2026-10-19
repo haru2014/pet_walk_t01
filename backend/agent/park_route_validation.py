@@ -72,6 +72,11 @@ def _add_way_to_graph(graph: nx.Graph, way: Dict[str, Any], park_id: str) -> Non
         graph.add_edge(tuple(a), tuple(b), weight=haversine_m(a, b), way_id=way_id)
 
 
+# 공원 그래프 재사용 (이슈 #125): 요청 하나에서 9번 다시 만들던 것을 한 번만 만든다.
+# 그래프는 만든 뒤 읽기만 하므로 공유해도 안전하다. 경계·보행망 데이터 객체가 바뀌면(is 비교) 다시 만든다.
+_PARK_GRAPH_CACHE: dict = {}
+
+
 def build_park_graph(park_id: str) -> nx.Graph:
     boundary = load_pilot_park_polygons().get(park_id)
     if boundary is None or not boundary.is_valid or boundary.is_empty:
@@ -79,11 +84,15 @@ def build_park_graph(park_id: str) -> nx.Graph:
     data = load_park_networks().get(park_id)
     if not isinstance(data, dict) or not isinstance(data.get("ways"), list):
         raise RoutePlanningError("WALK_NETWORK_UNAVAILABLE", "선택한 공원의 보행로 데이터를 확인할 수 없습니다.")
+    cached = _PARK_GRAPH_CACHE.get(park_id)
+    if cached is not None and cached[0] is boundary and cached[1] is data:
+        return cached[2]
     graph = nx.Graph()
     for way in data.get("ways", []):
         _add_way_to_graph(graph, way, park_id)
     if not graph.edges:
         raise RoutePlanningError("WALK_NETWORK_UNAVAILABLE", "공원 경계 안에 연결 가능한 보행로가 없습니다.")
+    _PARK_GRAPH_CACHE[park_id] = (boundary, data, graph)
     return graph
 
 

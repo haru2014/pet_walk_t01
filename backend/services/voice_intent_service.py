@@ -15,8 +15,9 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
-from pydantic import BaseModel, Field
+import time
+from typing import Optional, Tuple
+from services.voice_intent_contract import VoiceWalkIntentPayload
 
 logger = logging.getLogger(__name__)
 
@@ -49,16 +50,7 @@ BLOCKED_GEMINI_MODELS = [
 ]
 
 
-class VoiceWalkIntentPayload(BaseModel):
-    """[US-A1, 영역 1] Gemini Structured Output 및 오프라인 안전망 데이터 계약 규격."""
-    target_duration_minutes: int = Field(default=30, ge=10, le=90, description="목표 산책 시간(분)")
-    prefer_shade: bool = Field(default=True, description="그늘길 우선 여부")
-    prefer_cushion: bool = Field(default=True, description="폭신한 흙길/잔디 우선 여부")
-    avoid_stairs: bool = Field(default=True, description="계단 회피 여부")
-    joint_care_level: int = Field(default=1, ge=0, le=2, description="관절 케어 레벨 (0:기본, 1:안심, 2:주의)")
-    destination_landmark: Optional[str] = Field(default=None, description="목적지 거점/공원 랜드마크 (예: 유림공원)")
-    max_surface_temp_limit: float = Field(default=35.0, description="지면온도 상한치(℃)")
-    briefing_message: Optional[str] = Field(default=None, description="상황 맞춤 웰니스 브리핑 문구")
+GEMINI_BUDGET_MS = 2400
 
 
 def resolve_landmark_park_id(landmark: Optional[str]) -> Optional[str]:
@@ -66,6 +58,9 @@ def resolve_landmark_park_id(landmark: Optional[str]) -> Optional[str]:
     if not landmark:
         return None
     cleaned = landmark.strip()
+    named_park = re.search(r"([가-힣A-Za-z]+공원)", cleaned)
+    if named_park:
+        return LANDMARK_TO_PARK_ID.get(named_park.group(1))
     for key in sorted(LANDMARK_TO_PARK_ID.keys(), key=len, reverse=True):
         if key in cleaned:
             return LANDMARK_TO_PARK_ID[key]
@@ -86,6 +81,9 @@ def _extract_duration(text: str) -> int:
 
 
 def _extract_destination(text: str) -> Optional[str]:
+    named_park = re.search(r"([가-힣A-Za-z]+공원)(?:에서|으로|에|을|를|\s|$)", text)
+    if named_park:
+        return named_park.group(1)
     for key in sorted(LANDMARK_TO_PARK_ID.keys(), key=len, reverse=True):
         if key in text:
             return key if "공원" in key else f"{key}공원"
@@ -172,16 +170,24 @@ def parse_voice_walk_intent(
         return payload, "local-rule-engine", "local_fallback"
 
     # 2. Gemini 클라이언트 호출 (google.genai SDK 동적 로드)
+    client = None
     try:
         import importlib
         genai = importlib.import_module("google.genai")
         types = getattr(genai, "types")
 
-        client = genai.Client(api_key=gemini_key.strip())
+        http_options = types.HttpOptions(
+            timeout=GEMINI_BUDGET_MS, retry_options=types.HttpRetryOptions(attempts=1),
+        )
+        client = genai.Client(api_key=gemini_key.strip(), http_options=http_options)
         system_prompt = _build_system_prompt(dog_name)
+        deadline = time.monotonic() + GEMINI_BUDGET_MS / 1000
 
         # Cascading Fallback 모델 체인 (3.5 Flash-Lite -> 3.1 Flash-Lite -> 3.6 Flash)
         for model_name in DEFAULT_GEMINI_CANDIDATES:
+            remaining_ms = int((deadline - time.monotonic()) * 1000)
+            if remaining_ms <= 0:
+                break
             try:
                 response = client.models.generate_content(
                     model=model_name,
@@ -191,6 +197,7 @@ def parse_voice_walk_intent(
                         response_mime_type="application/json",
                         response_schema=VoiceWalkIntentPayload,
                         temperature=0.2,
+                        http_options=types.HttpOptions(timeout=remaining_ms),
                     ),
                 )
                 if response and response.text:
@@ -198,11 +205,17 @@ def parse_voice_walk_intent(
                     payload = VoiceWalkIntentPayload(**parsed_dict)
                     return payload, model_name, "gemini_live"
             except Exception as model_err:
-                logger.warning("Gemini 모델 %s 호출 실패 (%s), 다음 후보 모델 시도", model_name, model_err)
+                logger.warning("Gemini 모델 %s 호출 실패 (%s), 다음 후보 모델 시도", model_name, type(model_err).__name__)
                 continue
 
     except Exception as exc:
-        logger.warning("Gemini SDK 초기화/호출 실패 (%s), 로컬 안전망 폴백", exc)
+        logger.warning("Gemini SDK 초기화/호출 실패 (%s), 로컬 안전망 폴백", type(exc).__name__)
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                logger.warning("Gemini 클라이언트 정리 실패")
 
     # 3. 모든 Gemini 모델 호출 실패 시 로컬 안전망 실행
     local_payload = extract_local_voice_intent(cleaned_text, dog_name)

@@ -23,18 +23,21 @@ from dotenv import load_dotenv
 # .env 를 가장 먼저 읽어야 agent.* 모듈 import 시 os.getenv(SUPABASE_URL 등) 가 값을 본다.
 load_dotenv()
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from uuid import UUID
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
-from agent.pilot_park_routes import resolve_pilot_park_key
+from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
 from agent.supabase_repository import community_repo
+from services.route_warmup import start_background_warmup
+from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
     HazardReportRepository,
     HazardReportRequest,
@@ -98,6 +101,15 @@ def read_root():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
+
+
+@app.on_event("startup")
+def _warm_up_route_caches() -> None:
+    """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
+    start_background_warmup(
+        weather_fetch=_live_heat_risk_response,
+        weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
+    )
 
 
 @app.get("/health")
@@ -656,6 +668,45 @@ def share_community_course(req: CommunityCourseShareRequest):
     }
 
 
+def _supabase_client():
+    """서버 전용 Supabase 클라이언트. 연결되지 않았으면 None. (테스트에서 교체한다)"""
+    return community_repo.raw_client()
+
+
+def _bearer_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    scheme, _, value = authorization.partition(" ")
+    return value.strip() if scheme.lower() == "bearer" and value.strip() else None
+
+
+def _run_walk_share(action, walk_id: str, authorization: Optional[str]):
+    try:
+        UUID(walk_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_WALK_ID", "message": "산책 기록 id 형식이 올바르지 않습니다."})
+    client = _supabase_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail={"code": "DB_NOT_CONNECTED", "message": "데이터베이스에 연결되어 있지 않습니다."})
+    try:
+        user_id = verify_user(client, _bearer_token(authorization))
+        return action(client, user_id, walk_id)
+    except WalkShareError as err:
+        raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
+
+
+@app.post("/api/v1/walks/{walk_id}/share")
+def share_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
+    """[US-G2 / #116] 본인 산책 기록을 서버가 200m 마스킹한 좌표로 공개한다. (Authorization: Bearer <로그인 토큰>)"""
+    return _run_walk_share(share_walk, walk_id, authorization)
+
+
+@app.post("/api/v1/walks/{walk_id}/unshare")
+def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
+    """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
+    return _run_walk_share(unshare_walk, walk_id, authorization)
+
+
 @app.get("/api/v1/community/feed")
 def get_community_feed():
     """공유된 안심 코스 피드 목록 조회 (Supabase DB 우선, 인메모리 자동 폴백)."""
@@ -807,12 +858,12 @@ def clear_heat_risk_cache() -> None:
     _HEAT_RISK_CACHE.clear()
 
 
-def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
+def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False) -> Dict[str, Any]:
     """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
     # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
     cache_key = (round(lat, 2), round(lon, 2))
     now_ts = time.time()
-    if "PYTEST_CURRENT_TEST" not in os.environ and cache_key in _HEAT_RISK_CACHE:
+    if "PYTEST_CURRENT_TEST" not in os.environ and not force_refresh and cache_key in _HEAT_RISK_CACHE:
         cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
         if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
             return cached_resp

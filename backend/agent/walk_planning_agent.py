@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
+from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
 from agent.pilot_park_routes import PILOT_PARK_CENTERS
@@ -361,7 +362,11 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         direction = _direction_label(VARIANT_BEARINGS[variant])
         if plan.source.startswith("park_graph_"):
             park_key = plan.source.removeprefix("park_graph_")
-            cand_name = f"🏞️ {PILOT_PARK_CENTERS[park_key][2]}"
+            # 후보 3개가 이름만으로 구분되도록 안 번호·순환 방향·실제 거리를 붙인다 (이슈 #125)
+            cand_name = (
+                f"🏞️ {PILOT_PARK_CENTERS[park_key][2]} · {variant}안 "
+                f"{route_direction_label(plan.coords)} {plan.distance_m / 1000.0:.1f}km"
+            )
         elif plan.source.startswith("static_pilot_"):
             park_title = plan.source.replace("static_pilot_", "")
             cand_name = f"🏞️ {park_title}"

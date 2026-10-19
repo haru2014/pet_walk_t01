@@ -81,7 +81,7 @@ describe('US-G2 SupabaseService - 클라우드 인증 및 DB 연동', () => {
     expect(profile.user_id).toBeTruthy();
   });
 
-  it('산책 기록 생성 및 커뮤니티 공개(is_public) 토글이 정상 작동해야 한다', async () => {
+  it('산책 기록 생성이 정상 작동해야 한다', async () => {
     await SupabaseService.signIn('walker@example.com', 'pass123');
     const record = await SupabaseService.createWalkRecord({
       distance_m: 2300,
@@ -94,8 +94,7 @@ describe('US-G2 SupabaseService - 클라우드 인증 및 DB 연동', () => {
     expect(record.duration_min).toBe(35);
     expect(record.is_public).toBe(false);
 
-    // 커뮤니티 후기 공개(is_public = true) 토글
-    const ok = await SupabaseService.toggleWalkRecordPublic(record.id, true);
-    expect(ok).toBe(true);
+    // 후기 공개/해제는 서버 API 로 한다 (자세한 동작은 supabaseService.walkShare.test.ts)
+    expect(typeof SupabaseService.setWalkRecordPublic).toBe('function');
   });
 });

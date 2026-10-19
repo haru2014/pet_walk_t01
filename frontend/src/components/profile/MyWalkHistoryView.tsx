@@ -86,11 +86,15 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
     const current = publicMap[record.id] ?? false;
     const nextState = !current;
 
-    await SupabaseService.toggleWalkRecordPublic(record.id, nextState);
+    const result = await SupabaseService.setWalkRecordPublic(record.id, nextState);
+    if (!result.ok) {
+      Alert.alert('공개 설정을 바꾸지 못했어요', result.message);
+      return;
+    }
     setPublicMap((prev) => ({ ...prev, [record.id]: nextState }));
 
     const message = nextState
-      ? '🌐 이 산책 기록이 커뮤니티 공개 후기(is_public: true)로 전환되었습니다.'
+      ? '🌐 이 산책 기록이 커뮤니티 공개 후기로 전환되었어요. 집 주변 200m는 자동으로 가려서 공개돼요.'
       : '🔒 공개가 해제되어 나만의 비공개 기록으로 보관됩니다.';
     Alert.alert(nextState ? '후기 공개 설정' : '비공개 전환', message);
   };

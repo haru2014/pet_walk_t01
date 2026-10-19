@@ -5,10 +5,13 @@
  * docs/implementation_plan/gemini_api_적용_계획.md 준수:
  * - [영역 1] 음성 발화 텍스트 -> Gemini Structured Output 분석 (POST /api/v1/voice/intent)
  * - [영역 2] 랜드마크(유림공원 등) 및 노면/시간 제약조건 추출 및 경로 생성 오케스트레이션 연계
- * - 오프라인 안전망: 네트워크 단절 시 extractLocalVoiceIntent 즉시 폴백 (0초 무지연)
+ * - 오프라인 안전망: 서버 요청 실패·타임아웃 후 extractLocalVoiceIntent로 폴백
  */
 
 import { fetchWithServerFallback } from './apiClient';
+import { extractVoiceLandmark, normalizeToFrontendParkId, unsupportedParkMessage } from './voiceIntentLandmarks';
+import { sanitizeVoiceBriefing } from './voiceBriefing';
+export { normalizeToFrontendParkId } from './voiceIntentLandmarks';
 
 export interface VoiceWalkIntent {
   target_duration_minutes: number;
@@ -27,48 +30,6 @@ export interface VoiceIntentResult {
   landmark_park_id?: string | null;
   model_used: string;
   data_source: 'gemini_live' | 'local_fallback';
-}
-
-const LANDMARK_TO_PARK_ID: Record<string, string> = {
-  유림공원: 'yurim',
-  유림: 'yurim',
-  갑천: 'yurim',
-  한밭수목원: 'yurim',
-  한밭: 'yurim',
-  엑스포: 'yurim',
-  엑스포다리: 'yurim',
-  세종호수공원: 'sejong',
-  세종호수: 'sejong',
-  송강공원: 'songgang',
-  송강근린공원: 'songgang',
-  송강: 'songgang',
-  도안공원: 'doan',
-  도안호수공원: 'doan',
-  도안: 'doan',
-};
-
-/**
- * 백엔드 랜드마크 ID, 한글 공원명, 또는 영문 식별자를 프론트엔드 PILOT_PARKS ID('yurim' | 'sejong' | 'songgang' | 'doan')로 정규화
- */
-export function normalizeToFrontendParkId(rawIdOrName?: string | null): string {
-  if (!rawIdOrName) return 'yurim';
-  const val = rawIdOrName.trim().toLowerCase();
-
-  if (val.includes('sejong') || val.includes('세종')) return 'sejong';
-  if (val.includes('songgang') || val.includes('송강')) return 'songgang';
-  if (val.includes('doan') || val.includes('도안')) return 'doan';
-  if (val.includes('yurim') || val.includes('yulim') || val.includes('유림')) {
-    return 'yurim';
-  }
-
-  // 한글 랜드마크 딕셔너리 매핑
-  for (const [k, pId] of Object.entries(LANDMARK_TO_PARK_ID)) {
-    if (rawIdOrName.includes(k)) {
-      return pId;
-    }
-  }
-
-  return 'yurim';
 }
 
 /**
@@ -95,24 +56,14 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
   const prefer_shade = ['그늘', '시원', '더위', '덥', '뜨거', '햇빛', '햇볕'].some((k) => text.includes(k));
 
   // 3. 폭신한 흙길/잔디 선호 여부
-  const prefer_cushion = true;
+  const prefer_cushion = !['아스팔트', '딱딱한 길 좋아'].some((k) => text.includes(k));
 
   // 4. 계단 회피 여부
   const avoid_stairs = !['계단 괜찮', '계단 포함', '계단 상관없', '계단 좋아'].some((k) => text.includes(k));
 
   // 5. 랜드마크 추출 (긴 이름 우선 매칭)
-  let destination_landmark: string | null = null;
-  let landmark_park_id: string | null = null;
-  const sortedLandmarks = Object.entries(LANDMARK_TO_PARK_ID).sort(
-    (a, b) => b[0].length - a[0].length
-  );
-  for (const [key, parkId] of sortedLandmarks) {
-    if (text.includes(key)) {
-      destination_landmark = key.includes('공원') ? key : `${key}공원`;
-      landmark_park_id = parkId;
-      break;
-    }
-  }
+  const destination_landmark = extractVoiceLandmark(text);
+  const landmark_park_id = normalizeToFrontendParkId(destination_landmark);
 
   // 6. 관절 케어 레벨
   let joint_care_level = 1;
@@ -123,7 +74,9 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
   }
 
   const landmarkMsg = destination_landmark ? `${destination_landmark} ` : '';
-  const briefing = `${landmarkMsg}${name}와 함께하는 ${duration}분 맞춤 안심 산책 코스를 설정했습니다.`;
+  const briefing = destination_landmark && !landmark_park_id
+    ? unsupportedParkMessage(destination_landmark)
+    : `${landmarkMsg}${name}와 함께하는 ${duration}분 맞춤 안심 산책 코스를 설정했습니다.`;
 
   return {
     status: 'success',
@@ -135,7 +88,7 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
       joint_care_level,
       destination_landmark,
       max_surface_temp_limit: 35.0,
-      briefing_message: briefing,
+      briefing_message: sanitizeVoiceBriefing(briefing),
     },
     landmark_park_id,
     model_used: 'local-rule-engine',
@@ -181,10 +134,16 @@ export async function analyzeVoiceIntent(
     if (response.ok) {
       const data = await response.json();
       if (data?.status === 'success' && data.intent) {
+        const landmark = data.intent.destination_landmark;
+        const parkId = normalizeToFrontendParkId(landmark || data.landmark_park_id);
         return {
           status: 'success',
-          intent: data.intent,
-          landmark_park_id: data.landmark_park_id ? normalizeToFrontendParkId(data.landmark_park_id) : null,
+          intent: {
+            ...data.intent,
+            briefing_message: sanitizeVoiceBriefing(landmark && !parkId
+              ? unsupportedParkMessage(landmark) : data.intent.briefing_message),
+          },
+          landmark_park_id: parkId,
           model_used: data.model_used || 'gemini-3.5-flash-lite',
           data_source: data.data_source || 'gemini_live',
         };
