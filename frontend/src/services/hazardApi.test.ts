@@ -4,6 +4,8 @@ import {
   generateLocalDetourRoute,
   requestRerouteAroundHazard,
   createEmergencyReturnRoute,
+  requestDeviationReroute,
+  generateLocalDeviationReroute,
   HAZARD_TYPE_LABELS,
 } from './hazardApi';
 import * as apiClient from './apiClient';
@@ -129,7 +131,7 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
       expect(result.voiceAlert).toContain('우회하여');
-      expect(result.newRoute.features[0].geometry.coordinates.length).toBe(3);
+      expect(result.newRoute.features[0].geometry.coordinates).toHaveLength(3);
       expect(result.stepPins.length).toBeGreaterThanOrEqual(2);
       expect(result.isEmergencyReturn).toBe(false);
     });
@@ -185,6 +187,99 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
       const coords = result.newRoute.features[0].geometry.coordinates;
       expect(coords[0]).toEqual([currentLon, currentLat]);
       expect(coords[coords.length - 1]).toEqual([startLon, startLat]);
+    });
+  });
+
+  describe('requestDeviationReroute & generateLocalDeviationReroute (경로 이탈 재탐색)', () => {
+    it('서버 응답 성공 시 서버의 재탐색 경로와 음성 안내를 반환한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'REROUTED',
+          needs_reroute: true,
+          voice_alert: '경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.',
+          new_distance_m: 350,
+          geojson: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { segmentType: 'reroute' },
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [127.3825, 36.3745],
+                    [127.383, 36.376],
+                    [127.382, 36.378],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      } as any);
+
+      const result = await requestDeviationReroute({
+        currentLat: 36.3745,
+        currentLon: 127.3825,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        routeCoordinates: [
+          [127.382, 36.374],
+          [127.382, 36.378],
+        ],
+      });
+
+      expect(result.status).toBe('REROUTED');
+      expect(result.needsReroute).toBe(true);
+      expect(result.voiceAlert).toContain('재탐색');
+      expect(result.newRoute.features[0].geometry.coordinates[0]).toEqual([127.3825, 36.3745]);
+      expect(result.stepPins.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('서버 오류 시 로컬 기하 기반 복귀 경로로 즉시 폴백한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockRejectedValueOnce(
+        new Error('Network error')
+      );
+
+      const result = await requestDeviationReroute({
+        currentLat: 36.3745,
+        currentLon: 127.3825,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        routeCoordinates: [
+          [127.382, 36.374],
+          [127.382, 36.376],
+          [127.382, 36.378],
+        ],
+      });
+
+      expect(result.status).toBe('REROUTED');
+      expect(result.needsReroute).toBe(true);
+      expect(result.voiceAlert).toContain('재탐색');
+      const coords = result.newRoute.features[0].geometry.coordinates;
+      expect(coords[0]).toEqual([127.3825, 36.3745]);
+      expect(coords[coords.length - 1]).toEqual([127.382, 36.378]);
+    });
+
+    it('generateLocalDeviationReroute는 현재 위치에서 가장 가까운 전방 지점을 연결한 경로를 반환한다', () => {
+      const local = generateLocalDeviationReroute({
+        currentLat: 36.375,
+        currentLon: 127.383,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        routeCoordinates: [
+          [127.382, 36.374],
+          [127.382, 36.376],
+          [127.382, 36.378],
+        ],
+      });
+
+      expect(local.status).toBe('REROUTED');
+      expect(local.needsReroute).toBe(true);
+      expect(local.voiceAlert).toContain('재탐색');
+      expect(local.newRoute.features[0].geometry.coordinates[0]).toEqual([127.383, 36.375]);
+      expect(local.stepPins).toHaveLength(2);
     });
   });
 });

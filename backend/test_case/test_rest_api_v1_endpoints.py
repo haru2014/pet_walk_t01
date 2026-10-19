@@ -84,6 +84,25 @@ class TestWalkRerouteEndpoint:
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(severity="info"))
         assert res.json()["status"] == "KEEP_ROUTE"
 
+    def test_route_deviation_reroutes_from_current_position(self, client):
+        payload = {
+            "current_lat": 36.3745,
+            "current_lon": 127.3825,
+            "destination_lat": _DEST[0],
+            "destination_lon": _DEST[1],
+            "reroute_reason": "deviation",
+            "route_coordinates": [[_CUR[1], _CUR[0]], [_DEST[1], _DEST[0]]],
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["needs_reroute"] is True
+        assert "재탐색" in body["voice_alert"]
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert coords[0] == pytest.approx([127.3825, 36.3745])
+        assert coords[-1] == pytest.approx([_DEST[1], _DEST[0]])
+
     def test_invalid_hazard_type_rejected(self, client):
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(hazard_type="lava"))
         assert res.status_code == 422

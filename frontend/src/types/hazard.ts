@@ -30,11 +30,20 @@ export interface RerouteRequestPayload {
   readonly currentLon: number;
   readonly destinationLat: number;
   readonly destinationLon: number;
-  readonly hazardLat: number;
-  readonly hazardLon: number;
+  readonly hazardLat?: number;
+  readonly hazardLon?: number;
   readonly hazardType?: HazardType;
   readonly severity?: HazardSeverity;
   readonly confidence?: number;
+  readonly routeCoordinates?: readonly (readonly [number, number])[];
+  readonly rerouteReason?: 'hazard' | 'deviation' | 'emergency_return';
+}
+
+export interface DeviationReroutePayload {
+  readonly currentLat: number;
+  readonly currentLon: number;
+  readonly destinationLat: number;
+  readonly destinationLon: number;
   readonly routeCoordinates?: readonly (readonly [number, number])[];
 }
 

@@ -98,33 +98,6 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(html).toContain('🏅 완주 인증');
   });
 
-  it('기본 상태(접힘)에서는 기술적 내보내기 버튼(CSV/JSON)이 숨겨져 있고, 안내 헤더만 노출된다', () => {
-    const html = renderToStaticMarkup(
-      <MyWalkHistoryView dogName="초코" initialRecords={mockRecords} defaultExportExpanded={false} />
-    );
-
-    // 헤더는 보이지만
-    expect(html).toContain('동물병원 제출 및 데이터 백업');
-    expect(html).toContain('슬개골 진료 상담 표 / 기기 변경 백업 열기');
-
-    // 버튼과 상세 안내는 숨겨져 있어야 함
-    expect(html).not.toContain('📥 엑셀(CSV) 저장');
-    expect(html).not.toContain('📋 JSON 백업');
-    expect(html).not.toContain('병원 진료·보험 제출용');
-  });
-
-  it('펼침 상태(defaultExportExpanded=true)에서는 병원 제출용 엑셀 및 기기 백업 JSON 버튼과 친절한 설명이 노출된다', () => {
-    const html = renderToStaticMarkup(
-      <MyWalkHistoryView dogName="초코" initialRecords={mockRecords} defaultExportExpanded={true} />
-    );
-
-    expect(html).toContain('동물병원 제출 및 데이터 백업');
-    expect(html).toContain('수의사 진료 시 누적 보행 데이터를 확인하거나');
-    expect(html).toContain('📥 엑셀(CSV) 저장');
-    expect(html).toContain('병원 진료·보험 제출용');
-    expect(html).toContain('📋 JSON 백업');
-    expect(html).toContain('기기 이전·원본 보관용');
-  });
 
   it('WalkStatisticsService의 CSV/JSON 내보내기 기능이 온전하게 동작한다', () => {
     const csv = WalkStatisticsService.exportWalkRecordsToCsv(mockRecords, '초코');

@@ -43,13 +43,14 @@ class RerouteRequest(BaseModel):
     current_lon: float = Field(..., ge=-180.0, le=180.0)
     destination_lat: float = Field(..., ge=-90.0, le=90.0)
     destination_lon: float = Field(..., ge=-180.0, le=180.0)
-    hazard_lat: float = Field(..., ge=-90.0, le=90.0)
-    hazard_lon: float = Field(..., ge=-180.0, le=180.0)
-    hazard_type: HazardType = "high_curb"
-    severity: HazardSeverity = "warning"
+    hazard_lat: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    hazard_lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    hazard_type: Optional[HazardType] = "high_curb"
+    severity: Optional[HazardSeverity] = "warning"
     confidence: float = Field(0.9, ge=0.0, le=1.0)
     # 현재 안내 중인 경로 좌표열 [[lon, lat], ...]. 없으면 현재 위치→목적지 직선을 기준으로 함.
     route_coordinates: Optional[List[List[float]]] = None
+    reroute_reason: Optional[str] = "hazard"
 
 
 class HazardReportRequest(BaseModel):
@@ -136,9 +137,62 @@ def build_detour_route(req: RerouteRequest) -> Dict[str, Any]:
     }
 
 
+def build_deviation_route(req: RerouteRequest) -> Dict[str, Any]:
+    """경로 이탈 시 현재 사용자 위치에서 기존 경로의 진행 방향으로 자연스럽게 복귀하는 경로 생성."""
+    start = [req.current_lon, req.current_lat]
+    end = [req.destination_lon, req.destination_lat]
+    base = req.route_coordinates or [start, end]
+    if base[-1] != end:
+        base = base + [end]
+
+    # 현재 위치에서 가장 가까운 경로 점 탐색
+    best_idx = 0
+    best_dist = float("inf")
+    for i, pt in enumerate(base):
+        d = calculate_haversine_distance_m((req.current_lat, req.current_lon), (pt[1], pt[0]))
+        if d < best_dist:
+            best_dist, best_idx = d, i
+
+    remaining = base[best_idx:]
+    if not remaining:
+        remaining = [end]
+    coords = [start] + remaining
+
+    return {
+        "coordinates": coords,
+        "distance_m": _polyline_length_m(coords),
+        "hazard_clearance_m": 0.0,
+    }
+
+
 def reroute_around_hazard(req: RerouteRequest) -> Dict[str, Any]:
-    """[US-D2] 위험 판정 → 10배 페널티/차단 → 우회 경로 산출. 응답에 측정 지연시간 포함."""
+    """[US-D2] 위험 판정 또는 경로 이탈 시 안전 우회/복귀 경로 재산출. 응답에 측정 지연시간 포함."""
     started = time.perf_counter()
+
+    # 경로 이탈(deviation) 또는 위험 좌표 미지정 시 즉시 복귀 재탐색 처리
+    if req.reroute_reason == "deviation" or req.hazard_lat is None or req.hazard_lon is None:
+        detour = build_deviation_route(req)
+        return {
+            "status": "REROUTED",
+            "needs_reroute": True,
+            "penalty_multiplier": 1.0,
+            "voice_alert": "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
+            "blocked_hazard": None,
+            "geojson": {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"segmentType": "reroute", "reason": "deviation"},
+                        "geometry": {"type": "LineString", "coordinates": detour["coordinates"]},
+                    }
+                ],
+            },
+            "new_distance_m": detour["distance_m"],
+            "hazard_clearance_m": None,
+            "latency_seconds": round(time.perf_counter() - started, 3),
+        }
+
     inspection = HazardInspectionResult(
         hazard_type=req.hazard_type,
         severity=req.severity,

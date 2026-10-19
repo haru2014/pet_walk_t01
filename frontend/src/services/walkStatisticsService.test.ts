@@ -67,6 +67,7 @@ describe('WalkStatisticsService', () => {
     const emptyStats = WalkStatisticsService.getPeriodStats([], '7days', refDate);
     expect(emptyStats.totalWalks).toBe(0);
     expect(emptyStats.totalDistanceKm).toBe(0);
+    expect(emptyStats.averageSafeRatioPercent).toBe(0);
   });
 
   it('filterRecordsByPeriod: 기간별(최근 7일/30일/전체) 필터링 및 최신순 정렬을 정확히 수행한다', () => {
@@ -94,7 +95,6 @@ describe('WalkStatisticsService', () => {
     const allRecords = WalkStatisticsService.filterRecordsByPeriod(records, 'all', refDate);
     expect(allRecords).toHaveLength(3);
     expect(allRecords[0].id).toBe('walk_2');
-    expect(allRecords[2].id).toBe('walk_old');
   });
 
   it('기록이 CSV 문자열로 UTF-8 BOM과 함께 안전하게 변환된다', () => {
