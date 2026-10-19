@@ -56,7 +56,9 @@
 
 ### 🔴 P0
 
-- [ ] api.ts의 공원 검증 실패/폴백과 PlanSourceBadge를 점검해 미검증 코스를 정상 추천으로 표시하지 않도록 서버와 E2E 검증한다. <!-- key:plan-bac8a2c7 -->
+- [x] api.ts의 공원 검증 실패/폴백과 PlanSourceBadge를 점검해 미검증 코스를 정상 추천으로 표시하지 않도록 서버와 E2E 검증한다. <!-- key:plan-bac8a2c7 -->
+  - 실제 Render 운영 서버(/api/v1/walk/plan) E2E 검증 완료 (유림공원 3개 후보 루프 validation.passed=true 확인, 미검증 공원 요청 시 422 BOUNDARY_DATA_UNAVAILABLE 거부 및 RoutePlanError 발생 확인)
+  - PlanSourceBadge.test.tsx 및 CourseRecommendationView.test.tsx 단위 테스트 추가 완료 (미검증 코스 노출 차단 및 Live/Offline 뱃지 검증)
 
 ### 🟡 P1
 
