@@ -27,6 +27,7 @@ import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
+import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
 
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
@@ -236,23 +237,40 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
-        <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{currentCourse.softRatio}</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.maxSlopePercent}%</Text>
-          </Text>
-          <Text style={styles.metricDot}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
-          </Text>
-        </View>
+        {(() => {
+          const surfaceInfo = formatCourseSurface(currentCourse);
+          const slopeInfo = formatCourseSlope(currentCourse);
+
+          return (
+            <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                {surfaceInfo.isUnknown ? (
+                  <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
+                ) : (
+                  <>폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                )}
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                {slopeInfo.isUnknown ? (
+                  <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>
+                ) : slopeInfo.isApproximation ? (
+                  <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>
+                ) : (
+                  <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>
+                )}
+              </Text>
+              <Text style={styles.metricDot}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+                그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* Thumb Zone 산책 시작 버튼 (04_course_recommendation.png 원형 복원) */}
         <TouchableOpacity
