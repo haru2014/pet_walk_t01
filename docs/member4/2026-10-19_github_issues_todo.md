@@ -14,8 +14,8 @@
 | **[#117](https://github.com/haru2014/pet_walk_t01/issues/117)** | 🔴 P0 (버그) | **공유가 실패해도 "공유 완료"처리되는 문제 처리 필요** | `@hippie-jin` | 10/18 | **✅ 완료 (10/19)** |
 | **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
 | **[#128](https://github.com/haru2014/pet_walk_t01/issues/128)** | 🟡 P1 (UX) | **산책 완료 후 내보내기 기능의 사용자 접근성 개선** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
-| **[#129](https://github.com/haru2014/pet_walk_t01/issues/129)** | 🟡 P1 (기능) | **산책 기록의 지도 시각화 (실제 이동 경로 및 배변 마킹)** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
-| **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
+| **[#129](https://github.com/haru2014/pet_walk_t01/issues/129)** | 🟡 P1 (기능) | **산책 기록의 지도 시각화 (실제 이동 경로 및 배변 마킹)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
+| **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
 
 ---
 
@@ -93,22 +93,34 @@
 
 ---
 
-## 4. 🟡 Issue #129: 산책 기록의 지도 시각화 (경로 및 배변 마킹)
+## 4. 🟡 [완료] Issue #129: 산책 기록의 지도 시각화 (경로 및 배변 마킹)
 
 - **이슈 링크**: [#129](https://github.com/haru2014/pet_walk_t01/issues/129) (부모 이슈 [#124](https://github.com/haru2014/pet_walk_t01/issues/124))
 - **작성자**: `@kululu81` (조현정)
 - **핵심 내용**:
   산책 완료 후 실제 이동한 GPS 경로(LineString)를 지도 위에 시각화하고, 산책 중 기록한 배변(대변/소변) 위치를 지도 마커(아이콘)로 표시. 산책 기록 목록에서 특정 기록을 탭했을 때 상세 지도 화면으로 전환.
+- **수정 결과**:
+  - `WalkRecordDetailModal.tsx` 구현:
+    1. `buildWalkRecordMapData`: `WalkRecord`의 `gpsTrack` 좌표열로부터 GeoJSON LineString 경로 및 완만 노면율 세그먼트 생성.
+    2. 출발지(🚩) 및 도착 완주지(🏁) 핀 배치.
+    3. `poopEvents` (대변 `💩`, 소변 `💧`) 좌표 및 마킹 시각 오버레이 핀 생성 (레거시 `poopCount` 자동 배치 지원).
+    4. 마커 범례 칩, 4대 보행 지표, 동반견 정보 및 체감 피드백 카드 표출.
+  - `MyWalkHistoryView.tsx` 연동:
+    - 산책 기록 목록 각 카드에 `[🗺️ 지도 보기]` 버튼 추가 및 터치 시 `WalkRecordDetailModal` 상세 지도 모달 오픈.
 
 ### 📋 세부 작업 TODO
-- [ ] 산책 기록 상세 화면/모달 구현 (`frontend/src/components/walk/WalkRecordDetailModal.tsx` 또는 신규 컴포넌트)
-  - [ ] 기록에 저장된 `coordinates: [lon, lat][]` 기반 `RouteMapView` 또는 `MapLibreMapView` 경로 렌더링
-  - [ ] `poopLocations: { lat, lon, type: 'pee' | 'poop', timestamp }[]` 마커 레이어 오버레이
-  - [ ] 출발지(초록 마커) 및 도착지(빨간 마커) 핀 표출
-- [ ] 산책 기록 관리 연동 (`frontend/src/screens/WalkHistoryScreen.tsx` 또는 `HomeScreen.tsx`)
-  - [ ] 목록 아이템 터치 시 상세 지도 모달/뷰 열기 이벤트 연동
-- [ ] 단위 테스트 작성 및 통과
-  - [ ] `WalkRecordDetailModal.test.tsx` 렌더링 및 마커 표출 검증
+- [x] 산책 기록 상세 화면/모달 구현 (`frontend/src/components/walk/WalkRecordDetailModal.tsx`)
+  - [x] 기록에 저장된 `gpsTrack`/`coordinates` 기반 `MapLibreMapView` LineString 경로 렌더링
+  - [x] `poopEvents` (대변 `💩`, 소변 `💧`) 위치 지도 마커 레이어 오버레이
+  - [x] 출발지(🚩) 및 도착지(🏁) 핀 표출
+  - [x] 마커 범례, 4대 보행 지표, 피드백 카드 렌더링
+- [x] 산책 기록 관리 연동 (`frontend/src/components/profile/MyWalkHistoryView.tsx`)
+  - [x] 목록 아이템에 `[🗺️ 지도 보기]` 버튼 추가 및 모달 열기/닫기 이벤트 연동
+- [x] 단위 테스트 작성 및 통과
+  - [x] `WalkRecordDetailModal.test.tsx` 5건 단위 테스트 통과
+  - [x] `MyWalkHistoryView.test.tsx` 지도 보기 버튼 연동 테스트 통과
+  - [x] `tsc --noEmit` 무결점 통과
+  - [x] 전체 61개 테스트 파일 (349개 테스트) 100% 통과
 
 ---
 

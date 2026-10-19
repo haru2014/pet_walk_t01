@@ -22,6 +22,11 @@ vi.mock('../common/DogAvatar', () => ({
   DogAvatar: () => React.createElement('div', { 'data-testid': 'mock-dog-avatar' }),
 }));
 
+vi.mock('../walk/WalkRecordDetailModal', () => ({
+  WalkRecordDetailModal: ({ visible, record }: any) =>
+    visible ? React.createElement('div', { 'data-testid': 'mock-walk-record-detail-modal' }, record?.id) : null,
+}));
+
 const mockRecords: WalkRecord[] = [
   {
     id: 'walk-1',
@@ -76,6 +81,7 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(html).toContain('1.8km · 30분 · 평균 3.6km/h');
     expect(html).toContain('만족도 5점');
     expect(html).toContain('아주 편안했어요');
+    expect(html).toContain('🗺️ 지도 보기');
   });
 
   it('기본 상태(접힘)에서는 기술적 내보내기 버튼(CSV/JSON)이 숨겨져 있고, 안내 헤더만 노출된다', () => {

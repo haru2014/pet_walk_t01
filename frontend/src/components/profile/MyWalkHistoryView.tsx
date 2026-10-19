@@ -16,6 +16,7 @@ import {
   WalkStatisticsService,
   StatsPeriodType,
 } from '../../services/walkStatisticsService';
+import { WalkRecordDetailModal } from '../walk/WalkRecordDetailModal';
 
 export interface MyWalkHistoryViewProps {
   readonly dogName: string;
@@ -34,6 +35,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
   const [isExportExpanded, setIsExportExpanded] = useState<boolean>(defaultExportExpanded);
+  const [selectedRecord, setSelectedRecord] = useState<WalkRecord | null>(null);
 
   useEffect(() => {
     if (!initialRecords) {
@@ -223,16 +225,26 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
                     {rec.totalDistanceKm.toFixed(1)}km · {rec.durationMinutes}분 · 평균 {rec.averageSpeedKmH.toFixed(1)}km/h
                   </Text>
                 </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => void handleTogglePublic(rec)}
-                  style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
-                >
-                  <AppIcon name="users" size={14} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
-                  <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
-                    {isPublic ? '공개 중 ✓' : '후기 공유'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.recordActionCol}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedRecord(rec)}
+                    style={styles.mapViewBtn}
+                    accessibilityLabel="경로 지도 보기"
+                  >
+                    <Text style={styles.mapViewBtnText}>🗺️ 지도 보기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => void handleTogglePublic(rec)}
+                    style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
+                  >
+                    <AppIcon name="users" size={13} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
+                    <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
+                      {isPublic ? '공개 중 ✓' : '후기 공유'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {rec.feedback && (
@@ -301,6 +313,14 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
           </View>
         )}
       </View>
+
+      {/* 6. 산책 기록 상세 지도 모달 (Issue #129 실제 이동 경로 및 배변 마킹) */}
+      <WalkRecordDetailModal
+        visible={Boolean(selectedRecord)}
+        onClose={() => setSelectedRecord(null)}
+        record={selectedRecord}
+        dogName={dogName}
+      />
     </CardWrapper>
   );
 };
@@ -326,6 +346,26 @@ const styles = StyleSheet.create({
   },
   recordCardPublic: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
   recordTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recordActionCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  mapViewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  mapViewBtnText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
   recordHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -353,9 +393,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     borderWidth: 1,
   },
   publicBtnInactive: {
