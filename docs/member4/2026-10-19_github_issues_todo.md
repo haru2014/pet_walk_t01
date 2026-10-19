@@ -11,31 +11,32 @@
 
 | 이슈 번호 | 우선순위 | 이슈 제목 | 작성자 | 생성일 | 진행 상태 |
 |:---:|:---:|---|:---:|:---:|:---:|
-| **[#117](https://github.com/haru2014/pet_walk_t01/issues/117)** | 🔴 P0 (버그) | **공유가 실패해도 "공유 완료"처리되는 문제 처리 필요** | `@hippie-jin` | 10/18 | ⏳ 대기 중 |
-| **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
+| **[#117](https://github.com/haru2014/pet_walk_t01/issues/117)** | 🔴 P0 (버그) | **공유가 실패해도 "공유 완료"처리되는 문제 처리 필요** | `@hippie-jin` | 10/18 | **✅ 완료 (10/19)** |
+| **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
 | **[#128](https://github.com/haru2014/pet_walk_t01/issues/128)** | 🟡 P1 (UX) | **산책 완료 후 내보내기 기능의 사용자 접근성 개선** | `@kululu81` | 10/19 | ⏳ 대기 중 |
 | **[#129](https://github.com/haru2014/pet_walk_t01/issues/129)** | 🟡 P1 (기능) | **산책 기록의 지도 시각화 (실제 이동 경로 및 배변 마킹)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
 | **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
 
 ---
 
-## 1. 🔴 Issue #117: 공유가 실패해도 "공유 완료" 처리되는 문제 처리
+## 1. 🔴 [완료] Issue #117: 공유가 실패해도 "공유 완료" 처리되는 문제 처리
 
 - **이슈 링크**: [#117](https://github.com/haru2014/pet_walk_t01/issues/117)
 - **작성자**: `@hippie-jin` (전황진)
 - **핵심 내용**:
   `frontend/src/services/communityApi.ts`의 `shareCommunityCourse`가 서버 요청 실패 시에도 `success: true`를 반환하여 실제로 공유되지 않았음에도 "이웃과 안심 코스를 공유했어요! (200m 사생활 보호 적용)"가 뜨는 치명적 UI 오안내 발생.
-- **수정 목표**:
-  서버 통신 실패 또는 권한 오류 시 `success: false` 및 실패 사유(`errorMessage`)를 정확히 반환하고, UI 모달/토스트에서 `"지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요."` 안내 표시.
+- **수정 결과**:
+  서버 통신 실패 또는 오류 시 `success: false` 및 `errorMessage: '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.'`를 정확히 반환하도록 수정하고, `WalkReportScreen.tsx`에서 실패 시 `[코스 공유 실패]` 경고창 표시.
 
 ### 📋 세부 작업 TODO
-- [ ] `frontend/src/services/communityApi.ts`
-  - [ ] `shareCommunityCourse` 함수에서 `fetch` 실패 / 비정상 상태 코드(`res.ok === false`) 시 `success: false` 반환 처리
-  - [ ] 에러 메시지 표준화 (`"지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요."`)
-- [ ] UI 컴포넌트 연동 (`frontend/src/components/walk/CourseShareModal.tsx` 또는 해당 공유 모달)
-  - [ ] 공유 실패 시 성공 토스트 대신 실패 안내 경고 메시지/재시도 버튼 노출
-- [ ] 단위 테스트 작성 및 통과
-  - [ ] `frontend/src/services/communityApi.test.ts`에 실패 케이스 검증 추가
+- [x] `frontend/src/services/communityApi.ts`
+  - [x] `shareCommunityCourse` 함수에서 `fetch` 실패 / 비정상 상태 코드(`res.ok === false`) 시 `success: false` 및 `errorMessage` 반환 처리
+  - [x] 에러 메시지 표준화 상수 `COMMUNITY_SHARE_ERROR_MESSAGE` 정의
+- [x] UI 컴포넌트 연동 (`frontend/src/screens/WalkReportScreen.tsx`)
+  - [x] 공유 실패 시 성공 토스트 대신 실패 안내 경고 메시지(`[코스 공유 실패] 지금은 공유할 수 없어요...`) 노출 및 조기 반환
+- [x] 단위 테스트 작성 및 통과
+  - [x] `frontend/src/services/communityApi.test.ts` 실패 케이스 검증 추가 (passed)
+  - [x] `frontend/src/services/shareCourseFlow.test.ts` 실패 케이스 검증 갱신 (passed)
 
 ---
 

@@ -158,12 +158,14 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
   return { feeds: DEFAULT_FEEDS, is_supabase: false };
 }
 
+export const COMMUNITY_SHARE_ERROR_MESSAGE = '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
 export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
   userId?: string,
-): Promise<{ success: boolean; is_supabase?: boolean }> {
+): Promise<{ success: boolean; is_supabase?: boolean; errorMessage?: string }> {
   try {
     const res = await fetchWithServerFallback('/api/v1/community/share', {
       method: 'POST',
@@ -179,8 +181,17 @@ export async function shareCommunityCourse(
       const data = await res.json();
       return { success: true, is_supabase: Boolean(data.is_supabase) };
     }
-  } catch {
-    // 오프라인 모드에서는 성공으로 처리
+    return {
+      success: false,
+      is_supabase: false,
+      errorMessage: COMMUNITY_SHARE_ERROR_MESSAGE,
+    };
+  } catch (err) {
+    console.warn('[communityApi] 코스 공유 서버 호출 실패:', err);
+    return {
+      success: false,
+      is_supabase: false,
+      errorMessage: COMMUNITY_SHARE_ERROR_MESSAGE,
+    };
   }
-  return { success: true, is_supabase: false };
 }

@@ -85,6 +85,17 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       const res = await shareCommunityCourse(title, rawCoords, rating, user.id);
       setIsSharing(false);
       setShowShareModal(false);
+
+      if (!res.success) {
+        const failMsg = res.errorMessage || '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`[코스 공유 실패]\n${failMsg}`);
+        } else {
+          Alert.alert('코스 공유 실패', failMsg);
+        }
+        return;
+      }
+
       const msg = res.is_supabase
         ? '이웃과 코스를 공유했어요!\n출발·도착지 200m는 자동 보호되어 집 위치가 안전해요.'
         : '이웃과 안심 코스를 공유했어요! (200m 사생활 보호 적용)';
