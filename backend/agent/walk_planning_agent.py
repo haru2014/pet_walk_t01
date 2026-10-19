@@ -84,6 +84,7 @@ class ScoredRoute(BaseModel):
     thermal_score: float
     distance_score: float
     rank: int
+    preference_score: float = 0.0  # [제안] 맞춤 점수의 선호 적합도 (agent/personalized_scorer.py)
 
 
 class WalkPlanningResult(BaseModel):
@@ -520,6 +521,48 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     }
 
 
+def _score_candidates_personalized(state: WalkPlanningState, candidates: List[RouteCandidate],
+                                   target_dist: float) -> List[ScoredRoute]:
+    """[제안] 실측 지표(course_profiles 와 같은 계산) + 반려견 관절 단계 + 그늘·노면 선호로 채점한다.
+
+    후보의 경사·계단·그늘·지면온도도 실측값으로 바꿔, 카드·안내 문구가 같은 값을 보게 한다.
+    기존 score_candidate_route(고정 프로필)는 비교·검토용으로 남겨 둔다.
+    """
+    from agent.personalized_scorer import score_personalized
+    from services.route_profile import measure_route_profile
+
+    intent = state.get("parsed_intent") or {}
+    dog = state.get("client_dog_context") or {}
+    weather = state.get("weather_context") or {}
+    current = weather.get("current") or weather
+    park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
+    scored_list: List[ScoredRoute] = []
+    for c in candidates:
+        profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
+        result = score_personalized(
+            profile, distance_m=c.total_distance_m, target_distance_m=target_dist,
+            joint_care_level=int(dog.get("joint_care_level", 1)),
+            calibrated_max_slope=state.get("max_slope_allowed"),
+            avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
+            preferred_surfaces=intent.get("preferred_surfaces"),
+            air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
+        )
+        if profile:
+            c.max_slope_percent = profile.get("max_slope_percent", c.max_slope_percent)
+            c.average_slope_percent = profile.get("avg_slope_percent", c.average_slope_percent)
+            if profile.get("stairs_count") is not None:
+                c.has_stairs = profile["stairs_count"] > 0
+            if profile.get("shade_ratio") is not None:
+                c.average_shade_ratio = profile["shade_ratio"]
+            if result.surface_temp_c is not None:
+                c.surface_temp_c = result.surface_temp_c
+        scored_list.append(ScoredRoute(
+            candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
+            thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+        ))
+    return scored_list
+
+
 def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 4] Candidate Route Scorer 100점 만점 다요소 평가 및 최적 경로 선정."""
     trace = list(state.get("execution_trace", []))
@@ -527,11 +570,7 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     target_dist = state.get("target_distance_m", 1000.0)
 
     candidates = [RouteCandidate(**cd) for cd in candidate_dicts]
-    scored_list: List[ScoredRoute] = []
-
-    for c in candidates:
-        scored = score_candidate_route(c, target_dist)
-        scored_list.append(scored)
+    scored_list: List[ScoredRoute] = _score_candidates_personalized(state, candidates, target_dist)
 
     # 점수 내림차순 정렬
     scored_list.sort(key=lambda s: s.total_score, reverse=True)
