@@ -12,10 +12,11 @@ import {
   RerouteRequestPayload,
   RerouteResult,
   HazardType,
+  DeviationReroutePayload,
 } from '../types/hazard';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { fetchWithServerFallback } from './apiClient';
-import { haversineMeters } from './routeGeometry';
+import { haversineMeters, polylineLengthMeters } from './routeGeometry';
 
 export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
   high_curb: '높은 턱',
@@ -193,8 +194,8 @@ export async function requestRerouteAroundHazard(payload: RerouteRequestPayload)
     payload.currentLon,
     payload.destinationLat,
     payload.destinationLon,
-    payload.hazardLat,
-    payload.hazardLon,
+    payload.hazardLat ?? payload.currentLat,
+    payload.hazardLon ?? payload.currentLon,
     payload.routeCoordinates
   );
 
@@ -237,6 +238,136 @@ export async function requestRerouteAroundHazard(payload: RerouteRequestPayload)
     hazardClearanceM: DETOUR_OFFSET_METERS,
     isEmergencyReturn: false,
   };
+}
+
+/**
+ * 로컬 기하 기반 경로 이탈 복귀 경로 생성 (오프라인 폴백)
+ * 현재 위치에서 기존 경로의 가장 가까운 전방 지점을 찾아 연결한다.
+ */
+export function generateLocalDeviationReroute(payload: DeviationReroutePayload): RerouteResult {
+  const start: [number, number] = [payload.currentLon, payload.currentLat];
+  const end: [number, number] = [payload.destinationLon, payload.destinationLat];
+  const base = payload.routeCoordinates && payload.routeCoordinates.length >= 2
+    ? payload.routeCoordinates.map((c) => [c[0], c[1]] as [number, number])
+    : [start, end];
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < base.length; i++) {
+    const d = haversineMeters([payload.currentLat, payload.currentLon], [base[i][1], base[i][0]]);
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = i;
+    }
+  }
+
+  const remaining = base.slice(bestIdx);
+  const detourCoords: [number, number][] = [start, ...(remaining.length > 0 ? remaining : [end])];
+
+  const localGeojson: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 1.5, shaded: true },
+        geometry: {
+          type: 'LineString',
+          coordinates: detourCoords,
+        },
+      },
+    ],
+  };
+
+  const stepPins: RouteStepPin[] = [
+    {
+      id: `local_dev_start_${Date.now()}`,
+      kind: 'turn',
+      position: start,
+      instruction: '새로운 경로를 따라 안전하게 이동해 주세요.',
+    },
+    {
+      id: `local_dev_dest_${Date.now()}`,
+      kind: 'safe',
+      position: detourCoords[detourCoords.length - 1],
+      instruction: '목적지 방향으로 안전하게 안내합니다.',
+    },
+  ];
+
+  return {
+    status: 'REROUTED',
+    needsReroute: true,
+    voiceAlert: '경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.',
+    newRoute: localGeojson,
+    stepPins,
+    newDistanceM: Math.round(polylineLengthMeters(detourCoords)),
+    isEmergencyReturn: false,
+  };
+}
+
+/**
+ * 경로 이탈 시 서버에 재탐색 요청 (POST /api/v1/walk/reroute)
+ * 서버 통신 실패 시 로컬 안전 복귀 경로로 즉시 폴백
+ */
+export async function requestDeviationReroute(payload: DeviationReroutePayload): Promise<RerouteResult> {
+  try {
+    const res = await fetchWithServerFallback('/api/v1/walk/reroute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        current_lat: payload.currentLat,
+        current_lon: payload.currentLon,
+        destination_lat: payload.destinationLat,
+        destination_lon: payload.destinationLon,
+        hazard_lat: payload.currentLat,
+        hazard_lon: payload.currentLon,
+        hazard_type: 'none',
+        severity: 'warning',
+        confidence: 0.9,
+        route_coordinates: payload.routeCoordinates ? payload.routeCoordinates.map((c) => [c[0], c[1]]) : null,
+        reroute_reason: 'deviation',
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'REROUTED' && data.geojson?.features?.length > 0) {
+        const geojson: RouteFeatureCollection = data.geojson;
+        const coords: [number, number][] = (geojson.features[0]?.geometry?.coordinates ?? []).map(
+          (c: readonly [number, number]) => [c[0], c[1]]
+        );
+
+        const stepPins: RouteStepPin[] = [
+          {
+            id: `deviation_reroute_start_${Date.now()}`,
+            kind: 'turn',
+            position: [payload.currentLon, payload.currentLat],
+            instruction: '새로운 경로를 따라 이동해 주세요.',
+          },
+          {
+            id: `deviation_reroute_dest_${Date.now()}`,
+            kind: 'safe',
+            position: coords[coords.length - 1] ?? [payload.destinationLon, payload.destinationLat],
+            instruction: '목적지 방향으로 안전하게 안내합니다.',
+          },
+        ];
+
+        return {
+          status: 'REROUTED',
+          needsReroute: true,
+          voiceAlert: data.voice_alert ?? '경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.',
+          newRoute: geojson,
+          stepPins,
+          newDistanceM: data.new_distance_m ?? Math.round(polylineLengthMeters(coords)),
+          hazardClearanceM: 0,
+          isEmergencyReturn: false,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[hazardApi] 서버 경로 이탈 재탐색 실패, 로컬 안전 복귀로 즉시 폴백:', err);
+  }
+
+  return generateLocalDeviationReroute(payload);
 }
 
 /**

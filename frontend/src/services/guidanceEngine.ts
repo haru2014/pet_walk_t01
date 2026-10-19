@@ -116,11 +116,11 @@ export function distanceToRouteMeters(point: LonLat, route: RouteFeatureCollecti
   return min;
 }
 
-function routeStart(route: RouteFeatureCollection): LonLat | null {
+export function routeStart(route: RouteFeatureCollection): LonLat | null {
   return route.features[0]?.geometry.coordinates[0] ?? null;
 }
 
-function routeEnd(route: RouteFeatureCollection): LonLat | null {
+export function routeEnd(route: RouteFeatureCollection): LonLat | null {
   const last = route.features[route.features.length - 1];
   const coords = last?.geometry.coordinates;
   return coords && coords.length > 0 ? coords[coords.length - 1] : null;

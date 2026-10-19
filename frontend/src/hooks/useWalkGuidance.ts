@@ -22,9 +22,11 @@ import {
   REROUTE_MESSAGE,
   evaluateGuidance,
   resetGuidanceForNewRoute,
+  routeEnd,
 } from '../services/guidanceEngine';
 import { polylineLengthMeters } from '../services/routeGeometry';
 import { TTSNavigationService } from '../services/ttsNavigation';
+import { requestDeviationReroute } from '../services/hazardApi';
 
 export type WalkSessionStatus = 'idle' | 'running' | 'permission_denied' | 'error';
 
@@ -43,9 +45,61 @@ function computeDistanceKm(track: readonly GpsPoint[]): number {
 }
 
 /** 이탈·출발지 이동 안내는 진행 중인 발화 뒤 맨 앞 순번으로 올린다. */
-function speakGuidanceEvent(event: GuidanceEvent): void {
+export function speakGuidanceEvent(event: GuidanceEvent): void {
   const urgent = event.kind === 'off_route' || event.kind === 'to_start';
   TTSNavigationService.speak(event.message, undefined, false, urgent ? 'high' : 'normal');
+}
+
+/**
+ * GPS 점 수신 시 안내 평가 및 이탈 시 서버 재탐색 파이프라인
+ */
+export async function handleGuidancePoint(
+  point: GpsPoint,
+  currentRoute: RouteFeatureCollection,
+  activePins: readonly RouteStepPin[],
+  guidanceState: GuidanceState,
+  callbacks: {
+    speak?: (event: GuidanceEvent) => void;
+    applyReroute: (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => void;
+    requestReroute?: typeof requestDeviationReroute;
+  },
+  isRerouting = false,
+): Promise<{ nextState: GuidanceState; triggeredReroute: boolean }> {
+  const result = evaluateGuidance([point.longitude, point.latitude], currentRoute, activePins, guidanceState);
+  const nextState = result.nextState;
+  const speak = callbacks.speak ?? speakGuidanceEvent;
+  const requestReroute = callbacks.requestReroute ?? requestDeviationReroute;
+
+  result.events.forEach((event) => speak(event));
+
+  const hasOffRoute = result.events.some((e) => e.kind === 'off_route');
+  let triggeredReroute = false;
+
+  if (hasOffRoute && !isRerouting) {
+    triggeredReroute = true;
+    const end = routeEnd(currentRoute);
+    const destinationLon = end ? end[0] : point.longitude;
+    const destinationLat = end ? end[1] : point.latitude;
+    const coords = currentRoute.features[0]?.geometry?.coordinates as [number, number][] | undefined;
+
+    try {
+      const rerouteRes = await requestReroute({
+        currentLat: point.latitude,
+        currentLon: point.longitude,
+        destinationLat,
+        destinationLon,
+        routeCoordinates: coords,
+      });
+
+      if (rerouteRes.needsReroute && rerouteRes.newRoute) {
+        callbacks.applyReroute(rerouteRes.newRoute, rerouteRes.stepPins, rerouteRes.voiceAlert);
+      }
+    } catch (err) {
+      console.warn('[handleGuidancePoint] 이탈 재탐색 요청 처리 중 오류:', err);
+    }
+  }
+
+  return { nextState, triggeredReroute };
 }
 
 export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: readonly RouteStepPin[]) {
@@ -62,20 +116,55 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
 
   const [poopEvents, setPoopEvents] = useState<PoopEvent[]>([]);
   const lastPointRef = useRef<GpsPoint | null>(null);
+  const isReroutingRef = useRef(false);
+
+  /** 우회/재탐색 경로 수신 시 지도 경로를 교체하고 음성으로 안내한다 (US-D2). */
+  const applyReroute = useCallback(
+    (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => {
+      setRoute(newRoute);
+      if (newPins && newPins.length > 0) {
+        setActivePins(newPins);
+      }
+      guidanceRef.current = resetGuidanceForNewRoute(guidanceRef.current);
+      TTSNavigationService.speak(voiceAlert ?? REROUTE_MESSAGE);
+    },
+    [],
+  );
 
   const handlePoint = useCallback(
     (point: GpsPoint) => {
       lastPointRef.current = point;
-      const result = evaluateGuidance([point.longitude, point.latitude], routeRef.current, activePins, guidanceRef.current);
-      guidanceRef.current = result.nextState;
-      result.events.forEach(speakGuidanceEvent);
+      const rerouting = isReroutingRef.current;
+
+      void handleGuidancePoint(
+        point,
+        routeRef.current,
+        activePins,
+        guidanceRef.current,
+        {
+          speak: speakGuidanceEvent,
+          applyReroute,
+          requestReroute: requestDeviationReroute,
+        },
+        rerouting,
+      )
+        .then((res) => {
+          guidanceRef.current = res.nextState;
+          if (res.triggeredReroute) {
+            isReroutingRef.current = true;
+          }
+        })
+        .finally(() => {
+          isReroutingRef.current = false;
+        });
+
       setStats((prev) => ({
         ...prev,
         distanceKm: computeDistanceKm(getTrackBuffer()),
         speedKmH: Math.round((point.speedMps ?? 0) * MPS_TO_KMH * 10) / 10,
       }));
     },
-    [activePins],
+    [activePins, applyReroute],
   );
 
   const lastNotifSecRef = useRef<number>(0);
@@ -140,13 +229,6 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     setPoopEvents((prev) => [...prev, newEvent]);
     TTSNavigationService.speak(type === 'pee' ? '소변이 기록되었습니다.' : '배변이 기록되었습니다.');
     return newEvent;
-  }, []);
-
-  /** 우회 경로 수신 시 지도 경로를 교체하고 음성으로 안내한다 (US-D2). */
-  const applyReroute = useCallback((newRoute: RouteFeatureCollection) => {
-    setRoute(newRoute);
-    guidanceRef.current = resetGuidanceForNewRoute(guidanceRef.current);
-    TTSNavigationService.speak(REROUTE_MESSAGE);
   }, []);
 
   /** 저장된(즐겨찾기) 경로와 스텝 핀을 서버 재탐색 없이 그대로 주입한다 (US-29). */
