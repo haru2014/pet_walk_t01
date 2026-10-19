@@ -26,6 +26,7 @@ import { generateAdaptiveCourses } from './src/services/courseAdaptivePlanner';
 import { useWalkGuidance } from './src/hooks/useWalkGuidance';
 import { BookmarkedRoute, CoursePlan } from './src/types/bookmark';
 import { RouteFeatureCollection, RouteStepPin } from './src/types/route';
+import { calculateSafeSurfaceRatio, buildCourseSummary } from './src/services/routeGeometry';
 import { createBookmark } from './src/services/bookmarkService';
 import { useLocationConsent } from './src/hooks/useLocationConsent';
 import { ConsentService } from './src/services/consentService';
@@ -255,6 +256,14 @@ export default function App() {
   const handleStopWalkAndReport = useCallback(async () => {
     const distKm = walk.stats.distanceKm;
     const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
+    const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
+    const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
+
+    const finalDistanceKm = distKm > 0
+      ? distKm
+      : (walk.stats.elapsedSec >= 120 ? courseDistKm : Math.round(distKm * 10) / 10);
+
     const newRecord: WalkRecord = {
       id: `walk_${Date.now()}`,
       dogId: activeDog.id,
@@ -262,9 +271,9 @@ export default function App() {
       startedAt: new Date(Date.now() - walk.stats.elapsedSec * 1000).toISOString(),
       completedAt: new Date().toISOString(),
       durationMinutes: Math.max(1, Math.round(walk.stats.elapsedSec / 60)),
-      totalDistanceKm: distKm > 0 ? distKm : 1.2,
+      totalDistanceKm: finalDistanceKm,
       averageSpeedKmH: walk.stats.speedKmH > 0 ? walk.stats.speedKmH : activeDog.speedKmH,
-      safeSurfaceRatio: 0.88,
+      safeSurfaceRatio: calculatedSafeRatio,
       gpsTrack,
       poopCount: walk.poopCount,
       poopEvents: walk.poopEvents,
@@ -282,7 +291,7 @@ export default function App() {
     await walk.stop();
     setCompletedRecord(newRecord);
     setSubScreen('report');
-  }, [walk, activeDog]);
+  }, [walk, activeDog, walkBookmark]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

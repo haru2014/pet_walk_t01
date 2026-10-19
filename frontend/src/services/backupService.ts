@@ -9,13 +9,19 @@
 
 import { DogProfile, JointCareLevel } from '../types/dogProfile';
 import { LocalStorageService } from './storage';
-import { STORAGE_KEYS } from '../types/storage';
+import { STORAGE_KEYS, WalkRecord } from '../types/storage';
 
 export interface BackupPayload {
   version: '1.0';
   exportedAt: string;
   service: '편안하개 (PetWalk)';
   profile: DogProfile;
+  records?: WalkRecord[];
+}
+
+export interface RestoreResult {
+  readonly profile: DogProfile | null;
+  readonly recordsCount: number;
 }
 
 export class BackupService {
@@ -30,6 +36,45 @@ export class BackupService {
       profile,
     };
     return JSON.stringify(payload, null, 2);
+  }
+
+  /**
+   * 프로필과 산책 기록을 모두 포함한 통합 백업 JSON 생성
+   */
+  static exportUnifiedBackupToJson(profile: DogProfile, records: WalkRecord[]): string {
+    const payload: BackupPayload = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      service: '편안하개 (PetWalk)',
+      profile,
+      records,
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  /**
+   * 브라우저 환경에서 통합 백업 JSON 파일 다운로드 트리거
+   */
+  static downloadUnifiedBackupJsonFile(profile: DogProfile, records: WalkRecord[]): boolean {
+    try {
+      const jsonStr = this.exportUnifiedBackupToJson(profile, records);
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `편안하개_통합백업_${profile.name}_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('[BackupService] 통합 백업 파일 다운로드 실패:', error);
+      return false;
+    }
   }
 
   /**
@@ -99,6 +144,51 @@ export class BackupService {
 
     const saved = await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, profile);
     return saved ? profile : null;
+  }
+
+  /**
+   * 모든 유형의 백업 JSON(프로필 단독, 산책기록 단독, 통합 백업)을 판별하여 로컬 스토리지에 복원
+   */
+  static async restoreAnyBackup(jsonString: string): Promise<RestoreResult | null> {
+    try {
+      const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+      let restoredProfile: DogProfile | null = null;
+      let restoredRecordsCount = 0;
+
+      // 1. 프로필 복원 시도
+      restoredProfile = await this.restoreFromJsonString(jsonString);
+
+      // 2. 산책 기록 복원 시도
+      let candidateRecords: unknown = null;
+      if (Array.isArray(parsed.records)) {
+        candidateRecords = parsed.records;
+      } else if (Array.isArray(parsed)) {
+        candidateRecords = parsed;
+      }
+
+      if (Array.isArray(candidateRecords) && candidateRecords.length > 0) {
+        const validRecords: WalkRecord[] = candidateRecords.filter((r: any) =>
+          r && typeof r === 'object' && typeof r.id === 'string' && typeof r.totalDistanceKm === 'number'
+        );
+
+        if (validRecords.length > 0) {
+          const existingHistory = await LocalStorageService.getWalkHistory();
+          const existingIds = new Set(existingHistory.map((h) => h.id));
+          const merged = [...validRecords.filter((r) => !existingIds.has(r.id)), ...existingHistory];
+          await LocalStorageService.setItem(STORAGE_KEYS.WALK_HISTORY, merged);
+          restoredRecordsCount = validRecords.length;
+        }
+      }
+
+      if (!restoredProfile && restoredRecordsCount === 0) {
+        return null;
+      }
+
+      return { profile: restoredProfile, recordsCount: restoredRecordsCount };
+    } catch (error) {
+      console.warn('[BackupService] 백업 데이터 복원 실패:', error);
+      return null;
+    }
   }
 }
 

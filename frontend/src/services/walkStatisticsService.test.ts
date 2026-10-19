@@ -67,6 +67,7 @@ describe('WalkStatisticsService', () => {
     const emptyStats = WalkStatisticsService.getPeriodStats([], '7days', refDate);
     expect(emptyStats.totalWalks).toBe(0);
     expect(emptyStats.totalDistanceKm).toBe(0);
+    expect(emptyStats.averageSafeRatioPercent).toBe(0);
   });
 
   it('filterRecordsByPeriod: 기간별(최근 7일/30일/전체) 필터링 및 최신순 정렬을 정확히 수행한다', () => {

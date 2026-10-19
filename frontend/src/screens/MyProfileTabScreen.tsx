@@ -14,6 +14,7 @@ import { BookmarkedRoute } from '../types/bookmark';
 import { DataResetCard } from '../components/privacy/DataResetCard';
 import { FeedbackSummaryPayload } from '../services/feedbackContext';
 import { DogProfileEditCard } from '../components/profile/DogProfileEditCard';
+import { DataBackupRestoreCard } from '../components/profile/DataBackupRestoreCard';
 import { MyWalkHistoryView } from '../components/profile/MyWalkHistoryView';
 import { ThemeSelectorCard } from '../components/profile/ThemeSelectorCard';
 import { SupabaseService } from '../services/supabaseService';
@@ -290,17 +291,17 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
     WalkStatisticsService.getWeeklyStats([])
   );
-  const [recentStats, setRecentStats] = useState<RecentWalkInfo>({
-    title: '오늘의 산책',
-    distanceKm: 2.4,
-    durationMinutes: 38,
-    safeRatioPercent: 72,
-  });
+  const [recentStats, setRecentStats] = useState<RecentWalkInfo | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     void LocalStorageService.getWalkHistory().then((history) => {
-      if (!isMounted || history.length === 0) return;
+      if (!isMounted) return;
+      if (history.length === 0) {
+        setWeeklyStats(WalkStatisticsService.getWeeklyStats([]));
+        setRecentStats(null);
+        return;
+      }
       setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
       const todayStr = new Date().toISOString().slice(0, 10);
       const todayList = history.filter((r) => r.completedAt.slice(0, 10) === todayStr);
@@ -406,6 +407,15 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             onAddDog={onAddDog}
             onSaveDog={onSaveDog}
             onDeleteDog={onDeleteDog}
+          />
+          <DataBackupRestoreCard
+            dog={dog}
+            onRestoreCompleted={(result) => {
+              if (result.profile) {
+                onSaveDog(result.profile);
+              }
+              setResetCount((c) => c + 1);
+            }}
           />
         </ScrollView>
       )}

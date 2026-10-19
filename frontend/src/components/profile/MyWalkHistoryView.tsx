@@ -43,21 +43,18 @@ function convertRecordToBookmark(rec: WalkRecord, fallbackDogName: string): Book
 export interface MyWalkHistoryViewProps {
   readonly dogName: string;
   readonly initialRecords?: WalkRecord[];
-  readonly defaultExportExpanded?: boolean;
   readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
 export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   dogName,
   initialRecords,
-  defaultExportExpanded = false,
   onOpenAuthModal,
 }) => {
   const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
   const [visibleCount, setVisibleCount] = useState<number>(5);
-  const [isExportExpanded, setIsExportExpanded] = useState<boolean>(defaultExportExpanded);
   const [selectedRecord, setSelectedRecord] = useState<WalkRecord | null>(null);
 
   useEffect(() => {
@@ -76,42 +73,6 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   const handlePeriodChange = (nextPeriod: StatsPeriodType) => {
     setPeriod(nextPeriod);
     setVisibleCount(5);
-  };
-
-  const handleExportCsv = () => {
-    if (records.length === 0) {
-      Alert.alert('알림', '내보낼 산책 기록이 없습니다.');
-      return;
-    }
-    const success = WalkStatisticsService.downloadCsvFile(records, dogName);
-    if (success) {
-      Alert.alert('CSV 다운로드 완료', `🐾 ${dogName}의 산책 기록(CSV)이 다운로드 폴더에 저장되었습니다.\n엑셀(Excel)에서 바로 열람할 수 있습니다.`);
-    } else {
-      const csv = WalkStatisticsService.exportWalkRecordsToCsv(records, dogName);
-      Alert.alert('CSV 내보내기', `총 ${records.length}건의 산책 데이터가 CSV로 생성되었습니다.`);
-    }
-  };
-
-  const handleExportJson = () => {
-    if (records.length === 0) {
-      Alert.alert('알림', '내보낼 산책 기록이 없습니다.');
-      return;
-    }
-    const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(records, dogName);
-    if (typeof window !== 'undefined') {
-      try {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `편안하개_산책데이터_${dogName}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        Alert.alert('JSON 저장 완료', '산책 데이터 JSON 백업 파일이 저장되었습니다.');
-        return;
-      } catch { }
-    }
-    Alert.alert('데이터 내보내기', `총 ${records.length}건의 데이터가 생성되었습니다:\n${jsonStr.slice(0, 100)}...`);
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
@@ -148,8 +109,10 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
     return (
       <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>🐾 나의 산책 기록 목록</Text>
-          <View style={styles.badge}><Text style={styles.badgeText}>클라우드 연동</Text></View>
+          <View style={styles.titleLine}>
+            <Text style={styles.title}>🐾 나의 산책 기록 목록</Text>
+            <View style={styles.badge}><Text style={styles.badgeText}>클라우드 연동</Text></View>
+          </View>
         </View>
         <Text style={styles.emptyText}>
           아직 완주한 산책 기록이 없습니다. {dogName}와 첫 안심 산책을 시작해보세요!
@@ -164,17 +127,19 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
 
   return (
     <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
-      {/* 1. 상단 타이틀 (Issue #130 기간별 건수 및 누적 표시) */}
+      {/* 1. 상단 타이틀 및 DB동기화 뱃지 (제목 바로 옆에 나란히 배치) */}
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.titleLine}>
           <Text style={styles.title}>
             🐾 산책 통계 및 기록 ({periodStats.periodLabel} {filteredRecords.length}회)
           </Text>
-          <Text style={styles.subDesc}>
-            {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
-          </Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>DB 동기화</Text>
+          </View>
         </View>
-        <View style={styles.badge}><Text style={styles.badgeText}>DB 동기화</Text></View>
+        <Text style={styles.subDesc}>
+          {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
+        </Text>
       </View>
 
       {/* 2. 기간 선택 필터 칩 (최근 7일 / 최근 30일 / 전체) */}
@@ -363,59 +328,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
         )}
       </ScrollView>
 
-      {/* 5. 데이터 백업 및 병원 제출용 내보내기 (접이식 아코디언 UX) */}
-      <View style={styles.exportAccordion}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setIsExportExpanded(!isExportExpanded)}
-          style={styles.exportAccordionHeader}
-        >
-          <View style={styles.exportHeaderLeft}>
-            <Text style={styles.exportHeaderIcon}>📁</Text>
-            <View>
-              <Text style={styles.exportHeaderTitle}>동물병원 제출 및 데이터 백업</Text>
-              <Text style={styles.exportHeaderSubtitle}>
-                {isExportExpanded ? '엑셀(CSV) 및 백업(JSON) 기능 닫기' : '슬개골 진료 상담 표 / 기기 변경 백업 열기'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.exportToggleArrow}>{isExportExpanded ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-
-        {isExportExpanded && (
-          <View style={styles.exportAccordionBody}>
-            <Text style={styles.exportNotice}>
-              수의사 진료 시 누적 보행 데이터를 확인하거나, 스마트폰 변경 시 산책 데이터를 안전하게 백업할 수 있습니다.
-            </Text>
-            <View style={styles.exportBtnRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleExportCsv}
-                style={[styles.exportBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-              >
-                <AppIcon name="map" size={14} color="#047857" />
-                <View style={styles.exportBtnTextGroup}>
-                  <Text style={[styles.exportBtnText, { color: '#047857' }]}>📥 엑셀(CSV) 저장</Text>
-                  <Text style={styles.exportBtnSub}>병원 진료·보험 제출용</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleExportJson}
-                style={[styles.exportBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
-              >
-                <AppIcon name="sparkle" size={14} color="#475569" />
-                <View style={styles.exportBtnTextGroup}>
-                  <Text style={[styles.exportBtnText, { color: '#475569' }]}>📋 JSON 백업</Text>
-                  <Text style={styles.exportBtnSub}>기기 이전·원본 보관용</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* 6. 산책 기록 상세 지도 모달 (Issue #129 실제 이동 경로 및 배변 마킹) */}
+      {/* 5. 산책 기록 상세 지도 모달 (Issue #129 실제 이동 경로 및 배변 마킹) */}
       <WalkRecordDetailModal
         visible={Boolean(selectedRecord)}
         onClose={() => setSelectedRecord(null)}
@@ -427,16 +340,25 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: { marginBottom: 4 },
+  titleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   title: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
   badge: {
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignSelf: 'center',
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  subDesc: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 4 },
+  badgeText: { fontSize: 10.5, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  subDesc: { fontSize: 11.5, color: TOKENS.colors.textMuted, marginTop: 4, lineHeight: 16 },
   emptyText: { fontSize: 13, color: TOKENS.colors.textMuted, marginTop: 8 },
   recordCard: {
     backgroundColor: TOKENS.colors.background,
@@ -671,87 +593,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
-  },
-  exportAccordion: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: TOKENS.colors.border,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    overflow: 'hidden',
-  },
-  exportAccordionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  exportHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  exportHeaderIcon: {
-    fontSize: 16,
-  },
-  exportHeaderTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: TOKENS.colors.textMain,
-  },
-  exportHeaderSubtitle: {
-    fontSize: 10.5,
-    color: TOKENS.colors.textMuted,
-    marginTop: 1,
-  },
-  exportToggleArrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: TOKENS.colors.textMuted,
-    paddingLeft: 8,
-  },
-  exportAccordionBody: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  exportNotice: {
-    fontSize: 11,
-    color: TOKENS.colors.textMuted,
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  exportBtnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  exportBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  exportBtnTextGroup: {
-    alignItems: 'flex-start',
-  },
-  exportBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
-  exportBtnSub: {
-    fontSize: 9.5,
-    color: TOKENS.colors.textMuted,
-    marginTop: 1,
   },
   scrollArea: {
     maxHeight: 460,
