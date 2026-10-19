@@ -35,8 +35,9 @@ from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.supabase_repository import community_repo
-from services.route_warmup import start_background_warmup
+from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
     HazardReportRepository,
@@ -126,6 +127,14 @@ def read_root():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
+
+
+@app.middleware("http")
+async def _track_activity(request, call_next):
+    """[#125] 사용자 요청이 있었던 시각을 기록한다. 헬스체크(/health, /)는 서버를 깨우는 용도일 수 있어 제외한다."""
+    if request.url.path not in ("/health", "/"):
+        mark_activity()
+    return await call_next(request)
 
 
 @app.get("/health")
@@ -319,10 +328,10 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     try:
         target_duration = float(req.get("target_duration_minutes", 30))
         speed_kmh = float(req.get("speed_kmh", 2.8))
-        if not math.isfinite(target_duration) or not 10 <= target_duration <= 90 or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or speed_kmh <= 0:
             raise ValueError()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="산책 시간(10~90분)과 양수 보행 속도가 필요합니다.")
+        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 양수 보행 속도가 필요합니다.")
 
     return {
         "origin_lat": origin_lat,

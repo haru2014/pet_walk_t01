@@ -9,6 +9,7 @@
 import threading
 
 import pytest
+from fastapi.testclient import TestClient
 from shapely.geometry import Polygon
 
 import agent.park_route_validation as prv
@@ -239,3 +240,41 @@ def test_server_starts_and_health_responds_with_startup_event():
 
     with TestClient(main.app) as c:
         assert c.get("/health").json()["status"] == "ok"
+
+
+# ---- 6) 날씨 미리 받기는 "최근 요청이 있을 때만" (기상청·에어코리아 호출 한도 보호) ----
+
+def test_weather_prefetch_is_skipped_when_nobody_used_the_server(monkeypatch):
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("PETWALK_DISABLE_WARMUP", raising=False)
+    monkeypatch.setattr(route_warmup, "WARMUP_DELAY_S", 0.0)
+    monkeypatch.setattr(route_warmup, "WEATHER_REFRESH_S", 0.05)
+    monkeypatch.setattr(route_warmup, "warm_park_caches", lambda *a, **k: {})
+    monkeypatch.setattr(route_warmup, "ACTIVE_WINDOW_S", 0.0)  # 항상 "최근 요청 없음"
+    calls = []
+    thread = route_warmup.start_background_warmup(weather_fetch=lambda *a, **k: calls.append(1), weather_points=[(36.0, 127.0)])
+    try:
+        import time as _t
+        _t.sleep(0.5)  # 여러 번 돌 시간
+        assert calls == []
+    finally:
+        route_warmup.stop_background_warmup()
+    thread.join(2.0)
+
+
+def test_recent_request_makes_prefetch_run_again(monkeypatch):
+    monkeypatch.setattr(route_warmup, "ACTIVE_WINDOW_S", 60.0)
+    route_warmup.mark_activity()
+    assert route_warmup._recently_active() is True
+    monkeypatch.setattr(route_warmup, "_LAST_ACTIVITY", route_warmup._LAST_ACTIVITY - 120.0)
+    assert route_warmup._recently_active() is False
+
+
+def test_user_requests_mark_activity_but_health_checks_do_not(monkeypatch):
+    import main
+
+    monkeypatch.setattr(route_warmup, "_LAST_ACTIVITY", 0.0)
+    assert TestClient(main.app).get("/health").status_code == 200
+    assert route_warmup._LAST_ACTIVITY == 0.0  # 헬스체크(서버를 깨우는 용도)는 활동으로 치지 않는다
+    TestClient(main.app).get("/api/v1/hazards", params={"lat": 36.36, "lon": 127.36, "radius_m": 500})
+    assert route_warmup._LAST_ACTIVITY > 0.0

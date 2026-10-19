@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
@@ -50,7 +51,7 @@ class FeedbackSummaryItem(BaseModel):
 
 class WalkIntent(BaseModel):
     """[US-A1] 자연어 질의에서 추출된 산책 의도 구조화 모델."""
-    target_duration_minutes: int = Field(default=25, ge=10, le=90)
+    target_duration_minutes: int = Field(default=25, ge=MIN_WALK_MINUTES, le=MAX_WALK_MINUTES)
     avoid_stairs: bool = Field(default=True)
     slope_preference: SlopePreference = Field(default="gentle")
     shade_priority: bool = Field(default=False)
@@ -143,7 +144,10 @@ def get_standard_speed_kmh(weight_kg: float, age_years: int, joint_care_level: i
 # ==============================================================================
 
 def _extract_target_duration(query_str: str) -> Optional[int]:
-    """자연어 발화에서 목표 산책 시간(분) 추출 (10~90분 클램핑)."""
+    """자연어 발화에서 목표 산책 시간(분) 추출 (한도: walk_limits.MIN/MAX_WALK_MINUTES 로 맞춤)."""
+    # 0. 두 시간, 2시간 (앱은 최대 2시간까지 고를 수 있다)
+    if re.search(r"(?:2\s*시간|두\s*시간)", query_str):
+        return max(MIN_WALK_MINUTES, min(MAX_WALK_MINUTES, 120))
     # 1. 1시간 반, 한시간 30분 등 복합 표현
     if re.search(r"(?:1\s*시간|한\s*시간)\s*(?:반|30\s*분)", query_str):
         return 90
@@ -157,7 +161,7 @@ def _extract_target_duration(query_str: str) -> Optional[int]:
     match = re.search(r"(\d{1,3})\s*(?:분|min)", query_str)
     if match:
         dur = int(match.group(1))
-        return max(10, min(90, dur))
+        return max(MIN_WALK_MINUTES, min(MAX_WALK_MINUTES, dur))
     return None
 
 
