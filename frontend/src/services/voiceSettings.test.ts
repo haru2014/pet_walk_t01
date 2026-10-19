@@ -59,6 +59,7 @@ describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () =>
 describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #37)', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    await TTSNavigationService.stop(); // 이전 테스트의 미완료 발화/대기열 정리
     await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
   });
 
@@ -185,5 +186,61 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         })
       );
     });
+  });
+});
+
+describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊기지 않음)', () => {
+  const doneOf = (callIndex: number): (() => void) =>
+    (vi.mocked(Speech.speak).mock.calls[callIndex][1] as { onDone: () => void }).onDone;
+
+  beforeEach(async () => {
+    await TTSNavigationService.stop();
+    await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
+    vi.clearAllMocks();
+  });
+
+  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', () => {
+    TTSNavigationService.speak('산책을 시작합니다');
+    TTSNavigationService.speak('출발지에서 직진하세요');
+
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    expect(Speech.stop).not.toHaveBeenCalled();
+
+    doneOf(0)();
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('출발지에서 직진하세요');
+  });
+
+  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    TTSNavigationService.speak('C', undefined, false, 'high');
+
+    doneOf(0)();
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
+    doneOf(1)();
+    expect(vi.mocked(Speech.speak).mock.calls[2][0]).toBe('B');
+  });
+
+  it('같은 문구가 대기 중이면 중복 등록하지 않는다', () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    TTSNavigationService.speak('B');
+
+    doneOf(0)();
+    doneOf(1)();
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('stop()은 대기열을 비워 이후 발화가 재생되지 않게 한다', async () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    await TTSNavigationService.stop();
+
+    doneOf(0)(); // 무효화된 이전 발화의 종료 콜백
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+
+    TTSNavigationService.speak('C');
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
   });
 });

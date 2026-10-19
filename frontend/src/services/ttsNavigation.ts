@@ -16,6 +16,17 @@ import {
 import { LocalStorageService } from './storage';
 import { STORAGE_KEYS } from '../types/storage';
 
+export type SpeakPriority = 'normal' | 'high';
+
+interface QueuedUtterance {
+  readonly message: string;
+  readonly profileId?: VoiceProfileId;
+  readonly priority: SpeakPriority;
+}
+
+/** 대기열 최대 길이: 오래된 일반 안내는 버려 지나간 안내가 뒤늦게 나오지 않게 한다. */
+const MAX_QUEUE_LENGTH = 3;
+
 export class TTSNavigationService {
   private static isSpeaking = false;
   private static settings: SoundSettings = { ...DEFAULT_SOUND_SETTINGS };
@@ -24,6 +35,10 @@ export class TTSNavigationService {
   private static listeners: ((settings: SoundSettings) => void)[] = [];
   private static cachedVoices: Speech.Voice[] | null = null;
   private static isLoadingVoices = false;
+  private static queue: QueuedUtterance[] = [];
+  private static isBusy = false;
+  private static utteranceId = 0;
+  private static watchdog: ReturnType<typeof setTimeout> | null = null;
 
   /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
   static async loadAvailableVoices(): Promise<Speech.Voice[]> {
@@ -186,62 +201,138 @@ export class TTSNavigationService {
 
   /**
    * 한국어 음성으로 길안내 및 위험 경고 브리핑을 발화한다.
+   *
+   * 일반 발화는 큐에 쌓여 앞선 발화가 끝난 뒤 순서대로 재생된다(진행 중인 발화를 끊지 않음).
+   * `priority: 'high'`는 대기열 맨 앞에 들어가지만 진행 중인 발화는 끊지 않는다.
+   * 미리듣기(isPreview)만 대기열을 비우고 즉시 재생한다.
+   *
    * @param message 발화할 안내 문구
    * @param overrideProfileId 임시 적용할 보이스 프로필 ID (선택)
    * @param isPreview 미리듣기 여부 (음소거 상태여도 미리듣기는 허용할 수 있음)
+   * @param priority 대기열 우선순위 (기본 normal)
    */
-  static speak(message: string, overrideProfileId?: VoiceProfileId, isPreview = false): void {
-    if (!isPreview && (this.settings.isMuted || this.settings.volume <= 0 || this.isBarkMuted)) {
+  static speak(
+    message: string,
+    overrideProfileId?: VoiceProfileId,
+    isPreview = false,
+    priority: SpeakPriority = 'normal',
+  ): void {
+    const self = TTSNavigationService;
+    if (!isPreview && (self.settings.isMuted || self.settings.volume <= 0 || self.isBarkMuted)) {
       return;
     }
 
-    const profileId = overrideProfileId ?? this.settings.profileId;
-    const profile = VOICE_PROFILES.find((p) => p.id === profileId) ?? VOICE_PROFILES[0];
-    const volume = this.settings.volume;
+    if (isPreview) {
+      self.queue = [];
+      self.utteranceId += 1; // 이전 발화의 콜백 무효화
+      self.clearWatchdog();
+      void Speech.stop().catch(() => {});
+      self.utter({ message, profileId: overrideProfileId, priority });
+      return;
+    }
 
-    const matchedVoice = this.cachedVoices
-      ? this.findVoiceForGender(profile.gender, this.cachedVoices)
+    if (self.queue.some((item) => item.message === message)) return;
+    const item: QueuedUtterance = { message, profileId: overrideProfileId, priority };
+    if (priority === 'high') self.queue.unshift(item);
+    else self.queue.push(item);
+    self.trimQueue();
+
+    if (!self.isBusy) self.playNext();
+  }
+
+  private static trimQueue(): void {
+    const self = TTSNavigationService;
+    while (self.queue.length > MAX_QUEUE_LENGTH) {
+      const oldestNormal = self.queue.findIndex((q) => q.priority === 'normal');
+      self.queue.splice(oldestNormal >= 0 ? oldestNormal : self.queue.length - 1, 1);
+    }
+  }
+
+  private static clearWatchdog(): void {
+    const self = TTSNavigationService;
+    if (self.watchdog) {
+      clearTimeout(self.watchdog);
+      self.watchdog = null;
+    }
+  }
+
+  private static playNext(): void {
+    const self = TTSNavigationService;
+    const next = self.queue.shift();
+    if (!next) {
+      self.isBusy = false;
+      return;
+    }
+    self.utter(next);
+  }
+
+  /** 한 문장을 실제로 발화한다. 끝나면(또는 오류/타임아웃) 다음 대기 항목으로 넘어간다. */
+  private static utter({ message, profileId: overrideProfileId }: QueuedUtterance): void {
+    const self = TTSNavigationService;
+    const profileId = overrideProfileId ?? self.settings.profileId;
+    const profile = VOICE_PROFILES.find((p) => p.id === profileId) ?? VOICE_PROFILES[0];
+    const matchedVoice = self.cachedVoices
+      ? self.findVoiceForGender(profile.gender, self.cachedVoices)
       : undefined;
+
+    self.isBusy = true;
+    self.utteranceId += 1;
+    const id = self.utteranceId;
+    const finish = (): void => {
+      if (id !== self.utteranceId) return; // stop()·새 발화로 이미 무효화된 콜백
+      self.clearWatchdog();
+      self.isSpeaking = false;
+      self.playNext();
+    };
 
     const speechOptions: Speech.SpeechOptions = {
       language: 'ko-KR',
       pitch: profile.pitch,
       rate: profile.rate,
-      volume,
+      volume: self.settings.volume,
       ...(matchedVoice ? { voice: matchedVoice } : {}),
       onStart: () => {
-        this.isSpeaking = true;
+        self.isSpeaking = true;
       },
-      onDone: () => {
-        this.isSpeaking = false;
-      },
+      onDone: finish,
+      onStopped: finish,
       onError: (err) => {
         if (Platform.OS === 'web') {
           console.info('[TTSNavigationService] 브라우저 오디오 정책에 따른 대기 상태:', err);
         } else {
           console.warn('[TTSNavigationService] 발화 오류:', err);
         }
-        this.isSpeaking = false;
+        finish();
       },
     };
 
+    // 종료 콜백이 오지 않는 환경에서도 대기열이 멈추지 않도록 문장 길이 기반 안전 타이머를 둔다.
+    self.clearWatchdog();
+    self.watchdog = setTimeout(finish, Math.min(20000, 3000 + message.length * 350));
+
     try {
-      void Speech.stop().catch(() => {});
       Speech.speak(message, speechOptions);
     } catch (e) {
       if (Platform.OS !== 'web') {
         console.warn('[TTSNavigationService] TTS 미지원 환경:', e);
       }
+      finish();
     }
   }
 
+  /** 진행 중인 발화를 멈추고 대기열을 비운다. */
   static async stop(): Promise<void> {
+    const self = TTSNavigationService;
+    self.queue = [];
+    self.isBusy = false;
+    self.utteranceId += 1;
+    self.clearWatchdog();
     try {
       await Speech.stop();
-      this.isSpeaking = false;
     } catch {
-      this.isSpeaking = false;
+      // 정지 실패는 무시
     }
+    self.isSpeaking = false;
   }
 
   static getStatus(): boolean {

@@ -16,10 +16,12 @@ import {
   updateTrackingNotification,
 } from '../services/locationService';
 import {
+  GuidanceEvent,
   GuidanceState,
   INITIAL_GUIDANCE_STATE,
   REROUTE_MESSAGE,
   evaluateGuidance,
+  resetGuidanceForNewRoute,
 } from '../services/guidanceEngine';
 import { polylineLengthMeters } from '../services/routeGeometry';
 import { TTSNavigationService } from '../services/ttsNavigation';
@@ -38,6 +40,12 @@ const MPS_TO_KMH = 3.6;
 function computeDistanceKm(track: readonly GpsPoint[]): number {
   const coords = track.map((p) => [p.longitude, p.latitude] as const);
   return Math.round((polylineLengthMeters(coords) / 1000) * 100) / 100;
+}
+
+/** 이탈·출발지 이동 안내는 진행 중인 발화 뒤 맨 앞 순번으로 올린다. */
+function speakGuidanceEvent(event: GuidanceEvent): void {
+  const urgent = event.kind === 'off_route' || event.kind === 'to_start';
+  TTSNavigationService.speak(event.message, undefined, false, urgent ? 'high' : 'normal');
 }
 
 export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: readonly RouteStepPin[]) {
@@ -60,7 +68,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       lastPointRef.current = point;
       const result = evaluateGuidance([point.longitude, point.latitude], routeRef.current, activePins, guidanceRef.current);
       guidanceRef.current = result.nextState;
-      result.events.forEach((event) => TTSNavigationService.speak(event.message));
+      result.events.forEach(speakGuidanceEvent);
       setStats((prev) => ({
         ...prev,
         distanceKm: computeDistanceKm(getTrackBuffer()),
@@ -137,7 +145,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   /** 우회 경로 수신 시 지도 경로를 교체하고 음성으로 안내한다 (US-D2). */
   const applyReroute = useCallback((newRoute: RouteFeatureCollection) => {
     setRoute(newRoute);
-    guidanceRef.current = INITIAL_GUIDANCE_STATE;
+    guidanceRef.current = resetGuidanceForNewRoute(guidanceRef.current);
     TTSNavigationService.speak(REROUTE_MESSAGE);
   }, []);
 
