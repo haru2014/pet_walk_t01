@@ -22,11 +22,92 @@ export class TTSNavigationService {
   private static isInitialized = false;
   private static isBarkMuted = false;
   private static listeners: ((settings: SoundSettings) => void)[] = [];
+  private static cachedVoices: Speech.Voice[] | null = null;
+  private static isLoadingVoices = false;
+
+  /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
+  static async loadAvailableVoices(): Promise<Speech.Voice[]> {
+    if (this.cachedVoices) return this.cachedVoices;
+    if (this.isLoadingVoices) return [];
+    this.isLoadingVoices = true;
+    try {
+      const voices = await Speech.getAvailableVoicesAsync();
+      this.cachedVoices = voices || [];
+      return this.cachedVoices;
+    } catch {
+      return [];
+    } finally {
+      this.isLoadingVoices = false;
+    }
+  }
+
+  /**
+   * 한국어 음성 중 남성/여성 성별에 일치하는 보이스 identifier 탐색
+   */
+  static findVoiceForGender(gender: 'male' | 'female', voices: Speech.Voice[]): string | undefined {
+    if (!voices || voices.length === 0) return undefined;
+    const koreanVoices = voices.filter(
+      (v) => v.language && (v.language.startsWith('ko') || v.language.toLowerCase() === 'kor')
+    );
+    if (koreanVoices.length === 0) return undefined;
+
+    if (gender === 'male') {
+      const maleVoice = koreanVoices.find((v) => {
+        const idLower = (v.identifier || '').toLowerCase();
+        const nameLower = (v.name || '').toLowerCase();
+
+        // female / woman / 여성 단어 제외
+        if (
+          idLower.includes('female') ||
+          idLower.includes('woman') ||
+          nameLower.includes('female') ||
+          nameLower.includes('woman') ||
+          nameLower.includes('여성')
+        ) {
+          return false;
+        }
+
+        return (
+          idLower.includes('ism') || // Android ko-kr-x-ism
+          idLower.includes('male') ||
+          idLower.includes('man') ||
+          nameLower.includes('남성') ||
+          nameLower.includes('male') ||
+          nameLower.includes('injoon') || // Windows / Edge 한국어 남성
+          nameLower.includes('bongjin')
+        );
+      });
+      return maleVoice?.identifier;
+    } else {
+      const femaleVoice = koreanVoices.find((v) => {
+        const idLower = (v.identifier || '').toLowerCase();
+        const nameLower = (v.name || '').toLowerCase();
+        return (
+          idLower.includes('kfb') || // Android ko-kr-x-kfb
+          idLower.includes('kob') ||
+          idLower.includes('yuna') || // iOS
+          idLower.includes('female') ||
+          nameLower.includes('여성') ||
+          nameLower.includes('female') ||
+          nameLower.includes('heami') ||
+          nameLower.includes('sunhi') ||
+          nameLower.includes('yuna')
+        );
+      });
+      return femaleVoice?.identifier;
+    }
+  }
+
+  /** 단위 테스트용 보이스 캐시 설정 */
+  static setCachedVoicesForTesting(voices: Speech.Voice[] | null): void {
+    this.cachedVoices = voices;
+  }
 
   /** 저장된 사운드 설정을 불러와 초기화한다. */
   static async init(): Promise<SoundSettings> {
     if (this.isInitialized) return this.settings;
     try {
+      void this.loadAvailableVoices();
       const saved = await LocalStorageService.getItem<SoundSettings>(STORAGE_KEYS.SOUND_SETTINGS);
       if (saved) {
         this.settings = { ...DEFAULT_SOUND_SETTINGS, ...saved };
@@ -118,28 +199,35 @@ export class TTSNavigationService {
     const profile = VOICE_PROFILES.find((p) => p.id === profileId) ?? VOICE_PROFILES[0];
     const volume = this.settings.volume;
 
+    const matchedVoice = this.cachedVoices
+      ? this.findVoiceForGender(profile.gender, this.cachedVoices)
+      : undefined;
+
+    const speechOptions: Speech.SpeechOptions = {
+      language: 'ko-KR',
+      pitch: profile.pitch,
+      rate: profile.rate,
+      volume,
+      ...(matchedVoice ? { voice: matchedVoice } : {}),
+      onStart: () => {
+        this.isSpeaking = true;
+      },
+      onDone: () => {
+        this.isSpeaking = false;
+      },
+      onError: (err) => {
+        if (Platform.OS === 'web') {
+          console.info('[TTSNavigationService] 브라우저 오디오 정책에 따른 대기 상태:', err);
+        } else {
+          console.warn('[TTSNavigationService] 발화 오류:', err);
+        }
+        this.isSpeaking = false;
+      },
+    };
+
     try {
       void Speech.stop().catch(() => {});
-      Speech.speak(message, {
-        language: 'ko-KR',
-        pitch: profile.pitch,
-        rate: profile.rate,
-        volume,
-        onStart: () => {
-          this.isSpeaking = true;
-        },
-        onDone: () => {
-          this.isSpeaking = false;
-        },
-        onError: (err) => {
-          if (Platform.OS === 'web') {
-            console.info('[TTSNavigationService] 브라우저 오디오 정책에 따른 대기 상태:', err);
-          } else {
-            console.warn('[TTSNavigationService] 발화 오류:', err);
-          }
-          this.isSpeaking = false;
-        },
-      });
+      Speech.speak(message, speechOptions);
     } catch (e) {
       if (Platform.OS !== 'web') {
         console.warn('[TTSNavigationService] TTS 미지원 환경:', e);

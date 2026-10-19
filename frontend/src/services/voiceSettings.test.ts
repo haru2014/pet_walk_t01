@@ -132,4 +132,58 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     await TTSNavigationService.setVolume(0.4);
     expect(receivedVolume).toBe(0.65); // 더 이상 갱신되지 않음
   });
+
+  describe('음성 성별(남성/여성) 보이스 매핑 및 발화 검증 (이슈 #127)', () => {
+    it('기기 보이스 목록 중 한국어 남성 및 여성 보이스 식별자를 올바르게 찾아낸다', () => {
+      const mockVoices: any[] = [
+        { identifier: 'en-US-Jenny', name: 'Jenny', language: 'en-US' },
+        { identifier: 'ko-kr-x-kfb-local', name: '한국어 (대한민국)', language: 'ko-KR' },
+        { identifier: 'ko-kr-x-ism-local', name: '한국어 남성 (대한민국)', language: 'ko-KR' },
+        { identifier: 'ko-KR-InJoon', name: 'Microsoft InJoon Online (Natural) - Korean', language: 'ko-KR' },
+      ];
+
+      const maleVoice = TTSNavigationService.findVoiceForGender('male', mockVoices);
+      expect(maleVoice).toBe('ko-kr-x-ism-local');
+
+      const femaleVoice = TTSNavigationService.findVoiceForGender('female', mockVoices);
+      expect(femaleVoice).toBe('ko-kr-x-kfb-local');
+    });
+
+    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 저음 피치(0.70)가 발화 옵션에 적용되어야 한다', async () => {
+      const mockVoices: any[] = [
+        { identifier: 'ko-kr-x-kfb-local', name: 'ko-female', language: 'ko-KR' },
+        { identifier: 'ko-kr-x-ism-local', name: 'ko-male', language: 'ko-KR' },
+      ];
+      TTSNavigationService.setCachedVoicesForTesting(mockVoices);
+
+      await TTSNavigationService.setProfile('calm_male');
+      TTSNavigationService.speak('전방 100m 앞 좌회전입니다');
+
+      expect(Speech.speak).toHaveBeenCalledWith(
+        '전방 100m 앞 좌회전입니다',
+        expect.objectContaining({
+          language: 'ko-KR',
+          voice: 'ko-kr-x-ism-local',
+          pitch: 0.70,
+          rate: 0.92,
+        })
+      );
+    });
+
+    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.70/0.78)로 발화되어야 한다', async () => {
+      TTSNavigationService.setCachedVoicesForTesting([]); // 보이스 없음
+
+      await TTSNavigationService.setProfile('friendly_male');
+      TTSNavigationService.speak('잠시 벤치에서 쉬어가요');
+
+      expect(Speech.speak).toHaveBeenCalledWith(
+        '잠시 벤치에서 쉬어가요',
+        expect.objectContaining({
+          language: 'ko-KR',
+          pitch: 0.78,
+          rate: 0.95,
+        })
+      );
+    });
+  });
 });

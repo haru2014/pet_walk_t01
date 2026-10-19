@@ -12,8 +12,8 @@
 | 이슈 번호 | 우선순위 | 이슈 제목 | 작성자 | 생성일 | 진행 상태 |
 |:---:|:---:|---|:---:|:---:|:---:|
 | **[#117](https://github.com/haru2014/pet_walk_t01/issues/117)** | 🔴 P0 (버그) | **공유가 실패해도 "공유 완료"처리되는 문제 처리 필요** | `@hippie-jin` | 10/18 | **✅ 완료 (10/19)** |
-| **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
-| **[#128](https://github.com/haru2014/pet_walk_t01/issues/128)** | 🟡 P1 (UX) | **산책 완료 후 내보내기 기능의 사용자 접근성 개선** | `@kululu81` | 10/19 | ⏳ 대기 중 |
+| **[#127](https://github.com/haru2014/pet_walk_t01/issues/127)** | 🔴 P0 (버그) | **음성 안내 성별 설정 오류 (남성 선택 시 여성 음색 출력)** | `@kululu81` | 10/19 | **✅ 완료 (10/19)** |
+| **[#128](https://github.com/haru2014/pet_walk_t01/issues/128)** | 🟡 P1 (UX) | **산책 완료 후 내보내기 기능의 사용자 접근성 개선** | `@kululu81` | 10/19 | ⏳ 다음 진행 예정 |
 | **[#129](https://github.com/haru2014/pet_walk_t01/issues/129)** | 🟡 P1 (기능) | **산책 기록의 지도 시각화 (실제 이동 경로 및 배변 마킹)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
 | **[#130](https://github.com/haru2014/pet_walk_t01/issues/130)** | 🟡 P1 (기능) | **산책 기록 누적에 따른 목록 관리 (최근 1주일 우선/과거 조회)** | `@kululu81` | 10/19 | ⏳ 대기 중 |
 
@@ -40,24 +40,28 @@
 
 ---
 
-## 2. 🔴 Issue #127: 음성 안내 성별 설정 오류
+## 2. 🔴 [완료] Issue #127: 음성 안내 성별 설정 오류
 
 - **이슈 링크**: [#127](https://github.com/haru2014/pet_walk_t01/issues/127) (부모 이슈 [#124](https://github.com/haru2014/pet_walk_t01/issues/124))
 - **작성자**: `@kululu81` (조현정)
 - **핵심 내용**:
   음성 안내 설정에서 남성 음성을 선택해도 실제 TTS 재생 시 여성 음색으로 고정 출력되는 버그.
 - **원인 분석**:
-  `expo-speech`의 `Speech.speak(text, options)` 호출 시 `voice` 식별자(iOS의 `ko-kr-x-ism-local` 등, Android의 TTS 엔진 음성 ID) 매핑이 누락되어 기본 여성 보이스(default)로 폴백되는 현상.
+  1. `expo-speech`의 `Speech.speak(text, options)` 호출 시 `voice` 식별자(iOS `ko-kr-x-ism-local` 등, Windows/Edge `InJoon`/`BongJin`) 파라미터가 누락되어 OS 기본값(여성 기본 보이스)으로 고정 재생됨.
+  2. `VOICE_PROFILES`에서 `friendly_male`의 pitch가 0.98, `calm_male`의 pitch가 0.88로 여성 기본 pitch(1.0)와 거의 차이가 없어 여성 보이스 음색으로 들림.
+- **수정 결과**:
+  - `ttsNavigation.ts`: `loadAvailableVoices()` 및 `findVoiceForGender()` 구현으로 기기 내 한국어 남성 전용 TTS 보이스(Android `ism`, Edge `InJoon`/`BongJin` 등)를 탐색하여 `options.voice`로 바인딩.
+  - `voiceSettings.ts`: 남성 프로필 기본 pitch를 확실한 중저음 남성 대역(`calm_male: 0.70`, `friendly_male: 0.78`)으로 재조정하여 남성 보이스가 없는 환경에서도 남성 음색 효과 보장.
 
 ### 📋 세부 작업 TODO
-- [ ] `frontend/src/services/voiceSettings.ts` & `TTSNavigationService.ts`
-  - [ ] `Speech.getAvailableVoicesAsync()`를 활용하여 현재 OS(Web/iOS/Android)에 설치된 한국어(`ko-KR`) 보이스 목록 중 남성/여성 음성 ID 탐색 로직 구현
-  - [ ] 사용자 설정(`voiceGender: 'male' | 'female'`)에 맞춰 `options.voice` 파라미터 매핑
-  - [ ] 남성 음성 미지원 환경(일부 웹 브라우저)의 경우 피치(`pitch: 0.85`, `rate: 0.95`) 보정으로 남성 음색 효과 부여
-- [ ] `frontend/src/components/walk/VoiceSettingsModal.tsx`
-  - [ ] 성별 선택 변경 시 즉시 "미리듣기(Sample Speech)" 재생 연동
-- [ ] 단위 테스트 작성 및 통과
-  - [ ] `frontend/src/services/voiceSettings.test.ts` 성별 설정 반영 및 TTS 옵션 생성 테스트
+- [x] `frontend/src/services/ttsNavigation.ts`
+  - [x] `Speech.getAvailableVoicesAsync()`를 활용한 기기 설치 보이스 비동기 프리페치 및 캐싱
+  - [x] `findVoiceForGender()` 성별 매칭 로직 (female/woman 오탐 방지 필터 포함)
+  - [x] `speak()` 호출 시 성별에 일치하는 `voice` identifier 주입
+- [x] `frontend/src/types/voiceSettings.ts`
+  - [x] 남성 보이스 프로필 피치 캘리브레이션 (`calm_male: 0.70`, `friendly_male: 0.78`)
+- [x] 단위 테스트 작성 및 통과
+  - [x] `frontend/src/services/voiceSettings.test.ts` 남성/여성 보이스 식별자 매핑 및 발화 옵션 적용 단위 테스트 3건 추가 (11 passed)
 
 ---
 
