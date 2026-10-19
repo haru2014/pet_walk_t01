@@ -34,14 +34,17 @@
 ### [PR #113](https://github.com/haru2014/pet_walk_t01/pull/113) feat(data): 경로 생성에 비·12시간 예보 전달 + 후보별 실측 경사·노면(course_profiles)
 > 요청자 @hippie-jin · 병합 2026-10-18
 
-- [ ] 🟡 앱 카드에서 "알 수 없음" 값을 표시하는 방식 (승현님과 협의) <!-- key:pr113-976f43c3 -->
+- [x] 🟡 앱 카드에서 "알 수 없음" 값을 표시하는 방식 (승현님과 협의) <!-- key:pr113-976f43c3 -->
+  - 앱 카드에서 "알 수 없음" 표시를 담당한 `routeInfo.ts`의 `formatSlopeDisplay`, `formatSurfaceDisplay` 함수를 `docs/implementation_plan/김승현_향후_구현계획.md`에 새로 추가한 "경사도/노면 정보 없음" 표시 지침에 맞게 정리하고, 해당 함수들을 실제로 사용하는 `RecommendedCourseCard`·`RouteReasonCard`도 검증한 뒤 `test` 폴더에 새 테스트 파일을 만들어 두었습니다.
+  - 이 파일이 이 PR을 가져와서 생기는 충돌을 수정하는 데 도움이 되면 좋겠습니다.
 
 ### [PR #104](https://github.com/haru2014/pet_walk_t01/pull/104) fix(weather): Open-Meteo 실패 시 /walk/plan·/weather/heat-risk 500 수정
 > 요청자 @hippie-jin · 병합 2026-10-18
 
-- [ ] 🔴 `feat/member4` 브랜치에도 같은 줄을 `except (OSError, ValueError, KeyError):`로 바꾸는 커밋이 있습니다. 다음 PR에서 이 줄이 충돌하면 이 PR 쪽(`OpenMeteoError` 포함)으로 맞춰 주세요. 그렇지 않으면 500이 다시 생깁니… <!-- key:pr104-a3553990 -->
-- [ ] 🔴 `timeout=0.3`초는 운영(Render)에서 Open-Meteo 응답보다 짧아 보정이 거의 항상 실패할 수 있습니다. 값 조정은 승현님 판단에 맡깁니다(이 PR에서는 바꾸지 않음). <!-- key:pr104-f1a38724 -->
-
+- [x] 🔴 `feat/member4` 브랜치에도 같은 줄을 `except (OSError, ValueError, KeyError):`로 바꾸는 커밋이 있습니다. 다음 PR에서 이 줄이 충돌하면 이 PR 쪽(`OpenMeteoError` 포함)으로 맞춰 주세요. 그렇지 않으면 500이 다시 생깁니… <!-- key:pr104-a3553990 -->
+  - 의견 없음
+- [x] 🔴 `timeout=0.3`초는 운영(Render)에서 Open-Meteo 응답보다 짧아 보정이 거의 항상 실패할 수 있습니다. 값 조정은 승현님 판단에 맡깁니다(이 PR에서는 바꾸지 않음). <!-- key:pr104-f1a38724 -->
+  - 8초로 수정
 ### [PR #49](https://github.com/haru2014/pet_walk_t01/pull/49) feat(data): 공영주차장 데이터를 공식 표준데이터 기준으로 정리하고 읽기·검증·반경 검색 모듈 추가 (US-G1)
 > 요청자 @hippie-jin · 병합 2026-10-14
 
