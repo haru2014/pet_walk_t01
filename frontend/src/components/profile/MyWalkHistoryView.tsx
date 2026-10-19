@@ -19,17 +19,27 @@ import {
 
 export interface MyWalkHistoryViewProps {
   readonly dogName: string;
+  readonly initialRecords?: WalkRecord[];
+  readonly defaultExportExpanded?: boolean;
   readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
-export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, onOpenAuthModal }) => {
-  const [records, setRecords] = useState<WalkRecord[]>([]);
+export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
+  dogName,
+  initialRecords,
+  defaultExportExpanded = false,
+  onOpenAuthModal,
+}) => {
+  const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
+  const [isExportExpanded, setIsExportExpanded] = useState<boolean>(defaultExportExpanded);
 
   useEffect(() => {
-    void LocalStorageService.getWalkHistory().then(setRecords);
-  }, []);
+    if (!initialRecords) {
+      void LocalStorageService.getWalkHistory().then(setRecords);
+    }
+  }, [initialRecords]);
 
   const periodStats = WalkStatisticsService.getPeriodStats(records, period);
 
@@ -115,12 +125,12 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
 
   return (
     <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
-      {/* 1. 상단 타이틀 & 내보내기 버튼 */}
+      {/* 1. 상단 타이틀 */}
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.title}>🐾 산책 통계 및 기록 ({records.length}회)</Text>
           <Text style={styles.subDesc}>
-            기간별 보행 지표 분석 및 동물병원·보험 제출용 리포트 내보내기
+            {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요
           </Text>
         </View>
         <View style={styles.badge}><Text style={styles.badgeText}>DB 동기화</Text></View>
@@ -146,53 +156,38 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
         })}
       </View>
 
-      {/* 3. 기간별 헬스케어 통계 요약 박스 */}
+      {/* 3. 기간별 헬스케어 통계 요약 박스 (시각적 카드) */}
       <View style={styles.statsSummaryBox}>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>🐾</Text>
           <Text style={styles.summaryLabel}>산책 횟수</Text>
           <Text style={styles.summaryValue}>{periodStats.totalWalks}회</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>📍</Text>
           <Text style={styles.summaryLabel}>총 거리</Text>
           <Text style={styles.summaryValue}>{periodStats.totalDistanceKm}km</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>⏱️</Text>
           <Text style={styles.summaryLabel}>총 시간</Text>
           <Text style={styles.summaryValue}>{periodStats.totalDurationMinutes}분</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>🌿</Text>
           <Text style={styles.summaryLabel}>완만 노면율</Text>
           <Text style={[styles.summaryValue, { color: TOKENS.colors.primaryDark }]}>
             {periodStats.averageSafeRatioPercent}%
           </Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>💩</Text>
           <Text style={styles.summaryLabel}>총 배변</Text>
           <Text style={styles.summaryValue}>{periodStats.totalPoopCount}회</Text>
         </View>
       </View>
 
-      {/* 4. 리포트 내보내기 액션 버튼 바 */}
-      <View style={styles.exportBtnRow}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleExportCsv}
-          style={[styles.exportBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-        >
-          <AppIcon name="map" size={14} color="#047857" />
-          <Text style={[styles.exportBtnText, { color: '#047857' }]}>📥 엑셀(CSV) 내보내기</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleExportJson}
-          style={[styles.exportBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
-        >
-          <AppIcon name="sparkle" size={14} color="#475569" />
-          <Text style={[styles.exportBtnText, { color: '#475569' }]}>📋 JSON 백업</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 5. 누적된 산책 기록 목록 스크롤 격리 영역 */}
+      {/* 4. 누적된 산책 기록 목록 (사용자 중심 최우선 배치) */}
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
@@ -254,6 +249,58 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
           );
         })}
       </ScrollView>
+
+      {/* 5. 데이터 백업 및 병원 제출용 내보내기 (접이식 아코디언 UX) */}
+      <View style={styles.exportAccordion}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setIsExportExpanded(!isExportExpanded)}
+          style={styles.exportAccordionHeader}
+        >
+          <View style={styles.exportHeaderLeft}>
+            <Text style={styles.exportHeaderIcon}>📁</Text>
+            <View>
+              <Text style={styles.exportHeaderTitle}>동물병원 제출 및 데이터 백업</Text>
+              <Text style={styles.exportHeaderSubtitle}>
+                {isExportExpanded ? '엑셀(CSV) 및 백업(JSON) 기능 닫기' : '슬개골 진료 상담 표 / 기기 변경 백업 열기'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.exportToggleArrow}>{isExportExpanded ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {isExportExpanded && (
+          <View style={styles.exportAccordionBody}>
+            <Text style={styles.exportNotice}>
+              수의사 진료 시 누적 보행 데이터를 확인하거나, 스마트폰 변경 시 산책 데이터를 안전하게 백업할 수 있습니다.
+            </Text>
+            <View style={styles.exportBtnRow}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleExportCsv}
+                style={[styles.exportBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+              >
+                <AppIcon name="map" size={14} color="#047857" />
+                <View style={styles.exportBtnTextGroup}>
+                  <Text style={[styles.exportBtnText, { color: '#047857' }]}>📥 엑셀(CSV) 저장</Text>
+                  <Text style={styles.exportBtnSub}>병원 진료·보험 제출용</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleExportJson}
+                style={[styles.exportBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+              >
+                <AppIcon name="sparkle" size={14} color="#475569" />
+                <View style={styles.exportBtnTextGroup}>
+                  <Text style={[styles.exportBtnText, { color: '#475569' }]}>📋 JSON 백업</Text>
+                  <Text style={styles.exportBtnSub}>기기 이전·원본 보관용</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
     </CardWrapper>
   );
 };
@@ -373,6 +420,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  summaryEmoji: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
   summaryLabel: {
     fontSize: 10.5,
     fontWeight: '500',
@@ -384,26 +435,86 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
+  exportAccordion: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  exportAccordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  exportHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  exportHeaderIcon: {
+    fontSize: 16,
+  },
+  exportHeaderTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+  },
+  exportHeaderSubtitle: {
+    fontSize: 10.5,
+    color: TOKENS.colors.textMuted,
+    marginTop: 1,
+  },
+  exportToggleArrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: TOKENS.colors.textMuted,
+    paddingLeft: 8,
+  },
+  exportAccordionBody: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  exportNotice: {
+    fontSize: 11,
+    color: TOKENS.colors.textMuted,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
   exportBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
   },
   exportBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 7,
+    gap: 6,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
+  exportBtnTextGroup: {
+    alignItems: 'flex-start',
+  },
   exportBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
+  },
+  exportBtnSub: {
+    fontSize: 9.5,
+    color: TOKENS.colors.textMuted,
+    marginTop: 1,
   },
   scrollArea: {
     maxHeight: 460,

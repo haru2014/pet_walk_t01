@@ -214,9 +214,9 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </Text>
       </View>
 
-      {/* 4. 사생활 보호 고지 문구 (07_walk_report.png 원형 복원) */}
+      {/* 4. 사생활 보호 고지 문구 및 데이터 보관 안내 (US-G2 / Issue #128) */}
       <Text style={[styles.disclaimerText, { color: colors.textMuted }]}>
-        기록된 산책 경로는 보호자님의 스마트폰에만 안전하게 보관됩니다.
+        기록된 산책 경로는 보호자님의 스마트폰에 안전하게 보관되며, 마이페이지에서 언제든지 동물병원 제출용 엑셀(CSV)로 저장할 수 있습니다.
       </Text>
 
       {/* 5. 하단 Thumb Zone 버튼 (홈 복귀 & 회원 전용 코스 공유) */}
