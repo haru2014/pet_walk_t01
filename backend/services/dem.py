@@ -48,6 +48,7 @@ SUPPORTED_SUFFIXES = {".tif", ".tiff", ".img"}
 COPERNICUS_ATTRIBUTION = ("produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space "
                           "GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved")
 MAX_CELLS_IN_MEMORY = 25_000_000  # 이보다 크면 읽을 때마다 필요한 칸만 읽는다
+ELEVATION_CACHE_MAX = 200_000  # 기억해 둘 좌표 수 상한(넘으면 비우고 다시 채운다). 한 점 약 100바이트
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,8 @@ class DemSet:
     def __init__(self, rasters: Iterable[_Raster], skipped: Optional[List[str]] = None) -> None:
         self.rasters: List[_Raster] = sorted(rasters, key=lambda r: r.resolution_m)
         self.skipped: List[str] = skipped or []
+        # (lat, lon) -> 고도. 같은 파일 묶음에서는 같은 좌표의 고도가 항상 같으므로 파일을 다시 읽지 않는다. (이슈 #125)
+        self._elevation_cache: Dict[Tuple[float, float], Optional[float]] = {}
 
     @classmethod
     def from_paths(cls, paths: Iterable[Path]) -> "DemSet":
@@ -153,8 +156,21 @@ class DemSet:
         return None
 
     def elevation(self, lat: float, lon: float) -> Optional[float]:
-        sample = self.lookup(lat, lon)
-        return None if sample is None else sample.elevation_m
+        try:
+            key = (lat, lon)
+            hash(key)
+        except TypeError:  # 해시할 수 없는 값은 lookup 이 ValueError 로 거절한다
+            sample = self.lookup(lat, lon)
+            return None if sample is None else sample.elevation_m
+        cache = self._elevation_cache
+        if key in cache:
+            return cache[key]
+        sample = self.lookup(lat, lon)  # 잘못된 입력이면 여기서 ValueError (기억하지 않는다)
+        value = None if sample is None else sample.elevation_m
+        if len(cache) >= ELEVATION_CACHE_MAX:
+            cache.clear()
+        cache[key] = value
+        return value
 
     def close(self) -> None:
         for raster in self.rasters:

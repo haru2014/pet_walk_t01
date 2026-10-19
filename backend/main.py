@@ -30,11 +30,12 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
-from agent.pilot_park_routes import resolve_pilot_park_key
+from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
 from agent.supabase_repository import community_repo
+from services.route_warmup import start_background_warmup
 from agent.hazard_service import (
     HazardReportRepository,
     HazardReportRequest,
@@ -98,6 +99,15 @@ def read_root():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
+
+
+@app.on_event("startup")
+def _warm_up_route_caches() -> None:
+    """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
+    start_background_warmup(
+        weather_fetch=_live_heat_risk_response,
+        weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
+    )
 
 
 @app.get("/health")
@@ -807,12 +817,12 @@ def clear_heat_risk_cache() -> None:
     _HEAT_RISK_CACHE.clear()
 
 
-def _live_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
+def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False) -> Dict[str, Any]:
     """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
     # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
     cache_key = (round(lat, 2), round(lon, 2))
     now_ts = time.time()
-    if "PYTEST_CURRENT_TEST" not in os.environ and cache_key in _HEAT_RISK_CACHE:
+    if "PYTEST_CURRENT_TEST" not in os.environ and not force_refresh and cache_key in _HEAT_RISK_CACHE:
         cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
         if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
             return cached_resp
