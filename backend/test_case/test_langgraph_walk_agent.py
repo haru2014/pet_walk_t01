@@ -308,6 +308,7 @@ class TestFastApiAgentIntegration:
         assert "courses" in data
         assert len(data["courses"]) >= 1
         best_course = data["courses"][0]
-        assert best_course["stairsCount"] == "0회"
+        # 현재 위치(공원 밖) 경로는 계단 자료(OSM 태그)가 없어 실측 카드는 '정보 없음'이다 (#114). 예전 '0회'는 확인 없는 고정값.
+        assert best_course["stairsCount"] == "정보 없음"
         assert "맥스" in data["summary"] or "골든 리트리버" in data["summary"]
 
