@@ -111,7 +111,8 @@ export function generateLocalDetourRoute(
   if (kept.length === 0 || kept[0][0] !== start[0] || kept[0][1] !== start[1]) {
     kept.unshift(start);
   }
-  if (kept[kept.length - 1][0] !== end[0] || kept[kept.length - 1][1] !== end[1]) {
+  const lastKept = kept.at(-1);
+  if (!lastKept || lastKept[0] !== end[0] || lastKept[1] !== end[1]) {
     kept.push(end);
   }
 
@@ -288,7 +289,7 @@ export function generateLocalDeviationReroute(payload: DeviationReroutePayload):
     {
       id: `local_dev_dest_${Date.now()}`,
       kind: 'safe',
-      position: detourCoords[detourCoords.length - 1],
+      position: detourCoords.at(-1) ?? end,
       instruction: '목적지 방향으로 안전하게 안내합니다.',
     },
   ];
@@ -346,7 +347,7 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
           {
             id: `deviation_reroute_dest_${Date.now()}`,
             kind: 'safe',
-            position: coords[coords.length - 1] ?? [payload.destinationLon, payload.destinationLat],
+            position: coords.at(-1) ?? [payload.destinationLon, payload.destinationLat],
             instruction: '목적지 방향으로 안전하게 안내합니다.',
           },
         ];

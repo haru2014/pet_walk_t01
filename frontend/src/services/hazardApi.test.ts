@@ -131,7 +131,7 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
       expect(result.voiceAlert).toContain('우회하여');
-      expect(result.newRoute.features[0].geometry.coordinates.length).toBe(3);
+      expect(result.newRoute.features[0].geometry.coordinates).toHaveLength(3);
       expect(result.stepPins.length).toBeGreaterThanOrEqual(2);
       expect(result.isEmergencyReturn).toBe(false);
     });
@@ -260,6 +260,26 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
       const coords = result.newRoute.features[0].geometry.coordinates;
       expect(coords[0]).toEqual([127.3825, 36.3745]);
       expect(coords[coords.length - 1]).toEqual([127.382, 36.378]);
+    });
+
+    it('generateLocalDeviationReroute는 현재 위치에서 가장 가까운 전방 지점을 연결한 경로를 반환한다', () => {
+      const local = generateLocalDeviationReroute({
+        currentLat: 36.375,
+        currentLon: 127.383,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        routeCoordinates: [
+          [127.382, 36.374],
+          [127.382, 36.376],
+          [127.382, 36.378],
+        ],
+      });
+
+      expect(local.status).toBe('REROUTED');
+      expect(local.needsReroute).toBe(true);
+      expect(local.voiceAlert).toContain('재탐색');
+      expect(local.newRoute.features[0].geometry.coordinates[0]).toEqual([127.383, 36.375]);
+      expect(local.stepPins).toHaveLength(2);
     });
   });
 });

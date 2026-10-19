@@ -121,9 +121,9 @@ export function routeStart(route: RouteFeatureCollection): LonLat | null {
 }
 
 export function routeEnd(route: RouteFeatureCollection): LonLat | null {
-  const last = route.features[route.features.length - 1];
+  const last = route.features.at(-1);
   const coords = last?.geometry.coordinates;
-  return coords && coords.length > 0 ? coords[coords.length - 1] : null;
+  return coords && coords.length > 0 ? (coords.at(-1) ?? null) : null;
 }
 
 function routeLengthMeters(route: RouteFeatureCollection): number {
@@ -152,6 +152,49 @@ function formatWalked(meters: number): string {
   return `${Math.round(meters / 10) * 10}미터`;
 }
 
+function checkStartFarDeparture(
+  position: LonLat,
+  route: RouteFeatureCollection,
+  startChecked: boolean,
+): { event?: GuidanceEvent; toStartAnnounced: boolean } {
+  if (startChecked) return { toStartAnnounced: false };
+  const start = routeStart(route);
+  if (!start) return { toStartAnnounced: false };
+
+  const toStartM = haversineMeters(position, start);
+  if (toStartM <= START_FAR_DISTANCE_M) return { toStartAnnounced: false };
+
+  return {
+    event: {
+      kind: 'to_start',
+      message: `출발지까지 약 ${Math.round(toStartM / 10) * 10}미터 떨어져 있어요. 출발지로 이동해 주세요.`,
+    },
+    toStartAnnounced: true,
+  };
+}
+
+function checkCourseArrival(
+  position: LonLat,
+  prev: LonLat | null,
+  route: RouteFeatureCollection,
+  walkedM: number,
+  alreadyArrived: boolean,
+  isOffRoute: boolean,
+): { event?: GuidanceEvent; arrived: boolean } {
+  if (alreadyArrived || isOffRoute) return { arrived: alreadyArrived };
+  const end = routeEnd(route);
+  if (!end) return { arrived: false };
+
+  const minWalked = Math.max(ARRIVAL_MIN_WALKED_M, routeLengthMeters(route) * ARRIVAL_MIN_PROGRESS_RATIO);
+  if (walkedM >= minWalked && passedWithin(end, prev, position, ARRIVAL_DISTANCE_M)) {
+    return {
+      arrived: true,
+      event: { kind: 'arrival', message: ARRIVAL_MESSAGE },
+    };
+  }
+  return { arrived: false };
+}
+
 /**
  * 현재 위치를 평가해 발화할 안내 이벤트와 다음 상태를 반환한다.
  * 경로 좌표가 없으면 이탈·출발지·도착 판정을 하지 않는다.
@@ -176,38 +219,20 @@ export function evaluateGuidance(
   const distance = distanceToRouteMeters(position, route);
   const isOffRoute = Number.isFinite(distance) && distance > OFF_ROUTE_DISTANCE_M;
 
-  // 첫 GPS 수신: 출발지에서 멀면 먼저 출발지로 이동하도록 안내 (이 경우 이탈 경고는 중복하지 않음)
-  let toStartAnnounced = false;
-  if (!state.startChecked) {
-    const start = routeStart(route);
-    if (start) {
-      const toStartM = haversineMeters(position, start);
-      if (toStartM > START_FAR_DISTANCE_M) {
-        events.push({
-          kind: 'to_start',
-          message: `출발지까지 약 ${Math.round(toStartM / 10) * 10}미터 떨어져 있어요. 출발지로 이동해 주세요.`,
-        });
-        toStartAnnounced = true;
-      }
-    }
+  const startCheck = checkStartFarDeparture(position, route, state.startChecked);
+  if (startCheck.event) {
+    events.push(startCheck.event);
   }
 
-  if (isOffRoute && !state.offRouteActive && !toStartAnnounced) {
+  if (isOffRoute && !state.offRouteActive && !startCheck.toStartAnnounced) {
     events.push({ kind: 'off_route', message: OFF_ROUTE_MESSAGE });
   }
 
-  // 코스 끝 도착 판정 (충분히 걸은 뒤, 경로 위에서만)
-  let arrived = state.arrived;
-  const end = routeEnd(route);
-  if (!arrived && end && !isOffRoute) {
-    const minWalked = Math.max(ARRIVAL_MIN_WALKED_M, routeLengthMeters(route) * ARRIVAL_MIN_PROGRESS_RATIO);
-    if (walkedM >= minWalked && passedWithin(end, prev, position, ARRIVAL_DISTANCE_M)) {
-      arrived = true;
-      events.push({ kind: 'arrival', message: ARRIVAL_MESSAGE });
-    }
+  const arrivalCheck = checkCourseArrival(position, prev, route, walkedM, state.arrived, isOffRoute);
+  if (arrivalCheck.event) {
+    events.push(arrivalCheck.event);
   }
 
-  // 핀이 적어도 일정 걸음 거리마다 진행 안내
   let sinceCueM = state.sinceCueM + movedM;
   if (events.length > 0) {
     sinceCueM = 0;
@@ -228,7 +253,7 @@ export function evaluateGuidance(
       walkedM,
       sinceCueM,
       startChecked: true,
-      arrived,
+      arrived: arrivalCheck.arrived,
     },
   };
 }
