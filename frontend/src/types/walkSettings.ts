@@ -85,6 +85,20 @@ export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean
   return `${hours}시간 ${remainingMinutes}분`;
 }
 
+export interface CourseProfile {
+  readonly distance_m?: number;
+  readonly max_slope_percent?: number | null;
+  readonly avg_slope_percent?: number | null;
+  readonly slope_source?: 'dem' | 'approximation' | 'unknown' | string;
+  readonly elevation_source?: string | null;
+  readonly surface_breakdown?: Record<string, number> | null;
+  readonly surface_known_ratio?: number | null;
+  readonly soft_surface_ratio?: number | null;
+  readonly stairs_count?: number | null;
+  readonly shade_ratio?: number | null;
+  readonly basis?: string;
+}
+
 export interface RecommendedCourse {
   id: string;
   name: string;
@@ -93,10 +107,12 @@ export interface RecommendedCourse {
   softRatio: string;
   shadeLevel: string;
   stairsCount: string;
-  maxSlopePercent: number;
+  maxSlopePercent?: number | null;
   shadePercent: number;
-  softSurfacePercent: number;
+  softSurfacePercent?: number | null;
   reason: string;
+  profile?: CourseProfile | null;
+  slopeSource?: 'dem' | 'approximation' | 'unknown' | string;
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [

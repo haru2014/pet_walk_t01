@@ -8,7 +8,7 @@
 
 import { DogProfile } from '../types/dogProfile';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
-import { RecommendedCourse, WalkPreferences, DEFAULT_RECOMMENDED_COURSES } from '../types/walkSettings';
+import { RecommendedCourse, WalkPreferences, DEFAULT_RECOMMENDED_COURSES, CourseProfile } from '../types/walkSettings';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanByParkId } from './sampleRoute';
 import { FeedbackSummaryPayload } from './feedbackContext';
 import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdaptivePlanner';
@@ -35,6 +35,8 @@ export interface RoutePlanResult {
   readonly stepPins: readonly RouteStepPin[];
   readonly briefingMessage: string;
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
+  /** 후보별 실측 경사·노면 지표 (US-B1, US-B2) */
+  readonly courseProfiles?: Record<string, CourseProfile>;
   /** 경사·구간 색을 계산한 고도 자료의 출처 문구 (서버 elevation_source.attribution, DEM 미사용 시 null) */
   readonly elevationAttribution?: string | null;
 }
@@ -203,12 +205,25 @@ export async function requestWalkPlan(
         throw new RoutePlanError('ROUTE_VALIDATION_FAILED', '선택한 공원 내부의 검증된 경로를 확인할 수 없습니다. 다시 시도해 주세요.', data.request_id);
       }
       const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
+      const rawCourses: RecommendedCourse[] = data.courses ?? DEFAULT_RECOMMENDED_COURSES;
+      const profiles: Record<string, CourseProfile> | undefined = data.course_profiles;
+      const courses: RecommendedCourse[] = rawCourses.map((c) => {
+        const profile = profiles?.[c.id] ?? null;
+        return {
+          ...c,
+          profile,
+          slopeSource: profile?.slope_source ?? c.slopeSource,
+          maxSlopePercent: profile?.max_slope_percent !== undefined ? profile.max_slope_percent : c.maxSlopePercent,
+        };
+      });
+
       return {
         isLiveServer: true,
-        courses: data.courses ?? DEFAULT_RECOMMENDED_COURSES,
+        courses,
         route: data.geojson ?? defaultPlan.route,
         stepPins: data.step_pins ?? defaultPlan.stepPins,
         coursePlans: data.course_plans,
+        courseProfiles: profiles,
         elevationAttribution: data.elevation_source?.attribution ?? null,
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
       };
