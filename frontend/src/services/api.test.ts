@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requestWalkPlan } from './api';
 import { DogProfile } from '../types/dogProfile';
+import { extractLocalVoiceIntent } from './voiceIntentApi';
+import { resolveAiEnvironments } from './voiceIntentSettings';
 
 const dummyDog: DogProfile = {
   id: 'dog_test',
@@ -17,6 +19,24 @@ const dummyDog: DogProfile = {
 describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('음성 조건을 적용한 설정이 산책 API 요청에 그대로 전달된다', async () => {
+    const speech = '송강공원에서 그늘 위주로 30분 산책할래';
+    const result = extractLocalVoiceIntent(speech);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    await expect(requestWalkPlan(dummyDog, {
+      originMode: 'park', pilotParkId: result.landmark_park_id!,
+      durationMinutes: result.intent.target_duration_minutes,
+      environments: resolveAiEnvironments([], result.intent), requestText: speech,
+    })).rejects.toMatchObject({ code: 'ROUTING_PROVIDER_TIMEOUT' });
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toContain('/api/v1/walk/plan');
+    expect(JSON.parse(options!.body as string)).toMatchObject({
+      pilot_park_id: 'songgang', target_duration_minutes: 30,
+      prefer_shade: true, prefer_cushion: true, avoid_stairs: true,
+      request_text: speech,
+    });
   });
 
   it('공원 경로 서버가 오프라인이면 검증되지 않은 로컬 코스로 대체하지 않는다', async () => {
