@@ -18,6 +18,12 @@ export interface ParkingLotDTO {
   readonly capacity?: number;
   readonly park_zone?: string; // 예: "유림공원", "세종호수공원", "송강근린공원", "도안호수공원"
   readonly address?: string;
+  readonly verified?: boolean;
+  readonly status?: 'official' | 'park_operator' | 'legacy_unverified';
+  readonly official_id?: string;
+  readonly data_issue?: string;
+  readonly source?: string;
+  readonly park_link_verified?: boolean;
 }
 
 export interface NearbyParkingResponse {
@@ -35,4 +41,5 @@ export interface NearbyParkingResponse {
 export interface ParkingSearchOptions {
   readonly radius_m?: number;
   readonly forceRefresh?: boolean;
+  readonly verified_only?: boolean;
 }
