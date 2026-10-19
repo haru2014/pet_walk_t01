@@ -325,15 +325,22 @@ function getSurfaceSubText(solarRadiation?: number, riskLevel?: HeatRiskLevel): 
   return riskLevel === 'SAFE' ? '발바닥 안심' : '아스팔트 주의';
 }
 
+function getDirtTempDisplay(
+  surfaceTemps?: SurfaceTempsDTO,
+  fallbackTemp?: number
+): string {
+  if (surfaceTemps?.dirt !== undefined) {
+    return `${surfaceTemps.dirt}°C`;
+  }
+  return `${fallbackTemp ?? 22}°C`;
+}
+
 function getGrassTempDisplay(
   surfaceTemps?: SurfaceTempsDTO,
   fallbackTemp?: number
 ): string {
   if (surfaceTemps?.grass !== undefined) {
     return `${surfaceTemps.grass}°C`;
-  }
-  if (surfaceTemps?.dirt !== undefined) {
-    return `${surfaceTemps.dirt}°C`;
   }
   return `${fallbackTemp ?? 22}°C`;
 }
@@ -416,6 +423,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
   const surfaceTemps = weather?.surface_temps;
   const asphaltTemp = surfaceTemps?.asphalt !== undefined ? `${surfaceTemps.asphalt}°C` : `${roundedSurfaceTemp}°C`;
   const pavedTemp = surfaceTemps?.paved !== undefined ? `${surfaceTemps.paved}°C` : `${roundedSurfaceTemp}°C`;
+  const dirtTemp = getDirtTempDisplay(surfaceTemps, roundedSurfaceTemp);
   const grassTemp = getGrassTempDisplay(surfaceTemps, currentAirTemp);
   const grassDiff = typeof surfaceTemps?.asphalt === 'number' && typeof surfaceTemps?.grass === 'number'
     ? Math.round(surfaceTemps.asphalt - surfaceTemps.grass)
@@ -423,10 +431,12 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
 
   const asphaltVal = surfaceTemps?.asphalt ?? roundedSurfaceTemp;
   const pavedVal = surfaceTemps?.paved ?? roundedSurfaceTemp;
-  const grassVal = surfaceTemps?.grass ?? surfaceTemps?.dirt ?? currentAirTemp;
+  const dirtVal = surfaceTemps?.dirt ?? roundedSurfaceTemp;
+  const grassVal = surfaceTemps?.grass ?? currentAirTemp;
 
   const asphaltStatus = getSurfaceStatus(asphaltVal);
   const pavedStatus = getSurfaceStatus(pavedVal);
+  const dirtStatus = getSurfaceStatus(dirtVal);
   const grassStatus = getSurfaceStatus(grassVal);
 
   const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
@@ -546,7 +556,12 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                     <Text style={[styles.modalSurfaceItemStatus, { color: pavedStatus.color }]}>{pavedStatus.status}</Text>
                   </View>
                   <View style={styles.modalSurfaceItem}>
-                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>흙길 / 잔디</Text>
+                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>흙</Text>
+                    <Text style={[styles.modalSurfaceItemVal, { color: dirtStatus.color }]}>{dirtTemp}</Text>
+                    <Text style={[styles.modalSurfaceItemStatus, { color: dirtStatus.color }]}>{dirtStatus.status}</Text>
+                  </View>
+                  <View style={styles.modalSurfaceItem}>
+                    <Text style={[styles.modalSurfaceItemLabel, { color: colors.textMuted }]}>잔디</Text>
                     <Text style={[styles.modalSurfaceItemVal, { color: grassStatus.color }]}>{grassTemp}</Text>
                     <Text style={[styles.modalSurfaceItemStatus, { color: grassStatus.color }]}>{grassStatus.status}</Text>
                   </View>
@@ -808,6 +823,7 @@ interface HiddenMetaAreaProps {
 function renderSurfaceSummary(weather?: HeatRiskResponse | null): string {
   if (!weather?.surface_temps) return '';
   const asphalt = weather.surface_temps.asphalt !== undefined ? `${weather.surface_temps.asphalt}°C` : '';
+  const dirt = weather.surface_temps.dirt !== undefined ? `${weather.surface_temps.dirt}°C` : '';
   const grass = weather.surface_temps.grass !== undefined ? `${weather.surface_temps.grass}°C` : '';
   const diff =
     typeof weather.surface_temps.asphalt === 'number' && typeof weather.surface_temps.grass === 'number'
@@ -819,7 +835,7 @@ function renderSurfaceSummary(weather?: HeatRiskResponse | null): string {
       ? ` 아스팔트 대비 잔디밭이 약 ${diff}℃ 더 시원해요!`
       : ' 직사광선이 없어 모든 노면이 시원하고 안전해요!';
   }
-  return `노면별 발바닥 체감온도 비교: 아스팔트 ${asphalt}, 흙길 / 잔디 ${grass}.${diffNotice}`;
+  return `노면별 발바닥 체감온도 비교: 아스팔트 ${asphalt}, 흙 ${dirt}, 잔디 ${grass}.${diffNotice}`;
 }
 
 const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({

@@ -224,7 +224,9 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
       expect(html).toContain('노면별 발바닥 체감온도 비교');
       expect(html).toContain('아스팔트');
       expect(html).toContain('41°C');
-      expect(html).toContain('흙길 / 잔디');
+      expect(html).toContain('흙');
+      expect(html).toContain('33.8°C');
+      expect(html).toContain('잔디');
       expect(html).toContain('29°C');
       expect(html).toContain('아스팔트 대비 잔디밭이 약 12℃ 더 시원해요!');
       expect(html).toContain('일사 720W/m²');
