@@ -89,7 +89,7 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: targetMinutes,
     softRatio: hasSoft ? '78%' : '55%',
     shadeLevel: hasShade ? '많음' : '보통',
-    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '0회' : '1회',
+    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '확인된 계단 0회' : '1회',
     maxSlopePercent,
     shadePercent: hasShade ? 68 : 45,
     softSurfacePercent: hasSoft ? 84 : 60,
@@ -122,7 +122,7 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: minutes,
     softRatio: '68%',
     shadeLevel: '많음',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
@@ -158,7 +158,7 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: minutes,
     softRatio: envs.includes('soft') ? '58%' : '48%',
     shadeLevel: '보통',
-    stairsCount: envs.includes('stairs') ? '0회' : '2회',
+    stairsCount: envs.includes('stairs') ? '확인된 계단 0회' : '2회',
     maxSlopePercent,
     shadePercent: 42,
     softSurfacePercent: 62,
@@ -188,8 +188,15 @@ export function calculateAdaptiveCourseScore(
   const targetMinutes = preferences?.durationMinutes ?? 30;
 
   // 1. 계단 (25점)
-  const stairsNum = parseInt(course.stairsCount, 10) || 0;
-  let stairsScore = 15.0;
+  const stairsMatch = course.stairsCount ? /\d+/.exec(course.stairsCount) : null;
+  let stairsNum = 0;
+  if (stairsMatch) {
+    stairsNum = Number.parseInt(stairsMatch[0], 10);
+  } else if (course.stairsCount === '계단 있음') {
+    stairsNum = 1;
+  }
+
+  let stairsScore: number;
   if (stairsNum === 0) {
     stairsScore = 25.0;
   } else if (avoidStairs) {
@@ -206,7 +213,7 @@ export function calculateAdaptiveCourseScore(
     slopeLimit = Math.min(slopeLimit, feedbackLimit);
   }
   const courseSlope = course.maxSlopePercent ?? 3.0;
-  let slopeScore = 0.0;
+  let slopeScore: number;
   if (courseSlope <= slopeLimit) {
     slopeScore = 25.0;
   } else if (courseSlope <= slopeLimit * 1.5) {
@@ -247,8 +254,8 @@ export function calculateAdaptiveCourseScore(
 export function extractCourseScore(course?: RecommendedCourse | null): number | null {
   if (!course) return null;
   if (typeof course.score === 'number' && !Number.isNaN(course.score)) return course.score;
-  const match = course.reason?.match(/맞춤 점수\s*(\d+)점/);
-  return match ? parseInt(match[1], 10) : null;
+  const match = course.reason ? /맞춤 점수\s*(\d+)점/.exec(course.reason) : null;
+  return match ? Number.parseInt(match[1], 10) : null;
 }
 
 /**

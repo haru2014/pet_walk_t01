@@ -178,11 +178,17 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     else:
         soft_percent, soft_text = None, "정보 없음"
     stairs = profile.get("stairs_count")
+    if stairs is None:
+        stairs_text = "정보 없음"
+    elif stairs == 0:
+        stairs_text = "확인된 계단 0회"
+    else:
+        stairs_text = f"{stairs}회"
     return {
         "maxSlopePercent": profile.get("max_slope_percent"),
         "softSurfacePercent": soft_percent,
         "softRatio": soft_text,
-        "stairsCount": "정보 없음" if stairs is None else f"{stairs}회",
+        "stairsCount": stairs_text,
     }
 
 
@@ -204,7 +210,7 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "estimatedMinutes": int(cand.estimated_duration_minutes),
         "softRatio": "85%" if is_soft else "60%",
         "shadeLevel": "많음" if cand.average_shade_ratio > 0.5 else "보통",
-        "stairsCount": "0회" if not cand.has_stairs else "계단 있음",
+        "stairsCount": "확인된 계단 0회" if not cand.has_stairs else "계단 있음",
         "maxSlopePercent": cand.max_slope_percent,
         "shadePercent": int(cand.average_shade_ratio * 100),
         "softSurfacePercent": 85 if "grass" in surface_types else 65,
@@ -732,13 +738,19 @@ def _run_walk_share(action, walk_id: str, authorization: Optional[str]):
         raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
 
 
-@app.post("/api/v1/walks/{walk_id}/share")
+_WALK_SHARE_RESPONSES = {
+    422: {"description": "산책 기록 ID 형식이 올바르지 않음 (UUID 형식 오류)"},
+    503: {"description": "데이터베이스 미연결 상태"},
+}
+
+
+@app.post("/api/v1/walks/{walk_id}/share", responses=_WALK_SHARE_RESPONSES)
 def share_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 본인 산책 기록을 서버가 200m 마스킹한 좌표로 공개한다. (Authorization: Bearer <로그인 토큰>)"""
     return _run_walk_share(share_walk, walk_id, authorization)
 
 
-@app.post("/api/v1/walks/{walk_id}/unshare")
+@app.post("/api/v1/walks/{walk_id}/unshare", responses=_WALK_SHARE_RESPONSES)
 def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
     return _run_walk_share(unshare_walk, walk_id, authorization)
