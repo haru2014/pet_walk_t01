@@ -42,7 +42,8 @@ def park_boundary_metadata(park_id: str) -> dict:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 경계 출처와 버전을 확인할 수 없습니다.")
 
 
-_ALLOWED_HIGHWAYS = {"footway", "pedestrian", "path"}
+# cycleway 는 보행망 파일에 넣기로 한 공원(세종, #148)에만 들어 있다. 보행 금지(foot=no)는 아래에서 뺀다
+_ALLOWED_HIGHWAYS = {"footway", "pedestrian", "path", "cycleway"}
 _DISALLOWED_ACCESS = {"no", "private", "customers", "permit", "delivery", "military"}
 _DISALLOWED_FOOT = {"no", "private"}
 

@@ -73,7 +73,7 @@ def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: s
 @pytest.mark.parametrize("parking_id, code", [
     ("pkg_yurim_01", "ORIGIN_NOT_CONNECTED"),
     ("pkg_songgang_01", "ORIGIN_NOT_CONNECTED"),
-    ("pkg_sejong_02", "ORIGIN_NOT_CONNECTED"),  # 보행망까지 약 198m (주변 길이 자전거도로라 보행망에서 빠짐)
+    ("pkg_sejong_02", "ORIGIN_NOT_CONNECTED"),  # 공원 경계 밖, 경계 안 가까운 보행로는 작은 조각 (자전거도로 포함 후에도, #148)
     ("pkg_doan_01", "ORIGIN_NOT_CONNECTED"),
     # 갑천생태호수공원 남쪽 구역은 OSM 보행로가 1.3km 뿐이고 순환로가 없다 (주차장 C data_issue 참고)
     ("opr_doan_c", "NO_VALID_LOOP"),
@@ -109,3 +109,16 @@ def test_parking_pnr_target_distance_convergence(monkeypatch):
         if plan.source == "osrm_live":
             error_rate = abs(plan.distance_m - target_distance) / target_distance
             assert error_rate <= 0.15, f"Variant {variant} 거리 오차 {error_rate * 100:.1f}%가 허용치 15%를 초과했습니다."
+
+
+def test_sejong_walk_network_includes_shared_cycleways_only_there():
+    """세종호수공원 보행망은 보행 금지 표시가 없는 자전거도로를 포함하고, 다른 공원은 그대로다 (#148)."""
+    from agent.park_route_validation import build_park_graph, load_park_networks
+    networks = load_park_networks()
+    sejong_cycleways = [w for w in networks["sejong"]["ways"] if w["tags"].get("highway") == "cycleway"]
+    assert sejong_cycleways
+    assert all(w["tags"].get("foot") not in ("no", "private") for w in sejong_cycleways)
+    cycleway_ids = {w["way_id"] for w in sejong_cycleways}
+    assert any(data["way_id"] in cycleway_ids for _, _, data in build_park_graph("sejong").edges(data=True))
+    for park_id in ("yurim", "songgang", "doan"):
+        assert all(w["tags"].get("highway") != "cycleway" for w in networks[park_id]["ways"])

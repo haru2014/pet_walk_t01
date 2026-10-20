@@ -25,6 +25,9 @@ QUERIES = {
     "sejong": ("127.267,36.491,127.283,36.505", "세종호수공원", "relation/9734480"),
     "doan": ("127.347,36.324,127.355,36.338", "갑천 생태호수공원", "relation/19159630"),
 }
+WALK_HIGHWAYS = ("footway", "path", "pedestrian")
+# 세종호수공원은 공원 안 길 일부가 자전거도로로만 등록돼 보행망이 끊긴다. 보행 금지 표시가 없으면 넣는다 (#148)
+CYCLEWAY_PARKS = {"sejong"}
 
 
 def _fetch(url):
@@ -83,7 +86,8 @@ def main(selected=None):
             if osm_type != "relation" and tags.get("leisure") == "park" and (way.attrib["id"] == osm_id if osm_id else tags.get("name") == name):
                 if len(coords) >= 4 and coords[0] == coords[-1]:
                     matches.append((way, Polygon(coords)))
-            if tags.get("highway") in ("footway", "path", "pedestrian") and tags.get("access") not in ("private", "no") and tags.get("foot") not in ("private", "no"):
+            highways = WALK_HIGHWAYS + (("cycleway",) if park_id in CYCLEWAY_PARKS else ())
+            if tags.get("highway") in highways and tags.get("access") not in ("private", "no") and tags.get("foot") not in ("private", "no"):
                 ways.append({"way_id": way.attrib["id"], "version": way.attrib["version"], "tags": tags, "coordinates": coords})
         if osm_type == "relation":
             found = _relation_polygon(osm_id, name)
