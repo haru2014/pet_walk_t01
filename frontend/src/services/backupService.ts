@@ -206,7 +206,7 @@ function parseWeight(val: unknown): number | null {
 
 function parseJointCare(val: unknown): JointCareLevel {
   const num = Number(val);
-  return num === 1 || num === 2 ? (num as JointCareLevel) : 0;
+  return num === 1 || num === 2 || num === 3 ? (num as JointCareLevel) : 0;
 }
 
 function sanitizeProfile(candidate: Record<string, unknown>, weight: number): DogProfile {
