@@ -36,7 +36,7 @@ vi.mock('maplibre-gl', () => ({
 describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () => {
   const mockDog = DEFAULT_DOGS[0];
 
-  it('Park Walk Mode 메인 카드와 Trail info 섹션을 정상 렌더링한다', () => {
+  it('바로 산책하기 메인 카드와 Trail info 섹션을 정상 렌더링한다', () => {
     const html = renderToStaticMarkup(
       <HomeScreen
         dog={mockDog}
@@ -51,8 +51,8 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
       />
     );
 
-    // 1. 메인 카드 타이틀 & 통계
-    expect(html).toContain('Park Walk Mode');
+    // 1. 메인 카드 타이틀 & 통계 ("바로 산책하기")
+    expect(html).toContain('바로 산책하기');
     expect(html).toContain('산책');
     expect(html).toContain('2.1 km');
     expect(html).toContain('30분');
@@ -98,6 +98,6 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
       />
     );
 
-    expect(html).toContain('알림 확인');
+    expect(html).toContain('알림');
   });
 });

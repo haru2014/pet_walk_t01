@@ -16,7 +16,8 @@ import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
 import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
-import bellIconImg from '../../../assets/ui_n2/bell_icon.png';
+
+const BELL_ICON_IMG = require('../../../assets/images/home/bell_icon.png');
 
 export interface HomeParkWalkCardN2Props {
   dog: DogProfile;
@@ -39,7 +40,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   onStartWalk,
   estimatedMinutes = 30,
   distanceKm = '2.1 km',
-  courseName = 'Park Walk Mode',
+  courseName = '바로 산책하기',
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
@@ -78,9 +79,10 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
               onPress={onPressNotification}
               style={styles.bellButton}
               activeOpacity={0.75}
-              accessibilityLabel="알림 확인"
+              accessibilityLabel="알림"
+              accessibilityRole="button"
             >
-              <Image source={bellIconImg} style={styles.bellIcon} resizeMode="contain" />
+              <Image source={BELL_ICON_IMG} style={styles.bellIcon} resizeMode="contain" />
             </TouchableOpacity>
           </View>
         </View>

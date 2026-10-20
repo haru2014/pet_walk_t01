@@ -18,6 +18,7 @@ export default defineConfig({
   plugins: [imageMockPlugin()],
   test: {
     environment: 'node',
+    setupFiles: ['./vitest.setup.mjs'],
     server: {
       deps: {
         inline: ['react-native-web', 'react-native-svg'],

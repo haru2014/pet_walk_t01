@@ -1,15 +1,15 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 홈 화면 (디자인 시안 02번 Dusty Amber & Sage Green - Phase 1 무스크롤 개편)
+ * 모바일 홈 화면 (디자인 시안 02번 Dusty Amber & Sage Green - Phase 2 개선)
  * (docs/reference/UI개선/prompt/UI오류수정_계획.md 기준)
  *
- * 1. 상단 좌측 버튼 및 상단 헤더 빈 공간 완전 제거 (공간 회수)
- * 2. 갈색 카드(HomeParkWalkCardN2) 내부로 알림 종 버튼 이관 및 강아지 드롭다운(48px 이상) 연동
- * 3. 지도 영역 flex: 1 반응형 전환 (남는 높이 채움)
- * 4. UX_COMPACT_RULES.md 11번 '스크롤 금지' 적용 (ScrollView/RefreshControl 제거 및 자동 갱신)
+ * 1. 상단 좌측 버튼/빈 공간 제거 및 갈색 카드 내 알림 버튼 이관
+ * 2. 갈색 카드 타이틀 '바로 산책하기' 적용
+ * 3. Trail info 카드 터치 시 기존 골든타임 모달(WeatherDetailModal, SSOT) 연동
+ * 4. 지도 flex: 1 반응형 및 무스크롤 레이아웃
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { DogProfile } from '../types/dogProfile';
 import { FeedbackSummaryPayload } from '../services/feedbackContext';
@@ -18,9 +18,14 @@ import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { warmupBackendServer } from '../services/apiClient';
+import { useAppTheme } from '../theme/themeManager';
 
 import { HomeParkWalkCardN2 } from '../components/home/HomeParkWalkCardN2';
 import { HomeTrailInfoCardN2 } from '../components/home/HomeTrailInfoCardN2';
+import {
+  WeatherDetailModal,
+  computeWeatherModalProps,
+} from '../components/home/GoldenTimeWidget';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -49,9 +54,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenStats,
   onOpenNotification,
 }) => {
+  const { colors } = useAppTheme();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
+  const [weatherModalVisible, setWeatherModalVisible] = useState(false);
 
   useEffect(() => {
     warmupBackendServer();
@@ -78,6 +85,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, []);
 
+  const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
+
   return (
     <View style={styles.container}>
       {/* 1. 상단 Sage Green 배경 영역 (마스코트 및 메인 카드) */}
@@ -91,7 +100,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onStartWalk={onStartWalk}
           estimatedMinutes={30}
           distanceKm="2.1 km"
-          courseName="Park Walk Mode"
+          courseName="바로 산책하기"
         />
       </View>
 
@@ -104,6 +113,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         weeklyStats={weeklyStats}
         onOpenStats={onOpenStats}
         onOpenPlanner={onOpenPlanner}
+        onOpenWeatherModal={() => setWeatherModalVisible(true)}
+      />
+
+      {/* 3. Trail info 터치 시 열리는 기존 골든타임 상세 모달 (SSOT 재사용) */}
+      <WeatherDetailModal
+        visible={weatherModalVisible}
+        onClose={() => setWeatherModalVisible(false)}
+        colors={colors}
+        quotient={modalProps.quotient}
+        subtitleText={modalProps.subtitleText}
+        currentAirTemp={modalProps.currentAirTemp}
+        roundedSurfaceTemp={modalProps.roundedSurfaceTemp}
+        riskLevel={modalProps.riskLevel}
+        popPercent={modalProps.popPercent}
+        airQualityColor={modalProps.airQualityColor}
+        airQualityLabel={modalProps.airQualityLabel}
+        airQuality={modalProps.airQuality}
+        isTomorrow={modalProps.isTomorrow}
+        timeRangeDisplay={modalProps.timeRangeDisplay}
+        weather={weather}
       />
     </View>
   );

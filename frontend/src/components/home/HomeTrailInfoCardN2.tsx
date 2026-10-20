@@ -32,6 +32,7 @@ export interface HomeTrailInfoCardN2Props {
   weeklyStats: WeeklyWalkStats | null;
   onOpenStats?: () => void;
   onOpenPlanner?: () => void;
+  onOpenWeatherModal?: () => void;
 }
 
 export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
@@ -42,6 +43,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   weeklyStats,
   onOpenStats,
   onOpenPlanner,
+  onOpenWeatherModal,
 }) => {
   // 실시간 기상 및 지면온도 브리핑 문구 생성
   const surfaceTemp = weather?.current_surface_temp ?? 24.8;
@@ -62,12 +64,13 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
       {/* 1. 상단 핸들 바 */}
       <View style={styles.handleBar} />
 
-      {/* 2. 메인 Trail info 카드 */}
+      {/* 2. 메인 Trail info 카드 (골든타임 기상 모달 오픈) */}
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={onOpenPlanner}
+        onPress={onOpenWeatherModal ?? onOpenPlanner}
         style={styles.trailCard}
-        accessibilityLabel="산책로 정보 및 코스 탐색"
+        accessibilityRole="button"
+        accessibilityLabel="골든타임 산책로 정보 및 기상 상세 보기"
       >
         <View style={styles.cardTextCol}>
           <Text style={styles.trailTitle}>Trail info</Text>
