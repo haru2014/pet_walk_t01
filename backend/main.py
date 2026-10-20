@@ -383,6 +383,13 @@ def _update_park_briefing(
         agent_result.briefing_message = heat_notice + agent_result.briefing_message
     if validations[best.route_id]["duration_is_alternative"]:
         agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
+    approach_m = validations[best.route_id].get("entry_approach_m") or 0
+    if approach_m:
+        # 공원 경계 밖 주차장 출발 (#160): 공원 코스는 목표 시간에 맞추고 진입로 왕복을 더했다
+        agent_result.briefing_message += (
+            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 공원 밖 보행로를 왕복하는 시간이 포함돼 있고,"
+            f" 공원 안 코스는 약 {validations[best.route_id]['loop_estimated_minutes']:.0f}분입니다."
+        )
 
 
 def _validate_and_finalize_park_candidates(
@@ -593,7 +600,8 @@ def plan_walk_route(req: Dict[str, Any]):
             origin_lon=origin_lon,
             origin_mode=origin_mode,
             parking_lot_id=parking_lot_id,
-            pilot_park_id=pilot_park_id,
+            # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
+            pilot_park_id=selected_park or pilot_park_id,
         )
 
         validations = {}

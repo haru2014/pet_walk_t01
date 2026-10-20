@@ -528,6 +528,7 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
     후보의 경사·계단·그늘·지면온도도 실측값으로 바꿔, 카드·안내 문구가 같은 값을 보게 한다.
     기존 score_candidate_route(고정 프로필)는 비교·검토용으로 남겨 둔다.
     """
+    from agent.park_route_validation import entry_approach_length_m
     from agent.personalized_scorer import score_personalized
     from services.route_profile import measure_route_profile
 
@@ -539,8 +540,10 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
     scored_list: List[ScoredRoute] = []
     for c in candidates:
         profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
+        # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
+        approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
         result = score_personalized(
-            profile, distance_m=c.total_distance_m, target_distance_m=target_dist,
+            profile, distance_m=c.total_distance_m - 2 * approach_m, target_distance_m=target_dist,
             joint_care_level=int(dog.get("joint_care_level", 1)),
             calibrated_max_slope=state.get("max_slope_allowed"),
             avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
