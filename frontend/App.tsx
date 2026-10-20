@@ -85,11 +85,15 @@ export default function App() {
       } else {
         // Migrate the previous single-profile key while retaining the app's sample profiles.
         const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        const migratedDogs = savedProfile
-          ? (DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id)
+        let migratedDogs: DogProfile[];
+        if (savedProfile) {
+          const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
+          migratedDogs = exists
             ? DEFAULT_DOGS.map((dog) => dog.id === savedProfile.id ? savedProfile : dog)
-            : [savedProfile, ...DEFAULT_DOGS])
-          : [...DEFAULT_DOGS];
+            : [savedProfile, ...DEFAULT_DOGS];
+        } else {
+          migratedDogs = [...DEFAULT_DOGS];
+        }
         setDogs(migratedDogs);
         setSelectedDogId(savedProfile?.id ?? migratedDogs[0].id);
         await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
@@ -119,8 +123,7 @@ export default function App() {
   };
 
   const handleDeleteDog = async (dogId: string) => {
-    const dogToDelete = dogs.find((dog) => dog.id === dogId);
-    if (!dogToDelete) return;
+    if (!dogs.some((dog) => dog.id === dogId)) return;
 
     const updatedDogs = dogs.filter((dog) => dog.id !== dogId);
     const nextSelectedDog = updatedDogs.find((dog) => dog.id === selectedDogId) ?? updatedDogs[0];
@@ -260,9 +263,10 @@ export default function App() {
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
 
-    const finalDistanceKm = distKm > 0
-      ? distKm
-      : (walk.stats.elapsedSec >= 120 ? courseDistKm : Math.round(distKm * 10) / 10);
+    let finalDistanceKm = distKm;
+    if (distKm <= 0) {
+      finalDistanceKm = walk.stats.elapsedSec >= 120 ? courseDistKm : Math.round(distKm * 10) / 10;
+    }
 
     const newRecord: WalkRecord = {
       id: `walk_${Date.now()}`,
@@ -439,8 +443,8 @@ export default function App() {
         {/* 하단 메인 메뉴(BottomTabBar)가 유지되는 기본 앱 컨테이너 */}
         {subScreen !== 'onboarding' && subScreen !== 'pocket' && (subScreen !== 'report' || !completedRecord) && (
           <View style={styles.mainContainer}>
-            {/* 메인 상단 헤더: subScreen이 'main'이고 activeTab이 '산책'이 아닐 때만 렌더링 (각 서브스크린은 자체 헤더 보유) */}
-            {subScreen === 'main' && activeTab !== '산책' && (
+            {/* 메인 상단 헤더: subScreen이 'main'이고 activeTab이 '산책'이나 '홈'이 아닐 때만 렌더링 (홈 화면은 디자인 02번 전용 HomeHeaderN2 보유) */}
+            {subScreen === 'main' && activeTab !== '산책' && activeTab !== '홈' && (
               <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.logoGroup}>
                   <View style={[styles.logoBadge, { backgroundColor: colors.primary }]}>
@@ -505,6 +509,8 @@ export default function App() {
                       setMyProfileSubTab('walk_records');
                       setActiveTab('마이');
                     }}
+                    onOpenMenu={() => setSubScreen('dog_selection')}
+                    onOpenNotification={() => Alert.alert('알림', '새로운 산책 알림이 없습니다.')}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (
