@@ -73,14 +73,18 @@ function getAirTempForHour(hour: number): number {
   return Math.round((midTemp + amplitude * Math.cos(radians)) * 10) / 10;
 }
 
+export const SAFE_MAX_SURFACE_TEMP = 33.0; // Issue #153 나 안: 추정 33℃ 이하만 안전 (여유 두기)
+export const CAUTION_MAX_SURFACE_TEMP = 45.0;
+export const NO_SUN_SURFACE_OFFSET_C = 1.6; // Issue #153 다 안: 밤·흐릴 때 관측 지면이 기온보다 높은 평균 오차(1.6℃) 보정
+
 /**
- * 안전 지면온도(<=35℃) 여부 및 위험도 판별
+ * 안전 지면온도(<=33℃) 여부 및 위험도 판별 (Issue #153)
  */
 function evaluateRisk(surfaceTemp: number): { riskLevel: HeatRiskLevel; isGolden: boolean } {
-  if (surfaceTemp <= 35.0) {
+  if (surfaceTemp <= SAFE_MAX_SURFACE_TEMP) {
     return { riskLevel: 'SAFE', isGolden: true };
   }
-  if (surfaceTemp <= 45.0) {
+  if (surfaceTemp <= CAUTION_MAX_SURFACE_TEMP) {
     return { riskLevel: 'CAUTION', isGolden: false };
   }
   return { riskLevel: 'DANGER', isGolden: false };
@@ -183,16 +187,17 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
   for (let h = 0; h < 24; h++) {
     const airTemp = getAirTempForHour(h);
     const weight = getInsolationWeightForHour(h);
-    const surfaceTemp = Math.round((airTemp + weight * 15.0) * 10) / 10;
+    // Issue #153 다 안: 해 없을 때(밤·흐림) 관측 지면이 기온보다 평균 1.6℃ 높은 점 반영
+    const surfaceTemp = Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 15.0) * 10) / 10;
     const { riskLevel, isGolden } = evaluateRisk(surfaceTemp);
     const solarRadiation = Math.round(weight * 1000 * 10) / 10;
     const surfaceTemps = {
-      asphalt: Math.round((airTemp + weight * 18.0) * 10) / 10,
-      paved: Math.round((airTemp + weight * 14.0) * 10) / 10,
-      rubber: Math.round((airTemp + weight * 12.0) * 10) / 10,
-      dirt: Math.round((airTemp + weight * 12.6) * 10) / 10, // 서버 SURFACE_HEAT_GAIN_MAP["dirt"] 와 같은 값 (ASOS 관측 적합)
-      grass: Math.round((airTemp + weight * 4.0) * 10) / 10,
-      gravel: Math.round((airTemp + weight * 10.0) * 10) / 10,
+      asphalt: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 18.0) * 10) / 10,
+      paved: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 14.0) * 10) / 10,
+      rubber: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 12.0) * 10) / 10,
+      dirt: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 12.6) * 10) / 10, // 서버 SURFACE_HEAT_GAIN_MAP["dirt"] 와 같은 값 (ASOS 관측 적합)
+      grass: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 4.0) * 10) / 10,
+      gravel: Math.round((airTemp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * 10.0) * 10) / 10,
     };
 
     hourly.push({

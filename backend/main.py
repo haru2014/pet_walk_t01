@@ -53,8 +53,12 @@ from services.route_profile import measure_route_profile
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
+    CAUTION_MAX_C,
+    NO_SUN_SURFACE_OFFSET_C,
+    SAFE_MAX_C,
     SURFACE_HEAT_GAIN_MAP,
     build_heat_risk_response,
+    estimate_surface_temp,
     build_open_meteo_heat_risk_response,
     weather_context_from_response,
 )
@@ -174,11 +178,17 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     else:
         soft_percent, soft_text = None, "정보 없음"
     stairs = profile.get("stairs_count")
+    if stairs is None:
+        stairs_text = "정보 없음"
+    elif stairs == 0:
+        stairs_text = "확인된 계단 0회"
+    else:
+        stairs_text = f"{stairs}회"
     return {
         "maxSlopePercent": profile.get("max_slope_percent"),
         "softSurfacePercent": soft_percent,
         "softRatio": soft_text,
-        "stairsCount": "정보 없음" if stairs is None else f"{stairs}회",
+        "stairsCount": stairs_text,
     }
 
 
@@ -200,7 +210,7 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "estimatedMinutes": int(cand.estimated_duration_minutes),
         "softRatio": "85%" if is_soft else "60%",
         "shadeLevel": "많음" if cand.average_shade_ratio > 0.5 else "보통",
-        "stairsCount": "0회" if not cand.has_stairs else "계단 있음",
+        "stairsCount": "확인된 계단 0회" if not cand.has_stairs else "계단 있음",
         "maxSlopePercent": cand.max_slope_percent,
         "shadePercent": int(cand.average_shade_ratio * 100),
         "softSurfacePercent": 85 if "grass" in surface_types else 65,
@@ -365,7 +375,7 @@ def _update_park_briefing(
     surface_temp = current_weather.get("estimated_surface_temp")
     if isinstance(surface_temp, (int, float)):
         heat_notice = f"지면온도 {surface_temp:.1f}℃입니다. "
-        if surface_temp > 35:
+        if surface_temp > SAFE_MAX_C:
             heat_notice += (
                 f"그늘 숲길을 이용하고 뜨거운 지면을 피해 "
                 f"{weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
@@ -728,13 +738,19 @@ def _run_walk_share(action, walk_id: str, authorization: Optional[str]):
         raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
 
 
-@app.post("/api/v1/walks/{walk_id}/share")
+_WALK_SHARE_RESPONSES = {
+    422: {"description": "산책 기록 ID 형식이 올바르지 않음 (UUID 형식 오류)"},
+    503: {"description": "데이터베이스 미연결 상태"},
+}
+
+
+@app.post("/api/v1/walks/{walk_id}/share", responses=_WALK_SHARE_RESPONSES)
 def share_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 본인 산책 기록을 서버가 200m 마스킹한 좌표로 공개한다. (Authorization: Bearer <로그인 토큰>)"""
     return _run_walk_share(share_walk, walk_id, authorization)
 
 
-@app.post("/api/v1/walks/{walk_id}/unshare")
+@app.post("/api/v1/walks/{walk_id}/unshare", responses=_WALK_SHARE_RESPONSES)
 def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
     return _run_walk_share(unshare_walk, walk_id, authorization)
@@ -765,14 +781,17 @@ def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
         dto = determine_heat_risk_dto(hour=h, air_temp=air_temp, sky=sky)
         d = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
         d["solar_radiation_w_m2"] = round(weight * 1000.0, 1)
-        d["surface_temps"] = {
-            "asphalt": round(air_temp + weight * 18.0, 1),
-            "paved": round(air_temp + weight * 14.0, 1),
-            "dirt": round(air_temp + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
-            "grass": round(air_temp + weight * 4.0, 1),
-        }
+        d["surface_temps"] = _fallback_surface_temps(air_temp, weight)
         hourly.append(d)
     return hourly
+
+
+def _fallback_surface_temps(air_temp: float, weight: float) -> Dict[str, float]:
+    """대체 응답의 노면별 지면온도 (무일사 기저 오프셋 포함, weather_context 상수와 같은 값)."""
+    return {
+        surface: round(air_temp + NO_SUN_SURFACE_OFFSET_C * (1.0 - weight) + weight * SURFACE_HEAT_GAIN_MAP[surface], 1)
+        for surface in ("asphalt", "paved", "dirt", "grass")
+    }
 
 
 def _extract_safe_blocks(hourly: List[Dict[str, Any]]) -> List[Tuple[int, int]]:
@@ -826,11 +845,11 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
             curr = om_data.get(hour_start)
             if curr:
                 weight = open_meteo_client.radiation_to_weight(curr["radiation"]) if (6 <= now_hour < 20) else 0.0
-                surface = round(curr["air"] + weight * 15.0, 1)
-                is_golden = surface <= 35.0
+                surface = estimate_surface_temp(curr["air"], weight)
+                is_golden = surface <= SAFE_MAX_C  # Issue #153 나 안: 33℃ 이하만 안전
                 if is_golden:
                     risk_lvl = "SAFE"
-                elif surface <= 45.0:
+                elif surface <= CAUTION_MAX_C:
                     risk_lvl = "CAUTION"
                 else:
                     risk_lvl = "DANGER"
@@ -840,12 +859,7 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "air_temp_celsius": curr["air"],
                     "estimated_surface_temp": surface,
                     "solar_radiation_w_m2": round(weight * 1000.0, 1),
-                    "surface_temps": {
-                        "asphalt": round(curr["air"] + weight * 18.0, 1),
-                        "paved": round(curr["air"] + weight * 14.0, 1),
-                        "dirt": round(curr["air"] + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
-                        "grass": round(curr["air"] + weight * 4.0, 1),
-                    },
+                    "surface_temps": _fallback_surface_temps(curr["air"], weight),
                     "risk_level": risk_lvl,
                     "is_golden_time": is_golden,
                     "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",

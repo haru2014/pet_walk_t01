@@ -87,7 +87,7 @@ export function extractLocalVoiceIntent(speechText: string, dogName?: string): V
       avoid_stairs,
       joint_care_level,
       destination_landmark,
-      max_surface_temp_limit: 35.0,
+      max_surface_temp_limit: 33.0,
       briefing_message: sanitizeVoiceBriefing(briefing),
     },
     landmark_park_id,

@@ -619,16 +619,16 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     user_query = state.get("user_query", "")
     is_hot_query = any(k in user_query for k in ["더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕", "시원한", "그늘"])
     surface_temp = current_weather.get("estimated_surface_temp", 29.5)
-    is_golden = current_weather.get("is_golden_time", surface_temp <= 35.0)
+    is_golden = current_weather.get("is_golden_time", surface_temp <= 33.0)  # Issue #153 나 안: 33℃ 이하만 안전
 
-    # 1. 지면온도가 35℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
+    # 1. 지면온도가 33℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
     if not is_golden or (is_hot_query and surface_temp > 33.0):
         briefing = (
             f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
             f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 계단 걱정 없이 경사가 완만한 폭신한 길과 시원한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
             f"약 {duration}분({int(dist_m)}m) 동안 발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
         )
-    # 2. 지면온도 35℃ 이하 안전 골든타임
+    # 2. 지면온도 33℃ 이하 안전 골든타임
     else:
         briefing = (
             f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요. "
