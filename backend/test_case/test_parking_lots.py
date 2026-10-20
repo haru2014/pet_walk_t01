@@ -118,6 +118,7 @@ class TestFixtureData:
         카카오 로컬 API 결과는 운영정책상 저장하지 않으므로 좌표·주소 대신 장소 ID 만 근거로 남긴다.
         """
         from shapely.geometry import Point, shape
+        from shapely.ops import nearest_points
         from agent.route_geometry import haversine_m
         from services.parking_lots import DEFAULT_DATA_PATH
         polygons = json.loads((DEFAULT_DATA_PATH.parent / "park_polygons_pilot.json").read_text(encoding="utf-8"))
@@ -129,8 +130,8 @@ class TestFixtureData:
             assert lot["status"] == "park_operator" and lot["capacity"] == capacity, parking_id
             assert "sjfmc.or.kr" in lot["source"] and "OSM way/" in lot["coordinate_basis"], parking_id
             assert "카카오맵 장소 ID" in lot["coordinate_basis"], parking_id
-            boundary = sejong.boundary
-            nearest = boundary.interpolate(boundary.project(Point(lot["entrance_lon"], lot["entrance_lat"])))
+            # 경계가 여러 조각(MultiPolygon)이라 project/interpolate 대신 nearest_points 로 가장 가까운 점을 구한다
+            nearest = nearest_points(Point(lot["entrance_lon"], lot["entrance_lat"]), sejong.boundary)[1]
             assert haversine_m([lot["entrance_lon"], lot["entrance_lat"]], [nearest.x, nearest.y]) < 300, parking_id
         assert lots["pkg_sejong_04"]["status"] == "legacy_unverified"  # 제4주차장은 공식 안내에 없어 그대로 둔다
 

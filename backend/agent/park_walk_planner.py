@@ -9,7 +9,7 @@ import math
 
 import networkx as nx
 
-from agent.park_route_validation import build_park_graph, snap_park_origin, RoutePlanningError
+from agent.park_route_validation import build_park_graph, resolve_park_start, RoutePlanningError
 from agent.route_geometry import polyline_length_m
 
 CANDIDATE_COUNT = 3
@@ -96,7 +96,9 @@ def _select_distinct(candidates: list) -> list:
 def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float) -> list:
     """서로 다른 순환 코스 후보 3개 (1안이 목표 거리에 가장 가깝다). 같은 그래프·요청이면 다시 계산하지 않는다."""
     graph = build_park_graph(park_id)
-    start = snap_park_origin(graph, (origin_lon, origin_lat))
+    # 경계 밖 주차장은 저장된 진입로 끝에서 공원 코스를 만들고, 진입로를 앞뒤로 붙인다 (#160).
+    # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
+    start, approach = resolve_park_start(graph, park_id, (origin_lon, origin_lat))
     key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1))
     cached = _CANDIDATE_CACHE.get(key)
     if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
@@ -106,6 +108,8 @@ def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float
         if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
             _CANDIDATE_CACHE.clear()
         _CANDIDATE_CACHE[key] = (graph, routes)
+    if approach is not None:
+        routes = [approach[:-1] + list(route) + list(reversed(approach))[1:] for route in routes]
     return [[list(point) for point in route] for route in routes]  # 호출한 쪽이 고쳐도 캐시는 그대로
 
 
