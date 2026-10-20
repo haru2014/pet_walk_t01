@@ -29,27 +29,32 @@ def _flatten(route):
 
 def test_short_route_returns_empty_profile():
     profile = measure_route_profile([[127.35, 36.36]], "yurim")
-    assert profile["distance_m"] == 0.0 and profile["surface_breakdown"] is None
+    assert profile["distance_m"] == 0.0
+    assert profile["surface_breakdown"] is None
 
 
 def test_slope_uses_the_same_method_as_the_route_metrics():
     coords = [list(n) for n in list(build_park_graph("yurim").nodes)[:40]]
     profile = measure_route_profile(coords)
     assert profile["max_slope_percent"] == evaluate_route_metrics(coords)["max_slope_percent"]
-    assert profile["slope_source"] == "approximation" and profile["elevation_source"] is None  # 테스트는 DEM 끔
+    assert profile["slope_source"] == "approximation"
+    assert profile["elevation_source"] is None  # 테스트는 DEM 끔
 
 
 def test_outside_parks_surface_is_unknown_and_stairs_come_from_osm_steps():
     profile = measure_route_profile([[127.3780, 36.3510], [127.3790, 36.3515], [127.3800, 36.3510]])
     assert profile["basis"] == "no_osm_tags"
-    assert profile["surface_breakdown"] is None and profile["soft_surface_ratio"] is None
+    assert profile["surface_breakdown"] is None
+    assert profile["soft_surface_ratio"] is None
     assert profile["shade_ratio"] is None
-    assert profile["stairs_count"] == 0 and profile["stairs_source"] == "OpenStreetMap highway=steps (ODbL)"
+    assert profile["stairs_count"] == 0
+    assert profile["stairs_source"] == "OpenStreetMap highway=steps (ODbL)"
 
 
 def test_outside_pilot_area_stairs_stay_unknown():
     profile = measure_route_profile([[126.9780, 37.5665], [126.9790, 37.5670], [126.9800, 37.5665]])  # 서울
-    assert profile["stairs_count"] is None and profile["stairs_source"] is None
+    assert profile["stairs_count"] is None
+    assert profile["stairs_source"] is None
 
 
 class TestOsmSteps:
@@ -128,7 +133,8 @@ def test_songgang_paths_have_no_surface_tags_so_surface_is_unknown():
     """송강 보행망 way 22개는 surface 태그가 없다 (P0 품질표): 폭신한 노면 비율을 지어내지 않는다."""
     profile = next(iter(client.post("/api/v1/walk/plan", json=_park_body("songgang")).json()["course_profiles"].values()))
     assert profile["surface_breakdown"] == {"unknown": 1.0}
-    assert profile["surface_known_ratio"] == 0.0 and profile["soft_surface_ratio"] == 0.0
+    assert profile["surface_known_ratio"] == 0.0
+    assert profile["soft_surface_ratio"] == 0.0
 
 
 @pytest.mark.skipif(dem.rasterio is None, reason="rasterio 미설치: DEM 을 읽을 수 없다")
@@ -136,7 +142,8 @@ def test_dem_on_marks_the_slope_source(monkeypatch):
     monkeypatch.delenv(dem.ENV_DEM_DIR)  # 운영처럼 DEM_DIR 없음 → Copernicus
     try:
         profile = next(iter(client.post("/api/v1/walk/plan", json=_park_body("yurim")).json()["course_profiles"].values()))
-        assert profile["slope_source"] == "dem" and profile["elevation_source"] == "Copernicus DEM GLO-30"
+        assert profile["slope_source"] == "dem"
+        assert profile["elevation_source"] == "Copernicus DEM GLO-30"
     finally:
         dem.reset_default_dem()  # 연 DEM 파일을 닫아 다음 테스트·종료에 남기지 않는다
 
@@ -153,7 +160,8 @@ def test_course_cards_show_measured_values_not_fixed_profiles(park):
         if profile["surface_known_ratio"] >= 0.5:
             assert course["softSurfacePercent"] == round(profile["soft_surface_ratio"] * 100)
         else:
-            assert course["softSurfacePercent"] is None and course["softRatio"] == "정보 없음"
+            assert course["softSurfacePercent"] is None
+            assert course["softRatio"] == "정보 없음"
 
 
 def test_songgang_card_does_not_invent_soft_surface():
@@ -188,11 +196,13 @@ class TestShadeStage1:
 
     def test_doan_is_unknown_because_the_data_predates_the_park(self):
         for profile in client.post("/api/v1/walk/plan", json=_park_body("doan")).json()["course_profiles"].values():
-            assert profile["shade_ratio"] is None and profile["shade_source"] is None
+            assert profile["shade_ratio"] is None
+            assert profile["shade_source"] is None
 
     def test_routes_outside_parks_are_unknown(self):
         profile = measure_route_profile([[127.3780, 36.3510], [127.3790, 36.3515], [127.3800, 36.3510]])
-        assert profile["shade_ratio"] is None and profile["shade_source"] is None
+        assert profile["shade_ratio"] is None
+        assert profile["shade_source"] is None
 
     def test_missing_data_or_out_of_coverage_is_unknown_not_an_error(self, monkeypatch, tmp_path):
         from services import landcover
@@ -208,4 +218,5 @@ class TestShadeStage1:
     def test_notice_carries_the_required_attribution(self):
         from services import landcover
         notice = (landcover.LANDCOVER_PATH.parent / "NOTICE.md").read_text(encoding="utf-8")
-        assert landcover.LANDCOVER_ATTRIBUTION in notice and "CC BY 4.0" in notice
+        assert landcover.LANDCOVER_ATTRIBUTION in notice
+        assert "CC BY 4.0" in notice

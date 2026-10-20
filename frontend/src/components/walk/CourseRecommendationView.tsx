@@ -261,6 +261,15 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           const surfaceInfo = formatCourseSurface(currentCourse);
           const slopeInfo = formatCourseSlope(currentCourse);
 
+          let slopeContent: React.ReactNode;
+          if (slopeInfo.isUnknown) {
+            slopeContent = <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>;
+          } else if (slopeInfo.isApproximation) {
+            slopeContent = <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>;
+          } else {
+            slopeContent = <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>;
+          }
+
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Text style={[styles.metricText, { color: colors.textMuted }]}>
@@ -280,13 +289,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               </Text>
               <Text style={styles.metricDot}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMuted }]}>
-                {slopeInfo.isUnknown ? (
-                  <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>
-                ) : slopeInfo.isApproximation ? (
-                  <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>
-                ) : (
-                  <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>
-                )}
+                {slopeContent}
               </Text>
               <Text style={styles.metricDot}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMuted }]}>

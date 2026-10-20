@@ -188,9 +188,15 @@ export function calculateAdaptiveCourseScore(
   const targetMinutes = preferences?.durationMinutes ?? 30;
 
   // 1. 계단 (25점)
-  const stairsMatch = course.stairsCount?.match(/\d+/);
-  const stairsNum = stairsMatch ? parseInt(stairsMatch[0], 10) : (course.stairsCount === '계단 있음' ? 1 : 0);
-  let stairsScore = 15.0;
+  const stairsMatch = course.stairsCount ? /\d+/.exec(course.stairsCount) : null;
+  let stairsNum = 0;
+  if (stairsMatch) {
+    stairsNum = Number.parseInt(stairsMatch[0], 10);
+  } else if (course.stairsCount === '계단 있음') {
+    stairsNum = 1;
+  }
+
+  let stairsScore: number;
   if (stairsNum === 0) {
     stairsScore = 25.0;
   } else if (avoidStairs) {
@@ -207,7 +213,7 @@ export function calculateAdaptiveCourseScore(
     slopeLimit = Math.min(slopeLimit, feedbackLimit);
   }
   const courseSlope = course.maxSlopePercent ?? 3.0;
-  let slopeScore = 0.0;
+  let slopeScore: number;
   if (courseSlope <= slopeLimit) {
     slopeScore = 25.0;
   } else if (courseSlope <= slopeLimit * 1.5) {
@@ -248,8 +254,8 @@ export function calculateAdaptiveCourseScore(
 export function extractCourseScore(course?: RecommendedCourse | null): number | null {
   if (!course) return null;
   if (typeof course.score === 'number' && !Number.isNaN(course.score)) return course.score;
-  const match = course.reason?.match(/맞춤 점수\s*(\d+)점/);
-  return match ? parseInt(match[1], 10) : null;
+  const match = course.reason ? /맞춤 점수\s*(\d+)점/.exec(course.reason) : null;
+  return match ? Number.parseInt(match[1], 10) : null;
 }
 
 /**

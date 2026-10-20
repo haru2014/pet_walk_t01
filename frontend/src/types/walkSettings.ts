@@ -89,7 +89,7 @@ export interface CourseProfile {
   readonly distance_m?: number;
   readonly max_slope_percent?: number | null;
   readonly avg_slope_percent?: number | null;
-  readonly slope_source?: 'dem' | 'approximation' | 'unknown' | string;
+  readonly slope_source?: 'dem' | 'approximation' | 'unknown';
   readonly elevation_source?: string | null;
   readonly surface_breakdown?: Record<string, number> | null;
   readonly surface_known_ratio?: number | null;
@@ -113,7 +113,7 @@ export interface RecommendedCourse {
   reason: string;
   score?: number | null;
   profile?: CourseProfile | null;
-  slopeSource?: 'dem' | 'approximation' | 'unknown' | string;
+  slopeSource?: 'dem' | 'approximation' | 'unknown';
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
