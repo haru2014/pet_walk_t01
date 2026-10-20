@@ -596,14 +596,41 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     }
 
 
+# 폭신한 노면 비율은 노면 정보가 경로의 절반 이상 확인될 때만 말한다 (main.SOFT_SURFACE_MIN_KNOWN_RATIO 와 같은 값)
+_SOFT_SURFACE_MIN_KNOWN_RATIO = 0.5
+
+
+def _measured_route_phrase(profile: Dict[str, Any]) -> str:
+    """안내 문구용 코스 설명. 실측으로 확인된 값만 쓰고, 모르는 값은 말하지 않는다 (#114)."""
+    parts = []
+    stairs = profile.get("stairs_count")
+    if stairs == 0:
+        parts.append("확인된 계단 없음")
+    elif stairs:
+        parts.append(f"계단 {stairs}곳")
+    if profile.get("slope_source") == "dem" and profile.get("max_slope_percent") is not None:
+        parts.append(f"최대 경사 {profile['max_slope_percent']:.1f}%")
+    soft, known = profile.get("soft_surface_ratio"), profile.get("surface_known_ratio")
+    if soft is not None and known is not None and known >= _SOFT_SURFACE_MIN_KNOWN_RATIO:
+        parts.append(f"폭신한 노면 {round(soft * 100)}%")
+    if profile.get("shade_ratio") is not None:
+        parts.append(f"그늘 {round(profile['shade_ratio'] * 100)}%")
+    return " · ".join(parts)
+
+
 def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 5] 시선 해방(Eyes-Free) 핸즈프리 음성 안내 및 화면 브리핑 메시지 합성.
-    
+
     * 기상청 실시간 지면열 및 골든타임 동적 반영:
-      - 35℃ 초과 또는 더위 우려 질의 시: 폭염 지면열 경고 및 골든타임 권장, 그늘 숲길 우선 브리핑
-      - 35℃ 이하: 안전 골든타임 알림
+      - 33℃ 초과 또는 더위 우려 질의 시: 지면열 경고 및 골든타임 권장
+      - 33℃ 이하: 안전 골든타임 알림. 단, 지금 비가 오면 골든타임이라고 하지 않는다
+    * 비 예보(weather_context.precipitation)를 안내한다 (#114).
+    * 코스 설명은 실측 지표(계단·경사·노면·그늘)로만 말하고, 모르는 값은 말하지 않는다 (#114).
     * 웰니스 카피라이팅 가드레일: 임상 질병 용어(슬개골 탈구, 관절염 등) 100% 배제.
     """
+    from services.route_profile import measure_route_profile
+    from services.weather_context import SAFE_MAX_C, rain_notice
+
     trace = list(state.get("execution_trace", []))
     selected_dict = state.get("selected_route") or {}
     dog_ctx_dict = state.get("client_dog_context") or {}
@@ -622,22 +649,30 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     user_query = state.get("user_query", "")
     is_hot_query = any(k in user_query for k in ["더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕", "시원한", "그늘"])
     surface_temp = current_weather.get("estimated_surface_temp", 29.5)
-    is_golden = current_weather.get("is_golden_time", surface_temp <= 33.0)  # Issue #153 나 안: 33℃ 이하만 안전
+    is_golden = current_weather.get("is_golden_time", surface_temp <= SAFE_MAX_C)  # Issue #153 나 안: 33℃ 이하만 안전
+    precipitation = weather.get("precipitation") or {}
+    raining_now = bool(precipitation.get("known") and precipitation.get("is_precipitating_now"))
+
+    coords = selected_dict.get("geojson_coordinates") or []
+    park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
+    phrase = _measured_route_phrase(measure_route_profile(coords, park_id)) if coords else ""
+    route_text = f"'{route_name}'({phrase})" if phrase else f"'{route_name}'"
 
     # 1. 지면온도가 33℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
-    if not is_golden or (is_hot_query and surface_temp > 33.0):
-        briefing = (
-            f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
-            f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 계단 걱정 없이 경사가 완만한 폭신한 길과 시원한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
-            f"약 {duration}분({int(dist_m)}m) 동안 발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-        )
-    # 2. 지면온도 33℃ 이하 안전 골든타임
+    if not is_golden or (is_hot_query and surface_temp > SAFE_MAX_C):
+        heat = (f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
+                f"{golden_window} 산책을 권장하며, 지금 나가신다면 그늘을 따라 짧게 걸어 주세요.")
+        route_sentence = f"{breed} {dog_name}를 위해 {route_text}로 안내할게요."
+        closing = f"약 {duration}분({int(dist_m)}m) 코스예요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+    # 2. 지면온도 33℃ 이하: 비가 오지 않으면 안전 골든타임
     else:
-        briefing = (
-            f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요. "
-            f"{breed} {dog_name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주인 '{route_name}'를 준비했어요. "
-            f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-        )
+        heat = (f"현재 지면온도는 {surface_temp:.1f}℃로 발바닥에 뜨겁지 않아요." if raining_now
+                else f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요.")
+        route_sentence = f"{breed} {dog_name}와의 소중한 산책을 위해 {route_text}를 준비했어요."
+        closing = (f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. "
+                   "스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾")
+    rain = rain_notice(precipitation)
+    briefing = " ".join(part for part in (heat, rain, route_sentence, closing) if part)
 
     trace.append(f"[Node: synthesize_briefing] Synthesized wellness briefing. Total Score: {score}점, SurfaceTemp: {surface_temp}℃")
 

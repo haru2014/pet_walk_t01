@@ -96,7 +96,10 @@ class TestLangGraphAgentExecutionSeniorMaltese:
         briefing = result.briefing_message
         assert "코코" in briefing
         assert "말티즈" in briefing
-        assert "폭신한 길" in briefing or "완만한" in briefing
+        # 자료가 없는 서울 좌표: 확인하지 않은 계단·경사·노면을 말하지 않는다 (#114)
+        assert "준비했어요" in briefing
+        for unmeasured in ["폭신한", "완만한", "계단 걱정"]:
+            assert unmeasured not in briefing
         for forbidden in ["슬개골", "탈구", "관절염", "디스크", "질환", "환견"]:
             assert forbidden not in briefing
 

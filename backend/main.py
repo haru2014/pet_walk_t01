@@ -60,6 +60,7 @@ from services.weather_context import (
     build_heat_risk_response,
     estimate_surface_temp,
     build_open_meteo_heat_risk_response,
+    rain_notice,
     weather_context_from_response,
 )
 from test_case.test_api_contracts import (
@@ -381,6 +382,9 @@ def _update_park_briefing(
                 f"{weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
             )
         agent_result.briefing_message = heat_notice + agent_result.briefing_message
+    rain = rain_notice(weather_context.get("precipitation"))  # 비 예보 안내 (#114)
+    if rain:
+        agent_result.briefing_message = f"{rain} {agent_result.briefing_message}"
     if validations[best.route_id]["duration_is_alternative"]:
         agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
     approach_m = validations[best.route_id].get("entry_approach_m") or 0
