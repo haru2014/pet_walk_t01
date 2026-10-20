@@ -123,7 +123,7 @@ def extract_local_voice_intent(speech_text: str, dog_name: Optional[str] = None)
         avoid_stairs=avoid_stairs,
         joint_care_level=joint_level,
         destination_landmark=destination_landmark,
-        max_surface_temp_limit=35.0,
+        max_surface_temp_limit=33.0,
         briefing_message=briefing,
     )
 

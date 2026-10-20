@@ -29,8 +29,9 @@ from services import airkorea_client
 from services.kma_grid_converter import latlon_to_grid
 
 SURFACE_HEAT_GAIN_C = 15.0
-SAFE_MAX_C = 35.0      # 이하: SAFE (산책 골든타임)
+SAFE_MAX_C = 33.0      # 이하: SAFE (산책 골든타임, Issue #153 나 안: 35℃ → 33℃ 여유 두기)
 CAUTION_MAX_C = 45.0   # 이하: CAUTION, 초과: DANGER
+NO_SUN_SURFACE_OFFSET_C = 1.6  # 밤·흐릴 때 관측 지면이 기온보다 평균 1.6℃ 높은 점 반영 (Issue #153 다 안)
 INSOLATION_WEIGHTS = {"clear": 1.0, "partly_cloudy": 0.6, "overcast": 0.2, "rainy": 0.0, "night": 0.0}
 SKY_CODE_TO_CONDITION = {1: "clear", 3: "partly_cloudy", 4: "overcast"}
 GOLDEN_HOURS = range(6, 23)  # 06시~22시 사이만 산책 골든타임 후보
@@ -61,7 +62,8 @@ def sky_condition(sky_code: Optional[int], pty_code: Optional[int], daylight: bo
 
 
 def estimate_surface_temp(air_temp_c: float, insolation_weight: float) -> float:
-    return round(air_temp_c + insolation_weight * SURFACE_HEAT_GAIN_C, 1)
+    # 해 없을 때(밤·흐림) 관측 지면이 기온보다 평균 1.6℃ 높은 점 반영 (Issue #153 다 안)
+    return round(air_temp_c + NO_SUN_SURFACE_OFFSET_C * (1.0 - insolation_weight) + insolation_weight * SURFACE_HEAT_GAIN_C, 1)
 
 
 SURFACE_HEAT_GAIN_MAP = {
@@ -77,9 +79,9 @@ SURFACE_HEAT_GAIN_MAP = {
 
 
 def calculate_surface_temps(air_temp_c: float, insolation_weight: float) -> Dict[str, float]:
-    """노면 재질별 추정 지면온도 (US-B2 노면 비용 모델 연동)."""
+    """노면 재질별 추정 지면온도 (US-B2 노면 비용 모델 연동, Issue #153 기저 오프셋 반영)."""
     return {
-        surface: round(air_temp_c + insolation_weight * gain, 1)
+        surface: round(air_temp_c + NO_SUN_SURFACE_OFFSET_C * (1.0 - insolation_weight) + insolation_weight * gain, 1)
         for surface, gain in SURFACE_HEAT_GAIN_MAP.items()
     }
 

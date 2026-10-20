@@ -111,6 +111,7 @@ export interface RecommendedCourse {
   shadePercent: number;
   softSurfacePercent?: number | null;
   reason: string;
+  score?: number | null;
   profile?: CourseProfile | null;
   slopeSource?: 'dem' | 'approximation' | 'unknown' | string;
 }

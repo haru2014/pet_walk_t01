@@ -209,10 +209,19 @@ export async function requestWalkPlan(
       const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
       const rawCourses: RecommendedCourse[] = data.courses ?? DEFAULT_RECOMMENDED_COURSES;
       const profiles: Record<string, CourseProfile> | undefined = data.course_profiles;
-      const courses: RecommendedCourse[] = rawCourses.map((c) => {
+      const courses: RecommendedCourse[] = rawCourses.map((c, idx) => {
         const profile = profiles?.[c.id] ?? null;
+        let score = c.score;
+        if (score == null && c.reason) {
+          const match = c.reason.match(/맞춤 점수\s*(\d+)점/);
+          if (match) score = parseInt(match[1], 10);
+        }
+        if (score == null && idx === 0 && typeof data.score === 'number') {
+          score = Math.round(data.score);
+        }
         return {
           ...c,
+          score,
           profile,
           slopeSource: profile?.slope_source ?? c.slopeSource,
           maxSlopePercent: profile?.max_slope_percent !== undefined ? profile.max_slope_percent : c.maxSlopePercent,

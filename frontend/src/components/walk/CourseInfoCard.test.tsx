@@ -89,4 +89,29 @@ describe('CourseInfoCard (노면 및 경사도 표시 검증)', () => {
     expect(html).not.toContain('undefined');
     expect(html).not.toContain('NaN');
   });
+
+  it('AI 맞춤 점수와 추천 사유가 제공될 경우 카드에 명확하게 노출된다 (Issue #155)', () => {
+    const scoredCourse: RecommendedCourse = {
+      id: 'c3',
+      name: '세종호수 은빛해변길',
+      distanceKm: '2.4 km',
+      estimatedMinutes: 35,
+      softRatio: '80%',
+      shadeLevel: '많음',
+      stairsCount: '0회',
+      maxSlopePercent: 1.2,
+      shadePercent: 65,
+      softSurfacePercent: 80,
+      score: 93,
+      reason: 'AI 맞춤 점수 93점: 은빛해변 광폭 보행데크 중심의 계단 0개 평지 코스예요.',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseInfoCard course={scoredCourse} summary={mockSummary} rank={1} bookmark={null} />
+    );
+
+    expect(html).toContain('세종호수 은빛해변길');
+    expect(html).toContain('AI 맞춤 93점');
+    expect(html).toContain('은빛해변 광폭 보행데크 중심의 계단 0개 평지 코스예요');
+  });
 });

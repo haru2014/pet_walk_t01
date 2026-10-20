@@ -89,7 +89,7 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: targetMinutes,
     softRatio: hasSoft ? '78%' : '55%',
     shadeLevel: hasShade ? '많음' : '보통',
-    stairsCount: hasStairs ? '0회' : '1회',
+    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '0회' : '1회',
     maxSlopePercent,
     shadePercent: hasShade ? 68 : 45,
     softSurfacePercent: hasSoft ? 84 : 60,
@@ -167,7 +167,93 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
 }
 
 /**
+ * [US-B3, Issue #155, PR #154]
+ * 실측 지표·관절 단계·그늘/노면 선호 기반 100점 만점 맞춤 점수 계산기
+ * - 계단 25점: 계단 회피 설정 시 계단 0개면 25점, 계단 있으면 0점
+ * - 경사 25점: 관절 단계별 상한(0: 8%, 1: 6%, 2: 5%, 3·4: 4%). 상한 이하 25, 1.5배 이하 12, 초과 0
+ * - 지면온도/그늘 20점: 실측 그늘 비율 기반 (그늘 많을수록 지면열 완화)
+ * - 선호 적합도 15점: 그늘 우선 시 그늘 가중 70%, 흙길 우선 시 폭신 가중 70%
+ * - 거리/시간 적합도 15점: 목표 시간과의 일치율
+ */
+export function calculateAdaptiveCourseScore(
+  course: RecommendedCourse,
+  dog: DogProfile,
+  preferences?: WalkPreferences,
+  feedback?: FeedbackSummaryPayload | null
+): number {
+  const envs = preferences?.environments ?? [];
+  const avoidStairs = envs.includes('stairs');
+  const preferShade = envs.includes('shade');
+  const preferSoft = envs.includes('soft');
+  const targetMinutes = preferences?.durationMinutes ?? 30;
+
+  // 1. 계단 (25점)
+  const stairsNum = parseInt(course.stairsCount, 10) || 0;
+  let stairsScore = 15.0;
+  if (stairsNum === 0) {
+    stairsScore = 25.0;
+  } else if (avoidStairs) {
+    stairsScore = 0.0;
+  } else {
+    stairsScore = 15.0;
+  }
+
+  // 2. 경사 (25점)
+  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
+  let slopeLimit = jointLimits[dog.jointCareLevel] ?? 5.0;
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
+    slopeLimit = Math.min(slopeLimit, feedbackLimit);
+  }
+  const courseSlope = course.maxSlopePercent ?? 3.0;
+  let slopeScore = 0.0;
+  if (courseSlope <= slopeLimit) {
+    slopeScore = 25.0;
+  } else if (courseSlope <= slopeLimit * 1.5) {
+    slopeScore = 12.0;
+  } else {
+    slopeScore = 0.0;
+  }
+
+  // 3. 지면온도 / 그늘 (20점)
+  const shadeRatio = Math.max(0, Math.min(1.0, course.shadePercent / 100));
+  const thermalScore = Math.round(10.0 + shadeRatio * 10.0);
+
+  // 4. 선호 적합도 (15점)
+  const softRatio = (course.softSurfacePercent ?? 60) / 100;
+  let shadeWeight = 0.5;
+  let softWeight = 0.5;
+  if (preferShade && !preferSoft) {
+    shadeWeight = 0.7;
+    softWeight = 0.3;
+  } else if (preferSoft && !preferShade) {
+    shadeWeight = 0.3;
+    softWeight = 0.7;
+  }
+  const prefFit = shadeRatio * shadeWeight + softRatio * softWeight;
+  const preferenceScore = prefFit * 15.0;
+
+  // 5. 거리/시간 (15점)
+  const error = Math.abs(course.estimatedMinutes - targetMinutes) / Math.max(targetMinutes, 1);
+  const timeScore = Math.max(0, 15.0 * (1.0 - Math.min(1.0, error * 4)));
+
+  const total = Math.min(100, Math.max(0, Math.round(stairsScore + slopeScore + thermalScore + preferenceScore + timeScore)));
+  return total;
+}
+
+/**
+ * 코스 객체 또는 사유 문자열에서 AI 맞춤 점수를 안전하게 추출한다.
+ */
+export function extractCourseScore(course?: RecommendedCourse | null): number | null {
+  if (!course) return null;
+  if (typeof course.score === 'number' && !Number.isNaN(course.score)) return course.score;
+  const match = course.reason?.match(/맞춤 점수\s*(\d+)점/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
  * 사용자가 선택한 시간과 환경 조건 및 피드백에 적응하여 추천 코스 3종을 생성한다.
+ * [Issue #155] 실측 지표·관절 단계·선호 조건을 반영한 맞춤 점수 기반 정렬 적용.
  */
 export function generateAdaptiveCourses(
   dog: DogProfile,
@@ -182,11 +268,22 @@ export function generateAdaptiveCourses(
 
   const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId };
 
-  return [
+  const rawCourses = [
     buildForestCourse(ctx),
     buildParkCourse(ctx),
     buildResidentialCourse(ctx),
   ];
+
+  const scoredCourses = rawCourses.map((c) => {
+    const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
+    return {
+      ...c,
+      score,
+      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+    };
+  });
+
+  return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }
 
 /** 사용자 조건에 맞춤형 브리핑 문구를 반환한다. */
