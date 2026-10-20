@@ -13,7 +13,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
-import { generateAdaptiveCourses, buildAdaptiveConditionLabels } from '../../services/courseAdaptivePlanner';
+import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
 import { useAppTheme } from '../../theme/themeManager';
 import { useAppResponsive } from '../../hooks/useAppResponsive';
@@ -196,6 +196,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <View style={styles.courseChipRow}>
             {courses.slice(0, 3).map((c, idx) => {
               const isSelected = idx === selectedCourseIndex;
+              const score = extractCourseScore(c);
+              const scoreText = score != null ? ` · ${score}점` : '';
               return (
                 <TouchableOpacity
                   key={c.id}
@@ -217,7 +219,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                       isSelected && styles.courseChipTextActive,
                     ]}
                   >
-                    {idx === 0 ? '👑 추천 1' : `코스 ${idx + 1}`}
+                    {idx === 0 ? `👑 추천 1${scoreText}` : `코스 ${idx + 1}${scoreText}`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -228,13 +230,31 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
         {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
         <View style={styles.courseMetricsRow}>
-          <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
-            {currentCourse.name}
-          </Text>
+          <View style={styles.courseNameGroup}>
+            <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
+              {currentCourse.name}
+            </Text>
+            {extractCourseScore(currentCourse) != null && (
+              <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
+                  AI 맞춤 {extractCourseScore(currentCourse)}점
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
             {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
           </Text>
         </View>
+
+        {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
+        {currentCourse.reason ? (
+          <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Text style={[styles.reasonText, { color: colors.textMuted }]} numberOfLines={2}>
+              💡 {currentCourse.reason}
+            </Text>
+          </View>
+        ) : null}
 
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         {(() => {
@@ -341,7 +361,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courseName: { fontSize: 14, fontWeight: '800', flex: 1, marginRight: 8 },
+  courseName: { fontSize: 14, fontWeight: '800' },
+  courseNameGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+  scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  scoreBadgeText: { fontSize: 10, fontWeight: '800' },
+  reasonBox: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  reasonText: { fontSize: 10, lineHeight: 14 },
   courseMetaText: { fontSize: 12, fontWeight: '700' },
   metricsBar: {
     flexDirection: 'row',

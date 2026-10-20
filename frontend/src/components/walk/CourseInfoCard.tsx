@@ -15,6 +15,8 @@ import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { formatCourseSurface } from '../../services/routeProfileFormatter';
 
+import { extractCourseScore } from '../../services/courseAdaptivePlanner';
+
 export interface CourseInfoCardProps {
   readonly course: RecommendedCourse;
   readonly summary: CourseSummary;
@@ -32,11 +34,19 @@ const StatBox: React.FC<{ icon: AppIconName; label: string; value: string; isMut
 
 export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, summary, rank, bookmark }) => {
   const surfaceInfo = formatCourseSurface(course);
+  const score = extractCourseScore(course);
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.name}>{course.name}</Text>
+        <View style={styles.titleGroup}>
+          <Text style={styles.name}>{course.name}</Text>
+          {score != null && (
+            <View style={styles.scoreBadge}>
+              <Text style={styles.scoreBadgeText}>AI 맞춤 {score}점</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.actions}>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>추천 {rank}</Text>
@@ -57,6 +67,13 @@ export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, summary,
         <StatBox icon="shade" label="그늘 구간" value={course.shadeLevel} />
         <StatBox icon="stairs" label="계단" value={course.stairsCount} />
       </View>
+      {course.reason ? (
+        <View style={styles.reasonBox}>
+          <Text style={styles.reasonText} numberOfLines={2}>
+            💡 {course.reason}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -76,7 +93,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
   name: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
+  scoreBadge: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  scoreBadgeText: { fontSize: 10, fontWeight: '800', color: TOKENS.colors.primaryDark },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
   badgeText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.primaryDark },
@@ -86,4 +106,14 @@ const styles = StyleSheet.create({
   statIcon: { marginBottom: 2 },
   statLabel: { fontSize: 11, color: TOKENS.colors.textMuted, marginBottom: 2 },
   statValue: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
+  reasonBox: {
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: TOKENS.colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+  },
+  reasonText: { fontSize: 11, lineHeight: 15, color: TOKENS.colors.textMuted },
 });
