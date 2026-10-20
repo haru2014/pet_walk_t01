@@ -766,10 +766,10 @@ def _generate_fallback_hourly_dtos() -> List[Dict[str, Any]]:
         d = dto.model_dump() if hasattr(dto, "model_dump") else dto.dict()
         d["solar_radiation_w_m2"] = round(weight * 1000.0, 1)
         d["surface_temps"] = {
-            "asphalt": round(air_temp + weight * 18.0, 1),
-            "paved": round(air_temp + weight * 14.0, 1),
-            "dirt": round(air_temp + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
-            "grass": round(air_temp + weight * 4.0, 1),
+            "asphalt": round(air_temp + 1.6 * (1.0 - weight) + weight * 18.0, 1),
+            "paved": round(air_temp + 1.6 * (1.0 - weight) + weight * 14.0, 1),
+            "dirt": round(air_temp + 1.6 * (1.0 - weight) + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
+            "grass": round(air_temp + 1.6 * (1.0 - weight) + weight * 4.0, 1),
         }
         hourly.append(d)
     return hourly
@@ -826,8 +826,8 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
             curr = om_data.get(hour_start)
             if curr:
                 weight = open_meteo_client.radiation_to_weight(curr["radiation"]) if (6 <= now_hour < 20) else 0.0
-                surface = round(curr["air"] + weight * 15.0, 1)
-                is_golden = surface <= 35.0
+                surface = round(curr["air"] + 1.6 * (1.0 - weight) + weight * 15.0, 1)
+                is_golden = surface <= 33.0  # Issue #153 나 안: 33℃ 이하만 안전
                 if is_golden:
                     risk_lvl = "SAFE"
                 elif surface <= 45.0:
@@ -841,10 +841,10 @@ def _fallback_heat_risk_response(lat: float, lon: float) -> Dict[str, Any]:
                     "estimated_surface_temp": surface,
                     "solar_radiation_w_m2": round(weight * 1000.0, 1),
                     "surface_temps": {
-                        "asphalt": round(curr["air"] + weight * 18.0, 1),
-                        "paved": round(curr["air"] + weight * 14.0, 1),
-                        "dirt": round(curr["air"] + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
-                        "grass": round(curr["air"] + weight * 4.0, 1),
+                        "asphalt": round(curr["air"] + 1.6 * (1.0 - weight) + weight * 18.0, 1),
+                        "paved": round(curr["air"] + 1.6 * (1.0 - weight) + weight * 14.0, 1),
+                        "dirt": round(curr["air"] + 1.6 * (1.0 - weight) + weight * SURFACE_HEAT_GAIN_MAP["dirt"], 1),
+                        "grass": round(curr["air"] + 1.6 * (1.0 - weight) + weight * 4.0, 1),
                     },
                     "risk_level": risk_lvl,
                     "is_golden_time": is_golden,

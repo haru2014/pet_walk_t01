@@ -108,13 +108,13 @@ class TestPureFunctions:
         assert wc.sky_condition(sky, pty, daylight) == expected
 
     @pytest.mark.parametrize("air, weight, expected", [
-        (30.0, 1.0, 45.0), (28.5, 0.6, 37.5), (16.7, 0.0, 16.7), (20.04, 0.2, 23.0),
+        (30.0, 1.0, 45.0), (28.5, 0.6, 38.1), (16.7, 0.0, 18.3), (20.04, 0.2, 24.3),
     ])
     def test_estimate_surface_temp(self, air, weight, expected):
         assert wc.estimate_surface_temp(air, weight) == expected
 
     @pytest.mark.parametrize("temp, expected", [
-        (20.0, "SAFE"), (35.0, "SAFE"), (35.1, "CAUTION"), (45.0, "CAUTION"), (45.1, "DANGER"),
+        (20.0, "SAFE"), (33.0, "SAFE"), (33.1, "CAUTION"), (45.0, "CAUTION"), (45.1, "DANGER"),
     ])
     def test_risk_level_boundaries(self, temp, expected):
         assert wc.risk_level(temp) == expected
@@ -124,8 +124,11 @@ class TestPureFunctions:
         assert wc.is_daylight(datetime(2026, 10, 13, 0, 0, tzinfo=KST), *DOAN) is False
 
     def test_daylight_fallback_when_sun_calculation_fails(self, monkeypatch):
-        import suncalc
-        monkeypatch.setattr(suncalc, "get_position", lambda *a, **k: (_ for _ in ()).throw(ValueError("x")))
+        try:
+            import suncalc
+            monkeypatch.setattr(suncalc, "get_position", lambda *a, **k: (_ for _ in ()).throw(ValueError("x")))
+        except ImportError:
+            pass
         assert wc.is_daylight(datetime(2026, 10, 13, 12, 0, tzinfo=KST), *DOAN) is True
         assert wc.is_daylight(datetime(2026, 10, 13, 22, 0, tzinfo=KST), *DOAN) is False
 
@@ -211,7 +214,7 @@ class TestBuildResponse:
         _default_server(monkeypatch, t1h=16.7, pty=1)
         current = wc.build_heat_risk_response(*DOAN, now=NOW)["current"]
         assert current["condition"] == "rainy" and current["insolation_weight"] == 0.0
-        assert current["estimated_surface_temp"] == 16.7 and current["risk_level"] == "SAFE"
+        assert current["estimated_surface_temp"] == 18.3 and current["risk_level"] == "SAFE"
         assert current["is_golden_time"] is True
 
     def test_hot_clear_day_is_caution_then_danger(self, monkeypatch):
@@ -227,7 +230,7 @@ class TestBuildResponse:
         night = datetime(2026, 10, 13, 23, 20, tzinfo=KST)
         _default_server(monkeypatch, t1h=25.0, now=night)
         current = wc.build_heat_risk_response(*DOAN, now=night)["current"]
-        assert current["condition"] == "night" and current["estimated_surface_temp"] == 25.0
+        assert current["condition"] == "night" and current["estimated_surface_temp"] == 26.6
 
     def test_missing_sky_assumes_clear_hottest_case(self, monkeypatch):
         start = NOW.replace(minute=0)
@@ -318,7 +321,7 @@ class TestBuildResponse:
     def test_insolation_provider_overrides_sky_based_weight(self, monkeypatch):
         _default_server(monkeypatch, t1h=30.0)
         cloudy = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 0.0)
-        assert cloudy["current"]["estimated_surface_temp"] == 30.0
+        assert cloudy["current"]["estimated_surface_temp"] == 31.6
         kma.clear_cache()
         _default_server(monkeypatch, t1h=30.0)
         clamped = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 2.0)
@@ -362,7 +365,7 @@ class TestOpenMeteoIntegration:
         response = wc.build_heat_risk_response(*DOAN, now=NOW)
         current = response["current"]
         assert current["insolation_weight"] == 0.5 and current["insolation_source"] == "provider"
-        assert (current["estimated_surface_temp"], current["risk_level"]) == (37.5, "CAUTION")  # 맑음 가정이면 45.0
+        assert (current["estimated_surface_temp"], current["risk_level"]) == (38.3, "CAUTION")  # 맑음 가정이면 45.0
         assert response["insolation_source"] == "open_meteo"
         assert response["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)"
 
@@ -414,7 +417,7 @@ class TestOpenMeteoIntegration:
         _default_server(monkeypatch, t1h=30.0)
         response = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 0.0)
         assert calls == [] and response["insolation_source"] == "custom"
-        assert response["current"]["estimated_surface_temp"] == 30.0
+        assert response["current"]["estimated_surface_temp"] == 31.6
 
     def test_observation_failure_does_not_call_open_meteo(self, monkeypatch, real_insolation):
         calls = self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
@@ -540,5 +543,5 @@ class TestDirtHeatGain:
         import main
         for entry in main._generate_fallback_hourly_dtos():
             weight = entry["solar_radiation_w_m2"] / 1000.0
-            expected = round(entry["air_temp_celsius"] + weight * wc.SURFACE_HEAT_GAIN_MAP["dirt"], 1)
+            expected = round(entry["air_temp_celsius"] + 1.6 * (1.0 - weight) + weight * wc.SURFACE_HEAT_GAIN_MAP["dirt"], 1)
             assert entry["surface_temps"]["dirt"] == expected, entry["hour"]

@@ -12,6 +12,8 @@ import {
   buildWeatherCacheKey,
   computeFocusedGoldenWindow,
   computeGoldenWindowDay,
+  NO_SUN_SURFACE_OFFSET_C,
+  SAFE_MAX_SURFACE_TEMP,
 } from './weatherApi';
 
 describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () => {
@@ -49,11 +51,14 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       expect(noonForecast.risk_level).not.toBe('SAFE');
     });
 
-    it('심야(0~5시)에는 일사량 가중치(0.0)가 적용되어 지면열과 기온이 일치하고 SAFE여야 한다', () => {
+    it('심야(0~5시)에는 일사량 가중치(0.0)가 적용되어 지면열이 기온보다 1.6도 높고(Issue #153 다 안) SAFE여야 한다', () => {
       const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
       const nightForecast = fallback.hourly_forecast[2];
 
-      expect(nightForecast.estimated_surface_temp).toBe(nightForecast.air_temp_celsius);
+      expect(nightForecast.estimated_surface_temp).toBeCloseTo(
+        nightForecast.air_temp_celsius + NO_SUN_SURFACE_OFFSET_C,
+        1
+      );
       expect(nightForecast.is_golden_time).toBe(true);
       expect(nightForecast.risk_level).toBe('SAFE');
     });
@@ -217,8 +222,9 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
   describe('computeFocusedGoldenWindow (1.5~2시간 슬롯 압축)', () => {
     it.each([
-      [13, '18:00 ~ 20:00', '한낮(13시)에는 다가올 저녁 골든타임 슬롯 반환'],
-      [18, '18:00 ~ 20:00', '골든타임 시간대(18시)에는 현재 진행 중인 슬롯 반환'],
+      [13, '19:00 ~ 21:00', '한낮(13시)에는 다가올 저녁 골든타임 슬롯 반환 (18시는 33.1℃로 CAUTION)'],
+      [18, '19:00 ~ 21:00', '18시(33.1℃, CAUTION)에는 다가올 저녁 골든타임 슬롯 반환'],
+      [19, '19:00 ~ 21:00', '골든타임 시간대(19시, 32.0℃)에는 현재 진행 중인 슬롯 반환'],
       [7, '06:00 ~ 08:00', '아침 시간대(7시)에는 아침 안심 슬롯 반환'],
     ])('%s시 테스트: %s (%s)', (hour, expected) => {
       const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);

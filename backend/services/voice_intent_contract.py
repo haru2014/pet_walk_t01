@@ -19,7 +19,7 @@ class VoiceWalkIntentPayload(BaseModel):
     avoid_stairs: bool = True
     joint_care_level: int = Field(default=1, ge=0, le=2)
     destination_landmark: Optional[str] = None
-    max_surface_temp_limit: float = Field(default=35.0, allow_inf_nan=False)
+    max_surface_temp_limit: float = Field(default=33.0, allow_inf_nan=False)
     briefing_message: Optional[str] = None
 
     @field_validator("briefing_message")
