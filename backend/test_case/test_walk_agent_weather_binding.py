@@ -127,3 +127,63 @@ def test_walk_plan_api_endpoint_weather_integration():
     assert data["weather"]["current"]["estimated_surface_temp"] == 46.0
     assert "46" in data["briefing"]
     assert "그늘 숲길" in data["briefing"]
+
+
+def _briefing_with(precipitation, surface_temp=26.0, origin_mode="current_location", lat=37.5665, lon=126.9780, park=None):
+    weather = {
+        "current": {"hour": 10, "air_temp_celsius": 20.0, "estimated_surface_temp": surface_temp,
+                    "risk_level": "SAFE", "is_golden_time": surface_temp <= 33.0},
+        "golden_time_window": "17:00 ~ 20:00",
+        "precipitation": precipitation,
+    }
+    return run_walk_planning_agent(
+        user_query="20분 산책하고 싶어요",
+        client_dog_context={"dog_id": "d", "name": "보리", "breed": "푸들", "speed_kmh": 2.8, "joint_care_level": 1},
+        weather_context=weather, origin_lat=lat, origin_lon=lon, origin_mode=origin_mode, pilot_park_id=park,
+    ).briefing_message
+
+
+def test_briefing_does_not_call_rain_a_golden_time():
+    """지금 비가 오면 지면이 서늘해도 '안전한 골든타임'이라 하지 않고 비 안내를 한다 (#114)."""
+    briefing = _briefing_with({"known": True, "is_precipitating_now": True, "rain_expected_times": [], "threshold_pop": 60})
+    assert "골든타임" not in briefing
+    assert "비가 오고 있어요" in briefing and "우비" in briefing
+
+
+def test_briefing_mentions_rain_expected_later():
+    briefing = _briefing_with({"known": True, "is_precipitating_now": False,
+                               "rain_expected_times": ["2026-10-21T15:00:00+09:00"], "threshold_pop": 60})
+    assert "안전한 골든타임" in briefing
+    assert "15시쯤 비 예보" in briefing
+
+
+def test_briefing_says_nothing_about_rain_when_unknown():
+    for precipitation in ({"known": False}, None):
+        briefing = _briefing_with(precipitation)
+        assert "비 예보" not in briefing and "비가 오고" not in briefing
+
+
+def test_briefing_uses_measured_route_values_in_a_pilot_park():
+    """대전 유림공원 경로는 실측(계단·DEM 경사·그늘)으로 설명한다. 고정 문구 '계단 걱정 없이'는 쓰지 않는다."""
+    from services.dem import elevation_source
+    briefing = _briefing_with({"known": False}, origin_mode="park", lat=36.3620608, lon=127.3601379, park="yurim")
+    assert "계단 걱정" not in briefing
+    assert "확인된 계단 없음" in briefing or "계단 " in briefing
+    if elevation_source():
+        assert "최대 경사" in briefing
+
+
+def test_park_briefing_includes_rain_notice():
+    from main import _update_park_briefing
+
+    class _Route:
+        route_id, name, estimated_duration_minutes, total_distance_m = "r1", "유림 1안", 30.0, 1400.0
+
+    class _Result:
+        briefing_message = ""
+
+    result = _Result()
+    weather = {"current": {"estimated_surface_temp": 20.0},
+               "precipitation": {"known": True, "is_precipitating_now": True, "rain_expected_times": []}}
+    _update_park_briefing(result, _Route(), weather, {"r1": {"duration_is_alternative": False}})
+    assert result.briefing_message.startswith("지금 비가 오고 있어요")

@@ -401,6 +401,29 @@ def precipitation_summary(response: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _hour_label(value: Any) -> str:
+    """예보 시각(ISO 문자열 또는 0~23 정수)을 'N시' 로 바꾼다."""
+    if isinstance(value, str) and "T" in value:
+        try:
+            return f"{datetime.fromisoformat(value).hour}시"
+        except ValueError:
+            return value
+    return f"{value}시" if isinstance(value, int) else str(value)
+
+
+def rain_notice(precipitation: Optional[Dict[str, Any]]) -> Optional[str]:
+    """안내 문구에 붙일 비 안내 한 문장 (#114). 비 정보를 모르거나(대체 응답) 6시간 안에 비 예보가 없으면 None."""
+    if not isinstance(precipitation, dict) or not precipitation.get("known"):
+        return None
+    if precipitation.get("is_precipitating_now"):
+        return "지금 비가 오고 있어요. 젖은 길은 미끄러우니 천천히 걷고 우비를 챙겨 주세요."
+    times = precipitation.get("rain_expected_times") or []
+    if times:
+        threshold = precipitation.get("threshold_pop", RAIN_POP_THRESHOLD)
+        return f"{_hour_label(times[0])}쯤 비 예보(강수확률 {threshold}% 이상)가 있어요. 우산이나 우비를 챙겨 주세요."
+    return None
+
+
 def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:
     """build_heat_risk_response 결과를 walk_planning_agent 의 weather_context 형식으로 줄인다.
 
