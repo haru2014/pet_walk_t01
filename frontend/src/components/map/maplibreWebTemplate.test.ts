@@ -35,6 +35,8 @@ function bootTemplate() {
   const sources: Record<string, unknown> = {};
   const setStyleCalls: { style: unknown; options: unknown }[] = [];
   const messageListeners: ((event: { data: string }) => void)[] = [];
+  const documentMessageListeners: ((event: { data: string }) => void)[] = [];
+  const setDataCalls: unknown[] = [];
 
   const map = {
     on(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
@@ -52,7 +54,9 @@ function bootTemplate() {
       sources[id] = source;
     },
     addLayer() {},
-    getSource(id: string) { return sources[id] ? { setData() {} } : undefined; },
+    getSource(id: string) {
+      return sources[id] ? { setData(data: unknown) { setDataCalls.push(data); } } : undefined;
+    },
     fitBounds() {},
     setStyle(style: unknown, options: unknown) {
       setStyleCalls.push({ style, options });
@@ -66,7 +70,12 @@ function bootTemplate() {
       if (name === 'message') messageListeners.push(listener);
     },
   };
-  const fakeDocument = { createElement: () => ({ style: {}, appendChild() {} }) };
+  const fakeDocument = {
+    createElement: () => ({ style: {}, appendChild() {} }),
+    addEventListener: (name: string, listener: (event: { data: string }) => void) => {
+      if (name === 'message') documentMessageListeners.push(listener);
+    },
+  };
   const fakeMapLibre = {
     Map: function FakeMap() { return map; },
     Marker: function FakeMarker(this: object) {
@@ -86,7 +95,12 @@ function bootTemplate() {
     timers,
     setStyleCalls,
     messageTypes: () => posted.map((message) => message.type),
+    setDataCalls,
+    // iOS: react-native-webview 가 window 로 message 이벤트를 보낸다
     send: (message: object) => messageListeners.forEach((listener) => listener({ data: JSON.stringify(message) })),
+    // 안드로이드: document 로 보낸다 (react-native-webview RNCWebViewManagerImpl.kt postMessage)
+    sendFromAndroid: (message: object) =>
+      documentMessageListeners.forEach((listener) => listener({ data: JSON.stringify(message) })),
   };
 }
 
@@ -172,5 +186,21 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(view.setStyleCalls).toHaveLength(2);
     expect(view.messageTypes()).toEqual(['STYLE_ERROR', 'MAP_LOADED']);
     expect(view.sources['route-source']).toBeDefined();
+  });
+
+  it('안드로이드(document 로 오는 메시지)에서도 코스를 바꾸면 지도 경로가 바뀐다 (#155)', () => {
+    const view = bootTemplate();
+    view.map.emit('style.load');
+    view.map.emit('load');
+    const secondCourse: RouteFeatureCollection = {
+      ...route,
+      features: [{ ...route.features[0], geometry: { type: 'LineString', coordinates: [[127.40, 36.45], [127.41, 36.46]] } }],
+    };
+
+    view.sendFromAndroid({ action: 'UPDATE_ROUTE', route: secondCourse, stepPins: [] });
+    expect(view.setDataCalls).toEqual([secondCourse]);
+
+    view.send({ action: 'UPDATE_ROUTE', route, stepPins: [] });  // iOS 경로도 그대로 동작
+    expect(view.setDataCalls).toEqual([secondCourse, route]);
   });
 });
