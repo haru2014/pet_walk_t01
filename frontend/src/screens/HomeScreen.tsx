@@ -1,16 +1,16 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 홈 화면 (디자인 시안 02번 Dusty Amber & Sage Green 전면 개편)
- * (docs/reference/UI개선/app_design_n2-1.png 기준)
+ * 모바일 홈 화면 (디자인 시안 02번 Dusty Amber & Sage Green - Phase 1 무스크롤 개편)
+ * (docs/reference/UI개선/prompt/UI오류수정_계획.md 기준)
  *
- * 1. 상단: Sage Green 바탕, 메뉴 아이콘, 알림 아이콘 (HomeHeaderN2)
- * 2. 메인 카드: 카드 상단에 걸쳐진 강아지 마스코트, Park Walk Mode, 실제 코스 지도, 산책 거리/시간, 시작 버튼 (HomeParkWalkCardN2)
- * 3. 정보 카드: Trail info(지면온도/기상 산책지수 + 나무 일러스트), Leaf Green(노면 및 관절 지표) (HomeTrailInfoCardN2)
- * 4. 기존 비즈니스 로직(반려견 선택, 산책 시작, 날씨 연동, 주간 통계) 100% 보존
+ * 1. 상단 좌측 버튼 및 상단 헤더 빈 공간 완전 제거 (공간 회수)
+ * 2. 갈색 카드(HomeParkWalkCardN2) 내부로 알림 종 버튼 이관 및 강아지 드롭다운(48px 이상) 연동
+ * 3. 지도 영역 flex: 1 반응형 전환 (남는 높이 채움)
+ * 4. UX_COMPACT_RULES.md 11번 '스크롤 금지' 적용 (ScrollView/RefreshControl 제거 및 자동 갱신)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { DogProfile } from '../types/dogProfile';
 import { FeedbackSummaryPayload } from '../services/feedbackContext';
 import { fetchHeatRiskForecast } from '../services/weatherApi';
@@ -19,7 +19,6 @@ import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { warmupBackendServer } from '../services/apiClient';
 
-import { HomeHeaderN2 } from '../components/home/HomeHeaderN2';
 import { HomeParkWalkCardN2 } from '../components/home/HomeParkWalkCardN2';
 import { HomeTrailInfoCardN2 } from '../components/home/HomeTrailInfoCardN2';
 
@@ -34,42 +33,25 @@ export interface HomeScreenProps {
   onStartWalk: () => void;
   onOpenPlanner: () => void;
   onOpenStats?: () => void;
-  onOpenMenu?: () => void;
   onOpenNotification?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   dog,
   dogs,
-  selectedDogId,
+  selectedDogId: _selectedDogId,
   onSelectDog,
-  onAddDog,
+  onAddDog: _onAddDog,
   feedbackSummary,
   onPressProfile,
   onStartWalk,
   onOpenPlanner,
   onOpenStats,
-  onOpenMenu,
   onOpenNotification,
 }) => {
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    setIsLoadingWeather(true);
-    try {
-      const res = await fetchHeatRiskForecast(36.3628, 127.3592, { forceRefresh: true });
-      setWeather(res);
-    } catch {
-      // 오프라인 폴백 처리
-    } finally {
-      setIsLoadingWeather(false);
-      setRefreshing(false);
-    }
-  }, []);
 
   useEffect(() => {
     warmupBackendServer();
@@ -97,39 +79,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-      bounces={true}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={['#5A7361']}
-          tintColor="#5A7361"
-        />
-      }
-    >
-      {/* 1. 상단 Sage Green 배경 영역 (헤더 + 마스코트 및 Park Walk Mode 메인 카드) */}
+    <View style={styles.container}>
+      {/* 1. 상단 Sage Green 배경 영역 (마스코트 및 메인 카드) */}
       <View style={styles.topSageSection}>
-        <HomeHeaderN2
-          onPressMenu={onOpenMenu ?? onPressProfile}
+        <HomeParkWalkCardN2
+          dog={dog}
+          dogs={dogs}
+          onSelectDog={onSelectDog}
+          onPressProfile={onPressProfile}
           onPressNotification={onOpenNotification}
+          onStartWalk={onStartWalk}
+          estimatedMinutes={30}
+          distanceKm="2.1 km"
+          courseName="Park Walk Mode"
         />
-
-        <View style={styles.mainCardPadding}>
-          <HomeParkWalkCardN2
-            dog={dog}
-            dogs={dogs}
-            onSelectDog={onSelectDog}
-            onPressProfile={onPressProfile}
-            onStartWalk={onStartWalk}
-            estimatedMinutes={30}
-            distanceKm="2.1 km"
-            courseName="Park Walk Mode"
-          />
-        </View>
       </View>
 
       {/* 2. 하단 Soft Cream 시트 영역 (Trail info + Leaf Green 안심 지표) */}
@@ -142,7 +105,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onOpenStats={onOpenStats}
         onOpenPlanner={onOpenPlanner}
       />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -151,16 +114,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5EFE0', // Soft Cream
   },
-  contentContainer: {
-    flexGrow: 1,
-  },
   topSageSection: {
+    flex: 1,
     backgroundColor: '#5A7361', // Sage Green 메인 배경
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    paddingBottom: 20,
-  },
-  mainCardPadding: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
 });

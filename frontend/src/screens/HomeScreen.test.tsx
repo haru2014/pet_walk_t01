@@ -81,4 +81,23 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
 
     expect(html).toContain(`${mockDog.name} ▾`);
   });
+
+  it('갈색 카드 헤더에 알림 버튼이 정상 포함된다', () => {
+    const html = renderToStaticMarkup(
+      <HomeScreen
+        dog={mockDog}
+        dogs={DEFAULT_DOGS}
+        selectedDogId={mockDog.id}
+        onSelectDog={vi.fn()}
+        onAddDog={vi.fn()}
+        feedbackSummary={null}
+        onPressProfile={vi.fn()}
+        onStartWalk={vi.fn()}
+        onOpenPlanner={vi.fn()}
+        onOpenNotification={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('알림 확인');
+  });
 });
