@@ -34,7 +34,7 @@ from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
-from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
+from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
 from agent.supabase_repository import community_repo
 from services.route_warmup import start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
@@ -127,6 +127,8 @@ def health_check():
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
         # 경사 계산에 쓰는 고도 자료 (운영 반영 확인용). DEM 을 끄면 "off"
         "dem": (elevation_source() or {}).get("name") or "off",
+        # 현재 위치 경로의 외부 보행 경로(OSRM) 호출 성공·실패 수와 마지막 실패 이유 (대체 경로 원인 확인용)
+        "osrm": osrm_status(),
     }
 
 
@@ -508,6 +510,8 @@ def _build_walk_plan_response(
         "elevation_source": elevation_source(),
         # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
         "course_profiles": profiles,
+        # 후보별 경로 출처: osrm_live(실제 보행로) / park_graph_*(공원 보행망) / rectangle_fallback 등 대체 경로
+        "route_sources": {s.candidate.route_id: s.candidate.route_source for s in agent_result.all_scored_candidates or []},
     }
     if park_mode:
         resp_data["route_validation"] = validations
@@ -519,6 +523,7 @@ def _build_walk_plan_response(
                 "request_id": request_id,
                 "park_id": selected_park,
                 "route_id": best.route_id,
+                "route_source": best.route_source,
                 "status": 200,
             },
             ensure_ascii=False,
