@@ -1,4 +1,4 @@
-import Module from 'module';
+import Module from 'node:module';
 
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id) {
