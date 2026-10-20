@@ -58,6 +58,16 @@ def test_stairs_are_penalised_only_when_the_user_avoids_them():
     assert _score(stairs, avoid_stairs=False).stairs == 15.0
 
 
+def test_thermal_score_follows_the_shared_safety_thresholds():
+    """지면온도 점수는 위험도 판정과 같은 기준(#153: 안전 33℃, 주의 45℃)을 쓴다."""
+    from services.weather_context import CAUTION_MAX_C, SAFE_MAX_C
+    no_shade = _profile(shade_ratio=None)
+    assert _score(no_shade, air_temp_c=25.0, surface_temp_c=SAFE_MAX_C).thermal == 20.0
+    assert _score(no_shade, air_temp_c=25.0, surface_temp_c=SAFE_MAX_C + 0.1).thermal == 12.0
+    assert _score(no_shade, air_temp_c=25.0, surface_temp_c=CAUTION_MAX_C).thermal == 6.0
+    assert _score(no_shade, air_temp_c=25.0, surface_temp_c=CAUTION_MAX_C + 0.1).thermal == 0.0
+
+
 def test_shade_cools_the_surface_temperature():
     assert cooled_surface_temp(30.0, 46.0, 1.0) == 34.0
     assert cooled_surface_temp(30.0, 46.0, None) == 46.0

@@ -8,7 +8,7 @@
 |---|---|---|
 | 계단 | 25 | 계단 회피 요청 시 계단이 있으면 0. 정보가 없으면 중간(15) |
 | 경사 | 25 | 관절 단계별 경사 상한(JOINT_SLOPE_LIMIT) 이하 만점, 1.5배 이하 12, 그 이상 0 |
-| 지면온도 | 20 | 실측 그늘 비율로 식힌 지면온도 (그늘을 모르면 식히지 않음) |
+| 지면온도 | 20 | 실측 그늘 비율로 식힌 지면온도. 안전 기준(SAFE_MAX_C 33℃, #153) 이하 20, 주의 앞쪽 절반 12, 주의 6, 위험 0 |
 | 선호 적합도 | 15 | 그늘 비율·폭신 노면 비율을 선호에 따라 가중 평균. 모르는 값은 0.5 |
 | 거리 | 15 | 목표 거리 대비 오차 |
 
@@ -17,6 +17,8 @@
 
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+
+from services.weather_context import CAUTION_MAX_C, SAFE_MAX_C
 
 # 관절 케어 단계별 경사 상한(%). 기존 채점 5%·8%와 계획서 8%·15% 차이(#147 논의와 별개)를 단계별로 나눔
 JOINT_SLOPE_LIMIT = {0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0}
@@ -82,12 +84,12 @@ def score_personalized(profile: Dict[str, Any], *, distance_m: float, target_dis
     temp = cooled_surface_temp(air_temp_c, surface_temp_c, shade)
     if temp is None:
         thermal = 10.0
-    elif temp <= 32.0:
+    elif temp <= SAFE_MAX_C:
         thermal = 20.0
-    elif temp <= 36.0:
-        thermal = 15.0
-    elif temp <= 40.0:
-        thermal = 8.0
+    elif temp <= (SAFE_MAX_C + CAUTION_MAX_C) / 2:
+        thermal = 12.0
+    elif temp <= CAUTION_MAX_C:
+        thermal = 6.0
     else:
         thermal = 0.0
 
