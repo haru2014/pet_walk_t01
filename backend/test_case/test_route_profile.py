@@ -107,7 +107,8 @@ class TestOsmSteps:
         for course in data["courses"]:
             profile = data["course_profiles"][course["id"]]
             assert profile["stairs_source"] == "OpenStreetMap highway=steps (ODbL)"
-            assert course["stairsCount"] == f"{profile['stairs_count']}회"
+            expected = "확인된 계단 0회" if profile["stairs_count"] == 0 else f"{profile['stairs_count']}회"
+            assert course["stairsCount"] == expected
 
 
 @pytest.mark.parametrize("park", ["yurim", "songgang", "sejong", "doan"])
@@ -147,7 +148,7 @@ def test_course_cards_show_measured_values_not_fixed_profiles(park):
     for course in data["courses"]:
         profile = data["course_profiles"][course["id"]]
         assert course["maxSlopePercent"] == profile["max_slope_percent"]
-        assert course["stairsCount"] == f"{profile['stairs_count']}회"
+        assert course["stairsCount"] == "확인된 계단 0회"
         assert f"실측 최대 경사 {profile['max_slope_percent']}%" in course["reason"]
         if profile["surface_known_ratio"] >= 0.5:
             assert course["softSurfacePercent"] == round(profile["soft_surface_ratio"] * 100)

@@ -89,7 +89,7 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: targetMinutes,
     softRatio: hasSoft ? '78%' : '55%',
     shadeLevel: hasShade ? '많음' : '보통',
-    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '0회' : '1회',
+    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '확인된 계단 0회' : '1회',
     maxSlopePercent,
     shadePercent: hasShade ? 68 : 45,
     softSurfacePercent: hasSoft ? 84 : 60,
@@ -122,7 +122,7 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: minutes,
     softRatio: '68%',
     shadeLevel: '많음',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
@@ -158,7 +158,7 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     estimatedMinutes: minutes,
     softRatio: envs.includes('soft') ? '58%' : '48%',
     shadeLevel: '보통',
-    stairsCount: envs.includes('stairs') ? '0회' : '2회',
+    stairsCount: envs.includes('stairs') ? '확인된 계단 0회' : '2회',
     maxSlopePercent,
     shadePercent: 42,
     softSurfacePercent: 62,
@@ -188,7 +188,8 @@ export function calculateAdaptiveCourseScore(
   const targetMinutes = preferences?.durationMinutes ?? 30;
 
   // 1. 계단 (25점)
-  const stairsNum = parseInt(course.stairsCount, 10) || 0;
+  const stairsMatch = course.stairsCount?.match(/\d+/);
+  const stairsNum = stairsMatch ? parseInt(stairsMatch[0], 10) : (course.stairsCount === '계단 있음' ? 1 : 0);
   let stairsScore = 15.0;
   if (stairsNum === 0) {
     stairsScore = 25.0;

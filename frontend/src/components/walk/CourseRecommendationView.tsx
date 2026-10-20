@@ -272,7 +272,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               </Text>
               <Text style={styles.metricDot}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMuted }]}>
-                계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
+                {currentCourse.stairsCount.includes('계단') ? (
+                  <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
+                ) : (
+                  <>계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text></>
+                )}
               </Text>
               <Text style={styles.metricDot}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMuted }]}>

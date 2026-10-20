@@ -114,4 +114,27 @@ describe('CourseInfoCard (노면 및 경사도 표시 검증)', () => {
     expect(html).toContain('AI 맞춤 93점');
     expect(html).toContain('은빛해변 광폭 보행데크 중심의 계단 0개 평지 코스예요');
   });
+
+  it('계단 0개일 때 안전 보장 오독을 방지하기 위해 "확인된 계단 0회" 문구를 정상 표출한다 (Issue #152)', () => {
+    const verifiedStairsCourse: RecommendedCourse = {
+      id: 'c4',
+      name: '도안 안심 산책길',
+      distanceKm: '2.0 km',
+      estimatedMinutes: 30,
+      softRatio: '70%',
+      shadeLevel: '보통',
+      stairsCount: '확인된 계단 0회',
+      maxSlopePercent: 1.5,
+      shadePercent: 45,
+      softSurfacePercent: 70,
+      reason: '평탄한 도안 산책길',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseInfoCard course={verifiedStairsCourse} summary={mockSummary} rank={1} bookmark={null} />
+    );
+
+    expect(html).toContain('도안 안심 산책길');
+    expect(html).toContain('확인된 계단 0회');
+  });
 });

@@ -178,11 +178,17 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     else:
         soft_percent, soft_text = None, "정보 없음"
     stairs = profile.get("stairs_count")
+    if stairs is None:
+        stairs_text = "정보 없음"
+    elif stairs == 0:
+        stairs_text = "확인된 계단 0회"
+    else:
+        stairs_text = f"{stairs}회"
     return {
         "maxSlopePercent": profile.get("max_slope_percent"),
         "softSurfacePercent": soft_percent,
         "softRatio": soft_text,
-        "stairsCount": "정보 없음" if stairs is None else f"{stairs}회",
+        "stairsCount": stairs_text,
     }
 
 
@@ -204,7 +210,7 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "estimatedMinutes": int(cand.estimated_duration_minutes),
         "softRatio": "85%" if is_soft else "60%",
         "shadeLevel": "많음" if cand.average_shade_ratio > 0.5 else "보통",
-        "stairsCount": "0회" if not cand.has_stairs else "계단 있음",
+        "stairsCount": "확인된 계단 0회" if not cand.has_stairs else "계단 있음",
         "maxSlopePercent": cand.max_slope_percent,
         "shadePercent": int(cand.average_shade_ratio * 100),
         "softSurfacePercent": 85 if "grass" in surface_types else 65,

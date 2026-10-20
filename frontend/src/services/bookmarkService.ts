@@ -50,7 +50,7 @@ export function createBookmark(
     tags: [
       course.softSurfacePercent != null ? `폭신 ${course.softSurfacePercent}%` : '폭신 노면 정보없음',
       `그늘 ${course.shadeLevel}`,
-      `계단 ${course.stairsCount}`,
+      course.stairsCount.includes('계단') ? course.stairsCount : `계단 ${course.stairsCount}`,
     ],
     routeGeoJson: plan.route,
     stepPins: plan.stepPins,
