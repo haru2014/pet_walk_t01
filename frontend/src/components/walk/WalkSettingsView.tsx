@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { DogProfile } from '../../types/dogProfile';
 import { PILOT_PARKS, getPilotParkById } from '../../types/pilotParks';
 import { useAppResponsive } from '../../hooks/useAppResponsive';
@@ -229,14 +230,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 1. 상단 컴팩트 헤더 */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity activeOpacity={0.7} onPress={onBack} style={styles.backButton}>
-          <AppIcon name="back" size={22} color={colors.textMain} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textMain }]}>산책 설정</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader title="산책 설정" onBack={onBack} />
 
       <ScrollView
         style={styles.contentScroll}

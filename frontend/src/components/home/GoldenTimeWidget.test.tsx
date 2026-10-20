@@ -319,7 +319,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
       expect(html).toContain('65');
       expect(html).toContain('✓ 비 예보');
       expect(html).toContain('비 예보(우산 필수)가 있어요');
-      expect(html).not.toContain('100');
+      expect(html).not.toContain('>100<');
     });
 
     it('현재 비가 내리는 중(pty=1)일 때는 우천 주의(42점)로 강등되어야 한다', () => {

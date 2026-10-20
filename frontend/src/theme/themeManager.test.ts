@@ -33,20 +33,21 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 describe('ThemeManager & Theme Tokens', () => {
   beforeEach(async () => {
     memoryStore.clear();
-    await themeManager.setTheme('forest');
+    await themeManager.setTheme('dusty_amber');
   });
 
-  it('THEME_LIST에 3가지 테마(숲길 그린, 비비드 바이올렛, 다크 포켓)가 정의되어 있어야 한다', () => {
-    expect(THEME_LIST).toHaveLength(3);
+  it('THEME_LIST에 4가지 테마(더스티 앰버, 숲길 그린, 비비드 바이올렛, 다크 포켓)가 정의되어 있어야 한다', () => {
+    expect(THEME_LIST).toHaveLength(4);
     const ids = THEME_LIST.map((t) => t.id);
+    expect(ids).toContain<ThemeId>('dusty_amber');
     expect(ids).toContain<ThemeId>('forest');
     expect(ids).toContain<ThemeId>('vivid_violet');
     expect(ids).toContain<ThemeId>('dark');
   });
 
-  it('기본 테마는 forest(숲길 그린)이며 토큰 기본 색상을 반영한다', () => {
-    expect(themeManager.getTheme()).toBe('forest');
-    expect(TOKENS.colors.primary).toBe(THEME_PALETTES.forest.primary);
+  it('기본 테마는 dusty_amber(더스티 앰버 & 세이지 그린)이며 토큰 기본 색상을 반영한다', () => {
+    expect(themeManager.getTheme()).toBe('dusty_amber');
+    expect(TOKENS.colors.primary).toBe(THEME_PALETTES.dusty_amber.primary);
   });
 
   it('vivid_violet(app_design1.jpg 언어)으로 변경 시 토큰 색상이 보라색/네온 옐로우 계열로 즉시 전환된다', async () => {
