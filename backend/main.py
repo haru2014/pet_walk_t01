@@ -161,15 +161,39 @@ def _parse_recent_feedback(req: Dict[str, Any]) -> List[Dict[str, Any]]:
     return feedback
 
 
-def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_reason: str = "") -> Dict[str, Any]:
+SOFT_SURFACE_MIN_KNOWN_RATIO = 0.5  # 노면 태그가 경로 길이의 절반 이상 확인될 때만 폭신 노면 비율을 카드에 보여 준다
+
+
+def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """실측 지표(course_profiles)로 카드 칸을 채운다. 자료가 없으면 숫자를 지어내지 않고 None/"정보 없음"."""
+    known = profile.get("surface_known_ratio")
+    soft = profile.get("soft_surface_ratio")
+    if known is not None and soft is not None and known >= SOFT_SURFACE_MIN_KNOWN_RATIO:
+        soft_percent: Optional[int] = round(soft * 100)
+        soft_text = f"{soft_percent}%"
+    else:
+        soft_percent, soft_text = None, "정보 없음"
+    stairs = profile.get("stairs_count")
+    return {
+        "maxSlopePercent": profile.get("max_slope_percent"),
+        "softSurfacePercent": soft_percent,
+        "softRatio": soft_text,
+        "stairsCount": "정보 없음" if stairs is None else f"{stairs}회",
+    }
+
+
+def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_reason: str = "",
+                            profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     surface_types = cand.surface_types or []
     is_soft = "grass" in surface_types or "dirt" in surface_types
+    slope_for_reason = profile.get("max_slope_percent") if profile else cand.max_slope_percent
+    slope_label = "실측 최대 경사" if profile else "경사"
     reason = (
-        f"AI 맞춤 점수 {score:.0f}점: {cand.name} (경사 {cand.max_slope_percent}% 이하)"
+        f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
         if score is not None
         else fallback_reason
     )
-    return {
+    course = {
         "id": cand.route_id,
         "name": cand.name,
         "distanceKm": f"{cand.total_distance_m / 1000.0:.1f} km",
@@ -182,15 +206,23 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "softSurfacePercent": 85 if "grass" in surface_types else 65,
         "reason": reason,
     }
+    if profile:
+        # 경사·폭신 노면·계단은 실측값으로 바꾼다 (#114). 그늘은 자료가 없어 앱이 '정보 없음'을 처리한 뒤 바꾼다.
+        course.update(_measured_card_fields(profile))
+    return course
 
 
-def _build_course_list(agent_result: Any) -> List[Dict[str, Any]]:
+def _build_course_list(agent_result: Any, profiles: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    profiles = profiles or {}
     if agent_result.all_scored_candidates:
         return [
-            _build_candidate_course(scored.candidate, score=scored.total_score)
+            _build_candidate_course(scored.candidate, score=scored.total_score,
+                                    profile=profiles.get(scored.candidate.route_id))
             for scored in agent_result.all_scored_candidates[:3]
         ]
-    return [_build_candidate_course(agent_result.best_route, fallback_reason=agent_result.briefing_message)]
+    best = agent_result.best_route
+    return [_build_candidate_course(best, fallback_reason=agent_result.briefing_message,
+                                    profile=profiles.get(best.route_id))]
 
 
 def _build_segmented_geojson(coords: List[List[float]], max_slope: float) -> Dict[str, Any]:
@@ -439,9 +471,10 @@ def _build_walk_plan_response(
     """산책 경로 계획 API 최종 응답 딕셔너리 생성."""
     best = agent_result.best_route
     coords = best.geojson_coordinates if best.geojson_coordinates else V1_ROAD_ALIGNED_COORDS
+    profiles = _build_course_profiles(agent_result, coords, selected_park if park_mode else None)
     resp_data = {
         "request_id": request_id,
-        "courses": _build_course_list(agent_result),
+        "courses": _build_course_list(agent_result, profiles),
         "geojson": _build_segmented_geojson(coords, best.max_slope_percent),
         "step_pins": _build_step_pins(best, coords),
         "course_plans": _build_course_plans_map(agent_result, coords),
@@ -453,7 +486,7 @@ def _build_walk_plan_response(
         # 경사·구간 색을 계산한 고도 자료와 출처 문구 (DEM 을 쓰지 않으면 None, 앱이 출처를 표시한다)
         "elevation_source": elevation_source(),
         # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
-        "course_profiles": _build_course_profiles(agent_result, coords, selected_park if park_mode else None),
+        "course_profiles": profiles,
     }
     if park_mode:
         resp_data["route_validation"] = validations
