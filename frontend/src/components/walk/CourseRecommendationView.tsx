@@ -18,6 +18,7 @@ import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleR
 import { useAppTheme } from '../../theme/themeManager';
 import { useAppResponsive } from '../../hooks/useAppResponsive';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
@@ -130,17 +131,17 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 1. 상단 컴팩트 헤더 */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity activeOpacity={0.7} onPress={onBack} style={styles.backButton}>
-          <AppIcon name="back" size={22} color={colors.textMain} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textMain }]}>추천 산책 코스</Text>
-        <View style={styles.headerRightGroup}>
-          <VoiceQuickControlBar compact style={styles.headerVoiceBar} />
-          <PlanSourceBadge isLive={Boolean(planResult?.isLiveServer)} />
-        </View>
-      </View>
+      {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader
+        title="추천 산책 코스"
+        onBack={onBack}
+        rightAction={
+          <View style={styles.headerRightGroup}>
+            <VoiceQuickControlBar compact style={styles.headerVoiceBar} />
+            <PlanSourceBadge isLive={Boolean(planResult?.isLiveServer)} />
+          </View>
+        }
+      />
 
       {/* 스크롤 가능한 본문 영역 (헤더와 하단 카드는 화면에 안정적으로 고정) */}
       <ScrollView
