@@ -22,7 +22,7 @@ export const PlanSourceBadge: React.FC<PlanSourceBadgeProps> = ({ isLive, style 
         style={[
           styles.badge,
           {
-            backgroundColor: isLive ? colors.primaryWash : colors.surface,
+            backgroundColor: isLive ? colors.primaryWash : colors.background,
             borderColor: isLive ? colors.primaryMint : colors.border,
           },
         ]}
@@ -30,12 +30,12 @@ export const PlanSourceBadge: React.FC<PlanSourceBadgeProps> = ({ isLive, style 
         <AppIcon
           name={isLive ? 'sparkle' : 'soft'}
           size={12}
-          color={isLive ? colors.primaryDark : colors.textMuted}
+          color={isLive ? colors.primaryDark : colors.textMain}
         />
         <Text
           style={[
             styles.text,
-            { color: isLive ? colors.primaryDark : colors.textMuted },
+            { color: isLive ? colors.primaryDark : colors.textMain },
           ]}
         >
           {isLive ? '실시간 AI 맞춤 코스' : '안심 기본 코스'}

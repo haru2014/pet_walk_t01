@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
 import { hapticLight, hapticSuccess } from '../../services/haptics';
@@ -18,6 +18,7 @@ export interface BookmarkToggleButtonProps {
 }
 
 export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ bookmark }) => {
+  const { colors } = useAppTheme();
   const [saved, setSaved] = useState(false);
   const bookmarkId = bookmark?.id;
 
@@ -49,11 +50,29 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
       onPress={() => void handleToggle()}
       accessibilityRole="button"
       accessibilityLabel={isSaved ? '즐겨찾기 해제' : '즐겨찾기 저장'}
-      style={[styles.button, isSaved && styles.buttonSaved]}
+      style={[
+        styles.button,
+        {
+          borderColor: isSaved ? colors.primaryMint : colors.border,
+          backgroundColor: isSaved ? colors.primaryWash : colors.background,
+        },
+      ]}
     >
       <View style={styles.content}>
-        <AppIcon name="heart" size={14} color={isSaved ? TOKENS.colors.primary : TOKENS.colors.textMuted} filled={isSaved} />
-        <Text style={[styles.text, isSaved && styles.textSaved]}>{isSaved ? '저장됨' : '찜하기'}</Text>
+        <AppIcon
+          name="heart"
+          size={14}
+          color={isSaved ? colors.primaryDark : colors.textMuted}
+          filled={isSaved}
+        />
+        <Text
+          style={[
+            styles.text,
+            { color: isSaved ? colors.primaryDark : colors.textMain },
+          ]}
+        >
+          {isSaved ? '저장됨' : '찜하기'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -65,11 +84,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: TOKENS.colors.border,
-    backgroundColor: TOKENS.colors.surface,
   },
-  buttonSaved: { borderColor: TOKENS.colors.primaryMint, backgroundColor: TOKENS.colors.primaryLight },
-  text: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMuted },
-  textSaved: { color: TOKENS.colors.primaryDark },
+  text: { fontSize: 11, fontWeight: '700' },
   content: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

@@ -157,13 +157,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               {dog.name}에게 맞는 산책 코스를 찾았어요.
             </Text>
           </View>
-          <Text style={[styles.briefingDesc, { color: colors.textMuted }]} numberOfLines={2}>
+          <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85 }]} numberOfLines={2}>
             {briefingText}
           </Text>
           {/* 가로 태그 칩 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
             {conditionLabels.map((lbl) => (
-              <View key={lbl} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
+              <View
+                key={lbl}
+                style={[
+                  styles.tagChip,
+                  { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, borderWidth: 1 },
+                ]}
+              >
                 <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
               </View>
             ))}
@@ -208,7 +214,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                     styles.courseChip,
                     {
                       paddingVertical: courseRecommend.altCourseChipPadV,
-                      backgroundColor: isSelected ? colors.primaryLight : colors.surface,
+                      backgroundColor: isSelected ? colors.primaryWash : colors.background,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
@@ -216,7 +222,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   <Text
                     style={[
                       styles.courseChipText,
-                      { color: isSelected ? colors.primaryDark : colors.textMuted },
+                      { color: isSelected ? colors.primaryDark : colors.textMain },
                       isSelected && styles.courseChipTextActive,
                     ]}
                   >
@@ -249,7 +255,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
         {currentCourse.reason ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Text style={[styles.reasonText, { color: colors.textMuted }]} numberOfLines={2}>
+            <Text style={[styles.reasonText, { color: colors.textMain }]} numberOfLines={2}>
               💡 {currentCourse.reason}
             </Text>
           </View>
@@ -271,27 +277,27 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {surfaceInfo.isUnknown ? (
                   <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
                 ) : (
-                  <>폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                  <>폭신 노면 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
                 )}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {currentCourse.stairsCount.includes('계단') ? (
                   <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
                 ) : (
                   <>계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text></>
                 )}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {slopeContent}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
               </Text>
             </View>
@@ -389,7 +395,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metricText: { fontSize: 10 },
-  metricDot: { color: 'rgba(0,0,0,0.2)', fontSize: 10 },
+  metricDot: { fontSize: 10 },
   startButton: {
     height: 48,
     borderRadius: 14,

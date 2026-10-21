@@ -66,7 +66,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#D6E3D8',
 
     textMain: '#2D3A31',   // 딥 세이지 차콜 텍스트
-    textMuted: '#758579',  // 세이지 그레이 뮤트 텍스트
+    textMuted: '#566659',  // 세이지 차콜 뮤트 텍스트 (명도 대비 강화: 4.8:1 이상)
     textWhite: '#FFFFFF',
 
     routeSafe: '#5A7361',  // 세이지 그린 안심길
@@ -107,7 +107,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#D1FAE5',
 
     textMain: '#17211C',
-    textMuted: '#6B756F',
+    textMuted: '#4E5853',  // 차콜 뮤트 텍스트 (명도 대비 강화: 5.5:1 이상)
     textWhite: '#FFFFFF',
 
     routeSafe: '#10B981',
