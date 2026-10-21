@@ -317,3 +317,49 @@ class TestFastApiAgentIntegration:
         assert best_course["stairsCount"] == "정보 없음"
         assert "맥스" in data["summary"] or "골든 리트리버" in data["summary"]
 
+
+class TestDataSourceReliabilityAndSlopeStandard:
+    """[P1 과제] 실측/추정/결측 구분 및 8%/15% 경사도 채점 기준 정합성 검증."""
+
+    def test_slope_scorer_8_percent_and_15_percent_thresholds(self):
+        """최대 경사 8% 이하 만점(30점), 15% 초과 탈락(0점), 8~15% 선형 감점 검증."""
+        # 1. 8% 이하: 만점 30점
+        c_gentle = RouteCandidate(
+            route_id="r1", name="완만", total_distance_m=1000.0,
+            estimated_duration_minutes=20.0, has_stairs=False,
+            max_slope_percent=8.0, surface_temp_c=28.0,
+        )
+        scored_gentle = score_candidate_route(c_gentle, target_distance_m=1000.0)
+        assert scored_gentle.slope_score == 30.0
+
+        # 2. 11.5% (중간): 15.0점
+        c_mid = RouteCandidate(
+            route_id="r2", name="중간", total_distance_m=1000.0,
+            estimated_duration_minutes=20.0, has_stairs=False,
+            max_slope_percent=11.5, surface_temp_c=28.0,
+        )
+        scored_mid = score_candidate_route(c_mid, target_distance_m=1000.0)
+        assert scored_mid.slope_score == 15.0
+
+        # 3. 15.1% (초과): 탈락 0.0점
+        c_steep = RouteCandidate(
+            route_id="r3", name="급경사", total_distance_m=1000.0,
+            estimated_duration_minutes=20.0, has_stairs=False,
+            max_slope_percent=15.1, surface_temp_c=28.0,
+        )
+        scored_steep = score_candidate_route(c_steep, target_distance_m=1000.0)
+        assert scored_steep.slope_score == 0.0
+
+    def test_candidate_data_reliability_fields(self):
+        """후보 경로 모델의 실측/추정/결측 출처 필드 존재 및 기본값 검증."""
+        c = RouteCandidate(
+            route_id="r_src", name="출처 테스트", total_distance_m=1000.0,
+            estimated_duration_minutes=20.0,
+        )
+        assert hasattr(c, "slope_source")
+        assert hasattr(c, "stairs_source")
+        assert hasattr(c, "shade_source")
+        assert hasattr(c, "data_reliability")
+        assert c.data_reliability in ("measured", "estimated", "fallback")
+
+
