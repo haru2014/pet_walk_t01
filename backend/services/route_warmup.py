@@ -15,7 +15,19 @@ logger = logging.getLogger("petwalk.warmup")
 
 WARMUP_DELAY_S = 2.0  # 서버가 첫 요청(헬스체크 등)을 받을 시간을 준다
 WEATHER_REFRESH_S = 480.0  # 날씨 캐시 유효시간(10분)이 끝나기 전(8분)에 미리 새로 받는다
+ACTIVE_WINDOW_S = 900.0  # 이 시간(15분) 안에 사용자 요청이 있었을 때만 날씨를 미리 갱신한다 (아무도 안 쓰면 외부 호출을 아낀다)
 _STOP = threading.Event()
+_LAST_ACTIVITY = time.time()
+
+
+def mark_activity() -> None:
+    """사용자 요청이 들어온 시각을 기록한다."""
+    global _LAST_ACTIVITY
+    _LAST_ACTIVITY = time.time()
+
+
+def _recently_active() -> bool:
+    return time.time() - _LAST_ACTIVITY < ACTIVE_WINDOW_S
 
 
 def warm_park_caches(park_ids: Optional[Iterable[str]] = None) -> Dict[str, dict]:
@@ -81,6 +93,7 @@ def start_background_warmup(
     if os.environ.get("PETWALK_DISABLE_WARMUP", "").strip().lower() in {"1", "true", "yes", "on"}:
         return None
     _STOP.clear()
+    mark_activity()  # 서버가 방금 켜졌으니 첫 갱신은 한다
 
     def _run() -> None:
         time.sleep(WARMUP_DELAY_S)
@@ -91,7 +104,8 @@ def start_background_warmup(
         if weather_fetch is None or not weather_points:
             return
         while not _STOP.is_set():
-            refresh_weather_once(weather_fetch, weather_points)
+            if _recently_active():  # 서버가 방금 켜졌거나 최근 요청이 있었을 때만 (기상청·에어코리아 호출 한도 보호)
+                refresh_weather_once(weather_fetch, weather_points)
             _STOP.wait(WEATHER_REFRESH_S)
 
     thread = threading.Thread(target=_run, name="petwalk-warmup", daemon=True)
