@@ -50,6 +50,16 @@ describe('Android 뒤로가기 4단계 우선순위 전략 (determineBackAction)
       expect(action).toBe('NAVIGATE_TO_WALK_SETTINGS');
     });
 
+    it('산책 탭의 코스 추천 단계(walkStep: recommend)에서도 직전 단계인 산책 설정(walk_settings)으로 복귀해야 한다', () => {
+      const action = determineBackAction({
+        ...baseParams,
+        subScreen: 'main',
+        activeTab: '산책',
+        walkStep: 'recommend',
+      });
+      expect(action).toBe('NAVIGATE_TO_WALK_SETTINGS');
+    });
+
     it('산책 설정 화면(walk_settings)에서는 메인(main)으로 복귀해야 한다', () => {
       const action = determineBackAction({
         ...baseParams,

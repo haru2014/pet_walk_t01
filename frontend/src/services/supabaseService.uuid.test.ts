@@ -115,6 +115,21 @@ describe('이슈 #55: DB 로 보내는 id 약속', () => {
     expect(sent.dog_id).toBeUndefined();
   });
 
+  it('산책 기록: DB 가 정하는 칸(is_public, public_route_coords, created_at)은 보내지 않는다 (이슈 #116)', async () => {
+    // DB 는 공개 관련 칸을 앱이 쓰지 못하게 막는다. 값이 false 여도 칸 이름이 들어 있으면 권한 오류가 난다.
+    const svc = await loadService();
+    await svc.signIn('a@example.com', 'pw');
+    await svc.createWalkRecord({ distance_m: 800, duration_min: 12, is_public: true });
+    const sent = insert.mock.calls[0][0];
+    expect(Object.keys(sent)).not.toContain('is_public');
+    expect(Object.keys(sent)).not.toContain('public_route_coords');
+    expect(Object.keys(sent)).not.toContain('created_at');
+    // 앱이 쓸 수 있는 칸은 그대로 보낸다
+    for (const column of ['id', 'user_id', 'started_at', 'ended_at', 'distance_m', 'duration_min', 'route_coords', 'photo_paths', 'note', 'rating']) {
+      expect(Object.keys(sent)).toContain(column);
+    }
+  });
+
   it('산책 기록: UUID dog_id 는 그대로 연결한다', async () => {
     const svc = await loadService();
     await svc.signIn('a@example.com', 'pw');

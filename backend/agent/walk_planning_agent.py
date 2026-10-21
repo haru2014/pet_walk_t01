@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
+from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
 from agent.pilot_park_routes import PILOT_PARK_CENTERS
@@ -32,7 +33,7 @@ SlopePreference = Literal["gentle", "very_gentle", "steep_avoid", "none"]
 class ClientDogContext(BaseModel):
     """클라이언트 로컬(AsyncStorage)에서 무상태로 동봉하는 반려견 프로필 DTO."""
     dog_id: str = Field(default="dog-001", min_length=1)
-    name: str = Field(default="아이", min_length=1)
+    name: str = Field(default="강아지", min_length=1)
     breed: str = Field(default="말티즈", min_length=1)
     age_years: int = Field(default=4, ge=0, le=30)
     weight_kg: float = Field(default=4.0, gt=0.0, le=120.0)
@@ -83,6 +84,7 @@ class ScoredRoute(BaseModel):
     thermal_score: float
     distance_score: float
     rank: int
+    preference_score: float = 0.0  # [제안] 맞춤 점수의 선호 적합도 (agent/personalized_scorer.py)
 
 
 class WalkPlanningResult(BaseModel):
@@ -140,7 +142,7 @@ def _extract_target_duration(query_str: str) -> Optional[int]:
     if re.search(r"(?:1\s*시간|한\s*시간)\s*(?:반|30\s*분)", query_str):
         return 90
     # 2. 1시간, 한시간 등 60분 표현
-    if re.search(r"(?:1\s*시간|한\s*시간|한시간)", query_str):
+    if re.search(r"(?:1\s*시간|한\s*시간)", query_str):
         return 60
     # 3. 반시간 (30분)
     if "반시간" in query_str:
@@ -361,7 +363,11 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         direction = _direction_label(VARIANT_BEARINGS[variant])
         if plan.source.startswith("park_graph_"):
             park_key = plan.source.removeprefix("park_graph_")
-            cand_name = f"🏞️ {PILOT_PARK_CENTERS[park_key][2]}"
+            # 후보 3개가 이름만으로 구분되도록 안 번호·순환 방향·실제 거리를 붙인다 (이슈 #125)
+            cand_name = (
+                f"🏞️ {PILOT_PARK_CENTERS[park_key][2]} · {variant}안 "
+                f"{route_direction_label(plan.coords)} {plan.distance_m / 1000.0:.1f}km"
+            )
         elif plan.source.startswith("static_pilot_"):
             park_title = plan.source.replace("static_pilot_", "")
             cand_name = f"🏞️ {park_title}"
@@ -515,6 +521,51 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     }
 
 
+def _score_candidates_personalized(state: WalkPlanningState, candidates: List[RouteCandidate],
+                                   target_dist: float) -> List[ScoredRoute]:
+    """[제안] 실측 지표(course_profiles 와 같은 계산) + 반려견 관절 단계 + 그늘·노면 선호로 채점한다.
+
+    후보의 경사·계단·그늘·지면온도도 실측값으로 바꿔, 카드·안내 문구가 같은 값을 보게 한다.
+    기존 score_candidate_route(고정 프로필)는 비교·검토용으로 남겨 둔다.
+    """
+    from agent.park_route_validation import entry_approach_length_m
+    from agent.personalized_scorer import score_personalized
+    from services.route_profile import measure_route_profile
+
+    intent = state.get("parsed_intent") or {}
+    dog = state.get("client_dog_context") or {}
+    weather = state.get("weather_context") or {}
+    current = weather.get("current") or weather
+    park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
+    scored_list: List[ScoredRoute] = []
+    for c in candidates:
+        profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
+        # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
+        approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
+        result = score_personalized(
+            profile, distance_m=c.total_distance_m - 2 * approach_m, target_distance_m=target_dist,
+            joint_care_level=int(dog.get("joint_care_level", 1)),
+            calibrated_max_slope=state.get("max_slope_allowed"),
+            avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
+            preferred_surfaces=intent.get("preferred_surfaces"),
+            air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
+        )
+        if profile:
+            c.max_slope_percent = profile.get("max_slope_percent", c.max_slope_percent)
+            c.average_slope_percent = profile.get("avg_slope_percent", c.average_slope_percent)
+            if profile.get("stairs_count") is not None:
+                c.has_stairs = profile["stairs_count"] > 0
+            if profile.get("shade_ratio") is not None:
+                c.average_shade_ratio = profile["shade_ratio"]
+            if result.surface_temp_c is not None:
+                c.surface_temp_c = result.surface_temp_c
+        scored_list.append(ScoredRoute(
+            candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
+            thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+        ))
+    return scored_list
+
+
 def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 4] Candidate Route Scorer 100점 만점 다요소 평가 및 최적 경로 선정."""
     trace = list(state.get("execution_trace", []))
@@ -522,11 +573,7 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     target_dist = state.get("target_distance_m", 1000.0)
 
     candidates = [RouteCandidate(**cd) for cd in candidate_dicts]
-    scored_list: List[ScoredRoute] = []
-
-    for c in candidates:
-        scored = score_candidate_route(c, target_dist)
-        scored_list.append(scored)
+    scored_list: List[ScoredRoute] = _score_candidates_personalized(state, candidates, target_dist)
 
     # 점수 내림차순 정렬
     scored_list.sort(key=lambda s: s.total_score, reverse=True)
@@ -549,14 +596,41 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     }
 
 
+# 폭신한 노면 비율은 노면 정보가 경로의 절반 이상 확인될 때만 말한다 (main.SOFT_SURFACE_MIN_KNOWN_RATIO 와 같은 값)
+_SOFT_SURFACE_MIN_KNOWN_RATIO = 0.5
+
+
+def _measured_route_phrase(profile: Dict[str, Any]) -> str:
+    """안내 문구용 코스 설명. 실측으로 확인된 값만 쓰고, 모르는 값은 말하지 않는다 (#114)."""
+    parts = []
+    stairs = profile.get("stairs_count")
+    if stairs == 0:
+        parts.append("확인된 계단 없음")
+    elif stairs:
+        parts.append(f"계단 {stairs}곳")
+    if profile.get("slope_source") == "dem" and profile.get("max_slope_percent") is not None:
+        parts.append(f"최대 경사 {profile['max_slope_percent']:.1f}%")
+    soft, known = profile.get("soft_surface_ratio"), profile.get("surface_known_ratio")
+    if soft is not None and known is not None and known >= _SOFT_SURFACE_MIN_KNOWN_RATIO:
+        parts.append(f"폭신한 노면 {round(soft * 100)}%")
+    if profile.get("shade_ratio") is not None:
+        parts.append(f"그늘 {round(profile['shade_ratio'] * 100)}%")
+    return " · ".join(parts)
+
+
 def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 5] 시선 해방(Eyes-Free) 핸즈프리 음성 안내 및 화면 브리핑 메시지 합성.
-    
+
     * 기상청 실시간 지면열 및 골든타임 동적 반영:
-      - 35℃ 초과 또는 더위 우려 질의 시: 폭염 지면열 경고 및 골든타임 권장, 그늘 숲길 우선 브리핑
-      - 35℃ 이하: 안전 골든타임 알림
+      - 33℃ 초과 또는 더위 우려 질의 시: 지면열 경고 및 골든타임 권장
+      - 33℃ 이하: 안전 골든타임 알림. 단, 지금 비가 오면 골든타임이라고 하지 않는다
+    * 비 예보(weather_context.precipitation)를 안내한다 (#114).
+    * 코스 설명은 실측 지표(계단·경사·노면·그늘)로만 말하고, 모르는 값은 말하지 않는다 (#114).
     * 웰니스 카피라이팅 가드레일: 임상 질병 용어(슬개골 탈구, 관절염 등) 100% 배제.
     """
+    from services.route_profile import measure_route_profile
+    from services.weather_context import SAFE_MAX_C, rain_notice
+
     trace = list(state.get("execution_trace", []))
     selected_dict = state.get("selected_route") or {}
     dog_ctx_dict = state.get("client_dog_context") or {}
@@ -566,7 +640,7 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     golden_window = weather.get("golden_time_window", "17시 이후 또는 일몰 후")
     score = state.get("best_score", 95.0)
 
-    dog_name = dog_ctx_dict.get("name", "아이")
+    dog_name = dog_ctx_dict.get("name", "강아지")
     breed = dog_ctx_dict.get("breed", "반려견")
     duration = selected_dict.get("estimated_duration_minutes", intent_dict.get("target_duration_minutes", 20))
     route_name = selected_dict.get("name", "안심 산책로")
@@ -575,22 +649,30 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     user_query = state.get("user_query", "")
     is_hot_query = any(k in user_query for k in ["더워", "덥", "뜨거", "열", "낮", "햇빛", "햇볕", "시원한", "그늘"])
     surface_temp = current_weather.get("estimated_surface_temp", 29.5)
-    is_golden = current_weather.get("is_golden_time", surface_temp <= 35.0)
+    is_golden = current_weather.get("is_golden_time", surface_temp <= SAFE_MAX_C)  # Issue #153 나 안: 33℃ 이하만 안전
+    precipitation = weather.get("precipitation") or {}
+    raining_now = bool(precipitation.get("known") and precipitation.get("is_precipitating_now"))
 
-    # 1. 지면온도가 35℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
-    if not is_golden or (is_hot_query and surface_temp > 33.0):
-        briefing = (
-            f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
-            f"{golden_window} 산책을 권장하며, 지금은 {breed} {dog_name}를 위해 계단 걱정 없이 경사가 완만한 폭신한 길과 시원한 그늘 숲길 위주인 '{route_name}'로 안내할게요. "
-            f"약 {duration}분({int(dist_m)}m) 동안 발이 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-        )
-    # 2. 지면온도 35℃ 이하 안전 골든타임
+    coords = selected_dict.get("geojson_coordinates") or []
+    park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
+    phrase = _measured_route_phrase(measure_route_profile(coords, park_id)) if coords else ""
+    route_text = f"'{route_name}'({phrase})" if phrase else f"'{route_name}'"
+
+    # 1. 지면온도가 33℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
+    if not is_golden or (is_hot_query and surface_temp > SAFE_MAX_C):
+        heat = (f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
+                f"{golden_window} 산책을 권장하며, 지금 나가신다면 그늘을 따라 짧게 걸어 주세요.")
+        route_sentence = f"{breed} {dog_name}를 위해 {route_text}로 안내할게요."
+        closing = f"약 {duration}분({int(dist_m)}m) 코스예요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+    # 2. 지면온도 33℃ 이하: 비가 오지 않으면 안전 골든타임
     else:
-        briefing = (
-            f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요. "
-            f"{breed} {dog_name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주인 '{route_name}'를 준비했어요. "
-            f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-        )
+        heat = (f"현재 지면온도는 {surface_temp:.1f}℃로 발바닥에 뜨겁지 않아요." if raining_now
+                else f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요.")
+        route_sentence = f"{breed} {dog_name}와의 소중한 산책을 위해 {route_text}를 준비했어요."
+        closing = (f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. "
+                   "스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾")
+    rain = rain_notice(precipitation)
+    briefing = " ".join(part for part in (heat, rain, route_sentence, closing) if part)
 
     trace.append(f"[Node: synthesize_briefing] Synthesized wellness briefing. Total Score: {score}점, SurfaceTemp: {surface_temp}℃")
 

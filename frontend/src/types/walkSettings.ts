@@ -85,6 +85,20 @@ export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean
   return `${hours}시간 ${remainingMinutes}분`;
 }
 
+export interface CourseProfile {
+  readonly distance_m?: number;
+  readonly max_slope_percent?: number | null;
+  readonly avg_slope_percent?: number | null;
+  readonly slope_source?: 'dem' | 'approximation' | 'unknown';
+  readonly elevation_source?: string | null;
+  readonly surface_breakdown?: Record<string, number> | null;
+  readonly surface_known_ratio?: number | null;
+  readonly soft_surface_ratio?: number | null;
+  readonly stairs_count?: number | null;
+  readonly shade_ratio?: number | null;
+  readonly basis?: string;
+}
+
 export interface RecommendedCourse {
   id: string;
   name: string;
@@ -93,10 +107,13 @@ export interface RecommendedCourse {
   softRatio: string;
   shadeLevel: string;
   stairsCount: string;
-  maxSlopePercent: number;
+  maxSlopePercent?: number | null;
   shadePercent: number;
-  softSurfacePercent: number;
+  softSurfacePercent?: number | null;
   reason: string;
+  score?: number | null;
+  profile?: CourseProfile | null;
+  slopeSource?: 'dem' | 'approximation' | 'unknown';
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
@@ -107,7 +124,7 @@ export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
     estimatedMinutes: 38,
     softRatio: '72%',
     shadeLevel: '많음',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent: 2.1,
     shadePercent: 57,
     softSurfacePercent: 85,
@@ -120,7 +137,7 @@ export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
     estimatedMinutes: 35,
     softRatio: '64%',
     shadeLevel: '많음',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent: 2.8,
     shadePercent: 50,
     softSurfacePercent: 78,
@@ -133,7 +150,7 @@ export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
     estimatedMinutes: 40,
     softRatio: '48%',
     shadeLevel: '보통',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent: 3.2,
     shadePercent: 42,
     softSurfacePercent: 62,

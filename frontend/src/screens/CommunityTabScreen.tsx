@@ -7,7 +7,7 @@
  * - 전체화면 상세 경로 모달 및 '이 코스로 산책 시작' 원터치 연동
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -24,8 +23,10 @@ import { RouteMapView } from '../components/map/RouteMapView';
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
 import { LandmarkCategoryCode } from '../types/landmarkCategory';
 import { SupabaseService } from '../services/supabaseService';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { useAppResponsive } from '../hooks/useAppResponsive';
+import { BookmarkToggleButton } from '../components/bookmark/BookmarkToggleButton';
+import { BookmarkedRoute } from '../types/bookmark';
+import { StatsPeriodType } from '../services/walkStatisticsService';
 
 export interface CommunityTabScreenProps {
   readonly onStartCommunityWalk?: (
@@ -35,6 +36,9 @@ export interface CommunityTabScreenProps {
   ) => void;
   readonly dogSpeedKmH?: number;
   readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
+  readonly initialFeeds?: readonly CommunityFeedItem[];
+  readonly initialPeriod?: StatsPeriodType;
+  readonly initialCategory?: LandmarkCategoryCode;
 }
 
 /** 이웃이 공유한 마스킹 좌표열을 3대 안심 등급 GeoJSON FeatureCollection 규격으로 변환 */
@@ -84,14 +88,40 @@ function buildPinsFromCoords(coords: readonly (readonly [number, number])[]): re
   ];
 }
 
+/** 커뮤니티 피드 아이템을 즐겨찾기(BookmarkedRoute) 객체로 변환하여 찜하기(북마크) 지원 */
+function convertFeedToBookmark(feed: CommunityFeedItem): BookmarkedRoute {
+  const route = buildRouteFromMaskedPolyline(feed.masked_polyline);
+  const stepPins = buildPinsFromCoords(feed.masked_polyline);
+  return {
+    id: `community_${feed.course_id}`,
+    title: feed.title,
+    dogName: '이웃 반려견',
+    totalDistanceKm: Math.round((feed.distance_m / 1000) * 10) / 10,
+    estimatedMinutes: feed.duration_min,
+    maxSlopePercent: 3.5,
+    shadePercent: 70,
+    tags: feed.tags && feed.tags.length > 0 ? [...feed.tags] : ['이웃추천', '안심코스'],
+    routeGeoJson: route,
+    stepPins,
+    savedAt: new Date().toISOString(),
+    landmarkCode: feed.landmark_code,
+    landmarkName: feed.landmark_name,
+    regionName: feed.region_name,
+  };
+}
+
 export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   onStartCommunityWalk,
   dogSpeedKmH = 2.8,
   onOpenAuthModal,
+  initialFeeds,
+  initialPeriod = 'all',
+  initialCategory = 'ALL',
 }) => {
-  const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>([]);
+  const { community } = useAppResponsive();
+  const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>(initialFeeds ?? []);
   const [isSupabase, setIsSupabase] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialFeeds);
   const currentUser = SupabaseService.getCurrentUser();
 
   // 1번 인터랙션: 카드 아코디언 확장 선택 ID
@@ -99,7 +129,8 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
   // 2번 인터랙션: 전체화면 상세 경로 모달 대상
   const [modalFeed, setModalFeed] = useState<CommunityFeedItem | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<LandmarkCategoryCode>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<LandmarkCategoryCode>(initialCategory);
+  const [selectedPeriod, setSelectedPeriod] = useState<StatsPeriodType>(initialPeriod);
 
   const loadFeeds = async () => {
     setIsLoading(true);
@@ -110,12 +141,14 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   };
 
   useEffect(() => {
-    void fetchCommunityFeeds().then((res) => {
-      setFeeds(res.feeds);
-      setIsSupabase(Boolean(res.is_supabase));
-      setIsLoading(false);
-    });
-  }, []);
+    if (!initialFeeds) {
+      void fetchCommunityFeeds().then((res) => {
+        setFeeds(res.feeds);
+        setIsSupabase(Boolean(res.is_supabase));
+        setIsLoading(false);
+      });
+    }
+  }, [initialFeeds]);
 
   const handleToggleAccordion = (courseId: string) => {
     setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
@@ -139,10 +172,30 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
     { code: 'LM_CITY_HALL', label: '🏛️ 시청 · 중구' },
   ];
 
-  const filteredFeeds =
-    selectedCategory === 'ALL'
-      ? feeds
-      : feeds.filter((f) => f.landmark_code === selectedCategory);
+  const PERIOD_CHIPS: readonly { period: StatsPeriodType; label: string }[] = [
+    { period: 'all', label: '전체 기간' },
+    { period: '7days', label: '최근 7일' },
+    { period: '30days', label: '최근 30일' },
+  ];
+
+  // 랜드마크 필터와 기간 필터 복합(AND) 적용
+  const filteredFeeds = useMemo(() => {
+    let result = [...feeds];
+
+    if (selectedCategory !== 'ALL') {
+      result = result.filter((f) => f.landmark_code === selectedCategory);
+    }
+
+    if (selectedPeriod === '7days') {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      result = result.filter((f) => !f.created_at || new Date(f.created_at).getTime() >= cutoff);
+    } else if (selectedPeriod === '30days') {
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      result = result.filter((f) => !f.created_at || new Date(f.created_at).getTime() >= cutoff);
+    }
+
+    return result;
+  }, [feeds, selectedCategory, selectedPeriod]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -155,7 +208,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
       <View style={styles.badgeRow}>
         <View style={[styles.statusBadge, isSupabase ? styles.badgeSupabase : styles.badgeOffline]}>
           <Text style={[styles.badgeText, isSupabase ? styles.textSupabase : styles.textOffline]}>
-            {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 안심 피드 모드'}
+            {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 [가상 데모 코스]'}
           </Text>
         </View>
         <TouchableOpacity
@@ -219,6 +272,27 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
         </ScrollView>
       </View>
 
+      {/* 기간 필터 칩 바 (전체 기간 / 최근 7일 / 최근 30일) */}
+      <View style={styles.periodFilterContainer}>
+        <View style={styles.periodChipRow}>
+          {PERIOD_CHIPS.map((chip) => {
+            const isSelected = selectedPeriod === chip.period;
+            return (
+              <TouchableOpacity
+                key={chip.period}
+                activeOpacity={0.75}
+                onPress={() => setSelectedPeriod(chip.period)}
+                style={[styles.periodFilterChip, isSelected && styles.periodFilterChipActive]}
+              >
+                <Text style={[styles.periodFilterChipText, isSelected && styles.periodFilterChipTextActive]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       {/* 공유된 안심 코스 피드 목록 */}
       <Text style={styles.feedListTitle}>
         이웃들이 공유한 안심 산책로 ({filteredFeeds.length}개)
@@ -228,28 +302,47 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
         const isExpanded = expandedCourseId === feed.course_id;
         const feedRoute = buildRouteFromMaskedPolyline(feed.masked_polyline);
         const feedPins = buildPinsFromCoords(feed.masked_polyline);
+        const bookmarkObj = convertFeedToBookmark(feed);
 
         return (
-          <CardWrapper key={feed.course_id} variant="elevated" style={styles.feedCard}>
+          <CardWrapper
+            key={feed.course_id}
+            variant="elevated"
+            style={[styles.feedCard, { paddingVertical: community.feedCardPaddingV, paddingHorizontal: community.feedCardPaddingH }]}
+          >
             {/* 카드 상단 클릭 시 아코디언 토글 */}
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => handleToggleAccordion(feed.course_id)}
             >
-              {/* 랜드마크 및 행정구역 뱃지 행 */}
-              <View style={styles.landmarkRow}>
-                {feed.landmark_name && (
-                  <View style={styles.landmarkChip}>
-                    <Text style={styles.landmarkChipText}>
-                      📍 {feed.landmark_name} · {feed.region_name}
-                    </Text>
-                  </View>
-                )}
-                {feed.is_origin_masked && (
-                  <View style={styles.maskedChip}>
-                    <Text style={styles.maskedChipText}>🔒 200m 보호</Text>
-                  </View>
-                )}
+              {/* 랜드마크 및 안심 뱃지 행 + 찜하기 버튼 */}
+              <View style={styles.topActionRow}>
+                <View style={styles.landmarkRow}>
+                  {feed.landmark_name && (
+                    <View style={styles.landmarkChip}>
+                      <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont }]}>
+                        📍 {feed.landmark_name} · {feed.region_name}
+                      </Text>
+                    </View>
+                  )}
+                  {feed.is_origin_masked && (
+                    <View style={styles.maskedChip}>
+                      <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>🔒 200m 보호</Text>
+                    </View>
+                  )}
+                  {!isSupabase && (
+                    <View style={styles.demoBadge}>
+                      <Text style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>
+                        가상 데모
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* 코스 찜하기 (북마크) 복원 */}
+                <View style={styles.bookmarkWrapper}>
+                  <BookmarkToggleButton bookmark={bookmarkObj} />
+                </View>
               </View>
 
               <View style={styles.feedHeader}>
@@ -275,7 +368,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길)
                 </Text>
 
-                <View style={styles.miniMapContainer}>
+                <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight }]}>
                   <RouteMapView
                     route={feedRoute}
                     stepPins={feedPins}
@@ -289,7 +382,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                     <TouchableOpacity
                       activeOpacity={0.8}
                       onPress={() => handleStartWalkFromFeed(feed)}
-                      style={styles.startWalkButton}
+                      style={[styles.startWalkButton, { paddingVertical: community.actionBtnPaddingV }]}
                     >
                       <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
                     </TouchableOpacity>
@@ -297,7 +390,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => setModalFeed(feed)}
-                    style={styles.fullScreenButton}
+                    style={[styles.fullScreenButton, { paddingVertical: community.actionBtnPaddingV }]}
                   >
                     <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
                   </TouchableOpacity>
@@ -319,16 +412,20 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={styles.modalSubtitle}>이웃 공유 안심 산책로</Text>
                   <Text style={styles.modalTitle}>{modalFeed.title}</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setModalFeed(null)}
-                  style={styles.closeBtn}
-                >
-                  <Text style={styles.closeBtnText}>✕</Text>
-                </TouchableOpacity>
+                <View style={styles.modalHeaderActions}>
+                  <BookmarkToggleButton bookmark={convertFeedToBookmark(modalFeed)} />
+                  <TouchableOpacity
+                    onPress={() => setModalFeed(null)}
+                    style={styles.closeBtn}
+                    accessibilityLabel="모달 닫기"
+                  >
+                    <Text style={styles.closeBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.modalMetaBar}>
@@ -389,7 +486,7 @@ const styles = StyleSheet.create({
   refreshText: { fontSize: 11, color: TOKENS.colors.textMuted },
   cardHeaderTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
   cardBodyText: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 18, marginTop: 6 },
-  filterChipContainer: { marginBottom: 12 },
+  filterChipContainer: { marginBottom: 8 },
   filterChipScroll: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   filterChip: {
     backgroundColor: '#F3F4F6',
@@ -412,9 +509,34 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.primaryDark,
     fontWeight: '700',
   },
+  periodFilterContainer: { marginBottom: 12 },
+  periodChipRow: { flexDirection: 'row', gap: 6 },
+  periodFilterChip: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+  },
+  periodFilterChipActive: {
+    backgroundColor: TOKENS.colors.primaryLight,
+    borderColor: TOKENS.colors.primary,
+  },
+  periodFilterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TOKENS.colors.textMuted,
+  },
+  periodFilterChipTextActive: {
+    color: TOKENS.colors.primaryDark,
+    fontWeight: '700',
+  },
   feedListTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
   feedCard: { marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
-  landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  topActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  bookmarkWrapper: { padding: 2 },
+  landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, marginRight: 8 },
   landmarkChip: {
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 7,
@@ -428,6 +550,19 @@ const styles = StyleSheet.create({
   feedTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
   maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
   maskedChipText: { fontSize: 10, color: '#16A34A', fontWeight: '700' },
+  demoBadge: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  demoBadgeText: {
+    fontSize: 10,
+    color: '#92400E',
+    fontWeight: '700',
+  },
   feedMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   feedMetaText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '500' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -485,6 +620,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  modalHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   modalSubtitle: { fontSize: 12, color: TOKENS.colors.textMuted },
   modalTitle: { fontSize: 16, fontWeight: '800', color: TOKENS.colors.textMain, marginTop: 2 },
   closeBtn: { padding: 4 },

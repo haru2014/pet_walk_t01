@@ -1,14 +1,14 @@
 # 🐾 [편안하개 - PetWalk] 전체 API 정의 및 구현 현황 목록 (API Specification & Status)
 
 > **문서 번호**: docs/07_편한하개_API_list.md  
-> **최종 갱신 일자**: 2026년 10월 14일  
-> **문서 버전**: v1.3 (대전·세종 5대 공원 실증 보행망, origin_mode 이원화, KMA 실시간 예보 연동 및 255/141 테스트 통과 반영판)  
+> **최종 갱신 일자**: 2026년 10월 18일  
+> **문서 버전**: v1.4 (기상청·에어코리아 실시간 지면열·대기질 캐시 최적화, 타임아웃 캡, 프론트엔드 15초 상향 및 507/269 테스트 통과 반영판)  
 > **기준 코드베이스**:
 > - 백엔드 엔트리포인트: [`backend/main.py`](/backend/main.py)
-> - 백엔드 서비스: [`backend/services/kma_weather_client.py`](/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](/backend/services/kma_grid_converter.py)
+> - 백엔드 서비스: [`backend/services/kma_weather_client.py`](/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](/backend/services/kma_grid_converter.py), [`backend/services/weather_context.py`](/backend/services/weather_context.py), [`backend/services/airkorea_client.py`](/backend/services/airkorea_client.py)
 > - 백엔드 에이전트: [`backend/agent/pilot_park_routes.py`](/backend/agent/pilot_park_routes.py), [`backend/agent/walk_planning_agent.py`](/backend/agent/walk_planning_agent.py)
 > - Supabase 스키마: [`backend/sql/supabase_schema.sql`](/backend/sql/supabase_schema.sql), [`backend/sql/supabase_auth_schema.sql`](/backend/sql/supabase_auth_schema.sql)
-> - 프론트엔드 서비스: [`frontend/src/services/`](/frontend/src/services/) (`api.ts`, `weatherApi.ts`, `parkingApi.ts`, `communityApi.ts`, `supabaseService.ts`, `ambientNoiseMonitor.ts`, `pilotParks.ts`)
+> - 프론트엔드 서비스: [`frontend/src/services/`](/frontend/src/services/) (`api.ts`, `weatherApi.ts`, `apiClient.ts`, `parkingApi.ts`, `communityApi.ts`, `supabaseService.ts`, `ambientNoiseMonitor.ts`, `pilotParks.ts`)
 
 ---
 
@@ -64,7 +64,7 @@ flowchart TB
 ### 🌐 기본 엔드포인트 URL
 | 대상 시스템 | 기본 접속 주소 (Live / 개발) | 설명 |
 |---|---|---|
-| **FastAPI Core 서버** | 운영: `https://pet-walk-t01.onrender.com` / 로컬: `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | 운영은 Render 무료 플랜(팀장 계정, 잠자기 있음). Windows 로컬은 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 사용 (PR #28). 실행·배포 방법은 [`09_백엔드_서버_실행_배포_가이드.md`](09_백엔드_서버_실행_배포_가이드.md) |
+| **FastAPI Core 서버** | 운영: `https://pet-walk-t01-z095.onrender.com` / 로컬: `http://127.0.0.1:8000` (환경변수: `EXPO_PUBLIC_API_URL`) | 운영은 Render 무료 플랜(팀장 계정, 잠자기 있음). Windows 로컬은 IPv6 지연 방지를 위해 `localhost` 대신 `127.0.0.1` 사용 (PR #28). 실행·배포 방법은 [`09_백엔드_서버_실행_배포_가이드.md`](09_백엔드_서버_실행_배포_가이드.md) |
 | **Supabase 클라우드** | `https://<project-id>.supabase.co` (환경변수: `EXPO_PUBLIC_SUPABASE_URL`) | 팀 공용 Supabase 프로젝트 `pet_walk`(팀장 소유), 앱은 Publishable Anon 키만 사용 (PR #24, #42) |
 | **OSM / OpenFreeMap 타일** | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | 실제 OpenStreetMap 래스터 타일 (차기: OpenFreeMap 벡터 타일 확장) |
 
@@ -349,27 +349,52 @@ flowchart TB
 
 ### 3.5. 기상청 단기예보 지면열 위험도 및 공영주차장 P&R (Real Data)
 
-#### 9) `GET /api/v1/weather/heat-risk` - 실시간 기상청 지면열 & 골든타임 조회
-- **관련 스토리**: [US-F1] 지면열 실시간 판별, [US-B1] 기상청 단기예보 연계
-- **담당자**: 3번 노희선 (백엔드 서비스), 4번 김승현 (`weatherApi.ts` 클라이언트 & 1시간 캐시)
+#### 9) `GET /api/v1/weather/heat-risk` - 실시간 기상청 지면열 & 대기질 & 골든타임 조회
+- **관련 스토리**: [US-F1] 지면열 실시간 판별, [US-B1] 기상청 단기예보 연계, [US-B2] 노면별 발바닥 체감온도
+- **담당자**: 3번 노희선 (백엔드 서비스), 2번 전황진 (기상·열 분석), 4번 김승현 (`weatherApi.ts` 클라이언트)
+- **성능 최적화**:
+  - 백엔드: 1.1km 격자 단위 10분 TTL 메모리 캐시 (`_HEAT_RISK_CACHE`) 적용 (반복 요청 0.001초 응답)
+  - 지연 방지: Open-Meteo 일사량 2.0초 타임아웃 캡, 에어코리아 대기질 2.5초 타임아웃 캡 적용
+  - 클라이언트: 15초 네트워크 타임아웃, Render 백엔드 사전 웜업, 정직한 실시간 지수 분석 로딩 상태(`···`) 연동
 - **요청 쿼리**: `lat` (위도), `lon` (경도)
 - **응답 DTO (200 OK)**:
 ```json
 {
   "status": "success",
   "current": {
-    "hour": 15,
-    "air_temp_celsius": 28.5,
-    "estimated_surface_temp": 42.0,
-    "risk_level": "CAUTION",
-    "is_golden_time": false
+    "hour": 16,
+    "air_temp_celsius": 21.3,
+    "estimated_surface_temp": 21.3,
+    "solar_radiation_w_m2": 0.0,
+    "surface_temps": {
+      "asphalt": 21.3,
+      "paved": 21.3,
+      "rubber": 21.3,
+      "dirt": 21.3,
+      "grass": 21.3,
+      "gravel": 21.3
+    },
+    "risk_level": "SAFE",
+    "is_golden_time": true,
+    "pop": 20,
+    "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다."
   },
-  "golden_time_window": "18:00 ~ 21:00",
+  "air_quality": {
+    "pm10": 24.0,
+    "pm25": 12.0,
+    "grade_label": "좋음",
+    "station_name": "대전 구성동 측정소",
+    "data_source": "airkorea"
+  },
+  "golden_time_window": "17:00 ~ 23:00",
+  "golden_time_window_day": "today",
   "hourly_forecast": [
-    { "hour": 18, "estimated_surface_temp": 33.2, "is_golden_time": true, "risk_level": "SAFE" }
+    { "hour": 17, "air_temp_celsius": 20.8, "estimated_surface_temp": 20.8, "is_golden_time": true, "risk_level": "SAFE" }
   ],
   "notice": "본 지수는 기상청 예보 모델 기반 추정치입니다.",
-  "coordinates": { "lat": 36.3628, "lon": 127.3592 }
+  "coordinates": { "lat": 36.3628, "lon": 127.3592 },
+  "data_source": "kma_live",
+  "attribution": "Weather data by Open-Meteo.com (CC BY 4.0)"
 }
 ```
 
@@ -425,13 +450,25 @@ flowchart TB
 - **컬럼**: `id`, `user_id`, `name`, `breed`, `age_years`, `weight_kg`, `joint_care_level`, `speed_kmh`, `photo_path`, `is_primary`
 - **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`DogProfileEditCard.tsx`, `supabaseService.saveDogProfile`)
 
-#### 14) `POST /rest/v1/walk_records` & `PATCH ...` - 산책 기록 적재 및 후기 공개(`is_public`) 토글
+#### 14) `POST /rest/v1/walk_records` - 산책 기록 적재 (DB, 본인 것만)
 - **테이블**: `public.walk_records`
-- **컬럼**: `id`, `user_id`, `dog_id`, `started_at`, `ended_at`, `distance_m`, `duration_min`, `route_coords`, `note`, `rating`, `is_public`
-- **후기 공개 제어**:
-  - `is_public = false` (기본값): 본인만 조회 가능한 비공개 기록 (RLS: `auth.uid() = user_id`)
-  - `is_public = true` (후기 공유 클릭 시): 전체 커뮤니티에 공개 후기로 노출 (RLS: `is_public = true`)
-- **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`MyWalkHistoryView.tsx`, `supabaseService.toggleWalkRecordPublic`)
+- **앱이 직접 쓰는 컬럼**: `id`, `user_id`, `dog_id`, `course_id`, `started_at`, `ended_at`, `distance_m`, `duration_min`, `route_coords`, `photo_paths`, `note`, `rating`
+- **앱이 쓸 수 없는 컬럼**: `is_public`, `public_route_coords` (DB 권한으로 막음, 서버만 씀)
+- **담당자**: 3번 노희선 (스키마 v2), 4번 김승현 (`supabaseService.createWalkRecord`)
+
+#### 15) `POST /api/v1/walks/{walk_id}/share` - 후기 공개 (서버가 200m 마스킹 후 공개) · 이슈 #116
+- **인증**: `Authorization: Bearer <Supabase 로그인 토큰>` (서버가 토큰·소유자 확인)
+- **동작**: 본인 `walk_records.route_coords` 에서 출발·도착 200m 를 가린 좌표를 `public_route_coords` 에 저장하고 `is_public=true`. 원본 좌표는 공개되지 않음
+- **응답 200**: `{ "walk_id": "<uuid>", "is_public": true, "masked_point_count": 80 }`
+- **오류**: `401 AUTH_REQUIRED / AUTH_INVALID`, `404 WALK_NOT_FOUND`(없거나 남의 기록), `422 ROUTE_TOO_SHORT_TO_MASK / INVALID_ROUTE / INVALID_WALK_ID`, `503 DB_NOT_CONNECTED`
+- **담당자**: 3번 노희선 (서버·DB), 4번 김승현 (`supabaseService.setWalkRecordPublic`, `MyWalkHistoryView.tsx`)
+
+#### 16) `POST /api/v1/walks/{walk_id}/unshare` - 후기 공개 해제
+- 같은 인증·오류 규칙. `is_public=false`, `public_route_coords=null`
+- **응답 200**: `{ "walk_id": "<uuid>", "is_public": false }`
+
+#### 17) `GET /rest/v1/public_walk_reviews_v` - 공개 후기 읽기 (누구나)
+- **전용 창구(view)**: `id`, `course_id`, `distance_m`, `duration_min`, `rating`, `note`, `public_route_coords`, `walked_on`(날짜만). 원본 경로·사용자 id·개 id·사진은 없음
 
 ---
 

@@ -12,10 +12,32 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AuthSession, AuthUser, DogProfileRemote, WalkRecordRemote } from '../types/auth';
 import { LocalStorageService } from './storage';
 import { generateUuid, isUuid } from '../utils/uuid';
+import { fetchWithServerFallback } from './apiClient';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const SESSION_KEY = '@편안하개:auth_session';
+
+/** 후기 공개/해제 결과. 실패하면 이유(code)와 사용자에게 보여 줄 문구(message)를 담는다. */
+export type WalkShareResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
+const WALK_SHARE_MESSAGES: Record<string, string> = {
+  AUTH_REQUIRED: '로그인이 필요해요. 로그인한 뒤 다시 시도해 주세요.',
+  AUTH_INVALID: '로그인 정보가 만료됐어요. 다시 로그인해 주세요.',
+  WALK_NOT_FOUND: '아직 클라우드에 저장되지 않은 기록이라 공개할 수 없어요.',
+  ROUTE_TOO_SHORT_TO_MASK: '경로가 너무 짧아요. 집 주변 200m를 가리면 보여 줄 경로가 남지 않아 공개할 수 없어요.',
+  INVALID_ROUTE: '공개할 수 있는 경로가 아니에요.',
+  INVALID_WALK_ID: '기록 번호가 올바르지 않아 공개할 수 없어요.',
+  DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  NETWORK: '서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.',
+};
+const WALK_SHARE_TIMEOUT_MS = 20000;
+
+function walkShareFailure(code: string): WalkShareResult {
+  return { ok: false, code, message: WALK_SHARE_MESSAGES[code] ?? '지금은 공개 설정을 바꿀 수 없어요. 잠시 후 다시 시도해 주세요.' };
+}
 
 class SupabaseServiceManager {
   private readonly client: SupabaseClient | null = null;
@@ -215,8 +237,23 @@ class SupabaseServiceManager {
         console.warn('[SupabaseService] walk_records 동기화 건너뜀: 로그인 전이거나 id 가 UUID 형식이 아님 (로컬 유지)');
         return newRecord;
       }
+      // DB 로는 앱이 쓸 수 있는 칸만 보낸다. is_public·public_route_coords 는 서버(공개 API)만 쓰고,
+      // created_at 은 DB 가 정한다. 이 칸들은 값이 false/null 이어도 이름이 들어 있으면 DB 가 권한 오류로 거절한다. (이슈 #116)
       // dog_id 는 DB 의 개 프로필(UUID)을 가리키는 연결이다. 옛 형식이면 연결 없이 저장한다.
-      const payload = { ...newRecord, dog_id: isUuid(newRecord.dog_id) ? newRecord.dog_id : undefined };
+      const payload = {
+        id: newRecord.id,
+        user_id: newRecord.user_id,
+        dog_id: isUuid(newRecord.dog_id) ? newRecord.dog_id : undefined,
+        course_id: newRecord.course_id,
+        started_at: newRecord.started_at,
+        ended_at: newRecord.ended_at,
+        distance_m: newRecord.distance_m,
+        duration_min: newRecord.duration_min,
+        route_coords: newRecord.route_coords,
+        photo_paths: newRecord.photo_paths,
+        note: newRecord.note,
+        rating: newRecord.rating,
+      };
       try {
         const { error } = await this.client.from('walk_records').insert(payload);
         if (error) {
@@ -229,19 +266,28 @@ class SupabaseServiceManager {
     return newRecord;
   }
 
-  async toggleWalkRecordPublic(recordId: string, isPublic: boolean): Promise<boolean> {
-    if (this.client) {
-      try {
-        const { error } = await this.client
-          .from('walk_records')
-          .update({ is_public: isPublic })
-          .eq('id', recordId);
-        if (!error) return true;
-      } catch (e) {
-        console.warn('[SupabaseService] is_public 업데이트 실패:', e);
-      }
+  /**
+   * 산책 기록 후기 공개/해제. 서버(POST /api/v1/walks/{id}/share|unshare)가 로그인 토큰과 소유자를 확인하고,
+   * 출발·도착 200m 를 가린 좌표만 공개한다. 앱이 DB 의 is_public 을 직접 바꾸지 않는다. (이슈 #116)
+   * 실패하면 성공으로 속이지 않고 이유를 돌려준다.
+   */
+  async setWalkRecordPublic(recordId: string, isPublic: boolean): Promise<WalkShareResult> {
+    const token = this.currentSession?.accessToken;
+    if (!token) return walkShareFailure('AUTH_REQUIRED');
+    try {
+      const response = await fetchWithServerFallback(
+        `/api/v1/walks/${recordId}/${isPublic ? 'share' : 'unshare'}`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+        WALK_SHARE_TIMEOUT_MS
+      );
+      if (response.ok) return { ok: true };
+      const body = await response.json().catch(() => ({}));
+      const code = typeof body?.detail?.code === 'string' ? body.detail.code : `HTTP_${response.status}`;
+      return walkShareFailure(code);
+    } catch (e) {
+      console.warn('[SupabaseService] 후기 공개 요청 실패:', e);
+      return walkShareFailure('NETWORK');
     }
-    return true;
   }
 }
 

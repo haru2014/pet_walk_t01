@@ -55,7 +55,7 @@ def test_songgang_40_minutes_checks_every_advertised_course(caplog):
     assert not ppr.is_route_inside_park_boundary(ppr.SONGGANG_PARK_OSM_COORDS, "songgang")
 
 
-@pytest.mark.parametrize("park", ["yurim", "songgang"])
+@pytest.mark.parametrize("park", ["yurim", "songgang", "sejong", "doan"])
 @pytest.mark.parametrize("minutes", [10, 30, 40, 90])
 def test_verified_parks_stay_on_internal_edges(park, minutes):
     lat, lon, _ = ppr.PILOT_PARK_CENTERS[park]
@@ -65,7 +65,11 @@ def test_verified_parks_stay_on_internal_edges(park, minutes):
 
 
 @pytest.mark.parametrize("park", ["sejong", "doan"])
-def test_unverified_boundaries_are_not_successes(park):
+def test_unverified_boundaries_are_not_successes(park, monkeypatch):
+    # 로더는 verified_osm 이 아닌 경계를 버린다. 경계가 빠진 상태를 만들어 미검증 거점과 같은 조건을 재현한다.
+    polygons = dict(ppr.load_pilot_park_polygons())
+    polygons.pop(park)
+    monkeypatch.setattr(ppr, "_PARK_POLYGONS_CACHE", polygons)
     response = client.post("/api/v1/walk/plan", json=body(park))
     assert response.status_code == 422
     assert response.json()["code"] == "BOUNDARY_DATA_UNAVAILABLE"
@@ -94,7 +98,10 @@ def test_park_mode_never_calls_live_or_rectangle(monkeypatch):
     monkeypatch.setattr(planner, "_plan_live", unexpected)
     monkeypatch.setattr(planner, "_plan_rectangle_fallback", unexpected)
     assert client.post("/api/v1/walk/plan", json=body()).status_code == 200
-    assert client.post("/api/v1/walk/plan", json=body("sejong")).status_code == 422
+    assert client.post("/api/v1/walk/plan", json=body("sejong")).status_code == 200
+    unknown = body()
+    unknown["pilot_park_id"] = "unknown"
+    assert client.post("/api/v1/walk/plan", json=unknown).status_code == 422
 
 
 def agent_result():

@@ -37,7 +37,7 @@ describe('US-29 createBookmark', () => {
     expect(bm.dogName).toBe('초코');
     expect(bm.totalDistanceKm).toBe(2.8);
     expect(bm.estimatedMinutes).toBe(38);
-    expect(bm.tags).toContain('계단 0회');
+    expect(bm.tags).toContain('확인된 계단 0회');
     expect(bm.routeGeoJson.features).toHaveLength(SAMPLE_ROUTE.features.length);
     expect(bm.stepPins).toHaveLength(SAMPLE_STEP_PINS.length);
   });

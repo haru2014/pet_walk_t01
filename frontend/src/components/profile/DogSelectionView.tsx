@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { DogProfile, JointCareLevel, calculateRecommendedSpeedKmH } from '../../types/dogProfile';
 
 export interface DogSelectionViewProps {
@@ -79,26 +80,18 @@ export const DogSelectionView: React.FC<DogSelectionViewProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        {dogs.length > 0 ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={onBack}
-            style={styles.backButton}
-          >
-            <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
-          </TouchableOpacity>
-        ) : <View style={styles.backButton} />}
-        <Text style={styles.headerTitle}>강아지 선택</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      {/* 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader
+        title="강아지 선택"
+        showBack={dogs.length > 0}
+        onBack={onBack}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* 타이틀 안내 */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>누구와 산책할까요?</Text>
-          <Text style={styles.subTitle}>오늘 함께 걸을 우리 아이를 선택해주세요.</Text>
+          <Text style={styles.subTitle}>오늘 함께 걸을 우리 강아지를 선택해주세요.</Text>
         </View>
 
         {/* 내 강아지 리스트 */}

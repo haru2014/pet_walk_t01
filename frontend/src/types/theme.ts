@@ -3,7 +3,7 @@
  * 멀티 테마 정의 (숲길 그린, 비비드 바이올렛(app_design1.jpg), 다크 포켓)
  */
 
-export type ThemeId = 'forest' | 'vivid_violet' | 'dark';
+export type ThemeId = 'dusty_amber' | 'forest' | 'vivid_violet' | 'dark';
 
 export interface ThemeMeta {
   readonly id: ThemeId;
@@ -17,8 +17,17 @@ export interface ThemeMeta {
 
 export const THEME_LIST: readonly ThemeMeta[] = [
   {
+    id: 'dusty_amber',
+    name: '더스티 앰버 & 세이지 그린',
+    description: '디자인 시안 02번: 따뜻하고 자연 친화적인 세이지 그린 & 앰버 테마',
+    previewPrimary: '#5A7361',
+    previewBackground: '#F5EFE0',
+    previewAccent: '#CFA052',
+    badgeText: '디자인 02번',
+  },
+  {
     id: 'forest',
-    name: '숲길 그린 (기본)',
+    name: '숲길 그린',
     description: '자연 친화적 에메랄드 & 민트 웰니스 테마',
     previewPrimary: '#10B981',
     previewBackground: '#F8FAF9',

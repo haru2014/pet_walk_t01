@@ -2,9 +2,9 @@
  * [편안하개 - PetWalk]
  * 반려견 안심 케어 프로필 편집 카드 (US-A2)
  *
- * 1. 상단: 등록된 반려견 선택 칩 바 ([🐾 초코] [🐾 콩이 ✓] [+ 새 아이 추가])
+ * 1. 상단: 등록된 반려견 선택 칩 바 ([🐾 초코] [🐾 콩이 ✓] [+ 새 강아지 추가])
  * 2. 중단: 선택된 반려견 대표 사진 및 상세 정보(이름, 나이, 체중, 관절케어) 수정
- * 3. 팝업: "+ 새 아이 추가" 시 직관적인 다견 등록 모달 지원
+ * 3. 팝업: "+ 새 강아지 추가" 시 직관적인 다견 등록 모달 지원
  */
 
 import React, { useState } from 'react';
@@ -119,7 +119,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
 
   return (
     <CardWrapper style={{ marginBottom: 16 }}>
-      {/* 1. 상단 다견 선택 칩 바 및 새 아이 추가 버튼 */}
+      {/* 1. 상단 다견 선택 칩 바 및 새 강아지 추가 버튼 */}
       <View style={styles.dogChipSection}>
         <View style={styles.chipHeaderRow}>
           <Text style={styles.dogChipSectionTitle}>반려견 선택</Text>
@@ -162,7 +162,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
             onPress={() => setShowAddModal(true)}
             style={styles.addDogChip}
           >
-            <Text style={styles.addDogChipText}>＋ 새 아이 추가</Text>
+            <Text style={styles.addDogChipText}>＋ 새 강아지 추가</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -180,7 +180,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
           </View>
         </TouchableOpacity>
         <View style={styles.photoInfoArea}>
-          <Text style={styles.photoTitle}>우리 아이 대표 사진</Text>
+          <Text style={styles.photoTitle}>우리 강아지 대표 사진</Text>
           <Text style={styles.photoSub}>
             {dog.photoUri ? '대표 사진이 등록되어 있습니다' : '사진을 등록해주세요'}
           </Text>
@@ -290,7 +290,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
-              {/* 새 아이 사진 선택 */}
+              {/* 새 강아지 사진 선택 */}
               <View style={styles.newPhotoArea}>
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -376,16 +376,17 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
             >
               새 반려견 등록 완료 ✓
             </GradientButton>
-
-            <PhotoPickerModal
-              visible={newPhotoPickerVisible}
-              currentPhotoUri={newPhotoUri}
-              onClose={() => setNewPhotoPickerVisible(false)}
-              onSelectPhoto={(uri) => setNewPhotoUri(uri)}
-            />
           </View>
         </View>
       </Modal>
+
+      {/* 5. 신규 등록용 프로필 사진 모달 (중첩 모달 충돌 방지) */}
+      <PhotoPickerModal
+        visible={newPhotoPickerVisible}
+        currentPhotoUri={newPhotoUri}
+        onClose={() => setNewPhotoPickerVisible(false)}
+        onSelectPhoto={(uri) => setNewPhotoUri(uri)}
+      />
     </CardWrapper>
   );
 };

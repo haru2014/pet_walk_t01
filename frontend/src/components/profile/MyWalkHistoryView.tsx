@@ -3,7 +3,7 @@
  * 마이페이지 산책 기록 목록 및 커뮤니티 후기 공개(is_public) 토글 뷰 (US-G2, PR #42)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { CardWrapper } from '../common/CardWrapper';
@@ -16,57 +16,63 @@ import {
   WalkStatisticsService,
   StatsPeriodType,
 } from '../../services/walkStatisticsService';
+import { WalkRecordDetailModal, buildWalkRecordMapData } from '../walk/WalkRecordDetailModal';
+import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
+import { BookmarkedRoute } from '../../types/bookmark';
+
+/** 산책 기록을 즐겨찾기(BookmarkedRoute) 규격으로 변환하여 찜하기 지원 */
+function convertRecordToBookmark(rec: WalkRecord, fallbackDogName: string): BookmarkedRoute {
+  const { route, stepPins } = buildWalkRecordMapData(rec);
+
+  return {
+    id: `walk_record_${rec.id}`,
+    title: `${rec.dogSummary?.name ?? fallbackDogName}와의 완주 코스`,
+    dogName: rec.dogSummary?.name ?? fallbackDogName,
+    totalDistanceKm: rec.totalDistanceKm,
+    estimatedMinutes: rec.durationMinutes,
+    maxSlopePercent: 3.2,
+    shadePercent: 75,
+    tags: rec.feedback?.tags && rec.feedback.tags.length > 0 ? [...rec.feedback.tags] : ['완주코스', '안심산책'],
+    routeGeoJson: route,
+    stepPins,
+    savedAt: new Date().toISOString(),
+    dogSummary: rec.dogSummary,
+  };
+}
 
 export interface MyWalkHistoryViewProps {
   readonly dogName: string;
+  readonly initialRecords?: WalkRecord[];
   readonly onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
 }
 
-export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, onOpenAuthModal }) => {
-  const [records, setRecords] = useState<WalkRecord[]>([]);
+export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
+  dogName,
+  initialRecords,
+  onOpenAuthModal,
+}) => {
+  const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
+  const [visibleCount, setVisibleCount] = useState<number>(5);
+  const [selectedRecord, setSelectedRecord] = useState<WalkRecord | null>(null);
 
   useEffect(() => {
-    void LocalStorageService.getWalkHistory().then(setRecords);
-  }, []);
+    if (!initialRecords) {
+      void LocalStorageService.getWalkHistory().then(setRecords);
+    }
+  }, [initialRecords]);
 
   const periodStats = WalkStatisticsService.getPeriodStats(records, period);
 
-  const handleExportCsv = () => {
-    if (records.length === 0) {
-      Alert.alert('알림', '내보낼 산책 기록이 없습니다.');
-      return;
-    }
-    const success = WalkStatisticsService.downloadCsvFile(records, dogName);
-    if (success) {
-      Alert.alert('CSV 다운로드 완료', `🐾 ${dogName}의 산책 기록(CSV)이 다운로드 폴더에 저장되었습니다.\n엑셀(Excel)에서 바로 열람할 수 있습니다.`);
-    } else {
-      const csv = WalkStatisticsService.exportWalkRecordsToCsv(records, dogName);
-      Alert.alert('CSV 내보내기', `총 ${records.length}건의 산책 데이터가 CSV로 생성되었습니다.`);
-    }
-  };
+  const filteredRecords = useMemo(
+    () => WalkStatisticsService.filterRecordsByPeriod(records, period),
+    [records, period]
+  );
 
-  const handleExportJson = () => {
-    if (records.length === 0) {
-      Alert.alert('알림', '내보낼 산책 기록이 없습니다.');
-      return;
-    }
-    const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(records, dogName);
-    if (typeof window !== 'undefined') {
-      try {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `편안하개_산책데이터_${dogName}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        Alert.alert('JSON 저장 완료', '산책 데이터 JSON 백업 파일이 저장되었습니다.');
-        return;
-      } catch {}
-    }
-    Alert.alert('데이터 내보내기', `총 ${records.length}건의 데이터가 생성되었습니다:\n${jsonStr.slice(0, 100)}...`);
+  const handlePeriodChange = (nextPeriod: StatsPeriodType) => {
+    setPeriod(nextPeriod);
+    setVisibleCount(5);
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
@@ -74,7 +80,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
     if (!user) {
       Alert.alert(
         '회원 전용 기능',
-        '커뮤니티 후기 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 아이 안심 코스를 공유해 보세요!',
+        '커뮤니티 후기 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 강아지 안심 코스를 공유해 보세요!',
         [
           { text: '취소', style: 'cancel' },
           { text: '회원가입하기', onPress: () => onOpenAuthModal?.('signup') },
@@ -86,11 +92,15 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
     const current = publicMap[record.id] ?? false;
     const nextState = !current;
 
-    await SupabaseService.toggleWalkRecordPublic(record.id, nextState);
+    const result = await SupabaseService.setWalkRecordPublic(record.id, nextState);
+    if (!result.ok) {
+      Alert.alert('공개 설정을 바꾸지 못했어요', result.message);
+      return;
+    }
     setPublicMap((prev) => ({ ...prev, [record.id]: nextState }));
 
     const message = nextState
-      ? '🌐 이 산책 기록이 커뮤니티 공개 후기(is_public: true)로 전환되었습니다.'
+      ? '🌐 이 산책 기록이 커뮤니티 공개 후기로 전환되었어요. 집 주변 200m는 자동으로 가려서 공개돼요.'
       : '🔒 공개가 해제되어 나만의 비공개 기록으로 보관됩니다.';
     Alert.alert(nextState ? '후기 공개 설정' : '비공개 전환', message);
   };
@@ -99,8 +109,10 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
     return (
       <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>🐾 나의 산책 기록 목록</Text>
-          <View style={styles.badge}><Text style={styles.badgeText}>클라우드 연동</Text></View>
+          <View style={styles.titleLine}>
+            <Text style={styles.title}>🐾 나의 산책 기록 목록</Text>
+            <View style={styles.badge}><Text style={styles.badgeText}>클라우드 연동</Text></View>
+          </View>
         </View>
         <Text style={styles.emptyText}>
           아직 완주한 산책 기록이 없습니다. {dogName}와 첫 안심 산책을 시작해보세요!
@@ -109,17 +121,25 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
     );
   }
 
+  const displayedRecords = filteredRecords.slice(0, visibleCount);
+  const hasMore = filteredRecords.length > visibleCount;
+  const remainingCount = filteredRecords.length - visibleCount;
+
   return (
     <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
-      {/* 1. 상단 타이틀 & 내보내기 버튼 */}
+      {/* 1. 상단 타이틀 및 DB동기화 뱃지 (제목 바로 옆에 나란히 배치) */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.title}>🐾 산책 통계 및 기록 ({records.length}회)</Text>
-          <Text style={styles.subDesc}>
-            기간별 보행 지표 분석 및 동물병원·보험 제출용 리포트 내보내기
+        <View style={styles.titleLine}>
+          <Text style={styles.title}>
+            🐾 산책 통계 및 기록 ({periodStats.periodLabel} {filteredRecords.length}회)
           </Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>DB 동기화</Text>
+          </View>
         </View>
-        <View style={styles.badge}><Text style={styles.badgeText}>DB 동기화</Text></View>
+        <Text style={styles.subDesc}>
+          {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
+        </Text>
       </View>
 
       {/* 2. 기간 선택 필터 칩 (최근 7일 / 최근 30일 / 전체) */}
@@ -131,7 +151,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
             <TouchableOpacity
               key={p}
               activeOpacity={0.8}
-              onPress={() => setPeriod(p)}
+              onPress={() => handlePeriodChange(p)}
               style={[styles.periodChip, isSelected && styles.periodChipActive]}
             >
               <Text style={[styles.periodChipText, isSelected && styles.periodChipTextActive]}>
@@ -142,71 +162,71 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
         })}
       </View>
 
-      {/* 3. 기간별 헬스케어 통계 요약 박스 */}
+      {/* 3. 기간별 헬스케어 통계 요약 박스 (시각적 카드) */}
       <View style={styles.statsSummaryBox}>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>🐾</Text>
           <Text style={styles.summaryLabel}>산책 횟수</Text>
           <Text style={styles.summaryValue}>{periodStats.totalWalks}회</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>📍</Text>
           <Text style={styles.summaryLabel}>총 거리</Text>
           <Text style={styles.summaryValue}>{periodStats.totalDistanceKm}km</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>⏱️</Text>
           <Text style={styles.summaryLabel}>총 시간</Text>
           <Text style={styles.summaryValue}>{periodStats.totalDurationMinutes}분</Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>🌿</Text>
           <Text style={styles.summaryLabel}>완만 노면율</Text>
           <Text style={[styles.summaryValue, { color: TOKENS.colors.primaryDark }]}>
             {periodStats.averageSafeRatioPercent}%
           </Text>
         </View>
         <View style={styles.summaryItem}>
+          <Text style={styles.summaryEmoji}>💩</Text>
           <Text style={styles.summaryLabel}>총 배변</Text>
           <Text style={styles.summaryValue}>{periodStats.totalPoopCount}회</Text>
         </View>
       </View>
 
-      {/* 4. 리포트 내보내기 액션 버튼 바 */}
-      <View style={styles.exportBtnRow}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleExportCsv}
-          style={[styles.exportBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-        >
-          <AppIcon name="map" size={14} color="#047857" />
-          <Text style={[styles.exportBtnText, { color: '#047857' }]}>📥 엑셀(CSV) 내보내기</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleExportJson}
-          style={[styles.exportBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
-        >
-          <AppIcon name="sparkle" size={14} color="#475569" />
-          <Text style={[styles.exportBtnText, { color: '#475569' }]}>📋 JSON 백업</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 5. 누적된 산책 기록 목록 스크롤 격리 영역 */}
+      {/* 4. 누적된 산책 기록 목록 (최근 1주일 우선 + 페이징 더보기) */}
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
       >
-        {records.map((rec) => {
-          const isPublic = publicMap[rec.id] ?? false;
-          const dateStr = new Date(rec.completedAt).toLocaleDateString('ko-KR', {
-            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-          });
+        {filteredRecords.length === 0 ? (
+          <View style={styles.emptyPeriodBox}>
+            <Text style={styles.emptyPeriodEmoji}>🍃</Text>
+            <Text style={styles.emptyPeriodText}>
+              {periodStats.periodLabel} 동안의 산책 기록이 없습니다.
+            </Text>
+            <Text style={styles.emptyPeriodSub}>
+              상단 필터를 [전체 기록]으로 변경하거나 새로운 산책을 시작해보세요!
+            </Text>
+          </View>
+        ) : (
+          displayedRecords.map((rec) => {
+            const isPublic = publicMap[rec.id] ?? false;
+            const dateStr = new Date(rec.completedAt).toLocaleDateString('ko-KR', {
+              month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
+            const bookmarkObj = convertRecordToBookmark(rec, dogName);
+            const petName = rec.dogSummary?.name ?? dogName;
 
-          return (
-            <View key={rec.id} style={[styles.recordCard, isPublic && styles.recordCardPublic]}>
-              <View style={styles.recordTop}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <View style={styles.recordHeaderRow}>
-                    <Text style={styles.recordDate}>{dateStr}</Text>
+            return (
+              <View key={rec.id} style={[styles.recordCard, isPublic && styles.recordCardPublic]}>
+                {/* 1. 상단 뱃지 행 + 찜하기(북마크) 버튼 */}
+                <View style={styles.recordTopActionRow}>
+                  <View style={styles.badgeGroup}>
+                    <View style={styles.verifiedBadge}>
+                      <Text style={styles.verifiedBadgeText}>🏅 완주 인증</Text>
+                    </View>
                     {rec.dogSummary ? (
                       <View style={styles.dogBadge}>
                         <DogAvatar photoUri={rec.dogSummary.photoUri} size={15} />
@@ -219,62 +239,250 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({ dogName, o
                         <Text style={styles.dogBadgeText}>🐾 {dogName}</Text>
                       </View>
                     )}
+                    {isPublic && (
+                      <View style={styles.publicBadge}>
+                        <Text style={styles.publicBadgeText}>🌐 커뮤니티 공개 중</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.recordMetrics}>
-                    {rec.totalDistanceKm.toFixed(1)}km · {rec.durationMinutes}분 · 평균 {rec.averageSpeedKmH.toFixed(1)}km/h
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => void handleTogglePublic(rec)}
-                  style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
-                >
-                  <AppIcon name="users" size={14} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
-                  <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
-                    {isPublic ? '공개 중 ✓' : '후기 공유'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
 
-              {rec.feedback && (
-                <View style={styles.feedbackRow}>
-                  <Text style={styles.feedbackComfort}>
-                    만족도 {rec.feedback.comfortScore}점 · {rec.feedback.tags.join(', ')}
-                  </Text>
-                  {Boolean(rec.feedback.comment) && (
-                    <Text style={styles.feedbackComment}>&quot;{rec.feedback.comment}&quot;</Text>
-                  )}
+                  <View style={styles.bookmarkWrapper}>
+                    <BookmarkToggleButton bookmark={bookmarkObj} />
+                  </View>
                 </View>
-              )}
-            </View>
-          );
-        })}
+
+                {/* 2. 카드 타이틀 */}
+                <View style={styles.recordHeader}>
+                  <Text style={styles.recordTitle}>
+                    🐾 {petName}와의 안심 산책 ({dateStr})
+                  </Text>
+                </View>
+
+                {/* 3. 보행 메타 수치 행 */}
+                <View style={styles.recordMetaRow}>
+                  <Text style={styles.recordMetaText}>
+                    📏 {rec.totalDistanceKm.toFixed(1)}km · ⏱️ {rec.durationMinutes}분 · 🌿 완만 {Math.round(rec.safeSurfaceRatio * 100)}%
+                  </Text>
+                  <Text style={styles.recordRating}>
+                    ⭐ {(rec.feedback?.comfortScore ?? 5.0).toFixed(1)}
+                  </Text>
+                </View>
+
+                {/* 4. 피드백 태그 및 후기 코멘트 */}
+                {rec.feedback && (
+                  <View style={styles.feedbackSection}>
+                    {rec.feedback.tags.length > 0 && (
+                      <View style={styles.tagRow}>
+                        {rec.feedback.tags.map((t) => (
+                          <View key={t} style={styles.tagChip}>
+                            <Text style={styles.tagText}>#{t}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {Boolean(rec.feedback.comment) && (
+                      <Text style={styles.feedbackComment}>&quot;{rec.feedback.comment}&quot;</Text>
+                    )}
+                  </View>
+                )}
+
+                {/* 5. 액션 버튼 행 (경로 지도 보기 #129 모달 연동 + 후기 공개 토글) */}
+                <View style={styles.actionButtonGroup}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedRecord(rec)}
+                    style={styles.mapViewBtn}
+                    accessibilityLabel="경로 지도 보기"
+                  >
+                    <Text style={styles.mapViewBtnText}>🗺️ 경로 지도 보기</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => void handleTogglePublic(rec)}
+                    style={[styles.publicBtn, isPublic ? styles.publicBtnActive : styles.publicBtnInactive]}
+                  >
+                    <AppIcon name="users" size={13} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
+                    <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
+                      {isPublic ? '공개 중 ✓' : '이웃 후기 공유'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        {/* 4-1. 페이징 더보기 버튼 */}
+        {hasMore && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setVisibleCount((prev) => prev + 5)}
+            style={styles.loadMoreBtn}
+            accessibilityLabel="과거 기록 더보기"
+          >
+            <Text style={styles.loadMoreBtnText}>
+              과거 기록 더보기 ▾ (+{remainingCount}건 남음)
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* 5. 산책 기록 상세 지도 모달 (Issue #129 실제 이동 경로 및 배변 마킹) */}
+      <WalkRecordDetailModal
+        visible={Boolean(selectedRecord)}
+        onClose={() => setSelectedRecord(null)}
+        record={selectedRecord}
+        dogName={dogName}
+      />
     </CardWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: { marginBottom: 4 },
+  titleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   title: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
   badge: {
     backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignSelf: 'center',
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  subDesc: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 4 },
+  badgeText: { fontSize: 10.5, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  subDesc: { fontSize: 11.5, color: TOKENS.colors.textMuted, marginTop: 4, lineHeight: 16 },
   emptyText: { fontSize: 13, color: TOKENS.colors.textMuted, marginTop: 8 },
   recordCard: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 4,
   },
   recordCardPublic: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
-  recordTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recordTopActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  badgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    flex: 1,
+    marginRight: 8,
+  },
+  verifiedBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  verifiedBadgeText: {
+    fontSize: 10.5,
+    color: '#1D4ED8',
+    fontWeight: '700',
+  },
+  publicBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  publicBadgeText: {
+    fontSize: 10.5,
+    color: '#047857',
+    fontWeight: '700',
+  },
+  bookmarkWrapper: {
+    padding: 2,
+  },
+  recordHeader: {
+    marginBottom: 4,
+  },
+  recordTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+  },
+  recordMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  recordMetaText: {
+    fontSize: 12,
+    color: TOKENS.colors.textMuted,
+    fontWeight: '500',
+  },
+  recordRating: {
+    fontSize: 12,
+    color: TOKENS.colors.primaryDark,
+    fontWeight: '700',
+  },
+  feedbackSection: {
+    marginTop: 4,
+    marginBottom: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: TOKENS.colors.border,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  tagChip: {
+    backgroundColor: TOKENS.colors.primaryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tagText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: TOKENS.colors.primaryDark,
+  },
+  actionButtonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  mapViewBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  mapViewBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
   recordHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -288,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 6,
     gap: 4,
   },
   dogBadgeText: {
@@ -299,12 +507,14 @@ const styles = StyleSheet.create({
   recordDate: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
   recordMetrics: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 2 },
   publicBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
   publicBtnInactive: {
@@ -369,6 +579,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  summaryEmoji: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
   summaryLabel: {
     fontSize: 10.5,
     fontWeight: '500',
@@ -380,27 +594,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
-  exportBtnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  exportBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  exportBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
   scrollArea: {
     maxHeight: 460,
     marginTop: 4,
@@ -409,5 +602,45 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingRight: 4,
     paddingBottom: 4,
+  },
+  emptyPeriodBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    padding: 20,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  emptyPeriodEmoji: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  emptyPeriodText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+    textAlign: 'center',
+  },
+  emptyPeriodSub: {
+    fontSize: 11,
+    color: TOKENS.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  loadMoreBtn: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  loadMoreBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
   },
 });

@@ -120,7 +120,7 @@ export class WalkStatisticsService {
     thisWeekRecords.forEach((r) => {
       totalDist += r.totalDistanceKm || 0;
       totalDur += r.durationMinutes || 0;
-      totalSafeRatioSum += r.safeSurfaceRatio || 0.8;
+      totalSafeRatioSum += typeof r.safeSurfaceRatio === 'number' ? r.safeSurfaceRatio : 0;
       totalPoop += r.poopCount || (r.poopEvents ? r.poopEvents.length : 0);
     });
 
@@ -128,13 +128,17 @@ export class WalkStatisticsService {
     const targetWalks = 5;
     const completionRatePercent = Math.min(100, Math.round((totalWalks / targetWalks) * 100));
     const safeSurfaceRatioPercent =
-      totalWalks > 0 ? Math.round((totalSafeRatioSum / totalWalks) * 100) : 88;
+      totalWalks > 0 ? Math.round((totalSafeRatioSum / totalWalks) * 100) : 0;
 
-    let jointCareMessage = '완만한 평지 위주로 관절에 무리 없이 안전하게 걸었어요!';
-    if (safeSurfaceRatioPercent >= 85) {
-      jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 달성! 다리와 관절 부담을 줄인 안심 산책이었어요 🐾`;
-    } else if (safeSurfaceRatioPercent >= 70) {
-      jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 유지! 조금 더 부드러운 길 위주 산책을 권장해요.`;
+    let jointCareMessage = '이번 주 첫 산책을 시작해 보세요! 다리와 관절 부담 없는 안심 산책로를 추천해 드려요 🐾';
+    if (totalWalks > 0) {
+      if (safeSurfaceRatioPercent >= 85) {
+        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 달성! 다리와 관절 부담을 줄인 안심 산책이었어요 🐾`;
+      } else if (safeSurfaceRatioPercent >= 70) {
+        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 유지! 조금 더 부드러운 길 위주 산책을 권장해요.`;
+      } else {
+        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 기록! 다음 산책은 경사가 더 완만한 코스를 이용해 보세요.`;
+      }
     }
 
     return {
@@ -152,6 +156,28 @@ export class WalkStatisticsService {
   }
 
   /**
+   * 기간별(최근 7일 '7days' | 'week', 최근 30일 '30days' | 'month', 전체 'all') 산책 기록 필터링 및 최신순 정렬 (Issue #130)
+   */
+  static filterRecordsByPeriod(
+    records: WalkRecord[],
+    period: StatsPeriodType | 'week' | 'month' = '7days',
+    now = new Date()
+  ): WalkRecord[] {
+    const normalizedPeriod = period === 'week' ? '7days' : period === 'month' ? '30days' : period;
+    let filtered = [...records];
+
+    if (normalizedPeriod === '7days') {
+      const sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter((r) => new Date(r.completedAt) >= sinceDate);
+    } else if (normalizedPeriod === '30days') {
+      const sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter((r) => new Date(r.completedAt) >= sinceDate);
+    }
+
+    return filtered.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  }
+
+  /**
    * 기간별(주간 7일, 월간 30일, 전체) 산책 헬스케어 통계 집계
    */
   static getPeriodStats(
@@ -159,18 +185,8 @@ export class WalkStatisticsService {
     period: StatsPeriodType = '7days',
     now = new Date()
   ): PeriodWalkStats {
-    let filtered = records;
-    let periodLabel = '전체 기간';
-
-    if (period === '7days') {
-      const sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = records.filter((r) => new Date(r.completedAt) >= sinceDate);
-      periodLabel = '최근 7일';
-    } else if (period === '30days') {
-      const sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filtered = records.filter((r) => new Date(r.completedAt) >= sinceDate);
-      periodLabel = '최근 30일';
-    }
+    const filtered = this.filterRecordsByPeriod(records, period, now);
+    const periodLabel = period === '7days' ? '최근 7일' : period === '30days' ? '최근 30일' : '전체 기간';
 
     if (filtered.length === 0) {
       return {
@@ -197,7 +213,7 @@ export class WalkStatisticsService {
       distSum += r.totalDistanceKm || 0;
       durSum += r.durationMinutes || 0;
       speedSum += r.averageSpeedKmH || 3.0;
-      safeSum += r.safeSurfaceRatio || 0.85;
+      safeSum += typeof r.safeSurfaceRatio === 'number' ? r.safeSurfaceRatio : 0;
       poopSum += r.poopCount || (r.poopEvents ? r.poopEvents.length : 0);
       if (r.feedback?.comfortScore) {
         scoreSum += r.feedback.comfortScore;
@@ -211,8 +227,8 @@ export class WalkStatisticsService {
       totalWalks: count,
       totalDistanceKm: Math.round(distSum * 10) / 10,
       totalDurationMinutes: durSum,
-      averageSpeedKmH: Math.round((speedSum / count) * 10) / 10,
-      averageSafeRatioPercent: Math.round((safeSum / count) * 100),
+      averageSpeedKmH: count > 0 ? Math.round((speedSum / count) * 10) / 10 : 0,
+      averageSafeRatioPercent: count > 0 ? Math.round((safeSum / count) * 100) : 0,
       totalPoopCount: poopSum,
       averageComfortScore: scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 10) / 10 : 5.0,
     };

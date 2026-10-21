@@ -14,8 +14,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { DogProfile } from '../../types/dogProfile';
 import { PILOT_PARKS, getPilotParkById } from '../../types/pilotParks';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import {
   EnvironmentId,
   WALK_ENVIRONMENTS,
@@ -26,6 +28,9 @@ import {
 import { WalkVoiceInputSection } from './WalkVoiceInputSection';
 import { WalkDurationSlider } from './WalkDurationSlider';
 import { getCurrentLocationCoords } from '../../services/locationService';
+import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voiceIntentApi';
+import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
+import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -36,6 +41,60 @@ export interface WalkSettingsViewProps {
 
 const PRESET_DURATIONS = [20, 30, 40, 60] as const;
 
+function getAiBannerTitle(
+  originMode: WalkOriginMode,
+  isLocating: boolean,
+  userCoords: { lat: number; lon: number } | undefined,
+  currentParkShortName: string
+): string {
+  if (originMode !== 'current_location') {
+    return `${currentParkShortName} (공원 보행률 90% 이상)`;
+  }
+  if (isLocating) {
+    return '현재 GPS 위치 수신 중...';
+  }
+  if (userCoords) {
+    return `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`;
+  }
+  return '현재 위치 기준 실시간 안심 경로';
+}
+
+function getAiBannerBody(
+  originMode: WalkOriginMode,
+  locationError: string | null,
+  isLocating: boolean,
+  userCoords: { lat: number; lon: number } | undefined,
+  currentParkName: string
+): string {
+  if (originMode !== 'current_location') {
+    return `${currentParkName}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`;
+  }
+  if (locationError) {
+    return `⚠️ ${locationError}`;
+  }
+  if (isLocating) {
+    return '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...';
+  }
+  if (userCoords) {
+    return '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.';
+  }
+  return '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)';
+}
+
+function buildAiNoticeSummary(
+  targetDuration: number | null,
+  parkName?: string,
+  intent?: VoiceIntentResult['intent']
+): string {
+  const parts: string[] = [];
+  if (targetDuration) parts.push(`${targetDuration}분`);
+  if (parkName) parts.push(parkName);
+  if (intent?.prefer_shade) parts.push('그늘길');
+  if (intent?.prefer_cushion) parts.push('폭신한 흙길');
+  if (intent?.avoid_stairs) parts.push('계단피하기');
+  return parts.join(' · ');
+}
+
 export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   dog,
   initialPreferences,
@@ -43,6 +102,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   onFindRoute,
 }) => {
   const { colors } = useAppTheme();
+  const { walkSettings, scale } = useAppResponsive();
   const [originMode, setOriginMode] = useState<WalkOriginMode>(
     initialPreferences?.originMode ?? 'park'
   );
@@ -70,6 +130,13 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   );
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<{ summary: string; briefing?: string } | null>(null);
+  const [unsupportedLandmark, setUnsupportedLandmark] = useState<string | null>(null);
+
+  const clearVoiceWarning = () => {
+    setUnsupportedLandmark(null);
+    setAiNotice(null);
+  };
 
   const fetchUserLocation = async () => {
     setIsLocating(true);
@@ -93,15 +160,53 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     );
   };
 
+  const handleIntentParsed = (result: VoiceIntentResult) => {
+    const { intent, landmark_park_id } = result;
+
+    // 1. 산책 시간 자동 반영
+    let resolvedDuration = duration;
+    if (intent.target_duration_minutes) {
+      resolvedDuration = intent.target_duration_minutes;
+      setDuration(resolvedDuration);
+      setIsFreeWalk(false);
+      if (![20, 30, 40, 60].includes(intent.target_duration_minutes)) {
+        setShowDetailedDuration(true);
+      }
+    }
+
+    // 2. 환경 칩 자동 반영 (버그 수정: avoid_stairs 감지 시 stairs 칩 켜기)
+    setEnvironments((prev) => resolveAiEnvironments(prev, intent));
+
+    // 3. 랜드마크 공원 자동 설정 (정규화 적용)
+    let resolvedParkId = pilotParkId;
+    const rawTarget = intent.destination_landmark || landmark_park_id;
+    const parkId = normalizeToFrontendParkId(rawTarget);
+    setUnsupportedLandmark(rawTarget && !parkId ? rawTarget : null);
+    if (rawTarget && !parkId) {
+      setAiNotice({ summary: unsupportedParkMessage(rawTarget) });
+      return;
+    }
+    if (parkId) {
+      resolvedParkId = parkId;
+      setOriginMode('park');
+      setPilotParkId(resolvedParkId);
+    }
+
+    // 4. AI 맞춤 설정 알림 요약
+    const parkObj = getPilotParkById(resolvedParkId);
+    setAiNotice({
+      summary: buildAiNoticeSummary(resolvedDuration, parkObj?.name, intent),
+      briefing: intent.briefing_message || undefined,
+    });
+  };
+
   const currentPark = getPilotParkById(pilotParkId);
 
   const handleSubmit = async () => {
+    if (unsupportedLandmark) return;
     const payloadDuration = isFreeWalk ? null : duration;
     if (originMode === 'current_location') {
-      let coords = userCoords;
-      if (!coords) {
-        coords = (await fetchUserLocation()) ?? undefined;
-      }
+      const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
       onFindRoute({
         originMode,
         durationMinutes: payloadDuration,
@@ -125,18 +230,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 1. 상단 컴팩트 헤더 */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity activeOpacity={0.7} onPress={onBack} style={styles.backButton}>
-          <AppIcon name="back" size={22} color={colors.textMain} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textMain }]}>산책 설정</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader title="산책 설정" onBack={onBack} />
 
       <ScrollView
         style={styles.contentScroll}
-        contentContainerStyle={styles.contentWrap}
+        contentContainerStyle={[styles.contentWrap, { paddingHorizontal: walkSettings.containerPaddingH }]}
         showsVerticalScrollIndicator={false}
       >
         {/* 2. 타이틀 & 안내 섹션 (03_walk_settings.png 원형 복원) */}
@@ -154,7 +253,34 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           dogName={dog.name}
           requestText={requestText}
           onChangeText={setRequestText}
+          onIntentParsed={handleIntentParsed}
+          coords={userCoords}
+          onFindRouteDirectly={handleSubmit}
+          hideResultBadge={true}
         />
+
+        {/* AI 맞춤 조건 적용 알림 카드 */}
+        {aiNotice && (
+          <View style={styles.aiFeedbackCard}>
+            <View style={styles.aiFeedbackTop}>
+              <AppIcon name="sparkle" size={14} color="#4338CA" />
+              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : 'AI 맞춤 산책 조건 적용 완료'}</Text>
+            </View>
+            <Text style={styles.aiFeedbackSummary}>{aiNotice.summary}</Text>
+            {aiNotice.briefing ? (
+              <Text style={styles.aiFeedbackBriefing}>{aiNotice.briefing}</Text>
+            ) : null}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleSubmit}
+              disabled={Boolean(unsupportedLandmark)}
+              style={styles.aiFeedbackQuickBtn}
+            >
+              <AppIcon name="sparkle" size={13} color="#FFFFFF" />
+              <Text style={styles.aiFeedbackQuickBtnText}>이 조건으로 산책로 바로 찾기 🚀</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 4. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
         <View style={styles.originModeRow}>
@@ -162,6 +288,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             activeOpacity={0.8}
             onPress={() => {
               setOriginMode('current_location');
+              clearVoiceWarning();
               if (!userCoords && !isLocating) {
                 void fetchUserLocation();
               }
@@ -187,7 +314,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => setOriginMode('park')}
+            onPress={() => { setOriginMode('park'); clearVoiceWarning(); }}
             style={[
               styles.originModeBtn,
               {
@@ -213,25 +340,11 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           <View style={styles.aiBannerHeader}>
             <AppIcon name="sparkle" size={15} color={colors.primaryDark} />
             <Text style={[styles.aiBannerTitle, { color: colors.primaryDark }]}>
-              {originMode === 'current_location'
-                ? isLocating
-                  ? '현재 GPS 위치 수신 중...'
-                  : userCoords
-                  ? `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`
-                  : '현재 위치 기준 실시간 안심 경로'
-                : `${currentPark.shortName} (공원 보행률 90% 이상)`}
+              {getAiBannerTitle(originMode, isLocating, userCoords, currentPark.shortName)}
             </Text>
           </View>
           <Text style={[styles.aiBannerBody, { color: locationError ? '#DC2626' : colors.textMuted }]}>
-            {originMode === 'current_location'
-              ? locationError
-                ? `⚠️ ${locationError}`
-                : isLocating
-                ? '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...'
-                : userCoords
-                ? '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.'
-                : '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)'
-              : `${currentPark.name}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`}
+            {getAiBannerBody(originMode, locationError, isLocating, userCoords, currentPark.name)}
           </Text>
 
           {/* 거점 공원 모드일 때만 공원 칩 행 표출 */}
@@ -243,7 +356,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   <TouchableOpacity
                     key={park.id}
                     activeOpacity={0.8}
-                    onPress={() => setPilotParkId(park.id)}
+                    onPress={() => { setPilotParkId(park.id); clearVoiceWarning(); }}
                     style={[
                       styles.parkChip,
                       {
@@ -268,7 +381,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
-        <View style={styles.sectionBlock}>
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.durationTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
@@ -305,6 +418,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                     style={[
                       styles.durationChip,
                       {
+                        height: scale(36, 38, 44),
                         backgroundColor: isSelected ? colors.primary : colors.surface,
                         borderColor: isSelected ? colors.primary : colors.border,
                       },
@@ -341,12 +455,13 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   setDuration(30);
                 }
               }}
+              hideHeader={true}
             />
           )}
         </View>
 
         {/* 5. 섹션 2: 어떤 길이 좋을까요? (6대 안심 환경 2열 카드 그리드 복원) */}
-        <View style={styles.sectionBlock}>
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: colors.textMain }]}>어떤 길이 좋을까요?</Text>
             <Text style={[styles.sectionSubGuide, { color: colors.textMuted }]}>여러 개 선택할 수 있어요</Text>
@@ -362,6 +477,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                   style={[
                     styles.envCard,
                     {
+                      minHeight: walkSettings.envCardHeight,
+                      padding: scale(7, 9, 12),
                       backgroundColor: colors.surface,
                       borderColor: isChecked ? colors.primary : colors.border,
                       borderWidth: isChecked ? 1.5 : 1,
@@ -390,25 +507,25 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       </ScrollView>
 
       {/* 6. 하단 Thumb Zone 탐색 버튼 (03_walk_settings.png 원형 복원) */}
-      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomBar, { paddingVertical: scale(8, 10, 14), backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.88}
-          disabled={isLocating}
+          disabled={isLocating || Boolean(unsupportedLandmark)}
           onPress={handleSubmit}
-          style={[styles.submitButton, { backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
+          style={[styles.submitButton, { height: scale(46, 50, 56), backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
         >
           <View style={styles.submitButtonContent}>
             {isLocating ? (
               <>
                 <ActivityIndicator size="small" color={colors.textWhite} style={{ marginRight: 6 }} />
-                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
                   현재 위치 확인 중...
                 </Text>
               </>
             ) : (
               <>
                 <AppIcon name="sparkle" size={18} color={colors.textWhite} />
-                <Text style={[styles.submitButtonText, { color: colors.textWhite }]}>
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
                   AI 산책 코스 찾아보기
                 </Text>
               </>
@@ -631,5 +748,50 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  aiFeedbackCard: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  aiFeedbackTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  aiFeedbackTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#4338CA',
+  },
+  aiFeedbackSummary: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#312E81',
+    marginBottom: 4,
+  },
+  aiFeedbackBriefing: {
+    fontSize: 11.5,
+    color: '#475569',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  aiFeedbackQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#4F46E5',
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  aiFeedbackQuickBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

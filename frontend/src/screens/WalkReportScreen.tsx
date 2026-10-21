@@ -12,6 +12,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useAppTheme } from '../theme/themeManager';
+import { useAppResponsive } from '../hooks/useAppResponsive';
 import { WalkRecord, WalkFeedback } from '../types/storage';
 import { QuickFeedbackModal } from '../components/feedback/QuickFeedbackModal';
 import { BookmarkedRoute } from '../types/bookmark';
@@ -40,6 +41,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
   onOpenAuthModal,
 }) => {
   const { colors } = useAppTheme();
+  const { walkReport, scale } = useAppResponsive();
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -83,6 +85,17 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       const res = await shareCommunityCourse(title, rawCoords, rating, user.id);
       setIsSharing(false);
       setShowShareModal(false);
+
+      if (!res.success) {
+        const failMsg = res.errorMessage || '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`[코스 공유 실패]\n${failMsg}`);
+        } else {
+          Alert.alert('코스 공유 실패', failMsg);
+        }
+        return;
+      }
+
       const msg = res.is_supabase
         ? '이웃과 코스를 공유했어요!\n출발·도착지 200m는 자동 보호되어 집 위치가 안전해요.'
         : '이웃과 안심 코스를 공유했어요! (200m 사생활 보호 적용)';
@@ -107,7 +120,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. 상단: WALK COMPLETE 🐾 축하 카드 (07_walk_report.png 원형 복원) */}
-      <View style={[styles.congratsCard, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+      <View style={[styles.congratsCard, { padding: walkReport.congratsCardPadding, backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
         <View style={styles.congratsTopRow}>
           <View style={[styles.completeCapsule, { backgroundColor: colors.primary }]}>
             <Text style={styles.completeCapsuleText}>WALK COMPLETE 🐾</Text>
@@ -131,31 +144,31 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
 
       {/* 2. 중단 4대 핵심 보행 지표 2x2 그리드 (07_walk_report.png 원형 복원) */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.statIcon}>📍</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>총 이동 거리</Text>
-          <Text style={[styles.statValue, { color: colors.textMain }]}>
+          <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.totalDistanceKm.toFixed(2)} <Text style={styles.statUnit}>km</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.statIcon}>⏱️</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>산책 소요 시간</Text>
-          <Text style={[styles.statValue, { color: colors.textMain }]}>
+          <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.durationMinutes} <Text style={styles.statUnit}>분</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.statIcon}>⚡</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>평균 속도</Text>
-          <Text style={[styles.statValue, { color: colors.textMain }]}>
+          <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.averageSpeedKmH.toFixed(1)} <Text style={styles.statUnit}>km/h</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.statIcon}>🌿</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>완만 노면 달성률</Text>
-          <Text style={[styles.statValue, { color: colors.primary }]}>
+          <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.primary }]}>
             {safeRatioPercent} <Text style={styles.statUnit}>%</Text>
           </Text>
         </View>
@@ -171,7 +184,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       )}
 
       {/* 3. 산책 체감 피드백 카드 (07_walk_report.png 원형 복원) */}
-      <View style={[styles.feedbackCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.feedbackCard, { padding: walkReport.feedbackCardPadding, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.feedbackCardHeader}>
           <View style={styles.feedbackTitleRow}>
             <Text style={{ fontSize: 14 }}>📝</Text>
@@ -201,9 +214,9 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </Text>
       </View>
 
-      {/* 4. 사생활 보호 고지 문구 (07_walk_report.png 원형 복원) */}
+      {/* 4. 사생활 보호 고지 문구 및 데이터 보관 안내 (US-G2 / Issue #128) */}
       <Text style={[styles.disclaimerText, { color: colors.textMuted }]}>
-        기록된 산책 경로는 보호자님의 스마트폰에만 안전하게 보관됩니다.
+        기록된 산책 경로는 보호자님의 스마트폰에 안전하게 보관되며, 마이페이지에서 언제든지 동물병원 제출용 엑셀(CSV)로 저장할 수 있습니다.
       </Text>
 
       {/* 5. 하단 Thumb Zone 버튼 (홈 복귀 & 회원 전용 코스 공유) */}
@@ -212,14 +225,14 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleOpenShareModal}
-            style={[styles.shareBtn, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+            style={[styles.shareBtn, { height: walkReport.buttonHeight, backgroundColor: colors.surface, borderColor: colors.primary }]}
           >
             <Text style={[styles.shareBtnText, { color: colors.primaryDark }]}>이웃과 코스 공유 👥</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.88}
             onPress={onGoHome}
-            style={[styles.homeBtn, { backgroundColor: colors.primary }]}
+            style={[styles.homeBtn, { height: walkReport.buttonHeight, backgroundColor: colors.primary }]}
           >
             <Text style={styles.homeBtnText}>홈으로 돌아가기 ✓</Text>
           </TouchableOpacity>

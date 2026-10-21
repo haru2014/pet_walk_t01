@@ -41,13 +41,13 @@ class TestFixtureData:
         assert self._count_by_zone("official") == {"유림공원": 1, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 1}
 
     def test_legacy_lots_per_zone(self):
-        assert self._count_by_zone("legacy_unverified") == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 4}
+        assert self._count_by_zone("legacy_unverified") == {"유림공원": 3, "송강근린공원": 2, "도안호수공원": 2, "세종호수공원": 1}
 
     def test_every_lot_records_its_source_and_verification_state(self):
         for lot in load_pilot_parking_lots():
             assert lot["source"].strip(), lot["parking_id"]
             assert isinstance(lot["verified"], bool), lot["parking_id"]
-            assert lot["verified"] is (lot["status"] == "official"), lot["parking_id"]
+            assert lot["verified"] is (lot["status"] in ("official", "park_operator")), lot["parking_id"]
 
     def test_legacy_lots_explain_what_is_wrong(self):
         for lot in load_pilot_parking_lots():
@@ -91,9 +91,62 @@ class TestFixtureData:
             assert lot["is_public"] is True and lot["verified"] is True
             assert "15012896" in lot["source"] and lot["official_id"], name
 
-    def test_only_yurim_official_lot_is_linked_to_its_park_by_name(self):
-        linked = {l["name"] for l in load_pilot_parking_lots() if l["park_link_verified"]}
-        assert linked == {"유림공원주차장"}
+    def test_official_lots_linked_to_their_park_by_name_or_within_300m_of_the_park_point(self):
+        linked = {l["name"] for l in load_pilot_parking_lots() if l["park_link_verified"] and l["status"] == "official"}
+        assert linked == {"유림공원주차장", "송강동(프라자옆)공영", "송강동(GS마트앞)공영"}
+
+    def test_park_operator_lots_come_from_the_park_website_with_coordinate_basis(self):
+        """갑천생태호수공원 누리집의 공원 주차장 A·B·C (108·168·196대). 좌표를 구한 방법을 함께 기록한다."""
+        from shapely.geometry import Point, shape
+        from services.parking_lots import DEFAULT_DATA_PATH
+        polygons = json.loads((DEFAULT_DATA_PATH.parent / "park_polygons_pilot.json").read_text(encoding="utf-8"))
+        doan = next(shape(f["geometry"]) for f in polygons["features"] if f["properties"]["park_id"] == "doan")
+        lots = {l["name"]: l for l in load_pilot_parking_lots()
+                if l["status"] == "park_operator" and l["park_zone"] == "도안호수공원"}
+        assert {name: lot["capacity"] for name, lot in lots.items()} == {
+            "갑천생태호수공원 주차장A": 108, "갑천생태호수공원 주차장B": 168, "갑천생태호수공원 주차장C": 196}
+        for name, lot in lots.items():
+            assert lot["park_zone"] == "도안호수공원" and lot["park_link_verified"] is True, name
+            assert "daejeon.go.kr/glPark" in lot["source"] and lot["coordinate_basis"].strip(), name
+            assert doan.covers(Point(lot["entrance_lon"], lot["entrance_lat"])), name
+        assert "추정" in lots["갑천생태호수공원 주차장C"]["coordinate_basis"]
+        assert "추정" in lots["갑천생태호수공원 주차장C"]["data_issue"]
+
+    def test_sejong_lake_lots_use_official_names_and_osm_positions(self):
+        """세종호수공원 제1~3주차장 (공단 431·239·300대): 앱 오프라인 목록과 같은 ID 를 유지하고 OSM 도형 좌표를 쓴다.
+
+        카카오 로컬 API 결과는 운영정책상 저장하지 않으므로 좌표·주소 대신 장소 ID 만 근거로 남긴다.
+        """
+        from shapely.geometry import Point, shape
+        from shapely.ops import nearest_points
+        from agent.route_geometry import haversine_m
+        from services.parking_lots import DEFAULT_DATA_PATH
+        polygons = json.loads((DEFAULT_DATA_PATH.parent / "park_polygons_pilot.json").read_text(encoding="utf-8"))
+        sejong = next(shape(f["geometry"]) for f in polygons["features"] if f["properties"]["park_id"] == "sejong")
+        lots = {l["parking_id"]: l for l in load_pilot_parking_lots() if l["park_zone"] == "세종호수공원"}
+        expected = {"pkg_sejong_01": 431, "pkg_sejong_02": 239, "pkg_sejong_03": 300}
+        for parking_id, capacity in expected.items():
+            lot = lots[parking_id]
+            assert lot["status"] == "park_operator" and lot["capacity"] == capacity, parking_id
+            assert "sjfmc.or.kr" in lot["source"] and "OSM way/" in lot["coordinate_basis"], parking_id
+            assert "카카오맵 장소 ID" in lot["coordinate_basis"], parking_id
+            # 경계가 여러 조각(MultiPolygon)이라 project/interpolate 대신 nearest_points 로 가장 가까운 점을 구한다
+            nearest = nearest_points(Point(lot["entrance_lon"], lot["entrance_lat"]), sejong.boundary)[1]
+            assert haversine_m([lot["entrance_lon"], lot["entrance_lat"]], [nearest.x, nearest.y]) < 300, parking_id
+        assert lots["pkg_sejong_04"]["status"] == "legacy_unverified"  # 제4주차장은 공식 안내에 없어 그대로 둔다
+
+    def test_park_link_flag_agrees_with_the_distance_to_the_reference_park_point(self):
+        import json
+        from agent.route_geometry import haversine_m
+        from services.parking_lots import DEFAULT_DATA_PATH
+        reference = DEFAULT_DATA_PATH.parents[2] / "docs" / "reference" / "parks_gis" / "park_locations.geojson"
+        points = {f["properties"]["name"]: f["geometry"]["coordinates"]
+                  for f in json.loads(reference.read_text(encoding="utf-8"))["features"] if f["geometry"]}
+        by_zone = {"송강근린공원": points["송강공원(송강동 근린공원)"], "도안호수공원": points["갑천생태호수공원(도안호수공원)"]}
+        for lot in load_pilot_parking_lots():
+            if lot["status"] == "official" and lot["park_zone"] in by_zone:
+                near = haversine_m(by_zone[lot["park_zone"]], [lot["entrance_lon"], lot["entrance_lat"]]) <= 300
+                assert lot["park_link_verified"] is near, lot["name"]
 
 
 class TestValidator:
@@ -136,6 +189,14 @@ class TestValidator:
     def test_unknown_status_is_reported(self, lots):
         lots[0]["status"] = "maybe"
         assert any("status" in p for p in validate_parking_lots(lots))
+
+    def test_park_operator_lot_must_be_verified_and_explain_its_coordinates(self, lots):
+        lot = next(l for l in lots if l["status"] == "park_operator")
+        lot["verified"] = False
+        del lot["coordinate_basis"]
+        problems = validate_parking_lots(lots)
+        assert any("verified=true" in p for p in problems)
+        assert any("coordinate_basis" in p for p in problems)
 
     def test_official_lot_must_be_verified_and_have_official_id(self, lots):
         official = next(l for l in lots if l["status"] == "official")

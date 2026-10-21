@@ -1,6 +1,6 @@
 /**
  * [편안하개 - PetWalk]
- * 안드로이드 뒤로가기 4단계 우선순위 제어 훅 (useAppBackHandler.ts)
+ * 안드로이드 뒤로가기 및 전역 네비게이션 우선순위 제어 훅 (useAppBackHandler.ts)
  *
  * 1단계: 모달 및 오버레이 닫기 (LandingAuthModal, LocationConsentModal)
  * 2단계: 중요 태스크 보호 (산책 진행 중 포켓 모드 오조작 방지 및 종료 다이얼로그)
@@ -8,7 +8,7 @@
  * 4단계: 메인 탭 '홈' 복귀 및 홈 화면 더블 탭 종료 (2초 이내 재터치 시 앱 종료)
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { BackHandler, ToastAndroid, Platform } from 'react-native';
 import { TabKey } from '../components/common/BottomTabBar';
 
@@ -37,6 +37,7 @@ export interface BackDecisionParams {
   consentVisible: boolean;
   subScreen: AppSubScreen;
   activeTab: TabKey;
+  walkStep?: 'settings' | 'recommend';
   lastBackPressedAt: number;
   now: number;
   exitTimeoutMs?: number;
@@ -51,6 +52,7 @@ export function determineBackAction(params: BackDecisionParams): BackActionType 
     consentVisible,
     subScreen,
     activeTab,
+    walkStep,
     lastBackPressedAt,
     now,
     exitTimeoutMs = 2000,
@@ -65,13 +67,16 @@ export function determineBackAction(params: BackDecisionParams): BackActionType 
 
   // 3단계: 서브 화면 계층적 역순 복귀
   if (subScreen === 'course_recommend') return 'NAVIGATE_TO_WALK_SETTINGS';
+  if (subScreen === 'main' && activeTab === '산책' && walkStep === 'recommend') {
+    return 'NAVIGATE_TO_WALK_SETTINGS';
+  }
   if (subScreen === 'walk_settings' || subScreen === 'dog_selection') return 'NAVIGATE_TO_MAIN';
   if (subScreen === 'report') return 'REPORT_TO_HOME';
 
   // 4단계: 메인 탭 복귀 ('홈'이 아닌 다른 탭에 있을 때)
   if (subScreen === 'main' && activeTab !== '홈') return 'SWITCH_TO_HOME_TAB';
 
-  // 4단계: 홈 화면 (또는 온보딩 첫 진입)에서 더블 탭 종료
+  // 5단계: 홈 화면 (또는 온보딩 첫 진입)에서 더블 탭 종료
   if (now - lastBackPressedAt < exitTimeoutMs) {
     return 'EXIT_APP';
   }
@@ -88,6 +93,8 @@ export interface UseAppBackHandlerOptions {
   setSubScreen: (subScreen: AppSubScreen) => void;
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
+  walkStep?: 'settings' | 'recommend';
+  onBackToWalkSettings?: () => void;
   onPocketUnlock: () => void;
   exitTimeoutMs?: number;
   onShowExitToast?: (message: string) => void;
@@ -103,104 +110,80 @@ export function useAppBackHandler({
   setSubScreen,
   activeTab,
   setActiveTab,
+  walkStep,
+  onBackToWalkSettings,
   onPocketUnlock,
   exitTimeoutMs = 2000,
   onShowExitToast,
   onExitApp,
-}: UseAppBackHandlerOptions) {
+}: UseAppBackHandlerOptions): { triggerBack: () => boolean } {
   const lastBackPressedRef = useRef<number>(0);
 
-  useEffect(() => {
-    // 안드로이드 플랫폼이 아니면 하드웨어 백 리스너 미등록 (웹/iOS 오작동 방지)
-    if (Platform.OS !== 'android') return;
+  const executeBackAction = useCallback((): boolean => {
+    const now = Date.now();
+    const action = determineBackAction({
+      authModalVisible,
+      consentVisible,
+      subScreen,
+      activeTab,
+      walkStep,
+      lastBackPressedAt: lastBackPressedRef.current,
+      now,
+      exitTimeoutMs,
+    });
 
-    const handleHardwareBackPress = (): boolean => {
-      const now = Date.now();
-      const action = determineBackAction({
-        authModalVisible,
-        consentVisible,
-        subScreen,
-        activeTab,
-        lastBackPressedAt: lastBackPressedRef.current,
-        now,
-        exitTimeoutMs,
-      });
-
-      switch (action) {
-        case 'DISMISS_AUTH_MODAL':
-          onCloseAuthModal();
-          return true;
-
-        case 'DISMISS_CONSENT_MODAL':
-          onDeclineConsent();
-          return true;
-
-        case 'PROTECT_ACTIVE_WALK':
-          onPocketUnlock();
-          return true;
-
-        case 'NAVIGATE_TO_WALK_SETTINGS':
-          setSubScreen('walk_settings');
-          return true;
-
-        case 'NAVIGATE_TO_MAIN':
-          setSubScreen('main');
-          return true;
-
-        case 'REPORT_TO_HOME':
-          setSubScreen('main');
-          setActiveTab('홈');
-          return true;
-
-        case 'SWITCH_TO_HOME_TAB':
-          setActiveTab('홈');
-          return true;
-
-        case 'SHOW_EXIT_TOAST': {
-          lastBackPressedRef.current = now;
-          const msg = '뒤로가기 버튼을 한 번 더 누르면 종료됩니다.';
-          if (onShowExitToast) {
-            onShowExitToast(msg);
-          } else if (ToastAndroid?.show) {
-            ToastAndroid.show(msg, ToastAndroid.SHORT);
-          }
-          return true;
-        }
-
-        case 'EXIT_APP': {
-          if (onExitApp) {
-            onExitApp();
-          } else if (BackHandler.exitApp) {
-            BackHandler.exitApp();
-          }
-          return true;
-        }
-
-        default:
-          return false;
+    switch (action) {
+      case 'DISMISS_AUTH_MODAL':
+        onCloseAuthModal();
+        return true;
+      case 'DISMISS_CONSENT_MODAL':
+        onDeclineConsent();
+        return true;
+      case 'PROTECT_ACTIVE_WALK':
+        onPocketUnlock();
+        return true;
+      case 'NAVIGATE_TO_WALK_SETTINGS':
+        if (onBackToWalkSettings) onBackToWalkSettings();
+        else setSubScreen('walk_settings');
+        return true;
+      case 'NAVIGATE_TO_MAIN':
+        setSubScreen('main');
+        return true;
+      case 'REPORT_TO_HOME':
+        setSubScreen('main');
+        setActiveTab('홈');
+        return true;
+      case 'SWITCH_TO_HOME_TAB':
+        setActiveTab('홈');
+        return true;
+      case 'SHOW_EXIT_TOAST': {
+        lastBackPressedRef.current = now;
+        const msg = '뒤로가기 버튼을 한 번 더 누르면 종료됩니다.';
+        if (onShowExitToast) onShowExitToast(msg);
+        else if (ToastAndroid?.show) ToastAndroid.show(msg, ToastAndroid.SHORT);
+        return true;
       }
-    };
+      case 'EXIT_APP': {
+        if (onExitApp) onExitApp();
+        else if (BackHandler.exitApp) BackHandler.exitApp();
+        return true;
+      }
+      default:
+        return false;
+    }
+  }, [
+    authModalVisible, onCloseAuthModal, consentVisible, onDeclineConsent,
+    subScreen, setSubScreen, activeTab, setActiveTab, walkStep,
+    onBackToWalkSettings, onPocketUnlock, exitTimeoutMs, onShowExitToast, onExitApp,
+  ]);
 
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      handleHardwareBackPress
-    );
-
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', executeBackAction);
     return () => {
       subscription.remove();
     };
-  }, [
-    authModalVisible,
-    onCloseAuthModal,
-    consentVisible,
-    onDeclineConsent,
-    subScreen,
-    setSubScreen,
-    activeTab,
-    setActiveTab,
-    onPocketUnlock,
-    exitTimeoutMs,
-    onShowExitToast,
-    onExitApp,
-  ]);
+  }, [executeBackAction]);
+
+  return { triggerBack: executeBackAction };
 }

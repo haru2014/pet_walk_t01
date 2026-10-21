@@ -59,6 +59,7 @@ describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () =>
 describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #37)', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    await TTSNavigationService.stop(); // 이전 테스트의 미완료 발화/대기열 정리
     await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
   });
 
@@ -131,5 +132,115 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     unsubscribe();
     await TTSNavigationService.setVolume(0.4);
     expect(receivedVolume).toBe(0.65); // 더 이상 갱신되지 않음
+  });
+
+  describe('음성 성별(남성/여성) 보이스 매핑 및 발화 검증 (이슈 #127)', () => {
+    it('기기 보이스 목록 중 한국어 남성 및 여성 보이스 식별자를 올바르게 찾아낸다', () => {
+      const mockVoices: any[] = [
+        { identifier: 'en-US-Jenny', name: 'Jenny', language: 'en-US' },
+        { identifier: 'ko-kr-x-kfb-local', name: '한국어 (대한민국)', language: 'ko-KR' },
+        { identifier: 'ko-kr-x-ism-local', name: '한국어 남성 (대한민국)', language: 'ko-KR' },
+        { identifier: 'ko-KR-InJoon', name: 'Microsoft InJoon Online (Natural) - Korean', language: 'ko-KR' },
+      ];
+
+      const maleVoice = TTSNavigationService.findVoiceForGender('male', mockVoices);
+      expect(maleVoice).toBe('ko-kr-x-ism-local');
+
+      const femaleVoice = TTSNavigationService.findVoiceForGender('female', mockVoices);
+      expect(femaleVoice).toBe('ko-kr-x-kfb-local');
+    });
+
+    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 저음 피치(0.70)가 발화 옵션에 적용되어야 한다', async () => {
+      const mockVoices: any[] = [
+        { identifier: 'ko-kr-x-kfb-local', name: 'ko-female', language: 'ko-KR' },
+        { identifier: 'ko-kr-x-ism-local', name: 'ko-male', language: 'ko-KR' },
+      ];
+      TTSNavigationService.setCachedVoicesForTesting(mockVoices);
+
+      await TTSNavigationService.setProfile('calm_male');
+      TTSNavigationService.speak('전방 100m 앞 좌회전입니다');
+
+      expect(Speech.speak).toHaveBeenCalledWith(
+        '전방 100m 앞 좌회전입니다',
+        expect.objectContaining({
+          language: 'ko-KR',
+          voice: 'ko-kr-x-ism-local',
+          pitch: 0.70,
+          rate: 0.92,
+        })
+      );
+    });
+
+    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.70/0.78)로 발화되어야 한다', async () => {
+      TTSNavigationService.setCachedVoicesForTesting([]); // 보이스 없음
+
+      await TTSNavigationService.setProfile('friendly_male');
+      TTSNavigationService.speak('잠시 벤치에서 쉬어가요');
+
+      expect(Speech.speak).toHaveBeenCalledWith(
+        '잠시 벤치에서 쉬어가요',
+        expect.objectContaining({
+          language: 'ko-KR',
+          pitch: 0.78,
+          rate: 0.95,
+        })
+      );
+    });
+  });
+});
+
+describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊기지 않음)', () => {
+  const doneOf = (callIndex: number): (() => void) =>
+    (vi.mocked(Speech.speak).mock.calls[callIndex][1] as { onDone: () => void }).onDone;
+
+  beforeEach(async () => {
+    await TTSNavigationService.stop();
+    await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
+    vi.clearAllMocks();
+  });
+
+  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', () => {
+    TTSNavigationService.speak('산책을 시작합니다');
+    TTSNavigationService.speak('출발지에서 직진하세요');
+
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    expect(Speech.stop).not.toHaveBeenCalled();
+
+    doneOf(0)();
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('출발지에서 직진하세요');
+  });
+
+  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    TTSNavigationService.speak('C', undefined, false, 'high');
+
+    doneOf(0)();
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
+    doneOf(1)();
+    expect(vi.mocked(Speech.speak).mock.calls[2][0]).toBe('B');
+  });
+
+  it('같은 문구가 대기 중이면 중복 등록하지 않는다', () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    TTSNavigationService.speak('B');
+
+    doneOf(0)();
+    doneOf(1)();
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('stop()은 대기열을 비워 이후 발화가 재생되지 않게 한다', async () => {
+    TTSNavigationService.speak('A');
+    TTSNavigationService.speak('B');
+    await TTSNavigationService.stop();
+
+    doneOf(0)(); // 무효화된 이전 발화의 종료 콜백
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+
+    TTSNavigationService.speak('C');
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
   });
 });

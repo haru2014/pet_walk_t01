@@ -96,12 +96,13 @@ describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)',
     expect(capturedBody.satisfaction_rating).toBe(4);
   });
 
-  it('서버 통신 실패 또는 타임아웃 발생 시 오프라인 모드로 안전하게 완료 처리된다', async () => {
+  it('서버 통신 실패 또는 타임아웃 발생 시 success: false 및 실패 안내 메시지를 반환한다 (이슈 #117)', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network offline'));
 
     const res = await shareCommunityCourse('오프라인 산책 코스', [[127.0, 37.5]], 5);
 
-    expect(res.success).toBe(true);
+    expect(res.success).toBe(false);
     expect(res.is_supabase).toBe(false);
+    expect(res.errorMessage).toBe('지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.');
   });
 });

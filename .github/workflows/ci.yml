@@ -6,9 +6,16 @@ on:
       - main
       - 'feat/**'
       - 'feature/**'
+
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+  workflow_dispatch:
 
 jobs:
   # ========================================================
@@ -86,55 +93,12 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: PR 자동 머지 활성화 (Squash & Merge)
+      - name: PR 자동 머지 실행 (Squash & Merge)
         run: |
           gh pr merge "${{ github.event.pull_request.number }}" --squash --auto --repo "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ========================================================
-  # Job 4: CI 성공 후 원본 main 커밋을 개인 포크 저장소로 반영
-  # ========================================================
-  sync-fork:
-    name: Sync Main to Personal Fork
-    needs: [backend-test, mobile-app-ci]
-    runs-on: ubuntu-latest
-    # 원본 저장소의 main에 push된 경우에만 실행한다.
-    # 포크 저장소 자체에서 실행되는 재귀 동기화는 방지한다.
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.event.repository.fork == false
-
-    steps:
-      - name: 원본 저장소 체크아웃
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: 포크 저장소 main으로 커밋 반영
-        env:
-          FORK_REPO: ${{ vars.FORK_REPO }}
-          FORK_REPO_TOKEN: ${{ secrets.FORK_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${FORK_REPO:-}" ]; then
-            echo "::error::Repository variable FORK_REPO가 설정되지 않았습니다."
-            echo "예: your-github-username/your-fork-repository"
-            exit 1
-          fi
-
-          if [ -z "${FORK_REPO_TOKEN:-}" ]; then
-            echo "::error::Secret FORK_REPO_TOKEN이 설정되지 않았습니다."
-            exit 1
-          fi
-
-          AUTH_HEADER="$(printf 'x-access-token:%s' "$FORK_REPO_TOKEN" | base64 -w 0)"
-
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH_HEADER}" \
-            push "https://github.com/${FORK_REPO}.git" \
-            HEAD:refs/heads/main
 

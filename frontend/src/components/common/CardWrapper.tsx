@@ -4,13 +4,13 @@
  */
 
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 
 export interface CardWrapperProps {
   children: ReactNode;
   variant?: 'elevated' | 'flat' | 'highlight';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
 

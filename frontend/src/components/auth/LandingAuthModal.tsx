@@ -67,7 +67,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
 
   const handleDogSubmit = async () => {
     if (!dogName.trim()) {
-      Alert.alert('안내', '우리 아이의 이름을 입력해 주세요.');
+      Alert.alert('안내', '우리 강아지의 이름을 입력해 주세요.');
       return;
     }
 
@@ -124,7 +124,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
                   🐾 {isSignUp ? '편안하개 회원가입' : '편안하개 로그인'}
                 </Text>
                 <Text style={styles.subtitle}>
-                  {isSignUp ? '이메일 가입하고 우리 아이 안심 코스를 공유해 보세요!' : '기존 계정으로 로그인합니다.'}
+                  {isSignUp ? '이메일 가입하고 우리 강아지 안심 코스를 공유해 보세요!' : '기존 계정으로 로그인합니다.'}
                 </Text>
               </View>
 
@@ -180,7 +180,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
           ) : (
             <View>
               <View style={styles.header}>
-                <Text style={styles.title}>🐕 우리 아이 등록하기 (pet-photos)</Text>
+                <Text style={styles.title}>🐕 우리 강아지 등록하기 (pet-photos)</Text>
                 <Text style={styles.subtitle}>Supabase 클라우드에 안전하게 보관됩니다.</Text>
               </View>
 

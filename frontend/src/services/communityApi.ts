@@ -21,6 +21,8 @@ export interface CommunityFeedItem {
   readonly landmark_code?: string;
   readonly landmark_name?: string;
   readonly region_name?: string;
+  readonly created_at?: string;
+  readonly tags?: readonly string[];
 }
 
 export interface CommunityFeedResponse {
@@ -46,6 +48,8 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     landmark_code: 'LM_SEONGSAN',
     landmark_name: '성산근린공원',
     region_name: '서울시 마포구',
+    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['폭신한숲길', '그늘많음'],
   },
   {
     course_id: 'feed_2',
@@ -68,6 +72,8 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     landmark_code: 'LM_SEJONG',
     landmark_name: '세종호수공원',
     region_name: '세종특별자치시',
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['호수뷰', '평지보행'],
   },
   {
     course_id: 'feed_3',
@@ -85,6 +91,8 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     landmark_code: 'LM_YURIM',
     landmark_name: '유림공원',
     region_name: '대전시 유성구',
+    created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['수변데크', '완만길'],
   },
   {
     course_id: 'feed_4',
@@ -102,6 +110,8 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     landmark_code: 'LM_SEOUL_FOREST',
     landmark_name: '서울숲 공원',
     region_name: '서울시 성동구',
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['가족마당', '무장애길'],
   },
   {
     course_id: 'feed_5',
@@ -118,6 +128,8 @@ const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
     landmark_code: 'LM_CITY_HALL',
     landmark_name: '서울시청 · 청계천',
     region_name: '서울시 중구',
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['돌담길', '도심산책'],
   },
 ];
 
@@ -135,13 +147,16 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
       const data = await res.json();
       const rawFeeds: CommunityFeedItem[] = data.feeds || DEFAULT_FEEDS;
       const enrichedFeeds = rawFeeds.map((feed) => {
-        if (feed.landmark_code && feed.region_name) return feed;
-        const meta = detectLandmarkCategory(feed.masked_polyline, feed.title);
+        const meta = (!feed.landmark_code || !feed.region_name)
+          ? detectLandmarkCategory(feed.masked_polyline, feed.title)
+          : null;
         return {
           ...feed,
-          landmark_code: feed.landmark_code || meta.landmarkCode,
-          landmark_name: feed.landmark_name || meta.landmarkName,
-          region_name: feed.region_name || meta.regionName,
+          landmark_code: feed.landmark_code || meta?.landmarkCode,
+          landmark_name: feed.landmark_name || meta?.landmarkName,
+          region_name: feed.region_name || meta?.regionName,
+          created_at: feed.created_at || new Date().toISOString(),
+          tags: feed.tags && feed.tags.length > 0 ? feed.tags : ['안심산책', '이웃추천'],
         };
       });
       return {
@@ -158,12 +173,14 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
   return { feeds: DEFAULT_FEEDS, is_supabase: false };
 }
 
+export const COMMUNITY_SHARE_ERROR_MESSAGE = '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
 export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
   userId?: string,
-): Promise<{ success: boolean; is_supabase?: boolean }> {
+): Promise<{ success: boolean; is_supabase?: boolean; errorMessage?: string }> {
   try {
     const res = await fetchWithServerFallback('/api/v1/community/share', {
       method: 'POST',
@@ -179,8 +196,17 @@ export async function shareCommunityCourse(
       const data = await res.json();
       return { success: true, is_supabase: Boolean(data.is_supabase) };
     }
-  } catch {
-    // 오프라인 모드에서는 성공으로 처리
+    return {
+      success: false,
+      is_supabase: false,
+      errorMessage: COMMUNITY_SHARE_ERROR_MESSAGE,
+    };
+  } catch (err) {
+    console.warn('[communityApi] 코스 공유 서버 호출 실패:', err);
+    return {
+      success: false,
+      is_supabase: false,
+      errorMessage: COMMUNITY_SHARE_ERROR_MESSAGE,
+    };
   }
-  return { success: true, is_supabase: false };
 }

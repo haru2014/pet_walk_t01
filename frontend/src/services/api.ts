@@ -8,7 +8,7 @@
 
 import { DogProfile } from '../types/dogProfile';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
-import { RecommendedCourse, WalkPreferences, DEFAULT_RECOMMENDED_COURSES } from '../types/walkSettings';
+import { RecommendedCourse, WalkPreferences, DEFAULT_RECOMMENDED_COURSES, CourseProfile } from '../types/walkSettings';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanByParkId } from './sampleRoute';
 import { FeedbackSummaryPayload } from './feedbackContext';
 import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdaptivePlanner';
@@ -35,9 +35,15 @@ export interface RoutePlanResult {
   readonly stepPins: readonly RouteStepPin[];
   readonly briefingMessage: string;
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
+  /** 후보별 실측 경사·노면 지표 (US-B1, US-B2) */
+  readonly courseProfiles?: Record<string, CourseProfile>;
+  /** 경사·구간 색을 계산한 고도 자료의 출처 문구 (서버 elevation_source.attribution, DEM 미사용 시 null) */
+  readonly elevationAttribution?: string | null;
 }
 
-const API_TIMEOUT_MS = 3500;
+// 코스 계산 요청은 서버가 잠들었다 깨는 시간(Render 무료, 10~15초)과 계산 시간을 합쳐도 기다린다.
+// 예전 3.5초는 운영 서버 응답(평균 6초)보다 짧아, 공원 모드는 경로가 안 나오고 현재 위치 모드는 샘플(유림)로 바뀌었다. (이슈 #125)
+const API_TIMEOUT_MS = 20000;
 
 function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
   const count = 8;
@@ -201,12 +207,35 @@ export async function requestWalkPlan(
         throw new RoutePlanError('ROUTE_VALIDATION_FAILED', '선택한 공원 내부의 검증된 경로를 확인할 수 없습니다. 다시 시도해 주세요.', data.request_id);
       }
       const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
+      const rawCourses: RecommendedCourse[] = data.courses ?? DEFAULT_RECOMMENDED_COURSES;
+      const profiles: Record<string, CourseProfile> | undefined = data.course_profiles;
+      const courses: RecommendedCourse[] = rawCourses.map((c, idx) => {
+        const profile = profiles?.[c.id] ?? null;
+        let score = c.score;
+        if (score == null && c.reason) {
+          const match = c.reason.match(/맞춤 점수\s*(\d+)점/);
+          if (match) score = parseInt(match[1], 10);
+        }
+        if (score == null && idx === 0 && typeof data.score === 'number') {
+          score = Math.round(data.score);
+        }
+        return {
+          ...c,
+          score,
+          profile,
+          slopeSource: profile?.slope_source ?? c.slopeSource,
+          maxSlopePercent: profile?.max_slope_percent !== undefined ? profile.max_slope_percent : c.maxSlopePercent,
+        };
+      });
+
       return {
         isLiveServer: true,
-        courses: data.courses ?? DEFAULT_RECOMMENDED_COURSES,
+        courses,
         route: data.geojson ?? defaultPlan.route,
         stepPins: data.step_pins ?? defaultPlan.stepPins,
         coursePlans: data.course_plans,
+        courseProfiles: profiles,
+        elevationAttribution: data.elevation_source?.attribution ?? null,
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
       };
     }

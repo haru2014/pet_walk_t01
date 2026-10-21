@@ -50,7 +50,48 @@ export interface ThemeColors {
 }
 
 export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
-  // 🌿 1. 숲길 그린 (기본 디자인 유지)
+  // 🐶 0. 더스티 앰버 & 세이지 그린 (02번 디자인 시안 - docs/reference/UI개선/app_design_n2-1.png)
+  dusty_amber: {
+    background: '#F5EFE0', // Soft Cream
+    surface: '#FDFAF4',    // 따뜻한 크림 화이트 카드 서피스
+    border: '#E5DCC9',     // 크림 오커 보더
+    borderSoft: '#EFE7D6',
+    borderSubtle: '#DCD2BE',
+
+    primary: '#5A7361',    // Sage Green
+    primaryDark: '#3E5244',// 딥 포레스트 세이지
+    primaryLight: '#E3ECE4',// 소프트 세이지 워시
+    primaryWash: '#F0F5F1',
+    primaryMint: '#8C9E7D',// Leaf Green
+    primarySubtle: '#D6E3D8',
+
+    textMain: '#2D3A31',   // 딥 세이지 차콜 텍스트
+    textMuted: '#758579',  // 세이지 그레이 뮤트 텍스트
+    textWhite: '#FFFFFF',
+
+    routeSafe: '#5A7361',  // 세이지 그린 안심길
+    routeNormal: '#B59C5E',// 올리브 오커 일반길
+    routeCaution: '#CFA052',// 더스티 앰버 주의길
+
+    mapGround: '#F5EFE0',
+    mapPark: '#E2ECE3',
+    mapWater: '#D4E4E6',
+    mapRoad: '#FFFFFF',
+    mapRoadEdge: '#E3DBC7',
+    mapLabel: '#5A7361',
+
+    pocketBg: '#1E2520',
+    pocketHud: '#CFA052',
+    pocketHudSubtle: '#8C9E7D',
+
+    success: '#5A7361',
+    warning: '#CFA052',    // Dusty Amber
+    error: '#D9534F',
+    accent: '#CFA052',     // Dusty Amber 액센트
+    accentLight: '#F7ECCF',
+  },
+
+  // 🌿 1. 숲길 그린 (기존 테마)
   forest: {
     background: '#F8FAF9',
     surface: '#FFFFFF',
@@ -175,7 +216,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
 };
 
 export const TOKENS = {
-  colors: { ...THEME_PALETTES.forest },
+  colors: { ...THEME_PALETTES.dusty_amber },
 
   borderRadius: {
     frame: 40,
@@ -198,7 +239,7 @@ export const TOKENS = {
 };
 
 export function applyThemeTokens(themeId: ThemeId): ThemeColors {
-  const selected = THEME_PALETTES[themeId] ?? THEME_PALETTES.forest;
+  const selected = THEME_PALETTES[themeId] ?? THEME_PALETTES.dusty_amber;
   Object.assign(TOKENS.colors, selected);
   return TOKENS.colors;
 }

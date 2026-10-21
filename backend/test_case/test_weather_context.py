@@ -108,13 +108,13 @@ class TestPureFunctions:
         assert wc.sky_condition(sky, pty, daylight) == expected
 
     @pytest.mark.parametrize("air, weight, expected", [
-        (30.0, 1.0, 45.0), (28.5, 0.6, 37.5), (16.7, 0.0, 16.7), (20.04, 0.2, 23.0),
+        (30.0, 1.0, 45.0), (28.5, 0.6, 38.1), (16.7, 0.0, 18.3), (20.04, 0.2, 24.3),
     ])
     def test_estimate_surface_temp(self, air, weight, expected):
         assert wc.estimate_surface_temp(air, weight) == expected
 
     @pytest.mark.parametrize("temp, expected", [
-        (20.0, "SAFE"), (35.0, "SAFE"), (35.1, "CAUTION"), (45.0, "CAUTION"), (45.1, "DANGER"),
+        (20.0, "SAFE"), (33.0, "SAFE"), (33.1, "CAUTION"), (45.0, "CAUTION"), (45.1, "DANGER"),
     ])
     def test_risk_level_boundaries(self, temp, expected):
         assert wc.risk_level(temp) == expected
@@ -124,8 +124,11 @@ class TestPureFunctions:
         assert wc.is_daylight(datetime(2026, 10, 13, 0, 0, tzinfo=KST), *DOAN) is False
 
     def test_daylight_fallback_when_sun_calculation_fails(self, monkeypatch):
-        import suncalc
-        monkeypatch.setattr(suncalc, "get_position", lambda *a, **k: (_ for _ in ()).throw(ValueError("x")))
+        try:
+            import suncalc
+            monkeypatch.setattr(suncalc, "get_position", lambda *a, **k: (_ for _ in ()).throw(ValueError("x")))
+        except ImportError:
+            pass
         assert wc.is_daylight(datetime(2026, 10, 13, 12, 0, tzinfo=KST), *DOAN) is True
         assert wc.is_daylight(datetime(2026, 10, 13, 22, 0, tzinfo=KST), *DOAN) is False
 
@@ -211,7 +214,7 @@ class TestBuildResponse:
         _default_server(monkeypatch, t1h=16.7, pty=1)
         current = wc.build_heat_risk_response(*DOAN, now=NOW)["current"]
         assert current["condition"] == "rainy" and current["insolation_weight"] == 0.0
-        assert current["estimated_surface_temp"] == 16.7 and current["risk_level"] == "SAFE"
+        assert current["estimated_surface_temp"] == 18.3 and current["risk_level"] == "SAFE"
         assert current["is_golden_time"] is True
 
     def test_hot_clear_day_is_caution_then_danger(self, monkeypatch):
@@ -227,7 +230,7 @@ class TestBuildResponse:
         night = datetime(2026, 10, 13, 23, 20, tzinfo=KST)
         _default_server(monkeypatch, t1h=25.0, now=night)
         current = wc.build_heat_risk_response(*DOAN, now=night)["current"]
-        assert current["condition"] == "night" and current["estimated_surface_temp"] == 25.0
+        assert current["condition"] == "night" and current["estimated_surface_temp"] == 26.6
 
     def test_missing_sky_assumes_clear_hottest_case(self, monkeypatch):
         start = NOW.replace(minute=0)
@@ -318,7 +321,7 @@ class TestBuildResponse:
     def test_insolation_provider_overrides_sky_based_weight(self, monkeypatch):
         _default_server(monkeypatch, t1h=30.0)
         cloudy = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 0.0)
-        assert cloudy["current"]["estimated_surface_temp"] == 30.0
+        assert cloudy["current"]["estimated_surface_temp"] == 31.6
         kma.clear_cache()
         _default_server(monkeypatch, t1h=30.0)
         clamped = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 2.0)
@@ -362,7 +365,7 @@ class TestOpenMeteoIntegration:
         response = wc.build_heat_risk_response(*DOAN, now=NOW)
         current = response["current"]
         assert current["insolation_weight"] == 0.5 and current["insolation_source"] == "provider"
-        assert (current["estimated_surface_temp"], current["risk_level"]) == (37.5, "CAUTION")  # 맑음 가정이면 45.0
+        assert (current["estimated_surface_temp"], current["risk_level"]) == (38.3, "CAUTION")  # 맑음 가정이면 45.0
         assert response["insolation_source"] == "open_meteo"
         assert response["attribution"] == "Weather data by Open-Meteo.com (CC BY 4.0)"
 
@@ -414,7 +417,7 @@ class TestOpenMeteoIntegration:
         _default_server(monkeypatch, t1h=30.0)
         response = wc.build_heat_risk_response(*DOAN, now=NOW, insolation_provider=lambda t: 0.0)
         assert calls == [] and response["insolation_source"] == "custom"
-        assert response["current"]["estimated_surface_temp"] == 30.0
+        assert response["current"]["estimated_surface_temp"] == 31.6
 
     def test_observation_failure_does_not_call_open_meteo(self, monkeypatch, real_insolation):
         calls = self._fake_fetch(monkeypatch, self._radiation(h13=500.0))
@@ -490,9 +493,84 @@ class TestWeatherContext:
         context = wc.weather_context_from_response(response)
         assert context["current"] == response["current"]
         assert context["golden_time_window"] == response["golden_time_window"]
-        assert "hourly_forecast" not in context  # 에이전트에는 현재값과 골든타임만 넘긴다
+        assert "hourly_forecast" not in context  # 전체 목록 대신 앞으로 12시간 요약만 넘긴다
+        upcoming = context["forecast_next_hours"]
+        assert len(upcoming) == wc.PLANNING_FORECAST_HOURS
+        assert upcoming[0]["time"] == response["hourly_forecast"][0]["time"]
+        assert set(upcoming[0]) <= set(wc._FORECAST_KEYS) and "pop" in upcoming[0]
+
+    def test_dry_weather_has_no_rain(self, monkeypatch):
+        _default_server(monkeypatch)
+        rain = wc.build_weather_context(*DOAN, now=NOW)["precipitation"]
+        assert rain["known"] is True and rain["is_precipitating_now"] is False
+        assert rain["rain_expected_times"] == [] and rain["threshold_pop"] == 60
+
+    def test_rain_now_and_ahead_is_passed_to_the_planner(self, monkeypatch):
+        """비가 오면 지면온도는 낮게 나오지만, 비 자체를 경로 생성이 알 수 있어야 한다."""
+        _default_server(monkeypatch, pty=1)
+        context = wc.build_weather_context(*DOAN, now=NOW)
+        rain = context["precipitation"]
+        assert rain["known"] is True and rain["is_precipitating_now"] is True
+        assert rain["pop_now"] == 100 and rain["max_pop_next_3h"] == 100
+        assert len(rain["rain_expected_times"]) == 6
+        assert context["current"]["is_golden_time"] is True  # 지면온도만 보면 '안전'이라 비 정보가 따로 필요하다
+
+    def test_fallback_estimate_marks_rain_as_unknown(self):
+        hourly = [{"hour": h, "air_temp_celsius": 25.0, "estimated_surface_temp": 30.0, "risk_level": "SAFE",
+                   "is_golden_time": True} for h in range(24)]
+        response = {"current": hourly[15], "golden_time_window": "06:00 ~ 08:00", "golden_time_window_day": "today",
+                    "data_source": "fallback_estimate", "insolation_source": None, "attribution": None, "grid": None,
+                    "warnings": [], "hourly_forecast": hourly}
+        context = wc.weather_context_from_response(response)
+        assert context["precipitation"]["known"] is False and context["precipitation"]["is_precipitating_now"] is None
+        assert [h["hour"] for h in context["forecast_next_hours"]] == list(range(15, 24))
 
     def test_failure_propagates_so_the_caller_can_decide(self, monkeypatch):
         _server(monkeypatch, ncst=urllib.error.URLError("down"))
         with pytest.raises(KmaApiError):
             wc.build_weather_context(*DOAN, now=NOW)
+
+
+class TestDirtHeatGain:
+    """흙 상승폭은 기상청 ASOS 관측 지면온도(맨땅)에 맞춘 값이다 (docs/reports/2026-10-18_지면온도_추정_오차_평가.md)."""
+
+    def test_dirt_gain_matches_the_observed_bare_ground_fit(self):
+        assert wc.SURFACE_HEAT_GAIN_MAP["dirt"] == 12.6
+        assert wc.calculate_surface_temps(30.0, 1.0)["dirt"] == 42.6
+        assert wc.SURFACE_HEAT_GAIN_MAP["grass"] < wc.SURFACE_HEAT_GAIN_MAP["dirt"] < wc.SURFACE_HEAT_GAIN_MAP["asphalt"]
+
+    def test_server_fallback_uses_the_same_dirt_gain(self):
+        import main
+        for entry in main._generate_fallback_hourly_dtos():
+            weight = entry["solar_radiation_w_m2"] / 1000.0
+            expected = round(entry["air_temp_celsius"] + 1.6 * (1.0 - weight) + weight * wc.SURFACE_HEAT_GAIN_MAP["dirt"], 1)
+            assert entry["surface_temps"]["dirt"] == expected, entry["hour"]
+
+
+def test_forecast_insolation_and_air_quality_are_fetched_at_the_same_time(monkeypatch):
+    """현재 관측 뒤의 외부 호출 4개는 동시에 부른다. 차례로 부르면 처음 보는 위치의 날씨가 4~8초 걸렸다."""
+    import threading
+    import time as _time
+    from services import airkorea_client
+
+    _default_server(monkeypatch)
+    running, peak, lock = [0], [0], threading.Lock()
+
+    def slow(fetch):
+        def wrapper(*args, **kwargs):
+            with lock:
+                running[0] += 1
+                peak[0] = max(peak[0], running[0])
+            _time.sleep(0.2)
+            with lock:
+                running[0] -= 1
+            return fetch(*args, **kwargs)
+        return wrapper
+
+    monkeypatch.setattr(kma, "fetch_ultra_srt_fcst", slow(kma.fetch_ultra_srt_fcst))
+    monkeypatch.setattr(kma, "fetch_vilage_fcst", slow(kma.fetch_vilage_fcst))
+    monkeypatch.setattr(airkorea_client, "fetch_air_quality", slow(lambda *a, **k: {"source": "test"}))
+    response = wc.build_heat_risk_response(*DOAN, now=NOW, use_open_meteo=False)
+    assert response["data_source"] == "kma_live"
+    assert response["air_quality"] == {"source": "test"}
+    assert peak[0] >= 3  # 초단기·단기 예보와 대기질이 겹쳐서 실행됐다

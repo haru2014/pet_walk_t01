@@ -87,7 +87,8 @@ class TestLangGraphAgentExecutionSeniorMaltese:
         assert best.max_slope_percent <= 5.0
 
         # 3. Candidate Route Scorer 검증 (US-B3: 100점 만점 중 90점 이상)
-        assert result.best_score >= 90.0
+        # [제안 맞춤 점수] 자료가 없는 서울 좌표라 계단·그늘·노면은 중간 점수: 고정 프로필 시절 90 → 80
+        assert result.best_score >= 80.0
         assert len(result.all_scored_candidates) == 3
         assert result.all_scored_candidates[0].candidate.route_id == best.route_id
 
@@ -95,7 +96,10 @@ class TestLangGraphAgentExecutionSeniorMaltese:
         briefing = result.briefing_message
         assert "코코" in briefing
         assert "말티즈" in briefing
-        assert "폭신한 길" in briefing or "완만한" in briefing
+        # 자료가 없는 서울 좌표: 확인하지 않은 계단·경사·노면을 말하지 않는다 (#114)
+        assert "준비했어요" in briefing
+        for unmeasured in ["폭신한", "완만한", "계단 걱정"]:
+            assert unmeasured not in briefing
         for forbidden in ["슬개골", "탈구", "관절염", "디스크", "질환", "환견"]:
             assert forbidden not in briefing
 
@@ -176,7 +180,8 @@ class TestLangGraphAgentFallbackHandling:
         assert result.intent.avoid_stairs is True
         assert result.intent.slope_preference == "gentle"
         assert result.best_route is not None
-        assert result.best_score >= 80.0
+        # [제안 맞춤 점수] 자료가 없는 서울 좌표라 중간 점수: 80 → 70
+        assert result.best_score >= 70.0
 
 
 class TestCandidateRouteScorerMultiFactorBreakdown:
@@ -308,6 +313,7 @@ class TestFastApiAgentIntegration:
         assert "courses" in data
         assert len(data["courses"]) >= 1
         best_course = data["courses"][0]
-        assert best_course["stairsCount"] == "0회"
+        # 현재 위치(공원 밖) 경로는 계단 자료(OSM 태그)가 없어 실측 카드는 '정보 없음'이다 (#114). 예전 '0회'는 확인 없는 고정값.
+        assert best_course["stairsCount"] == "정보 없음"
         assert "맥스" in data["summary"] or "골든 리트리버" in data["summary"]
 

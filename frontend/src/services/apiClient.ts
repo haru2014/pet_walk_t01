@@ -2,12 +2,12 @@
  * [편안하개 - PetWalk]
  * 탄력적 멀티 타깃 API 클라이언트 (US-F1, US-G1, US-A1)
  *
- * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01.onrender.com)
+ * 1순위: Render 배포 서버 (EXPO_PUBLIC_API_URL 또는 https://pet-walk-t01-z095.onrender.com)
  * 2순위: 로컬 FastAPI 개발 서버 (http://127.0.0.1:8000)
  * 3순위: 양쪽 모두 실패 시 호출자(Service)가 오프라인 안전 폴백(Fallback) 수행
  */
 
-export const RENDER_API_BASE_URL = 'https://pet-walk-t01.onrender.com';
+export const RENDER_API_BASE_URL = 'https://pet-walk-t01-z095.onrender.com';
 export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
@@ -15,6 +15,10 @@ export const LOCAL_API_BASE_URL = 'http://127.0.0.1:8000';
  */
 export function getPrimaryApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  // 구 Render 주소(pet-walk-t01.onrender.com)가 설정된 경우 실제 배포 인스턴스(-z095)로 자동 보정
+  if (envUrl === 'https://pet-walk-t01.onrender.com' || envUrl === 'http://pet-walk-t01.onrender.com') {
+    return RENDER_API_BASE_URL;
+  }
   return envUrl || RENDER_API_BASE_URL;
 }
 
@@ -31,9 +35,19 @@ export function getFallbackApiBaseUrl(): string | null {
 }
 
 /**
- * 타임아웃 지원 fetch 래퍼
+ * 백엔드 서버(Render 콜드 스타트 대응) 비동기 사전 웜업
  */
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 3500): Promise<Response> {
+export function warmupBackendServer(): void {
+  const primary = getPrimaryApiBaseUrl();
+  if (primary?.startsWith('http')) {
+    fetch(`${primary}/health`).catch(() => {});
+  }
+}
+
+/**
+ * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 15초)
+ */
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -64,7 +78,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 350
 export async function fetchWithServerFallback(
   endpoint: string,
   init?: RequestInit,
-  primaryTimeoutMs = 3500,
+  primaryTimeoutMs = 15000,
   fallbackTimeoutMs = 2000
 ): Promise<Response> {
   const primaryBase = getPrimaryApiBaseUrl();
@@ -78,8 +92,8 @@ export async function fetchWithServerFallback(
   // 1순위 시도: Render 서버 (또는 EXPO_PUBLIC_API_URL)
   try {
     const res = await fetchWithTimeout(`${primaryBase}${cleanEndpoint}`, init, primaryTimeoutMs);
-    // 502/503/504 등 게이트웨이 또는 서버 인프라 다운 상태일 때는 2순위 로컬 백엔드로 시도 허용
-    if (res && res.status >= 502 && res.status <= 504 && fallbackBase) {
+    // 500~504 등 서버 오류 또는 게이트웨이 다운 상태일 때는 2순위 로컬 백엔드로 시도 허용
+    if (res && res.status >= 500 && res.status <= 504 && fallbackBase) {
       primaryFailed = true;
     } else if (res) {
       return res;
