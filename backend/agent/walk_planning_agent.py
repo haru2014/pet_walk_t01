@@ -245,6 +245,23 @@ def calibrate_max_slope_with_feedback(base_max_slope: float, feedback_list: List
     return round(calibrated, 1)
 
 
+def calibrate_preferences_with_feedback(intent: WalkIntent, feedback_list: List[FeedbackSummaryItem]) -> WalkIntent:
+    """[US-E3] 최근 피드백(그늘 부족, 거친 노면, 계단 부담 등)에 따른 선호 조건 다요소 동적 보정."""
+    updated = intent.model_copy()
+    for fb in feedback_list:
+        if fb.tag in ("lack_of_shade", "too_hot", "need_shade"):
+            updated.shade_priority = True
+        elif fb.tag in ("rough_surface", "hurt_paws"):
+            surfaces = list(updated.preferred_surfaces)
+            for s in ("dirt", "grass", "rubber"):
+                if s not in surfaces:
+                    surfaces.insert(0, s)
+            updated.preferred_surfaces = surfaces
+        elif fb.tag in ("stairs_burden", "avoid_stairs"):
+            updated.avoid_stairs = True
+    return updated
+
+
 def score_candidate_route(candidate: RouteCandidate, target_distance_m: float) -> ScoredRoute:
     """[US-B3] Candidate Route Scorer: 후보 경로 다요소 종합 100점 채점기.
     
@@ -472,15 +489,21 @@ def node_calibrate_constraints(state: WalkPlanningState) -> Dict[str, Any]:
     base_slope = 7.0 if intent_dict.get("slope_preference") == "gentle" else 12.0
     calibrated_slope = calibrate_max_slope_with_feedback(base_slope, feedback_list)
 
+    # 그늘/노면/계단 피드백 다요소 보정 (US-E3)
+    intent_obj = WalkIntent(**intent_dict) if intent_dict else build_fallback_walk_intent()
+    calibrated_intent = calibrate_preferences_with_feedback(intent_obj, feedback_list)
+
     trace.append(
         f"[Node: calibrate_constraints] Dog: {dog_ctx.breed} ({dog_ctx.age_years}세, {dog_ctx.weight_kg}kg) -> "
-        f"Speed: {speed_kmh}km/h, TargetDist: {target_dist_m}m, MaxSlope: {calibrated_slope}%"
+        f"Speed: {speed_kmh}km/h, TargetDist: {target_dist_m}m, MaxSlope: {calibrated_slope}%, "
+        f"ShadePriority: {calibrated_intent.shade_priority}"
     )
 
     return {
         "calibrated_speed_kmh": speed_kmh,
         "target_distance_m": target_dist_m,
         "max_slope_allowed": calibrated_slope,
+        "parsed_intent": calibrated_intent.model_dump(),
         "execution_trace": trace,
         "status": "constraints_calibrated"
     }
@@ -643,7 +666,7 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
       - 33℃ 이하: 안전 골든타임 알림. 단, 지금 비가 오면 골든타임이라고 하지 않는다
     * 비 예보(weather_context.precipitation)를 안내한다 (#114).
     * 코스 설명은 실측 지표(계단·경사·노면·그늘)로만 말하고, 모르는 값은 말하지 않는다 (#114).
-    * 웰니스 카피라이팅 가드레일: 임상 질병 용어(슬개골 탈구, 관절염 등) 100% 배제.
+    * 웰니스 카피라이팅 가드레일: 임상 질병 용어(특정 관절 질환명 등) 100% 배제.
     """
     from services.route_profile import measure_route_profile
     from services.weather_context import SAFE_MAX_C, rain_notice
