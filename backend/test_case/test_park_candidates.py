@@ -117,3 +117,12 @@ def test_api_routes_are_really_different(park):
     ids = [c["id"] for c in data["courses"]]
     sets = [set(map(tuple, coords(i))) for i in ids]
     assert len({frozenset(s) for s in sets}) == 3  # 세 후보의 점 집합이 서로 다르다
+
+    # 지시서 요구사항: 후보 간 좌표 포함률(중복도)이 과도하게 높지 않아야 함 (사실상 동일한 경로 방지)
+    for i in range(len(sets)):
+        for j in range(i + 1, len(sets)):
+            s1, s2 = sets[i], sets[j]
+            inter = len(s1 & s2)
+            containment = inter / min(len(s1), len(s2))
+            assert containment < 0.70, f"Park {park}: candidates {ids[i]} and {ids[j]} overlap too much ({containment:.1%})"
+

@@ -367,7 +367,11 @@ export function buildMapLibreHtml({
             currentRoute = msg.route;
             currentPins = msg.stepPins || [];
             const src = map.getSource('route-source');
-            if (src) src.setData(msg.route);
+            if (src) {
+              src.setData(msg.route);
+            } else if (map.isStyleLoaded()) {
+              initLayers(msg.route, payload.routeColors, payload.maskingFeature);
+            }
             initMarkers(msg.stepPins || [], msg.route);
             const b = computeBounds(msg.route);
             if (b) map.fitBounds(b, { padding: 40, duration: 600 });
