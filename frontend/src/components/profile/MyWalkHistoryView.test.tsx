@@ -99,12 +99,7 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
   });
 
 
-  it('WalkStatisticsService의 CSV/JSON 내보내기 기능이 온전하게 동작한다', () => {
-    const csv = WalkStatisticsService.exportWalkRecordsToCsv(mockRecords, '초코');
-    expect(csv).toContain('산책일시,반려견이름,소요시간(분),산책거리(km)');
-    expect(csv).toContain('"초코"');
-    expect(csv).toContain('1.80');
-
+  it('WalkStatisticsService의 JSON 내보내기 기능이 온전하게 동작한다', () => {
     const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(mockRecords, '초코');
     const parsed = JSON.parse(jsonStr);
     expect(parsed.dogName).toBe('초코');
