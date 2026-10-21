@@ -29,3 +29,7 @@ error/*
 .github/workflows/ci copy.yml
 .gemini\GEMINI.md
 docs/member4/*
+
+# presentations & office docs
+*.ppt
+*.pptx
