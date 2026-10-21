@@ -17,6 +17,7 @@ import {
   Modal,
 } from 'react-native';
 import { TOKENS } from '../theme/tokens';
+import { useAppTheme } from '../theme/themeManager';
 import { CardWrapper } from '../components/common/CardWrapper';
 import { fetchCommunityFeeds, CommunityFeedItem } from '../services/communityApi';
 import { RouteMapView } from '../components/map/RouteMapView';
@@ -112,12 +113,13 @@ function convertFeedToBookmark(feed: CommunityFeedItem): BookmarkedRoute {
 
 export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   onStartCommunityWalk,
-  dogSpeedKmH = 2.8,
+  dogSpeedKmH = 4.0,
   onOpenAuthModal,
   initialFeeds,
   initialPeriod = 'all',
   initialCategory = 'ALL',
 }) => {
+  const { colors } = useAppTheme();
   const { community } = useAppResponsive();
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>(initialFeeds ?? []);
   const [isSupabase, setIsSupabase] = useState(false);
@@ -198,16 +200,25 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   }, [feeds, selectedCategory, selectedPeriod]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionSubtitle}>동네 이웃 안심 산책로 공유</Text>
-        <Text style={styles.sectionTitle}>커뮤니티 코스 피드 👥</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
       </View>
 
       {/* 연동 상태 뱃지 */}
       <View style={styles.badgeRow}>
-        <View style={[styles.statusBadge, isSupabase ? styles.badgeSupabase : styles.badgeOffline]}>
-          <Text style={[styles.badgeText, isSupabase ? styles.textSupabase : styles.textOffline]}>
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: isSupabase ? colors.primaryWash : colors.background,
+              borderColor: isSupabase ? colors.primaryMint : colors.border,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <Text style={[styles.badgeText, { color: isSupabase ? colors.primaryDark : colors.textMuted }]}>
             {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 [가상 데모 코스]'}
           </Text>
         </View>
@@ -217,16 +228,16 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           style={styles.refreshBtn}
           disabled={isLoading}
         >
-          <Text style={styles.refreshText}>{isLoading ? '⌛ 로딩 중...' : '🔄 새로고침'}</Text>
+          <Text style={[styles.refreshText, { color: colors.textMuted }]}>{isLoading ? '⌛ 로딩 중...' : '🔄 새로고침'}</Text>
         </TouchableOpacity>
       </View>
 
       {/* 비회원 안내 배너 및 회원가입 링크 */}
       {!currentUser && (
-        <View style={styles.guestBanner}>
+        <View style={[styles.guestBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
           <View style={styles.guestBannerTextWrap}>
-            <Text style={styles.guestBannerTitle}>👥 비회원 둘러보기 모드</Text>
-            <Text style={styles.guestBannerDesc}>
+            <Text style={[styles.guestBannerTitle, { color: colors.primaryDark }]}>👥 비회원 둘러보기 모드</Text>
+            <Text style={[styles.guestBannerDesc, { color: colors.textMuted }]}>
               회원가입 시 나만의 안심 코스를 동네 이웃과 공유할 수 있습니다.
             </Text>
           </View>
@@ -234,9 +245,9 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => onOpenAuthModal('signup')}
-              style={styles.guestBannerBtn}
+              style={[styles.guestBannerBtn, { backgroundColor: colors.primary }]}
             >
-              <Text style={styles.guestBannerBtnText}>회원가입</Text>
+              <Text style={[styles.guestBannerBtnText, { color: colors.textWhite }]}>회원가입</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -244,8 +255,8 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
       {/* 200m 자택 위치 안심 보호 안내 카드 */}
       <CardWrapper style={{ marginBottom: 14 }}>
-        <Text style={styles.cardHeaderTitle}>🔒 자택 위치 안심 보호 (출발·도착지 200m)</Text>
-        <Text style={styles.cardBodyText}>
+        <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>🔒 자택 위치 안심 보호 (출발·도착지 200m)</Text>
+        <Text style={[styles.cardBodyText, { color: colors.textMuted }]}>
           이웃 보호자들이 공유한 안심 산책 코스입니다. 집 위치 노출을 방지하기 위해
           출발지와 도착지 반경 200m 구간은 자동으로 가림 처리(블러링)된 안전 경로만 표시됩니다.
         </Text>
@@ -261,9 +272,21 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 key={chip.code}
                 activeOpacity={0.75}
                 onPress={() => setSelectedCategory(chip.code)}
-                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? colors.primaryLight : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
               >
-                <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: isSelected ? colors.primaryDark : colors.textMuted },
+                    isSelected && { fontWeight: '700' },
+                  ]}
+                >
                   {chip.label}
                 </Text>
               </TouchableOpacity>
@@ -282,9 +305,21 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 key={chip.period}
                 activeOpacity={0.75}
                 onPress={() => setSelectedPeriod(chip.period)}
-                style={[styles.periodFilterChip, isSelected && styles.periodFilterChipActive]}
+                style={[
+                  styles.periodFilterChip,
+                  {
+                    backgroundColor: isSelected ? colors.primaryLight : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
               >
-                <Text style={[styles.periodFilterChipText, isSelected && styles.periodFilterChipTextActive]}>
+                <Text
+                  style={[
+                    styles.periodFilterChipText,
+                    { color: isSelected ? colors.primaryDark : colors.textMuted },
+                    isSelected && { fontWeight: '700' },
+                  ]}
+                >
                   {chip.label}
                 </Text>
               </TouchableOpacity>
@@ -294,7 +329,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
       </View>
 
       {/* 공유된 안심 코스 피드 목록 */}
-      <Text style={styles.feedListTitle}>
+      <Text style={[styles.feedListTitle, { color: colors.textMain }]}>
         이웃들이 공유한 안심 산책로 ({filteredFeeds.length}개)
       </Text>
 
@@ -319,20 +354,22 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               <View style={styles.topActionRow}>
                 <View style={styles.landmarkRow}>
                   {feed.landmark_name && (
-                    <View style={styles.landmarkChip}>
-                      <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont }]}>
+                    <View style={[styles.landmarkChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+                      <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont, color: colors.primaryDark }]}>
                         📍 {feed.landmark_name} · {feed.region_name}
                       </Text>
                     </View>
                   )}
                   {feed.is_origin_masked && (
-                    <View style={styles.maskedChip}>
-                      <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>🔒 200m 보호</Text>
+                    <View style={[styles.maskedChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+                      <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1), color: colors.primaryDark }]}>
+                        🔒 200m 보호
+                      </Text>
                     </View>
                   )}
                   {!isSupabase && (
-                    <View style={styles.demoBadge}>
-                      <Text style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1) }]}>
+                    <View style={[styles.demoBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+                      <Text style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1), color: colors.primaryDark }]}>
                         가상 데모
                       </Text>
                     </View>
@@ -346,15 +383,17 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               </View>
 
               <View style={styles.feedHeader}>
-                <Text style={styles.feedTitle}>{feed.title}</Text>
+                <Text style={[styles.feedTitle, { color: colors.textMain }]}>{feed.title}</Text>
               </View>
               <View style={styles.feedMetaRow}>
-                <Text style={styles.feedMetaText}>
+                <Text style={[styles.feedMetaText, { color: colors.textMuted }]}>
                   📏 {(feed.distance_m / 1000).toFixed(1)}km · ⏱️ 약 {feed.duration_min}분
                 </Text>
                 <View style={styles.toggleRow}>
-                  <Text style={styles.feedRating}>⭐ {feed.rating.toFixed(1)}</Text>
-                  <Text style={styles.chevronText}>{isExpanded ? ' ▲ 경로 접기' : ' ▼ 경로 지도 보기'}</Text>
+                  <Text style={[styles.feedRating, { color: colors.primaryDark }]}>⭐ {feed.rating.toFixed(1)}</Text>
+                  <Text style={[styles.chevronText, { color: colors.primary }]}>
+                    {isExpanded ? ' ▲ 경로 접기' : ' ▼ 경로 지도 보기'}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -362,13 +401,13 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
             {/* 1번 방안: 카드 내부 인라인 미니 경로 지도 아코디언 펼침 */}
             {isExpanded && (
               <View style={styles.expandedContent}>
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                <Text style={styles.previewNotice}>
+                <Text style={[styles.previewNotice, { color: colors.textMuted }]}>
                   🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길)
                 </Text>
 
-                <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight }]}>
+                <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
                   <RouteMapView
                     route={feedRoute}
                     stepPins={feedPins}
@@ -382,17 +421,25 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                     <TouchableOpacity
                       activeOpacity={0.8}
                       onPress={() => handleStartWalkFromFeed(feed)}
-                      style={[styles.startWalkButton, { paddingVertical: community.actionBtnPaddingV }]}
+                      style={[styles.startWalkButton, { paddingVertical: community.actionBtnPaddingV, backgroundColor: colors.primary }]}
                     >
-                      <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
+                      <Text style={[styles.startWalkButtonText, { color: colors.textWhite }]}>🐾 이 코스로 바로 산책 시작</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => setModalFeed(feed)}
-                    style={[styles.fullScreenButton, { paddingVertical: community.actionBtnPaddingV }]}
+                    style={[
+                      styles.fullScreenButton,
+                      {
+                        paddingVertical: community.actionBtnPaddingV,
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                      },
+                    ]}
                   >
-                    <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
+                    <Text style={[styles.fullScreenButtonText, { color: colors.textMain }]}>🔍 큰 화면으로 확인</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -410,11 +457,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           onRequestClose={() => setModalFeed(null)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
               <View style={styles.modalHeader}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.modalSubtitle}>이웃 공유 안심 산책로</Text>
-                  <Text style={styles.modalTitle}>{modalFeed.title}</Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>이웃 공유 안심 산책로</Text>
+                  <Text style={[styles.modalTitle, { color: colors.textMain }]}>{modalFeed.title}</Text>
                 </View>
                 <View style={styles.modalHeaderActions}>
                   <BookmarkToggleButton bookmark={convertFeedToBookmark(modalFeed)} />
@@ -423,19 +470,21 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                     style={styles.closeBtn}
                     accessibilityLabel="모달 닫기"
                   >
-                    <Text style={styles.closeBtnText}>✕</Text>
+                    <Text style={[styles.closeBtnText, { color: colors.textMuted }]}>✕</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View style={styles.modalMetaBar}>
-                <Text style={styles.modalMetaItem}>📏 {(modalFeed.distance_m / 1000).toFixed(1)}km</Text>
-                <Text style={styles.modalMetaItem}>⏱️ 약 {modalFeed.duration_min}분</Text>
-                <Text style={styles.modalMetaItem}>⭐ {modalFeed.rating.toFixed(1)} 만족도</Text>
-                <Text style={styles.modalProtectedBadge}>🔒 200m 안심 마스킹</Text>
+                <Text style={[styles.modalMetaItem, { color: colors.textMuted }]}>📏 {(modalFeed.distance_m / 1000).toFixed(1)}km</Text>
+                <Text style={[styles.modalMetaItem, { color: colors.textMuted }]}>⏱️ 약 {modalFeed.duration_min}분</Text>
+                <Text style={[styles.modalMetaItem, { color: colors.textMuted }]}>⭐ {modalFeed.rating.toFixed(1)} 만족도</Text>
+                <Text style={[styles.modalProtectedBadge, { backgroundColor: colors.primaryWash, color: colors.primaryDark }]}>
+                  🔒 200m 안심 마스킹
+                </Text>
               </View>
 
-              <View style={styles.modalMapWrapper}>
+              <View style={[styles.modalMapWrapper, { borderColor: colors.border }]}>
                 <RouteMapView
                   route={buildRouteFromMaskedPolyline(modalFeed.masked_polyline)}
                   stepPins={buildPinsFromCoords(modalFeed.masked_polyline)}
@@ -447,17 +496,17 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => setModalFeed(null)}
-                  style={styles.modalCancelBtn}
+                  style={[styles.modalCancelBtn, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}
                 >
-                  <Text style={styles.modalCancelText}>닫기</Text>
+                  <Text style={[styles.modalCancelText, { color: colors.textMain }]}>닫기</Text>
                 </TouchableOpacity>
                 {onStartCommunityWalk && (
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => handleStartWalkFromFeed(modalFeed)}
-                    style={styles.modalConfirmBtn}
+                    style={[styles.modalConfirmBtn, { backgroundColor: colors.primary }]}
                   >
-                    <Text style={styles.modalConfirmText}>🐾 산책 시작하기</Text>
+                    <Text style={[styles.modalConfirmText, { color: colors.textWhite }]}>🐾 산책 시작하기</Text>
                   </TouchableOpacity>
                 )}
               </View>
