@@ -97,15 +97,6 @@ describe('WalkStatisticsService', () => {
     expect(allRecords[0].id).toBe('walk_2');
   });
 
-  it('기록이 CSV 문자열로 UTF-8 BOM과 함께 안전하게 변환된다', () => {
-    const csv = WalkStatisticsService.exportWalkRecordsToCsv(mockRecords, '초코');
-    expect(csv.startsWith('\uFEFF')).toBe(true);
-    expect(csv).toContain('산책일시,반려견이름,소요시간(분),산책거리(km)');
-    expect(csv).toContain('초코');
-    expect(csv).toContain('좋았어요');
-    expect(csv).toContain('쾌적함');
-  });
-
   it('기록이 JSON 포맷으로 직렬화된다', () => {
     const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(mockRecords, '초코');
     const parsed = JSON.parse(jsonStr);

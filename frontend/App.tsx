@@ -198,7 +198,10 @@ export default function App() {
         return;
       }
       setWalkBookmark(bookmark);
-      TTSNavigationService.speak(`${activeDog.name}와 ${title} 산책을 시작합니다.`);
+      const walkAnnouncement = title.includes('산책')
+        ? `${activeDog.name}와 ${title}을 시작합니다.`
+        : `${activeDog.name}와 ${title} 산책을 시작합니다.`;
+      TTSNavigationService.speak(walkAnnouncement);
       setSubScreen('pocket');
     } catch (err) {
       console.warn('[App] beginWalk 실행 중 예외 처리:', err);
@@ -215,8 +218,20 @@ export default function App() {
     );
 
   /**
-   * 1. 홈 화면 "산책 시작" 버튼 클릭 시:
-   * AI가 생성한 추천 경로 1에 따라 즉시 산책을 시작 (Screen-04 거치지 않고 직행)
+   * 1. 홈 화면 "바로 산책하기" 클릭 시:
+   * 사전에 추천 경로를 생성하지 않고, 실제 GPS 트래킹을 수행하는 자유 산책 모드로 즉시 진입
+   */
+  const handleStartFreeWalk = async () => {
+    setPreferences((prev) => ({
+      ...prev,
+      isFreeWalk: true,
+      durationMinutes: null,
+    }));
+    await beginWalk('자유 산책', undefined, null);
+  };
+
+  /**
+   * 2. 추천 경로 1에 따라 즉시 산책 시작
    */
   const handleStartTopCourse = async () => {
     try {
@@ -519,7 +534,7 @@ export default function App() {
                     onAddDog={() => setSubScreen('dog_selection')}
                     feedbackSummary={feedbackSummary}
                     onPressProfile={() => setSubScreen('dog_selection')}
-                    onStartWalk={handleStartTopCourse}
+                    onStartWalk={handleStartFreeWalk}
                     onOpenPlanner={() => setActiveTab('산책')}
                     onOpenStats={() => {
                       if (subScreen !== 'main') setSubScreen('main');

@@ -454,7 +454,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           <CardWrapper variant="flat" style={styles.accountCard}>
             <View style={styles.accountRow}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ Supabase 클라우드 계정</Text>
+                <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
                 <Text style={[styles.accountSubtitle, { color: colors.textMuted }]}>
                   {currentUser ? `${currentUser.email} (로그인됨)` : '로컬 게스트 모드 (비로그인)'}
                 </Text>

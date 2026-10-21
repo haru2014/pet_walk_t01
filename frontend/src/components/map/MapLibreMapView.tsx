@@ -141,7 +141,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         const initialBounds = getRouteBounds(latestRouteRef.current);
         const defaultCenter: [number, number] = initialBounds
           ? [(initialBounds[0][0] + initialBounds[1][0]) / 2, (initialBounds[0][1] + initialBounds[1][1]) / 2]
-          : [127.3805, 36.4315];
+          : (maskingCenter ? [maskingCenter[0], maskingCenter[1]] : [127.3805, 36.4315]);
 
         mapInstance = new maplibregl.Map({
           container: webContainerRef.current,
@@ -266,8 +266,12 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       );
     };
     void updateMarkers();
-    if (routeBounds) map.fitBounds(routeBounds, { padding: 40, duration: 700 });
-  }, [isWeb, route, routeBounds, stepPins, routeColors, onPinSelect]);
+    if (routeBounds) {
+      map.fitBounds(routeBounds, { padding: 40, duration: 700 });
+    } else if (maskingCenter) {
+      map.setCenter(maskingCenter);
+    }
+  }, [isWeb, route, routeBounds, stepPins, routeColors, maskingCenter, onPinSelect]);
 
   // ============================================================================
   // 2. 모바일 환경 (Android / iOS) - react-native-webview 브릿지

@@ -105,8 +105,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onPressProfile={onPressProfile}
           onPressNotification={onOpenNotification}
           onStartWalk={onStartWalk}
-          estimatedMinutes={30}
-          distanceKm="2.1 km"
           courseName="바로 산책하기"
           userCoords={userCoords}
         />

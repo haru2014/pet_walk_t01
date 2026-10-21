@@ -13,8 +13,8 @@ from agent.park_route_validation import build_park_graph, resolve_park_start, Ro
 from agent.route_geometry import polyline_length_m
 
 CANDIDATE_COUNT = 3
-SAME_ROUTE_OVERLAP = 0.7  # 간선 겹침(자카드)이 이 값 이상이면 "같은 길"로 보고 고르지 않는다
-RELAXED_OVERLAP = 0.9  # 후보가 모자랄 때만 이 값 미만까지 허용한다
+SAME_ROUTE_OVERLAP = 0.65  # 간선 겹침(자카드 또는 포함률)이 이 값 이상이면 "같은 길"로 보고 고르지 않는다
+RELAXED_OVERLAP = 0.85  # 후보가 모자랄 때만 이 값 미만까지 허용한다
 MAX_LAP_REPEATS = 4
 _CANDIDATE_CACHE: dict = {}
 _CANDIDATE_CACHE_MAX = 256
@@ -27,8 +27,19 @@ def route_edge_set(coords: list) -> frozenset:
 
 
 def _overlap(a: frozenset, b: frozenset) -> float:
-    union = a | b
-    return len(a & b) / len(union) if union else 1.0
+    """간선 겹침 비율.
+
+    두 경로 중 어느 한쪽이라도 대부분(containment) 겹치거나,
+    전체 자카드 유사도가 높으면 같은 길로 판단한다.
+    """
+    if not a or not b:
+        return 1.0
+    inter = len(a & b)
+    if inter == 0:
+        return 0.0
+    jaccard = inter / len(a | b)
+    containment = inter / min(len(a), len(b))
+    return max(jaccard, containment)
 
 
 def route_direction_label(coords: list) -> str:

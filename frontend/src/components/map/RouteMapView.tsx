@@ -32,6 +32,10 @@ export interface RouteMapViewProps {
   readonly mapHeight?: number;
   /** 부모 컨테이너(flex: 1)에 100% 꽉 채우기 */
   readonly fillContainer?: boolean;
+  /** 현재 위치 안심 마스킹 중심점 또는 중심 좌표 */
+  readonly maskingCenter?: LonLat;
+  /** 3색 세그먼트 범례 오버레이 표시 여부 (자유 산책은 기본 false) */
+  readonly showLegend?: boolean;
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -44,6 +48,8 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   showSummaryCard = false,
   mapHeight: customMapHeight,
   fillContainer = false,
+  maskingCenter,
+  showLegend = true,
 }) => {
   const { colors } = useAppTheme();
   const mapHeight = customMapHeight ?? MAP_HEIGHT;
@@ -83,7 +89,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   );
   const mapPins = useMemo(() => [...stepPins, ...routeHazardPins], [stepPins, routeHazardPins]);
 
-  if (allCoords.length === 0) return null;
+  if (allCoords.length === 0 && !maskingCenter && mapPins.length === 0) return null;
 
   const selectedPin = mapPins.find((pin) => pin.id === selectedPinId);
 
@@ -100,6 +106,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
         <MapLibreMapView
           route={route}
           stepPins={mapPins}
+          maskingCenter={maskingCenter}
           width="100%"
           height={fillContainer ? '100%' : mapHeight}
           style={fillContainer ? { flex: 1, width: '100%', height: '100%', borderRadius: 0, borderWidth: 0 } : undefined}
@@ -109,9 +116,11 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             onPinSelect?.(instruction);
           }}
         />
-        <View pointerEvents="none" style={styles.legendOverlay}>
-          <RouteMapLegend />
-        </View>
+        {showLegend && (
+          <View pointerEvents="none" style={styles.legendOverlay}>
+            <RouteMapLegend />
+          </View>
+        )}
         {stairsCount != null && (
           <View
             pointerEvents="none"

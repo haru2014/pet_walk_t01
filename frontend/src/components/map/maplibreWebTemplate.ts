@@ -74,6 +74,7 @@ export function buildMapLibreHtml({
     stepPins,
     routeColors,
     maskingFeature,
+    maskingCenter,
     interactive,
     styleLoadTimeoutMs: STYLE_LOAD_TIMEOUT_MS,
   });
@@ -150,7 +151,7 @@ export function buildMapLibreHtml({
 
       // 지도 초기화
       const bounds = computeBounds(payload.route);
-      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : [127.3805, 36.4315];
+      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : (payload.maskingCenter || [127.3805, 36.4315]);
 
       // 현재 표시 중인 데이터/스타일 상태 (스타일 교체 후 레이어 재등록에 사용)
       let currentRoute = payload.route;
@@ -367,7 +368,11 @@ export function buildMapLibreHtml({
             currentRoute = msg.route;
             currentPins = msg.stepPins || [];
             const src = map.getSource('route-source');
-            if (src) src.setData(msg.route);
+            if (src) {
+              src.setData(msg.route);
+            } else if (map.isStyleLoaded()) {
+              initLayers(msg.route, payload.routeColors, payload.maskingFeature);
+            }
             initMarkers(msg.stepPins || [], msg.route);
             const b = computeBounds(msg.route);
             if (b) map.fitBounds(b, { padding: 40, duration: 600 });
