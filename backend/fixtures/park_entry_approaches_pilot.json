@@ -1,6 +1,6 @@
 {
- "source": "OpenStreetMap map API (highway=footway/path/pedestrian/cycleway/living_street)",
- "retrieved_at": "2026-10-20",
+ "source": "OpenStreetMap map API (highway=footway/path/pedestrian/cycleway/living_street, residential/unclassified/service)",
+ "retrieved_at": "2026-10-21",
  "license": "ODbL-1.0",
  "attribution": "© OpenStreetMap contributors",
  "max_length_m": 600.0,
@@ -15,6 +15,7 @@
    ],
    "entrance_to_start_m": 35.2,
    "length_m": 547.0,
+   "road_m": 0,
    "way_ids": [
     "419370661",
     "419370675",
@@ -148,6 +149,45 @@
     [
      127.2730181,
      36.4964904
+    ]
+   ]
+  },
+  "std_186-2-000003": {
+   "park_id": "songgang",
+   "parking_way": null,
+   "parking_way_version": null,
+   "entrance": [
+    127.3865088,
+    36.4344178
+   ],
+   "entrance_to_start_m": 49.4,
+   "length_m": 142.7,
+   "road_m": 126.9,
+   "way_ids": [
+    "469591274",
+    "469075142",
+    "564393424"
+   ],
+   "coordinates": [
+    [
+     127.386762,
+     36.4348125
+    ],
+    [
+     127.3864892,
+     36.4350813
+    ],
+    [
+     127.3861918,
+     36.4353841
+    ],
+    [
+     127.3858683,
+     36.4356985
+    ],
+    [
+     127.3856913,
+     36.4357001
     ]
    ]
   }

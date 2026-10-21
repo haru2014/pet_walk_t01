@@ -75,7 +75,7 @@ def test_parking_pnr_entrance_snap_and_closure(parking_id: str, expected_zone: s
 @pytest.mark.parametrize("parking_id, code", [
     ("pkg_yurim_01", "ORIGIN_NOT_CONNECTED"),
     ("pkg_songgang_01", "ORIGIN_NOT_CONNECTED"),
-    ("pkg_sejong_03", "ORIGIN_NOT_CONNECTED"),  # 공원 경계 밖, 100m 안에 공원으로 이어지는 보행 전용 길이 없음 (#160)
+    ("pkg_sejong_03", "ORIGIN_NOT_CONNECTED"),  # 공원 경계 밖, 주택가 도로를 넣어도 진입로 약 900m (#160, #183)
     ("pkg_doan_01", "ORIGIN_NOT_CONNECTED"),
     # 갑천생태호수공원 남쪽 구역은 OSM 보행로가 1.3km 뿐이고 순환로가 없다 (주차장 C data_issue 참고)
     ("opr_doan_c", "NO_VALID_LOOP"),
@@ -188,3 +188,37 @@ def test_entry_approach_does_not_lower_the_distance_score():
     })
     assert response.status_code == 200
     assert response.json()["score"] >= 85
+
+
+def test_songgang_official_lot_starts_through_a_residential_street_approach():
+    """#183: 송강 공식 주차장(std_186-2-000003)은 주택가 도로를 포함한 진입로(약 143m)로 공원 코스에 들어간다.
+    안내 문구에 도로 구간을 알린다."""
+    from agent.park_route_validation import load_entry_approaches
+    approach = load_entry_approaches()["std_186-2-000003"]
+    assert approach["park_id"] == "songgang" and 0 < approach["road_m"] <= approach["length_m"] <= 600
+    response = _plan_from_lot("std_186-2-000003", 30)
+    assert response.status_code == 200
+    data = response.json()
+    assert all(v["entry_approach_road_m"] == approach["road_m"] for v in data["route_validation"].values())
+    assert "주택가 도로" in data["briefing"]
+
+
+def test_walk_only_approach_does_not_mention_roads():
+    response = _plan_from_lot("pkg_sejong_02", 30)
+    assert response.status_code == 200
+    assert "주택가 도로" not in response.json()["briefing"]
+
+
+def test_every_lot_that_cannot_start_a_park_walk_explains_why():
+    """#183: 공원 경로를 시작할 수 없는 주차장은 data_issue 에 이유가 적혀 있어야 한다 (앱·서버가 이유를 보여 줄 수 있게)."""
+    zone_to_park = {"유림공원": "yurim", "송강근린공원": "songgang", "도안호수공원": "doan", "세종호수공원": "sejong"}
+    unexplained = []
+    for lot in _PILOT_PARKING_LOTS:
+        response = client.post("/api/v1/walk/plan", json={
+            "origin_mode": "parking_pnr", "parking_lot_id": lot["parking_id"],
+            "pilot_park_id": zone_to_park[lot["park_zone"]],
+            "origin_lat": lot["entrance_lat"], "origin_lon": lot["entrance_lon"], "target_duration_minutes": 30,
+        })
+        if response.status_code != 200 and not lot.get("data_issue"):
+            unexplained.append((lot["parking_id"], response.json().get("code")))
+    assert unexplained == []
