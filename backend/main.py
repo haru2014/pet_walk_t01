@@ -486,8 +486,11 @@ def _update_park_briefing(
     approach_m = validations[best.route_id].get("entry_approach_m") or 0
     if approach_m:
         # 공원 경계 밖 주차장 출발 (#160): 공원 코스는 목표 시간에 맞추고 진입로 왕복을 더했다
+        road_m = validations[best.route_id].get("entry_approach_road_m") or 0
+        # 보행 전용 진입로는 예전 문구 그대로, 주택가 도로가 섞이면 알린다 (#183)
+        way_text = f"공원 밖 길(주택가 도로 약 {road_m:.0f}m 포함, 차량에 주의해 주세요)을" if road_m else "공원 밖 보행로를"
         agent_result.briefing_message += (
-            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 공원 밖 보행로를 왕복하는 시간이 포함돼 있고,"
+            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 {way_text} 왕복하는 시간이 포함돼 있고,"
             f" 공원 안 코스는 약 {validations[best.route_id]['loop_estimated_minutes']:.0f}분입니다."
         )
 
