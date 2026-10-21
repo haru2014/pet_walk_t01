@@ -32,6 +32,7 @@ vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
   Polyline: (props: any) => React.createElement('polyline', props),
   Circle: (props: any) => React.createElement('circle', props),
+  Path: (props: any) => React.createElement('path', props),
   G: (props: any) => React.createElement('g', props),
   Text: (props: any) => React.createElement('text', props),
 }));

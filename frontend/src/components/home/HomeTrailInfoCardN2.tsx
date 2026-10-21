@@ -5,6 +5,7 @@ import { DogProfile } from '../../types/dogProfile';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
+import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
 
 function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; grade: string } {
@@ -51,14 +52,6 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
     : `지면온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
 
   const walkIndex = computeWalkIndex(weather);
-  const stats = weeklyStats ?? {
-    totalWalks: 0,
-    targetWalks: 5,
-    completionRatePercent: 0,
-    totalDistanceKm: 0,
-    totalDurationMinutes: 0,
-    safeSurfaceRatioPercent: 80,
-  };
 
   return (
     <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
@@ -116,55 +109,8 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
         </View>
       </TouchableOpacity>
 
-      {/* 3. 이번 주 산책 달성도 위젯 */}
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={onOpenStats}
-        style={[styles.achievementCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        accessibilityRole="button"
-        accessibilityLabel="이번 주 산책 달성도 및 통계 보기"
-      >
-        <View style={styles.achievementHeaderRow}>
-          <View style={styles.achievementTitleGroup}>
-            <Text style={styles.achievementIcon}>🐾</Text>
-            <Text style={[styles.achievementTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
-            <Text style={[styles.achievementArrow, { color: colors.textMuted }]}>›</Text>
-          </View>
-          <View style={[styles.achievementBadge, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.achievementBadgeText, { color: colors.primaryDark }]}>
-              주 {stats.totalWalks}/{stats.targetWalks}회 ({stats.completionRatePercent}%)
-            </Text>
-          </View>
-        </View>
-
-        {/* 주간 달성 프로그레스 바 */}
-        <View style={[styles.progressBarTrack, { backgroundColor: colors.border }]}>
-          <View
-            style={[
-              styles.progressBarFill,
-              {
-                width: `${Math.min(100, Math.max(0, stats.completionRatePercent))}%`,
-                backgroundColor: colors.primary,
-              },
-            ]}
-          />
-        </View>
-
-        {/* 3대 핵심 보행 메트릭 1줄 요약 */}
-        <View style={styles.metricsRow}>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            누적 <Text style={[styles.metricHighlight, { color: colors.textMain }]}>{stats.totalDistanceKm}km</Text>
-          </Text>
-          <Text style={[styles.metricDot, { color: colors.border }]}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            시간 <Text style={[styles.metricHighlight, { color: colors.textMain }]}>{stats.totalDurationMinutes}분</Text>
-          </Text>
-          <Text style={[styles.metricDot, { color: colors.border }]}>·</Text>
-          <Text style={[styles.metricText, { color: colors.textMuted }]}>
-            완만 노면 <Text style={[styles.metricHighlight, { color: colors.primaryDark }]}>{stats.safeSurfaceRatioPercent}%</Text>
-          </Text>
-        </View>
-      </TouchableOpacity>
+      {/* 3. 이번 주 산책 달성도 위젯 (7일 발자국 스탬프 도장 형식) */}
+      <WeeklyWalkStampCard weeklyStats={weeklyStats} onPress={onOpenStats} />
     </View>
   );
 };
@@ -215,32 +161,5 @@ const styles = StyleSheet.create({
   verticalDivider: { width: 1, height: 38, marginHorizontal: 8, opacity: 0.7 },
   treeImageWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center', opacity: 0.9 },
   tree01Image: { width: 52, height: 52 },
-  // 이번 주 산책 달성도 위젯
-  achievementCard: {
-    backgroundColor: '#FDFAF4',
-    borderRadius: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#EFE7D6',
-    shadowColor: '#5A7361',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  achievementHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  achievementTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  achievementIcon: { fontSize: 13 },
-  achievementTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
-  achievementArrow: { fontSize: 15, fontWeight: '600', marginLeft: 2 },
-  achievementBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  achievementBadgeText: { fontSize: 10.5, fontWeight: '700' },
-  progressBarTrack: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
-  progressBarFill: { height: '100%', borderRadius: 2 },
-  metricsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  metricText: { fontSize: 11, fontWeight: '500' },
-  metricHighlight: { fontWeight: '700' },
-  metricDot: { fontSize: 11, fontWeight: '800' },
 });
 
