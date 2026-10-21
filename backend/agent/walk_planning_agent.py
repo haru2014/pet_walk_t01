@@ -92,6 +92,21 @@ class ScoredRoute(BaseModel):
     distance_score: float
     rank: int
     preference_score: float = 0.0  # [제안] 맞춤 점수의 선호 적합도 (agent/personalized_scorer.py)
+    distance_error_ratio: float = 0.0  # |코스 거리 − 목표| / 목표 (진입로 왕복 제외). 순위의 시간 적합 판단에 쓴다
+
+
+# 이 비율 안의 코스를 "요청 시간에 맞는 코스"로 본다 (공원 안내의 '짧은 대안 코스' 기준 0.75 와 같은 폭)
+DURATION_FIT_TOLERANCE = 0.25
+
+
+def rank_key(scored: "ScoredRoute") -> tuple:
+    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고 그 안에서는 점수 순,
+    맞는 코스가 없으면 요청 시간에 가까운 순(같으면 점수 순). 점수 자체는 바꾸지 않는다.
+    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다."""
+    err = scored.distance_error_ratio
+    if err <= DURATION_FIT_TOLERANCE:
+        return (0, 0.0, -scored.total_score)
+    return (1, round(err, 3), -scored.total_score)
 
 
 class WalkPlanningResult(BaseModel):
@@ -575,8 +590,9 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
         profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
         # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
         approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
+        loop_distance_m = c.total_distance_m - 2 * approach_m
         result = score_personalized(
-            profile, distance_m=c.total_distance_m - 2 * approach_m, target_distance_m=target_dist,
+            profile, distance_m=loop_distance_m, target_distance_m=target_dist,
             joint_care_level=int(dog.get("joint_care_level", 1)),
             calibrated_max_slope=state.get("max_slope_allowed"),
             avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
@@ -606,6 +622,7 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
         scored_list.append(ScoredRoute(
             candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
             thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+            distance_error_ratio=abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0,
         ))
     return scored_list
 
@@ -619,8 +636,8 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     candidates = [RouteCandidate(**cd) for cd in candidate_dicts]
     scored_list: List[ScoredRoute] = _score_candidates_personalized(state, candidates, target_dist)
 
-    # 점수 내림차순 정렬
-    scored_list.sort(key=lambda s: s.total_score, reverse=True)
+    # 요청 시간에 맞는 코스 먼저, 그 안에서 점수 내림차순 (#170)
+    scored_list.sort(key=rank_key)
     for i, s in enumerate(scored_list):
         s.rank = i + 1
 
