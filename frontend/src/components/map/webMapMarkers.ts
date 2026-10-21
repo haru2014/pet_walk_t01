@@ -51,6 +51,7 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin): void {
 
 function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElement {
   const hasTitle = Boolean(pin.title);
+  const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
   const kindColors: Record<RouteStepPin['kind'], string> = {
     caution: colors.caution, safe: colors.safe, turn: colors.normal,
   };
@@ -60,10 +61,13 @@ function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElemen
   element.textContent = pin.icon ?? DEFAULT_PIN_ICON[pin.kind];
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
-    borderRadius: hasTitle ? '10px' : '50%', border: '2px solid #fff',
+    borderRadius: hasTitle ? '10px' : '50%',
+    border: isCurrentLoc ? '2px solid #2563EB' : '2px solid #fff',
     padding: hasTitle ? '4px 6px' : '0',
-    background: hasTitle ? '#ffffffed' : kindColors[pin.kind],
-    color: hasTitle ? '#1f2937' : '#fff', fontWeight: '700', cursor: 'pointer', boxShadow: '0 2px 5px #0005',
+    background: hasTitle ? '#ffffffed' : (isCurrentLoc ? '#2563EB' : kindColors[pin.kind]),
+    color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : '#1f2937') : '#fff',
+    fontWeight: '700', cursor: 'pointer',
+    boxShadow: isCurrentLoc ? '0 2px 8px rgba(37, 99, 235, 0.45)' : '0 2px 5px #0005',
     fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
   });
   if (hasTitle) fillTitleLayout(element, pin);

@@ -168,6 +168,7 @@ describe('CommunityTabScreen (기간 필터 및 안심 코스 찜 기능)', () =
   });
 
   it('API 코스 조회 시 각 피드에 기간(created_at) 속성과 태그가 정상 부여되어 있다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
     const res = await communityApi.fetchCommunityFeeds();
     expect(res.feeds.length).toBeGreaterThanOrEqual(4);
 

@@ -18,6 +18,7 @@ import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { warmupBackendServer } from '../services/apiClient';
+import { getCurrentLocationCoords } from '../services/locationService';
 import { useAppTheme } from '../theme/themeManager';
 
 import { HomeParkWalkCardN2 } from '../components/home/HomeParkWalkCardN2';
@@ -59,10 +60,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
   const [weatherModalVisible, setWeatherModalVisible] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
 
   useEffect(() => {
     warmupBackendServer();
     let isMounted = true;
+    void getCurrentLocationCoords(4000).then((res) => {
+      if (isMounted && res.ok && res.coords) {
+        setUserCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+      }
+    });
     void fetchHeatRiskForecast(36.3628, 127.3592)
       .then((res) => {
         if (isMounted) {
@@ -101,6 +108,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           estimatedMinutes={30}
           distanceKm="2.1 km"
           courseName="바로 산책하기"
+          userCoords={userCoords}
         />
       </View>
 

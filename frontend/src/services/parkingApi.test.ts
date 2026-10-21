@@ -143,7 +143,7 @@ describe('parkingApi - US-G1 대전/세종 4대 거점 공영주차장 P&R 서�
     });
 
     it('서버 미연결 시 안전하게 오프라인 대전/세종 실데이터로 폴백해야 한다', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Connection refused'));
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Connection refused'));
 
       const res = await fetchNearbyParkingLots(SEJONG_LAT, SEJONG_LON);
 

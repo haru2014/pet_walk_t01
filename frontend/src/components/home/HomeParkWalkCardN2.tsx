@@ -9,10 +9,11 @@
  * 4. 산책 거리(km) & 소요 시간(분) 및 원터치 [산책 시작] 바인딩
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DogProfile } from '../../types/dogProfile';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
+import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
 import { useAppTheme } from '../../theme/themeManager';
@@ -29,6 +30,7 @@ export interface HomeParkWalkCardN2Props {
   estimatedMinutes?: number;
   distanceKm?: string;
   courseName?: string;
+  userCoords?: { lon: number; lat: number } | null;
 }
 
 export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
@@ -41,10 +43,15 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   estimatedMinutes = 30,
   distanceKm = '2.1 km',
   courseName = '바로 산책하기',
+  userCoords,
 }) => {
   const { theme, colors } = useAppTheme();
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
+  const activePins = useMemo(
+    () => mergeCurrentLocationPin(SAMPLE_STEP_PINS, userCoords?.lon, userCoords?.lat),
+    [userCoords]
+  );
 
   const cardBgColor = theme === 'dusty_amber' ? colors.accent : colors.surface;
   const isDark = theme === 'dark';
@@ -116,7 +123,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
         <View style={[styles.mapFrame, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}>
           <RouteMapView
             route={SAMPLE_ROUTE}
-            stepPins={SAMPLE_STEP_PINS}
+            stepPins={activePins}
             speedKmH={dog.speedKmH ?? 2.8}
             onStart={onStartWalk}
             showSummaryCard={false}

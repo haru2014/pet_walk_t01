@@ -29,6 +29,8 @@ import { PlanSourceBadge } from './PlanSourceBadge';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
+import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
+import { getCurrentLocationCoords } from '../../services/locationService';
 
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
@@ -93,8 +95,34 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     );
   }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark]);
 
+  const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
+  const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
+    if (preferences?.userCoordinates) {
+      return { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (isCurrentLocOrigin && !gpsCoords) {
+      let isMounted = true;
+      void getCurrentLocationCoords(4000).then((res) => {
+        if (isMounted && res.ok && res.coords) {
+          setGpsCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+        }
+      });
+      return () => { isMounted = false; };
+    }
+  }, [isCurrentLocOrigin, gpsCoords]);
+
   const activeRoute = activePlan.route;
-  const activePins = activePlan.stepPins;
+  const activePins = useMemo(() => {
+    const pins = activePlan.stepPins;
+    if (isCurrentLocOrigin && gpsCoords) {
+      return mergeCurrentLocationPin(pins, gpsCoords.lon, gpsCoords.lat);
+    }
+    return pins;
+  }, [activePlan.stepPins, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
   const activeSummary = useMemo(
     () => buildCourseSummary(activeRoute, dog.speedKmH),
