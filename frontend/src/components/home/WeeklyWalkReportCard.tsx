@@ -74,9 +74,9 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
             styles.badge,
             {
               backgroundColor:
-                stats.totalWalks >= stats.targetWalks ? colors.primaryLight : '#F1F5F9',
+                stats.totalWalks >= stats.targetWalks ? colors.primaryLight : colors.background,
               borderColor:
-                stats.totalWalks >= stats.targetWalks ? colors.primary : '#CBD5E1',
+                stats.totalWalks >= stats.targetWalks ? colors.primary : colors.border,
             },
           ]}
         >
@@ -85,7 +85,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
               styles.badgeText,
               {
                 color:
-                  stats.totalWalks >= stats.targetWalks ? colors.primaryDark : '#475569',
+                  stats.totalWalks >= stats.targetWalks ? colors.primaryDark : colors.textMuted,
               },
             ]}
           >
@@ -96,7 +96,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
 
       {/* 2. 주간 목표 프로그레스 바 (Progress Bar) */}
       <View style={styles.progressBarSection}>
-        <View style={styles.progressBarTrack}>
+        <View style={[styles.progressBarTrack, { backgroundColor: colors.border }]}>
           <View
             style={[
               styles.progressBarFill,
@@ -167,7 +167,10 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
                   style={[
                     styles.barTrack,
                     item.isToday && styles.barTrackToday,
-                    { borderColor: item.isToday ? colors.primary : '#E2E8F0' },
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: item.isToday ? colors.primary : colors.border,
+                    },
                   ]}
                 >
                   {/* 목표선 (트랙 상단 100% 점선 가이드) */}

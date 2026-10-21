@@ -15,6 +15,7 @@ import { DogProfile } from '../../types/dogProfile';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
 import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
+import { useAppTheme } from '../../theme/themeManager';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
 
 const BELL_ICON_IMG = require('../../../assets/images/home/bell_icon.png');
@@ -42,8 +43,13 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   distanceKm = '2.1 km',
   courseName = '바로 산책하기',
 }) => {
+  const { theme, colors } = useAppTheme();
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
+
+  const cardBgColor = theme === 'dusty_amber' ? colors.accent : colors.surface;
+  const isDark = theme === 'dark';
+  const cardTextColor = isDark ? colors.textMain : (theme === 'dusty_amber' ? '#2D3A31' : colors.textMain);
 
   return (
     <View style={styles.container}>
@@ -58,31 +64,47 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
       </TouchableOpacity>
 
       {/* 2. 메인 카드 본체 */}
-      <View style={styles.cardBody}>
+      <View style={[styles.cardBody, { backgroundColor: cardBgColor, borderColor: colors.border, borderWidth: 1 }]}>
         {/* 카드 헤더 (타이틀, 강아지 드롭다운, 알림 버튼) */}
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{courseName}</Text>
+          <Text style={[styles.cardTitle, { color: cardTextColor }]}>{courseName}</Text>
 
           <View style={styles.headerRightActions}>
             {isMultiDog && (
               <TouchableOpacity
                 onPress={() => setShowDropdown((prev) => !prev)}
-                style={styles.dogSwitchButton}
+                style={[
+                  styles.dogSwitchButton,
+                  {
+                    backgroundColor: isDark ? colors.primaryLight : 'rgba(255, 255, 255, 0.45)',
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                  },
+                ]}
                 activeOpacity={0.7}
                 accessibilityLabel={`${dog.name} 반려견 선택 드롭다운`}
               >
-                <Text style={styles.dogSwitchText}>{dog.name} ▾</Text>
+                <Text style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}>
+                  {dog.name} ▾
+                </Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
               onPress={onPressNotification}
-              style={styles.bellButton}
+              style={[
+                styles.bellButton,
+                {
+                  backgroundColor: isDark ? colors.background : colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                },
+              ]}
               activeOpacity={0.75}
               accessibilityLabel="알림"
               accessibilityRole="button"
             >
-              <Image source={BELL_ICON_IMG} style={styles.bellIcon} resizeMode="contain" />
+              <Image source={BELL_ICON_IMG} style={[styles.bellIcon, { tintColor: cardTextColor }]} resizeMode="contain" />
             </TouchableOpacity>
           </View>
         </View>
@@ -99,7 +121,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
         )}
 
         {/* 3. 코스 지도 프리뷰 (flex 채움) */}
-        <View style={styles.mapFrame}>
+        <View style={[styles.mapFrame, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}>
           <RouteMapView
             route={SAMPLE_ROUTE}
             stepPins={SAMPLE_STEP_PINS}
@@ -113,23 +135,30 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={onStartWalk}
-          style={styles.statsBar}
+          style={[
+            styles.statsBar,
+            {
+              backgroundColor: isDark ? colors.background : 'rgba(255, 255, 255, 0.5)',
+              borderColor: colors.border,
+              borderWidth: 1,
+            },
+          ]}
           accessibilityLabel="산책 시작하기"
         >
           <View style={styles.statsInfoRow}>
             <View style={styles.statItem}>
               <Text style={styles.statIcon}>🚶</Text>
-              <Text style={styles.statLabel}>산책</Text>
-              <Text style={styles.statValue}>{distanceKm}</Text>
+              <Text style={[styles.statLabel, { color: isDark ? colors.textMuted : cardTextColor }]}>산책</Text>
+              <Text style={[styles.statValue, { color: cardTextColor }]}>{distanceKm}</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
               <Text style={styles.statIcon}>⏱</Text>
-              <Text style={styles.statValue}>{estimatedMinutes}분</Text>
+              <Text style={[styles.statValue, { color: cardTextColor }]}>{estimatedMinutes}분</Text>
             </View>
           </View>
-          <View style={styles.startActionBadge}>
-            <Text style={styles.startActionText}>시작 →</Text>
+          <View style={[styles.startActionBadge, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.startActionText, { color: colors.textWhite }]}>시작 →</Text>
           </View>
         </TouchableOpacity>
       </View>

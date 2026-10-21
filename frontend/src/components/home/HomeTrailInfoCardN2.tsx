@@ -21,6 +21,7 @@ import { HeatRiskResponse } from '../../types/weather';
 import { DogProfile } from '../../types/dogProfile';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
+import { useAppTheme } from '../../theme/themeManager';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
 import tree02Img from '../../../assets/ui_n2/tree_02.png';
 
@@ -45,6 +46,8 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   onOpenPlanner,
   onOpenWeatherModal,
 }) => {
+  const { colors } = useAppTheme();
+
   // 실시간 기상 및 지면온도 브리핑 문구 생성
   const surfaceTemp = weather?.current_surface_temp ?? 24.8;
   const isGolden = weather?.is_current_golden ?? true;
@@ -60,25 +63,25 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
     : '폭신 노면 78% · 평탄한 완만 산책로';
 
   return (
-    <View style={styles.sheetContainer}>
+    <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
       {/* 1. 상단 핸들 바 */}
-      <View style={styles.handleBar} />
+      <View style={[styles.handleBar, { backgroundColor: colors.border }]} />
 
       {/* 2. 메인 Trail info 카드 (골든타임 기상 모달 오픈) */}
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onOpenWeatherModal ?? onOpenPlanner}
-        style={styles.trailCard}
+        style={[styles.trailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         accessibilityRole="button"
         accessibilityLabel="골든타임 산책로 정보 및 기상 상세 보기"
       >
         <View style={styles.cardTextCol}>
-          <Text style={styles.trailTitle}>Trail info</Text>
-          <Text style={styles.trailDescription} numberOfLines={2}>
+          <Text style={[styles.trailTitle, { color: colors.textMain }]}>Trail info</Text>
+          <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
             {isLoadingWeather ? '실시간 산책 지표를 확인하고 있어요...' : weatherNotice}
           </Text>
-          <View style={styles.goldenBadge}>
-            <Text style={styles.goldenBadgeText}>
+          <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
               {isGolden ? '✨ 골든타임 산책 추천' : '⚠️ 낮 시간대 그늘길 권장'}
             </Text>
           </View>
@@ -92,16 +95,16 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onOpenStats}
-        style={styles.leafGreenCard}
+        style={[styles.leafGreenCard, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
         accessibilityLabel="노면 상태 및 주간 산책 지표"
       >
         <View style={styles.cardTextCol}>
-          <Text style={styles.leafTitle}>Leaf Green</Text>
-          <Text style={styles.leafDescription} numberOfLines={2}>
+          <Text style={[styles.leafTitle, { color: colors.primaryDark }]}>Leaf Green</Text>
+          <Text style={[styles.leafDescription, { color: colors.textMain }]} numberOfLines={2}>
             {jointCareText}
           </Text>
           {weeklyStats && (
-            <Text style={styles.statsMiniText}>
+            <Text style={[styles.statsMiniText, { color: colors.textMuted }]}>
               이번 주 {weeklyStats.totalWalks}회 산책 ({weeklyStats.totalDistanceKm.toFixed(1)}km 완주)
             </Text>
           )}

@@ -88,9 +88,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
 
   return (
-    <View style={styles.container}>
-      {/* 1. 상단 Sage Green 배경 영역 (마스코트 및 메인 카드) */}
-      <View style={styles.topSageSection}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 1. 상단 테마 메인 배경 영역 (마스코트 및 메인 카드) */}
+      <View style={[styles.topSageSection, { backgroundColor: colors.primaryDark }]}>
         <HomeParkWalkCardN2
           dog={dog}
           dogs={dogs}
@@ -104,7 +104,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         />
       </View>
 
-      {/* 2. 하단 Soft Cream 시트 영역 (Trail info + Leaf Green 안심 지표) */}
+      {/* 2. 하단 시트 영역 (Trail info + Leaf Green 안심 지표) */}
       <HomeTrailInfoCardN2
         weather={weather}
         isLoadingWeather={isLoadingWeather}
@@ -141,11 +141,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5EFE0', // Soft Cream
   },
   topSageSection: {
     flex: 1,
-    backgroundColor: '#5A7361', // Sage Green 메인 배경
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingHorizontal: 16,

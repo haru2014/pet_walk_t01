@@ -60,12 +60,12 @@ export const ThemeSelectorCard: React.FC = () => {
 
               <View style={styles.themeInfo}>
                 <View style={styles.itemHeader}>
-                  <Text style={[styles.themeName, isSelected && { color: colors.primaryDark }]}>
+                  <Text style={[styles.themeName, { color: isSelected ? colors.primaryDark : colors.textMain }]}>
                     {item.name}
                   </Text>
                   {isSelected && <Text style={[styles.checkMark, { color: colors.primaryDark }]}>✓</Text>}
                 </View>
-                <Text style={styles.themeDesc} numberOfLines={1}>
+                <Text style={[styles.themeDesc, { color: colors.textMuted }]} numberOfLines={1}>
                   {item.description}
                 </Text>
               </View>
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderColor: 'rgba(0,0,0,0.15)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -111,5 +111,5 @@ const styles = StyleSheet.create({
   itemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   themeName: { fontSize: 11.5, fontWeight: '700' },
   checkMark: { fontSize: 12, fontWeight: '800' },
-  themeDesc: { fontSize: 9.5, color: '#888', marginTop: 1 },
+  themeDesc: { fontSize: 9.5, marginTop: 1 },
 });

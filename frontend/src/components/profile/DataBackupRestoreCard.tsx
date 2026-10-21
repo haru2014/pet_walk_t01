@@ -10,6 +10,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkRecord } from '../../types/storage';
@@ -28,6 +29,7 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
   defaultExpanded = true,
   onRestoreCompleted,
 }) => {
+  const { colors } = useAppTheme();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [records, setRecords] = useState<WalkRecord[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -117,7 +119,7 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
   };
 
   return (
-    <View style={styles.accordionContainer}>
+    <View style={[styles.accordionContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {/* 1. 접이식 아코디언 헤더 */}
       <TouchableOpacity
         activeOpacity={0.8}
@@ -129,19 +131,19 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
         <View style={styles.headerLeft}>
           <Text style={styles.headerIcon}>📁</Text>
           <View>
-            <Text style={styles.headerTitle}>동물병원 제출 및 데이터 백업·복원</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerTitle, { color: colors.textMain }]}>동물병원 제출 및 데이터 백업·복원</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
               {isExpanded ? '엑셀(CSV) 및 백업·복원(JSON) 기능 닫기' : '슬개골 진료 상담 표 / 기기 변경 백업 및 복원 열기'}
             </Text>
           </View>
         </View>
-        <Text style={styles.toggleArrow}>{isExpanded ? '▲' : '▼'}</Text>
+        <Text style={[styles.toggleArrow, { color: colors.textMuted }]}>{isExpanded ? '▲' : '▼'}</Text>
       </TouchableOpacity>
 
       {/* 2. 아코디언 본문 (백업 및 복원) */}
       {isExpanded && (
         <View style={styles.accordionBody}>
-          <Text style={styles.bodyNotice}>
+          <Text style={[styles.bodyNotice, { color: colors.textMuted }]}>
             수의사 진료 시 누적 보행 데이터를 확인하거나, 스마트폰 변경 시 강아지 프로필과 산책 데이터를 안전하게 백업 및 복원할 수 있습니다.
           </Text>
 
@@ -150,49 +152,49 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleExportCsv}
-              style={[styles.exportBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+              style={[styles.exportBtn, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
               accessibilityLabel="엑셀 CSV 저장"
             >
-              <AppIcon name="map" size={14} color="#047857" />
+              <AppIcon name="map" size={14} color={colors.primaryDark} />
               <View style={styles.btnTextGroup}>
-                <Text style={[styles.btnTitle, { color: '#047857' }]}>📥 엑셀(CSV) 저장</Text>
-                <Text style={styles.btnSub}>병원 진료·보험 제출용</Text>
+                <Text style={[styles.btnTitle, { color: colors.primaryDark }]}>📥 엑셀(CSV) 저장</Text>
+                <Text style={[styles.btnSub, { color: colors.textMuted }]}>병원 진료·보험 제출용</Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleExportJson}
-              style={[styles.exportBtn, { backgroundColor: '#F8FAFC', borderColor: '#CBD5E1' }]}
+              style={[styles.exportBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
               accessibilityLabel="JSON 백업"
             >
-              <AppIcon name="sparkle" size={14} color="#334155" />
+              <AppIcon name="sparkle" size={14} color={colors.primary} />
               <View style={styles.btnTextGroup}>
-                <Text style={[styles.btnTitle, { color: '#334155' }]}>📋 JSON 백업</Text>
-                <Text style={styles.btnSub}>기기 이전·전체 보관용</Text>
+                <Text style={[styles.btnTitle, { color: colors.textMain }]}>📋 JSON 백업</Text>
+                <Text style={[styles.btnSub, { color: colors.textMuted }]}>기기 이전·전체 보관용</Text>
               </View>
             </TouchableOpacity>
           </View>
 
           {/* 2-2. 복원하기 섹션 (UX 관점에서 백업과 자연스럽게 연결) */}
-          <View style={styles.restoreDivider} />
+          <View style={[styles.restoreDivider, { backgroundColor: colors.border }]} />
 
           <View style={styles.restoreHeaderRow}>
-            <Text style={styles.restoreSectionTitle}>📂 기기 변경 데이터 복원</Text>
+            <Text style={[styles.restoreSectionTitle, { color: colors.textMain }]}>📂 기기 변경 데이터 복원</Text>
           </View>
-          <Text style={styles.restoreNotice}>
+          <Text style={[styles.restoreNotice, { color: colors.textMuted }]}>
             이전에 백업해 둔 편안하개 JSON 파일(`.json`)을 선택하면, 강아지 프로필과 산책 기록을 자동으로 판별하여 즉시 복원합니다.
           </Text>
 
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleTriggerFilePicker}
-            style={styles.restoreBtn}
+            style={[styles.restoreBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
             accessibilityRole="button"
             accessibilityLabel="백업 파일 JSON 선택하여 복원"
           >
-            <AppIcon name="users" size={14} color="#065F46" />
-            <Text style={styles.restoreBtnText}>📂 백업 파일(JSON) 선택하여 복원하기</Text>
+            <AppIcon name="users" size={14} color={colors.primaryDark} />
+            <Text style={[styles.restoreBtnText, { color: colors.primaryDark }]}>📂 백업 파일(JSON) 선택하여 복원하기</Text>
           </TouchableOpacity>
 
           {/* Web 전용 보이지 않는 File Input */}
