@@ -445,6 +445,8 @@ class WalkPlanningState(TypedDict):
     origin_mode: str
     parking_lot_id: Optional[str]
     pilot_park_id: Optional[str]
+    # 앱 산책 설정에서 고른 조건 (avoid_stairs / shade_priority / prefer_soft). 문장 분석 결과보다 앞선다
+    intent_overrides: Optional[Dict[str, Any]]
     # 분석 & 보정 산출물
     parsed_intent: Optional[Dict[str, Any]]
     calibrated_speed_kmh: float
@@ -464,13 +466,36 @@ class WalkPlanningState(TypedDict):
 # 5. LangGraph Node 함수 구현 (ReAct Cycle)
 # ==============================================================================
 
+SOFT_SURFACE_PREFERENCES: List[AllowedSurface] = ["dirt", "grass", "rubber"]
+
+
+def apply_intent_overrides(intent: WalkIntent, overrides: Optional[Dict[str, Any]]) -> WalkIntent:
+    """앱 산책 설정의 체크 항목을 의도에 반영한다.
+
+    - avoid_stairs: 앱의 '계단 피하기' 체크 여부 그대로 (체크 안 하면 계단을 피하지 않는다)
+    - shade_priority: '그늘이 많은 길'을 체크했거나 요청 문장에 그늘·더위 낱말이 있으면 켠다
+    - prefer_soft: '폭신한 길'을 체크하면 흙·잔디·탄성 노면을 선호에 넣는다
+    """
+    if not overrides:
+        return intent
+    updated = intent.model_copy()
+    if isinstance(overrides.get("avoid_stairs"), bool):
+        updated.avoid_stairs = overrides["avoid_stairs"]
+    if overrides.get("shade_priority") is True:
+        updated.shade_priority = True
+    if overrides.get("prefer_soft") is True:
+        surfaces = list(updated.preferred_surfaces)
+        updated.preferred_surfaces = surfaces + [s for s in SOFT_SURFACE_PREFERENCES if s not in surfaces]
+    return updated
+
+
 def node_parse_intent(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 1] 사용자의 자연어 발화에서 의도를 파싱하고 Pydantic 스키마로 검증."""
     query = state.get("user_query", "")
     trace = list(state.get("execution_trace", []))
     trace.append(f"[Node: parse_intent] User query: '{query}'")
 
-    intent = parse_natural_language_walk_query(query)
+    intent = apply_intent_overrides(parse_natural_language_walk_query(query), state.get("intent_overrides"))
     trace.append(
         f"[Node: parse_intent] Parsed -> Duration: {intent.target_duration_minutes}m, "
         f"AvoidStairs: {intent.avoid_stairs}, Slope: {intent.slope_preference}, Shade: {intent.shade_priority}"
@@ -795,6 +820,7 @@ def run_walk_planning_agent(
     origin_mode: Optional[str] = None,
     parking_lot_id: Optional[str] = None,
     pilot_park_id: Optional[str] = None,
+    intent_overrides: Optional[Dict[str, Any]] = None,
 ) -> WalkPlanningResult:
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
@@ -826,6 +852,7 @@ def run_walk_planning_agent(
         "origin_mode": origin_mode,
         "parking_lot_id": parking_lot_id,
         "pilot_park_id": pilot_park_id,
+        "intent_overrides": intent_overrides,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,
