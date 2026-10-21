@@ -17,8 +17,7 @@ import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
 import { useAppTheme } from '../../theme/themeManager';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
-
-const BELL_ICON_IMG = require('../../../assets/images/home/bell_icon.png');
+import bellIconImg from '../../../assets/ui_n2/bell_icon.png';
 
 export interface HomeParkWalkCardN2Props {
   dog: DogProfile;
@@ -92,19 +91,12 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
 
             <TouchableOpacity
               onPress={onPressNotification}
-              style={[
-                styles.bellButton,
-                {
-                  backgroundColor: isDark ? colors.background : colors.surface,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                },
-              ]}
+              style={styles.bellButton}
               activeOpacity={0.75}
               accessibilityLabel="알림"
               accessibilityRole="button"
             >
-              <Image source={BELL_ICON_IMG} style={[styles.bellIcon, { tintColor: cardTextColor }]} resizeMode="contain" />
+              <Image source={bellIconImg} style={styles.bellIcon} resizeMode="contain" />
             </TouchableOpacity>
           </View>
         </View>
@@ -183,8 +175,8 @@ const styles = StyleSheet.create({
     borderRadius: 24, alignItems: 'center', justifyContent: 'center',
   },
   dogSwitchText: { fontSize: 13, fontWeight: '700', color: '#2D3A31' },
-  bellButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F5EFE0', alignItems: 'center', justifyContent: 'center' },
-  bellIcon: { width: 22, height: 22, tintColor: '#2D3A31' },
+  bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  bellIcon: { width: 42, height: 42 },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
   statsBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
