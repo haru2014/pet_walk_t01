@@ -5,10 +5,14 @@
 """
 
 import json
+import logging
 import threading
 import time
+import urllib.error
 import urllib.request
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 
 V1_ROAD_ALIGNED_COORDS: List[List[float]] = [[126.978395, 37.5663], [126.978395, 37.566294], [126.978411, 37.566293], [126.978415, 37.566381], [126.97847, 37.566362], [126.978521, 37.566348], [126.978563, 37.56634], [126.978656, 37.566322], [126.978907, 37.566273], [126.978982, 37.566259], [126.979011, 37.566253], [126.979142, 37.566246], [126.979142, 37.56625], [126.979148, 37.566364], [126.979196, 37.566899], [126.979198, 37.566998], [126.979224, 37.567499], [126.979226, 37.567534], [126.979166, 37.567534], [126.97919, 37.568122], [126.979209, 37.568633], [126.979218, 37.568868], [126.979276, 37.568866], [126.979335, 37.568862], [126.979353, 37.568886], [126.979384, 37.568904], [126.979396, 37.568908], [126.979399, 37.568909], [126.979402, 37.568929], [126.979404, 37.568962], [126.979412, 37.569018], [126.979529, 37.569009], [126.980049, 37.568969], [126.980052, 37.568986], [126.980088, 37.568983], [126.980092, 37.569003], [126.980168, 37.568997], [126.980184, 37.569072], [126.980193, 37.569143], [126.980602, 37.569128], [126.981323, 37.569101], [126.981355, 37.569098], [126.981863, 37.569066], [126.982466, 37.568986], [126.982881, 37.568927], [126.983002, 37.56892], [126.983052, 37.568917], [126.983289, 37.568892], [126.983338, 37.568884], [126.983449, 37.568868], [126.983442, 37.568811], [126.983416, 37.568732], [126.98318, 37.568762], [126.983176, 37.568751], [126.983101, 37.568759], [126.983097, 37.568725], [126.982989, 37.568739], [126.982983, 37.568697], [126.982972, 37.568625], [126.982949, 37.568615], [126.982935, 37.568601], [126.982803, 37.568605], [126.982798, 37.568527], [126.982806, 37.567981], [126.982791, 37.567501], [126.982774, 37.566887], [126.982762, 37.56679], [126.982756, 37.566725], [126.982752, 37.566633], [126.98276, 37.566224], [126.982759, 37.566087], [126.982799, 37.566086], [126.982759, 37.566087], [126.982748, 37.565975], [126.982735, 37.565879], [126.982568, 37.565881], [126.98248, 37.565887], [126.982417, 37.565889], [126.982351, 37.56587], [126.982321, 37.565851], [126.982289, 37.565829], [126.982224, 37.56578], [126.982158, 37.565827], [126.982087, 37.565868], [126.981899, 37.565885], [126.981628, 37.565885], [126.981554, 37.565886], [126.981477, 37.565886], [126.980643, 37.565888], [126.980527, 37.565889], [126.980445, 37.565888], [126.979984, 37.56589], [126.97981, 37.56589], [126.979723, 37.565892], [126.979724, 37.565967], [126.97919, 37.565969], [126.978905, 37.56589], [126.978978, 37.56601], [126.979033, 37.566107], [126.979096, 37.566175], [126.979142, 37.566246], [126.979011, 37.566253], [126.978982, 37.566259], [126.978907, 37.566273], [126.978656, 37.566322], [126.978563, 37.56634], [126.978521, 37.566348], [126.97847, 37.566362], [126.978415, 37.566381], [126.978411, 37.566293], [126.978395, 37.566294], [126.978395, 37.5663]]
@@ -67,6 +71,41 @@ def _record_osrm_outcome(success: bool) -> None:
             _OSRM_CONSECUTIVE_FAILURES = 0
 
 
+# 운영 진단용 OSRM 호출 통계 (/health 의 osrm). 실패 이유를 남겨 대체 경로로 떨어지는 원인을 확인한다.
+_OSRM_STATS: Dict[str, Any] = {"success": 0, "failure": 0, "last_error": None, "last_error_elapsed_ms": None,
+                               "last_success_elapsed_ms": None}
+
+
+def _note_osrm_attempt(reason: Optional[str], started: float) -> None:
+    """reason 이 None 이면 성공. 실패면 이유와 걸린 시간을 남기고 로그를 쓴다."""
+    elapsed_ms = round((time.monotonic() - started) * 1000)
+    with _OSRM_CACHE_LOCK:
+        if reason is None:
+            _OSRM_STATS["success"] += 1
+            _OSRM_STATS["last_success_elapsed_ms"] = elapsed_ms
+            return
+        _OSRM_STATS["failure"] += 1
+        _OSRM_STATS["last_error"] = reason
+        _OSRM_STATS["last_error_elapsed_ms"] = elapsed_ms
+    logger.warning(json.dumps({"event": "osrm_failed", "reason": reason, "elapsed_ms": elapsed_ms}, ensure_ascii=False))
+
+
+def osrm_status() -> Dict[str, Any]:
+    """최근 OSRM 호출 성공·실패 수와 마지막 실패 이유 (서버 시작 이후 누적)."""
+    with _OSRM_CACHE_LOCK:
+        status = dict(_OSRM_STATS)
+    status["circuit_open"] = osrm_circuit_is_open()
+    return status
+
+
+def _failure_reason(exc: Exception) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"HTTP {exc.code}"
+    if isinstance(exc, urllib.error.URLError):
+        return f"URLError: {type(exc.reason).__name__} {exc.reason}"[:160]
+    return f"{type(exc).__name__}: {exc}"[:160]
+
+
 def osrm_cache_size() -> int:
     with _OSRM_CACHE_LOCK:
         return len(_OSRM_CACHE)
@@ -103,16 +142,19 @@ def _fetch_osrm_foot_route_uncached(
     waypoints: List[Tuple[float, float]],
     timeout_seconds: float,
 ) -> Optional[Tuple[List[List[float]], float, float]]:
+    started = time.monotonic()
     try:
         pts_str = ';'.join(f'{lon:.6f},{lat:.6f}' for lat, lon in waypoints)
         url = f'https://routing.openstreetmap.de/routed-foot/route/v1/foot/{pts_str}?overview=full&geometries=geojson'
         req = urllib.request.Request(url, headers={'User-Agent': 'PetWalk/1.0'})
         with urllib.request.urlopen(req, timeout=timeout_seconds) as res:
             if res.status != 200:
+                _note_osrm_attempt(f"HTTP {res.status}", started)
                 return None
             data = json.loads(res.read())
             routes = data.get('routes', [])
             if not routes:
+                _note_osrm_attempt(f"경로 없음 ({data.get('code')})", started)
                 return None
             r0 = routes[0]
             raw_coords = r0.get('geometry', {}).get('coordinates', [])
@@ -120,7 +162,9 @@ def _fetch_osrm_foot_route_uncached(
             dur_sec = float(r0.get('duration', 0.0))
             if len(raw_coords) >= 4:
                 rounded = [[round(c[0], 6), round(c[1], 6)] for c in raw_coords]
+                _note_osrm_attempt(None, started)
                 return rounded, dist_m, dur_sec
-    except Exception:
-        pass
+            _note_osrm_attempt("좌표가 4개 미만", started)
+    except Exception as exc:  # 어떤 실패든 오프라인 경로로 넘어가되, 이유는 남긴다
+        _note_osrm_attempt(_failure_reason(exc), started)
     return None

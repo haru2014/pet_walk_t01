@@ -545,3 +545,32 @@ class TestDirtHeatGain:
             weight = entry["solar_radiation_w_m2"] / 1000.0
             expected = round(entry["air_temp_celsius"] + 1.6 * (1.0 - weight) + weight * wc.SURFACE_HEAT_GAIN_MAP["dirt"], 1)
             assert entry["surface_temps"]["dirt"] == expected, entry["hour"]
+
+
+def test_forecast_insolation_and_air_quality_are_fetched_at_the_same_time(monkeypatch):
+    """현재 관측 뒤의 외부 호출 4개는 동시에 부른다. 차례로 부르면 처음 보는 위치의 날씨가 4~8초 걸렸다."""
+    import threading
+    import time as _time
+    from services import airkorea_client
+
+    _default_server(monkeypatch)
+    running, peak, lock = [0], [0], threading.Lock()
+
+    def slow(fetch):
+        def wrapper(*args, **kwargs):
+            with lock:
+                running[0] += 1
+                peak[0] = max(peak[0], running[0])
+            _time.sleep(0.2)
+            with lock:
+                running[0] -= 1
+            return fetch(*args, **kwargs)
+        return wrapper
+
+    monkeypatch.setattr(kma, "fetch_ultra_srt_fcst", slow(kma.fetch_ultra_srt_fcst))
+    monkeypatch.setattr(kma, "fetch_vilage_fcst", slow(kma.fetch_vilage_fcst))
+    monkeypatch.setattr(airkorea_client, "fetch_air_quality", slow(lambda *a, **k: {"source": "test"}))
+    response = wc.build_heat_risk_response(*DOAN, now=NOW, use_open_meteo=False)
+    assert response["data_source"] == "kma_live"
+    assert response["air_quality"] == {"source": "test"}
+    assert peak[0] >= 3  # 초단기·단기 예보와 대기질이 겹쳐서 실행됐다

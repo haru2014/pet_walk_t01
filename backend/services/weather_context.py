@@ -20,6 +20,7 @@
 기상청 호출이 실패하면 가짜 값을 만들지 않고 KmaApiError 를 그대로 올린다.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -238,12 +239,26 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
     options = {"now": when, "service_key": service_key, "timeout": timeout}
     warnings: List[str] = []
 
+    # 현재 관측(빠름, 0.1~0.2초)을 먼저 확인한다. 없으면 KmaApiError 로 대체 응답에 넘기고 다른 호출은 하지 않는다.
     observed = kma.fetch_ultra_srt_ncst(nx, ny, **options)
-    ultra = _optional(kma.fetch_ultra_srt_fcst, "초단기예보", warnings, nx, ny, **options)
-    vilage = _optional(kma.fetch_vilage_fcst, "단기예보", warnings, nx, ny, **options)
+    # 나머지 외부 호출 4개(기상청 초단기·단기, 일사량, 대기질)는 서로 기다릴 필요가 없어 동시에 부른다.
+    # 차례로 부르면 시간이 더해져 처음 보는 위치의 날씨가 4~8초 걸렸다 (현재 위치 첫 요청 지연의 주원인).
+    # 경고는 호출별로 따로 모아 예전과 같은 순서(초단기 → 단기 → 일사량)로 합친다.
+    ultra_warnings: List[str] = []
+    vilage_warnings: List[str] = []
+    insolation_warnings: List[str] = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        ultra_job = pool.submit(_optional, kma.fetch_ultra_srt_fcst, "초단기예보", ultra_warnings, nx, ny, **options)
+        vilage_job = pool.submit(_optional, kma.fetch_vilage_fcst, "단기예보", vilage_warnings, nx, ny, **options)
+        insolation_job = pool.submit(_resolve_insolation, lat, lon, when, insolation_provider, use_open_meteo,
+                                     min(timeout, 2.0), insolation_warnings)
+        air_quality_job = pool.submit(airkorea_client.fetch_air_quality, lat, lon,
+                                      service_key=service_key, timeout=min(timeout, 2.5))
+        ultra, vilage = ultra_job.result(), vilage_job.result()
+        insolation_provider, insolation_source, attribution = insolation_job.result()
+        air_quality = air_quality_job.result()
+    warnings.extend(ultra_warnings + vilage_warnings + insolation_warnings)
     forecasts = _merge_forecasts(ultra, vilage)
-    insolation_provider, insolation_source, attribution = _resolve_insolation(
-        lat, lon, when, insolation_provider, use_open_meteo, min(timeout, 2.0), warnings)
 
     hour_start = when.replace(minute=0, second=0, microsecond=0)
     upcoming = sorted(t for t in forecasts if hour_start <= t < hour_start + timedelta(hours=24))
@@ -272,9 +287,7 @@ def build_heat_risk_response(lat: float, lon: float, now: Optional[datetime] = N
         hourly.insert(0, {**current, "time": hour_start.isoformat()})
     window, window_day = golden_time_window(hourly, when, current["is_golden_time"])
 
-    # 한국환경공단 에어코리아(AirKorea) 실시간 대기질(미세먼지) 조회
-    air_quality = airkorea_client.fetch_air_quality(lat, lon, service_key=service_key, timeout=min(timeout, 2.5))
-
+    # 한국환경공단 에어코리아(AirKorea) 실시간 대기질(미세먼지)은 위에서 함께 조회했다
     return {
         "status": "success",
         "current": current,
@@ -399,6 +412,29 @@ def precipitation_summary(response: Dict[str, Any]) -> Dict[str, Any]:
         "rain_expected_times": [h.get("time") or h.get("hour") for h in upcoming[:6] if _is_rain(h)],
         "threshold_pop": RAIN_POP_THRESHOLD,
     }
+
+
+def _hour_label(value: Any) -> str:
+    """예보 시각(ISO 문자열 또는 0~23 정수)을 'N시' 로 바꾼다."""
+    if isinstance(value, str) and "T" in value:
+        try:
+            return f"{datetime.fromisoformat(value).hour}시"
+        except ValueError:
+            return value
+    return f"{value}시" if isinstance(value, int) else str(value)
+
+
+def rain_notice(precipitation: Optional[Dict[str, Any]]) -> Optional[str]:
+    """안내 문구에 붙일 비 안내 한 문장 (#114). 비 정보를 모르거나(대체 응답) 6시간 안에 비 예보가 없으면 None."""
+    if not isinstance(precipitation, dict) or not precipitation.get("known"):
+        return None
+    if precipitation.get("is_precipitating_now"):
+        return "지금 비가 오고 있어요. 젖은 길은 미끄러우니 천천히 걷고 우비를 챙겨 주세요."
+    times = precipitation.get("rain_expected_times") or []
+    if times:
+        threshold = precipitation.get("threshold_pop", RAIN_POP_THRESHOLD)
+        return f"{_hour_label(times[0])}쯤 비 예보(강수확률 {threshold}% 이상)가 있어요. 우산이나 우비를 챙겨 주세요."
+    return None
 
 
 def weather_context_from_response(response: Dict[str, Any]) -> Dict[str, Any]:

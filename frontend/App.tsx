@@ -46,6 +46,8 @@ import { WalkReportScreen } from './src/screens/WalkReportScreen';
 import { DogSelectionView } from './src/components/profile/DogSelectionView';
 import { WalkSettingsView } from './src/components/walk/WalkSettingsView';
 import { CourseRecommendationView } from './src/components/walk/CourseRecommendationView';
+import { AppScreenHeader } from './src/components/common/AppScreenHeader';
+import { AppIcon } from './src/components/common/AppIcon';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
@@ -61,6 +63,7 @@ export default function App() {
   const [preferences, setPreferences] = useState<WalkPreferences>({
     durationMinutes: 30, environments: ['soft', 'shade', 'stairs'], requestText: '',
   });
+  const [walkStep, setWalkStep] = useState<'settings' | 'recommend'>('settings');
 
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummaryPayload | null>(null);
   const [completedRecord, setCompletedRecord] = useState<WalkRecord | null>(null);
@@ -85,11 +88,15 @@ export default function App() {
       } else {
         // Migrate the previous single-profile key while retaining the app's sample profiles.
         const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        const migratedDogs = savedProfile
-          ? (DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id)
+        let migratedDogs: DogProfile[];
+        if (savedProfile) {
+          const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
+          migratedDogs = exists
             ? DEFAULT_DOGS.map((dog) => dog.id === savedProfile.id ? savedProfile : dog)
-            : [savedProfile, ...DEFAULT_DOGS])
-          : [...DEFAULT_DOGS];
+            : [savedProfile, ...DEFAULT_DOGS];
+        } else {
+          migratedDogs = [...DEFAULT_DOGS];
+        }
         setDogs(migratedDogs);
         setSelectedDogId(savedProfile?.id ?? migratedDogs[0].id);
         await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
@@ -119,8 +126,7 @@ export default function App() {
   };
 
   const handleDeleteDog = async (dogId: string) => {
-    const dogToDelete = dogs.find((dog) => dog.id === dogId);
-    if (!dogToDelete) return;
+    if (!dogs.some((dog) => dog.id === dogId)) return;
 
     const updatedDogs = dogs.filter((dog) => dog.id !== dogId);
     const nextSelectedDog = updatedDogs.find((dog) => dog.id === selectedDogId) ?? updatedDogs[0];
@@ -260,9 +266,10 @@ export default function App() {
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
 
-    const finalDistanceKm = distKm > 0
-      ? distKm
-      : (walk.stats.elapsedSec >= 120 ? courseDistKm : Math.round(distKm * 10) / 10);
+    let finalDistanceKm = distKm;
+    if (distKm <= 0) {
+      finalDistanceKm = walk.stats.elapsedSec >= 120 ? courseDistKm : Math.round(distKm * 10) / 10;
+    }
 
     const newRecord: WalkRecord = {
       id: `walk_${Date.now()}`,
@@ -334,8 +341,8 @@ export default function App() {
     ]);
   };
 
-  // 안드로이드 물리 뒤로가기 4단계 우선순위 전략 적용
-  useAppBackHandler({
+  // 안드로이드 물리 뒤로가기 및 상단 뒤로가기 일원화 (SSOT)
+  const { triggerBack } = useAppBackHandler({
     authModalVisible,
     onCloseAuthModal: () => setAuthModalVisible(false),
     consentVisible: consent.visible,
@@ -344,6 +351,8 @@ export default function App() {
     setSubScreen,
     activeTab,
     setActiveTab,
+    walkStep,
+    onBackToWalkSettings: () => setWalkStep('settings'),
     onPocketUnlock: handlePocketUnlock,
   });
 
@@ -439,24 +448,36 @@ export default function App() {
         {/* 하단 메인 메뉴(BottomTabBar)가 유지되는 기본 앱 컨테이너 */}
         {subScreen !== 'onboarding' && subScreen !== 'pocket' && (subScreen !== 'report' || !completedRecord) && (
           <View style={styles.mainContainer}>
-            {/* 메인 상단 헤더: subScreen이 'main'이고 activeTab이 '산책'이 아닐 때만 렌더링 (각 서브스크린은 자체 헤더 보유) */}
-            {subScreen === 'main' && activeTab !== '산책' && (
-              <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-                <View style={styles.logoGroup}>
-                  <View style={[styles.logoBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.logoIcon}>🐾</Text>
-                  </View>
-                  <Text style={[styles.appTitle, { color: colors.textMain }]}>편안하개</Text>
-                </View>
-                <View style={styles.headerActions}>
-                  <TouchableOpacity onPress={() => Alert.alert('알림', '새로운 소식이 없습니다.')} style={styles.iconBtn}>
+            {/* 메인 상단 헤더: subScreen이 'main'이고 activeTab이 '커뮤니티' 또는 '마이'일 때 공통 규격 AppScreenHeader 렌더링 (뒤로가기 누르면 triggerBack -> 홈으로 이동) */}
+            {subScreen === 'main' && activeTab === '커뮤니티' && (
+              <AppScreenHeader
+                title="커뮤니티"
+                onBack={triggerBack}
+                rightAction={
+                  <TouchableOpacity
+                    onPress={() => Alert.alert('알림', '새로운 소식이 없습니다.')}
+                    style={styles.iconBtn}
+                    accessibilityLabel="알림"
+                  >
                     <Text style={[styles.iconText, { color: colors.textMain }]}>🔔</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setSubScreen('dog_selection')} style={styles.iconBtn}>
-                    <Text style={[styles.iconText, { color: colors.textMain }]}>⋯</Text>
+                }
+              />
+            )}
+            {subScreen === 'main' && activeTab === '마이' && (
+              <AppScreenHeader
+                title="마이 페이지"
+                onBack={triggerBack}
+                rightAction={
+                  <TouchableOpacity
+                    onPress={() => Alert.alert('알림', '새로운 소식이 없습니다.')}
+                    style={styles.iconBtn}
+                    accessibilityLabel="알림"
+                  >
+                    <Text style={[styles.iconText, { color: colors.textMain }]}>🔔</Text>
                   </TouchableOpacity>
-                </View>
-              </View>
+                }
+              />
             )}
 
             <View style={styles.tabContentContainer}>
@@ -470,20 +491,20 @@ export default function App() {
                       setSubScreen('main');
                       setActiveTab('산책');
                     }}
-                    onBack={() => { if (dogs.length > 0) setSubScreen('main'); }}
+                    onBack={triggerBack}
                   />
                 )}
 
                 {/* 2. 산책 설정 / 코스 추천 화면 (하단 메인 메뉴 유지) */}
                 {subScreen === 'walk_settings' && (
                   <WalkSettingsView
-                    dog={activeDog} initialPreferences={preferences} onBack={() => setSubScreen('main')}
+                    dog={activeDog} initialPreferences={preferences} onBack={triggerBack}
                     onFindRoute={(next) => { setPreferences(next); setSubScreen('course_recommend'); }}
                   />
                 )}
                 {subScreen === 'course_recommend' && (
                   <CourseRecommendationView
-                    dog={activeDog} preferences={preferences} feedback={feedbackSummary} onBack={() => setSubScreen('walk_settings')}
+                    dog={activeDog} preferences={preferences} feedback={feedbackSummary} onBack={triggerBack}
                     onStartWalk={handleStartWalk} onPinSelect={TTSNavigationService.speak}
                   />
                 )}
@@ -505,6 +526,7 @@ export default function App() {
                       setMyProfileSubTab('walk_records');
                       setActiveTab('마이');
                     }}
+                    onOpenNotification={() => Alert.alert('알림', '새로운 산책 알림이 없습니다.')}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (
@@ -513,7 +535,9 @@ export default function App() {
                     preferences={preferences}
                     onUpdatePreferences={setPreferences}
                     feedbackSummary={feedbackSummary}
-                    onBack={() => setActiveTab('홈')}
+                    step={walkStep}
+                    onStepChange={setWalkStep}
+                    onBack={triggerBack}
                     onStartWalk={handleStartWalk}
                     onPinSelect={TTSNavigationService.speak}
                   />
@@ -554,6 +578,7 @@ export default function App() {
                   if (subScreen !== 'main') {
                     setSubScreen('main');
                   }
+                  setWalkStep('settings');
                   setActiveTab(tab);
                 }}
               />
@@ -580,7 +605,7 @@ const styles = StyleSheet.create({
   logoGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logoBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: TOKENS.colors.primary, alignItems: 'center', justifyContent: 'center' },
   logoIcon: { fontSize: 16 }, appTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain, letterSpacing: -0.3 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 }, iconBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 }, iconBtn: { width: 48, height: 48, minWidth: 48, minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   iconText: { fontSize: 18, color: TOKENS.colors.textMain },
   tabContentContainer: { flex: 1 },
 });

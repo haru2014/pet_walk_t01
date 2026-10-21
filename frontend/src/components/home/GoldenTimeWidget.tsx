@@ -872,27 +872,20 @@ const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({
   );
 };
 
-export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
-  weather,
-  isLoading,
-  currentTimeLabel,
-  startTimeLabel,
-  endTimeLabel,
-  progressPercent,
-  statusNotice,
-  initialModalVisible,
-}) => {
-  const { colors } = useAppTheme();
-  const responsive = useHomeResponsive();
-  const [modalVisible, setModalVisible] = useState(initialModalVisible ?? false);
-
-  const effectiveLoading = Boolean(isLoading || weather === null);
-
+export function computeWeatherModalProps(
+  weather?: HeatRiskResponse | null,
+  options?: {
+    currentTimeLabel?: string;
+    startTimeLabel?: string;
+    endTimeLabel?: string;
+    statusNotice?: string;
+  }
+) {
   const now = new Date();
   const currentHour = now.getHours();
   const currentMin = now.getMinutes();
   const nowLabel =
-    currentTimeLabel ??
+    options?.currentTimeLabel ??
     `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
 
   const currentAirTemp = Math.round(weather?.current_air_temp ?? 22.0);
@@ -904,15 +897,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     weather?.golden_time_window_day === 'tomorrow' ||
     Boolean(weather?.golden_time_window?.startsWith('내일'));
 
-  const range = parseGoldenWindow(weather?.golden_time_window, startTimeLabel, endTimeLabel);
-  const { progress } = calculateProgress(
-    range,
-    isTomorrow,
-    currentHour,
-    currentMin,
-    progressPercent
-  );
-
+  const range = parseGoldenWindow(weather?.golden_time_window, options?.startTimeLabel, options?.endTimeLabel);
   const startDisplay = isTomorrow ? `내일 ${range.start}` : range.start;
   const timeRangeDisplay = isTomorrow ? `내일 ${range.start} ~ ${range.end}` : `${range.start} ~ ${range.end}`;
 
@@ -937,11 +922,82 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     currentTemp: currentSurfaceTemp,
     startDisplay,
     nowLabel,
-    customNotice: statusNotice,
+    customNotice: options?.statusNotice,
     pop: popPercent,
     condition,
     pty,
   });
+
+  return {
+    range,
+    isTomorrow,
+    startDisplay,
+    timeRangeDisplay,
+    quotient,
+    subtitleText,
+    badgeNotice,
+    currentAirTemp,
+    roundedSurfaceTemp,
+    riskLevel,
+    popPercent,
+    airQualityColor,
+    airQualityLabel,
+    airQuality,
+    weather,
+    currentHour,
+    currentMin,
+  };
+}
+
+export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
+  weather,
+  isLoading,
+  currentTimeLabel,
+  startTimeLabel,
+  endTimeLabel,
+  progressPercent,
+  statusNotice,
+  initialModalVisible,
+}) => {
+  const { colors } = useAppTheme();
+  const responsive = useHomeResponsive();
+  const [modalVisible, setModalVisible] = useState(initialModalVisible ?? false);
+
+  const effectiveLoading = Boolean(isLoading || weather === null);
+
+  const modalProps = computeWeatherModalProps(weather, {
+    currentTimeLabel,
+    startTimeLabel,
+    endTimeLabel,
+    statusNotice,
+  });
+
+  const {
+    range,
+    isTomorrow,
+    startDisplay,
+    timeRangeDisplay,
+    quotient,
+    subtitleText,
+    badgeNotice,
+    currentAirTemp,
+    roundedSurfaceTemp,
+    riskLevel,
+    popPercent,
+    airQualityColor,
+    airQualityLabel,
+    airQuality,
+    currentHour,
+    currentMin,
+  } = modalProps;
+
+  const { progress } = calculateProgress(
+    range,
+    isTomorrow,
+    currentHour,
+    currentMin,
+    progressPercent
+  );
 
   const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
 

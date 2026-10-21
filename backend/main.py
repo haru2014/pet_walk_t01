@@ -34,7 +34,7 @@ from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.route_steps import build_turn_steps
-from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS
+from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
 from agent.supabase_repository import community_repo
 from services.route_warmup import start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
@@ -60,6 +60,7 @@ from services.weather_context import (
     build_heat_risk_response,
     estimate_surface_temp,
     build_open_meteo_heat_risk_response,
+    rain_notice,
     weather_context_from_response,
 )
 from test_case.test_api_contracts import (
@@ -126,6 +127,8 @@ def health_check():
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
         # 경사 계산에 쓰는 고도 자료 (운영 반영 확인용). DEM 을 끄면 "off"
         "dem": (elevation_source() or {}).get("name") or "off",
+        # 현재 위치 경로의 외부 보행 경로(OSRM) 호출 성공·실패 수와 마지막 실패 이유 (대체 경로 원인 확인용)
+        "osrm": osrm_status(),
     }
 
 
@@ -381,8 +384,18 @@ def _update_park_briefing(
                 f"{weather_context.get('golden_time_window', '서늘한 시간대')} 산책을 권장합니다. "
             )
         agent_result.briefing_message = heat_notice + agent_result.briefing_message
+    rain = rain_notice(weather_context.get("precipitation"))  # 비 예보 안내 (#114)
+    if rain:
+        agent_result.briefing_message = f"{rain} {agent_result.briefing_message}"
     if validations[best.route_id]["duration_is_alternative"]:
         agent_result.briefing_message += " 목표 시간보다 짧은 공원 내부 대안 코스입니다."
+    approach_m = validations[best.route_id].get("entry_approach_m") or 0
+    if approach_m:
+        # 공원 경계 밖 주차장 출발 (#160): 공원 코스는 목표 시간에 맞추고 진입로 왕복을 더했다
+        agent_result.briefing_message += (
+            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 공원 밖 보행로를 왕복하는 시간이 포함돼 있고,"
+            f" 공원 안 코스는 약 {validations[best.route_id]['loop_estimated_minutes']:.0f}분입니다."
+        )
 
 
 def _validate_and_finalize_park_candidates(
@@ -497,6 +510,8 @@ def _build_walk_plan_response(
         "elevation_source": elevation_source(),
         # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
         "course_profiles": profiles,
+        # 후보별 경로 출처: osrm_live(실제 보행로) / park_graph_*(공원 보행망) / rectangle_fallback 등 대체 경로
+        "route_sources": {s.candidate.route_id: s.candidate.route_source for s in agent_result.all_scored_candidates or []},
     }
     if park_mode:
         resp_data["route_validation"] = validations
@@ -508,6 +523,7 @@ def _build_walk_plan_response(
                 "request_id": request_id,
                 "park_id": selected_park,
                 "route_id": best.route_id,
+                "route_source": best.route_source,
                 "status": 200,
             },
             ensure_ascii=False,
@@ -593,7 +609,8 @@ def plan_walk_route(req: Dict[str, Any]):
             origin_lon=origin_lon,
             origin_mode=origin_mode,
             parking_lot_id=parking_lot_id,
-            pilot_park_id=pilot_park_id,
+            # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
+            pilot_park_id=selected_park or pilot_park_id,
         )
 
         validations = {}

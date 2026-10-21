@@ -22,6 +22,8 @@ export interface WalkTabScreenProps {
   onBack: () => void;
   onStartWalk: (course?: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect: (instruction: string) => void;
+  step?: 'settings' | 'recommend';
+  onStepChange?: (step: 'settings' | 'recommend') => void;
 }
 
 export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
@@ -32,16 +34,24 @@ export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
   onBack,
   onStartWalk,
   onPinSelect,
+  step,
+  onStepChange,
 }) => {
-  const [currentStep, setCurrentStep] = useState<'settings' | 'recommend'>('settings');
+  const [internalStep, setInternalStep] = useState<'settings' | 'recommend'>('settings');
+  const currentStep = step ?? internalStep;
+
+  const setStep = (nextStep: 'settings' | 'recommend') => {
+    setInternalStep(nextStep);
+    onStepChange?.(nextStep);
+  };
 
   const handleFindRoute = (newPreferences: WalkPreferences) => {
     onUpdatePreferences?.(newPreferences);
-    setCurrentStep('recommend');
+    setStep('recommend');
   };
 
   const handleBackFromRecommend = () => {
-    setCurrentStep('settings');
+    setStep('settings');
   };
 
   return (

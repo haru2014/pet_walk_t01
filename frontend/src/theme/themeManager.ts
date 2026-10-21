@@ -16,16 +16,17 @@ import { applyThemeTokens, THEME_PALETTES, ThemeColors } from './tokens';
 type ThemeChangeListener = (theme: ThemeId) => void;
 
 class ThemeManager {
-  private currentTheme: ThemeId = 'forest';
+  private currentTheme: ThemeId = 'dusty_amber';
   private readonly listeners = new Set<ThemeChangeListener>();
 
   async init(): Promise<ThemeId> {
     const saved = await LocalStorageService.getItem<ThemeId>(STORAGE_KEYS.APP_THEME);
-    if (saved && (saved === 'forest' || saved === 'vivid_violet' || saved === 'dark')) {
+    if (saved && (saved === 'dusty_amber' || saved === 'forest' || saved === 'vivid_violet' || saved === 'dark')) {
       this.currentTheme = saved;
       applyThemeTokens(saved);
     } else {
-      applyThemeTokens('forest');
+      this.currentTheme = 'dusty_amber';
+      applyThemeTokens('dusty_amber');
     }
     return this.currentTheme;
   }

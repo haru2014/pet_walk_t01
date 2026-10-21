@@ -29,6 +29,7 @@ export const OPENFREEMAP_STYLES: Record<OpenFreeMapStyleKey, string> = {
  * 앱 테마(ThemeId)와 OpenFreeMap 스타일 키 매핑
  */
 export const THEME_TO_MAP_STYLE: Record<ThemeId, OpenFreeMapStyleKey> = {
+  dusty_amber: 'liberty',
   forest: 'liberty',
   vivid_violet: 'bright',
   dark: 'dark',
@@ -48,6 +49,15 @@ export interface MapRouteColors {
 }
 
 export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
+  dusty_amber: {
+    safe: '#5A7361',       // 세이지 그린
+    normal: '#B59C5E',     // 올리브 오커
+    caution: '#CFA052',    // 더스티 앰버
+    casing: '#FDFAF4',
+    maskCircle: 'rgba(90, 115, 97, 0.18)',
+    maskBorder: '#3E5244',
+    startMarker: '#5A7361',
+  },
   forest: {
     safe: '#10B981',       // 에메랄드 그린
     normal: '#3B82F6',     // 소프트 블루

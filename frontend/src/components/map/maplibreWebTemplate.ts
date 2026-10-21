@@ -349,7 +349,9 @@ export function buildMapLibreHtml({
       }
 
       // 모바일(React Native)로부터의 동적 메시지 수신 처리
-      window.addEventListener('message', function(event) {
+      // react-native-webview 는 iOS 에서는 window, 안드로이드에서는 document 로 message 이벤트를 보낸다.
+      // window 에만 달면 안드로이드에서 코스를 바꿔도 지도가 첫 경로에 머문다 (#155). 둘 다 단다.
+      function handleNativeMessage(event) {
         try {
           const msg = JSON.parse(event.data);
           if (msg.action === 'SET_STYLE' && msg.style) {
@@ -371,7 +373,9 @@ export function buildMapLibreHtml({
             if (b) map.fitBounds(b, { padding: 40, duration: 600 });
           }
         } catch(e) {}
-      });
+      }
+      window.addEventListener('message', handleNativeMessage);
+      document.addEventListener('message', handleNativeMessage);
     })();
   </script>
 </body>
