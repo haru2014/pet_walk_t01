@@ -179,6 +179,12 @@ def test_entry_approach_does_not_lower_the_distance_score():
     assert entry_approach_length_m("yurim", route) == 0.0
     assert entry_approach_length_m("sejong", route[1:]) == 0.0
 
-    response = _plan_from_lot("pkg_sejong_02", 30)
+    # 기상 상태에 따른 주간 지면열 변동(10~16시 고온 감점)과 무관하게 진입로 거리 점수가 깎이지 않음을 검증한다
+    response = client.post("/api/v1/walk/plan", json={
+        "origin_mode": "parking_pnr", "parking_lot_id": "pkg_sejong_02",
+        "origin_lat": lot["entrance_lat"], "origin_lon": lot["entrance_lon"],
+        "target_duration_minutes": 30,
+        "weather_context": {"current": {"air_temp_celsius": 20.0, "estimated_surface_temp": 22.0}},
+    })
     assert response.status_code == 200
     assert response.json()["score"] >= 85

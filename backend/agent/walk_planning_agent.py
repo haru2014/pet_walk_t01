@@ -73,6 +73,12 @@ class RouteCandidate(BaseModel):
     geojson_coordinates: List[List[float]] = Field(default_factory=list)
     turn_by_turn_steps: List[Dict[str, Any]] = Field(default_factory=list)
     route_source: str = "unknown"
+    slope_source: Optional[str] = "approximation"
+    stairs_source: Optional[str] = None
+    shade_source: Optional[str] = None
+    surface_source: Optional[str] = None
+    surface_known_ratio: Optional[float] = None
+    data_reliability: str = "estimated"
 
 
 class ScoredRoute(BaseModel):
@@ -243,30 +249,30 @@ def score_candidate_route(candidate: RouteCandidate, target_distance_m: float) -
     """[US-B3] Candidate Route Scorer: 후보 경로 다요소 종합 100점 채점기.
     
     1. 계단 배제 (30점): 계단 없으면 30점, 있으면 0점
-    2. 경사도 적합도 (30점): max_slope <= 5% 30점, <= 8% 20점, > 8% 10점
-    3. 지면온도/열안전 (20점): surface_temp <= 32℃ 20점, <= 36℃ 15점, <= 40℃ 8점
+    2. 경사도 적합도 (30점): max_slope <= 8% 30점 만점, 8%~15% 선형 감점, > 15% 0점 탈락 (기존 5%·8% 차이 해소)
+    3. 지면온도/열안전 (20점): surface_temp <= 33℃ 20점, <= 39℃ 12점, <= 45℃ 6점, > 45℃ 0점 (공통 안전 기준 연동)
     4. 거리 적합도 (20점): 목표 거리 대비 오차율 기반 감점
     """
     # 1. 계단 배제
     stairs_score = 0.0 if candidate.has_stairs else 30.0
 
-    # 2. 경사도 점수
+    # 2. 경사도 점수 (계획서 8% 이하 만점, 15% 초과 탈락 기준 확정)
     max_slope = candidate.max_slope_percent
-    if max_slope <= 5.0:
+    if max_slope <= 8.0:
         slope_score = 30.0
-    elif max_slope <= 8.0:
-        slope_score = 20.0
+    elif max_slope <= 15.0:
+        slope_score = round(30.0 * (15.0 - max_slope) / (15.0 - 8.0), 1)
     else:
-        slope_score = 10.0
+        slope_score = 0.0
 
-    # 3. 지면온도 / 열안전
+    # 3. 지면온도 / 열안전 (SAFE_MAX_C 33℃, CAUTION_MAX_C 45℃ 기준)
     temp = candidate.surface_temp_c
-    if temp <= 32.0:
+    if temp <= 33.0:
         thermal_score = 20.0
-    elif temp <= 36.0:
-        thermal_score = 15.0
-    elif temp <= 40.0:
-        thermal_score = 8.0
+    elif temp <= 39.0:
+        thermal_score = 12.0
+    elif temp <= 45.0:
+        thermal_score = 6.0
     else:
         thermal_score = 0.0
 
@@ -286,7 +292,7 @@ def score_candidate_route(candidate: RouteCandidate, target_distance_m: float) -
         slope_score=slope_score,
         thermal_score=thermal_score,
         distance_score=dist_score,
-        rank=1
+        rank=1,
     )
 
 
@@ -553,12 +559,23 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
         if profile:
             c.max_slope_percent = profile.get("max_slope_percent", c.max_slope_percent)
             c.average_slope_percent = profile.get("avg_slope_percent", c.average_slope_percent)
+            c.slope_source = profile.get("slope_source", "approximation")
             if profile.get("stairs_count") is not None:
                 c.has_stairs = profile["stairs_count"] > 0
+                c.stairs_source = profile.get("stairs_source")
             if profile.get("shade_ratio") is not None:
                 c.average_shade_ratio = profile["shade_ratio"]
+                c.shade_source = profile.get("shade_source")
+            if profile.get("surface_known_ratio") is not None:
+                c.surface_known_ratio = profile["surface_known_ratio"]
+                if profile["surface_known_ratio"] > 0:
+                    c.surface_source = "osm_surface_tags"
             if result.surface_temp_c is not None:
                 c.surface_temp_c = result.surface_temp_c
+            if profile.get("slope_source") == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
+                c.data_reliability = "measured"
+            else:
+                c.data_reliability = "estimated"
         scored_list.append(ScoredRoute(
             candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
             thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
