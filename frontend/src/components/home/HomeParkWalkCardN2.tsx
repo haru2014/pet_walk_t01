@@ -12,13 +12,18 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DogProfile } from '../../types/dogProfile';
-import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
-import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
+import { RouteFeatureCollection } from '../../types/route';
+import { createCurrentLocationPin } from '../../services/locationPinHelper';
 import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
 import { useAppTheme } from '../../theme/themeManager';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
 import bellIconImg from '../../../assets/ui_n2/bell_icon.png';
+
+const EMPTY_FREE_ROUTE: RouteFeatureCollection = {
+  type: 'FeatureCollection',
+  features: [],
+};
 
 export interface HomeParkWalkCardN2Props {
   dog: DogProfile;
@@ -27,7 +32,7 @@ export interface HomeParkWalkCardN2Props {
   onPressProfile?: () => void;
   onPressNotification?: () => void;
   onStartWalk?: () => void;
-  estimatedMinutes?: number;
+  estimatedMinutes?: number | string;
   distanceKm?: string;
   courseName?: string;
   userCoords?: { lon: number; lat: number } | null;
@@ -40,22 +45,34 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   onPressProfile,
   onPressNotification,
   onStartWalk,
-  estimatedMinutes = 30,
-  distanceKm = '2.1 km',
+  estimatedMinutes,
+  distanceKm,
   courseName = '바로 산책하기',
   userCoords,
 }) => {
   const { theme, colors } = useAppTheme();
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
-  const activePins = useMemo(
-    () => mergeCurrentLocationPin(SAMPLE_STEP_PINS, userCoords?.lon, userCoords?.lat),
-    [userCoords]
-  );
+
+  const hasGps = Boolean(userCoords && typeof userCoords.lon === 'number' && typeof userCoords.lat === 'number');
+
+  const maskingCenter = useMemo<[number, number] | undefined>(() => {
+    if (hasGps && userCoords) return [userCoords.lon, userCoords.lat];
+    return undefined;
+  }, [hasGps, userCoords]);
+
+  const activePins = useMemo(() => {
+    if (hasGps && userCoords) {
+      return [createCurrentLocationPin(userCoords.lon, userCoords.lat, '현재 위치 (자유 산책 출발)')];
+    }
+    return [];
+  }, [hasGps, userCoords]);
 
   const cardBgColor = theme === 'dusty_amber' ? colors.accent : colors.surface;
   const isDark = theme === 'dark';
   const cardTextColor = isDark ? colors.textMain : (theme === 'dusty_amber' ? '#2D3A31' : colors.textMain);
+  const displayDist = distanceKm ?? '자율';
+  const displayTime = estimatedMinutes != null ? (typeof estimatedMinutes === 'number' ? `${estimatedMinutes}분` : estimatedMinutes) : '자율';
 
   return (
     <View style={styles.container}>
@@ -73,7 +90,12 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
       <View style={[styles.cardBody, { backgroundColor: cardBgColor, borderColor: colors.border, borderWidth: 1 }]}>
         {/* 카드 헤더 (타이틀, 강아지 드롭다운, 알림 버튼) */}
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: cardTextColor }]}>{courseName}</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={[styles.cardTitle, { color: cardTextColor }]}>{courseName}</Text>
+            <View style={[styles.freeWalkBadge, { backgroundColor: isDark ? colors.surface : 'rgba(255, 255, 255, 0.45)', borderColor: colors.border }]}>
+              <Text style={[styles.freeWalkBadgeText, { color: cardTextColor }]}>자유 산책</Text>
+            </View>
+          </View>
 
           <View style={styles.headerRightActions}>
             {isMultiDog && (
@@ -121,14 +143,28 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
 
         {/* 3. 코스 지도 프리뷰 (부모 mapFrame에 100% 꽉 채움) */}
         <View style={[styles.mapFrame, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}>
-          <RouteMapView
-            route={SAMPLE_ROUTE}
-            stepPins={activePins}
-            speedKmH={dog.speedKmH ?? 2.8}
-            onStart={onStartWalk}
-            showSummaryCard={false}
-            fillContainer={true}
-          />
+          {hasGps && maskingCenter ? (
+            <RouteMapView
+              route={EMPTY_FREE_ROUTE}
+              stepPins={activePins}
+              maskingCenter={maskingCenter}
+              showLegend={false}
+              speedKmH={dog.speedKmH ?? 2.8}
+              onStart={onStartWalk}
+              showSummaryCard={false}
+              fillContainer={true}
+            />
+          ) : (
+            <View style={styles.gpsLoadingContainer}>
+              <Text style={styles.gpsLoadingIcon}>📍</Text>
+              <Text style={[styles.gpsLoadingText, { color: cardTextColor }]}>
+                현재 위치(GPS)를 확인하고 있어요
+              </Text>
+              <Text style={[styles.gpsLoadingSubText, { color: colors.textMuted }]}>
+                주변 지도가 준비되면 바로 산책할 수 있어요
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* 4. 카드 하단: [예상 거리 / 예상 시간] 정보 블록 + [산책 시작 →] 버튼 (와이어프레임 기준) */}
@@ -144,25 +180,25 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
               },
             ]}
           >
-            {/* 예상 거리 */}
+            {/* 산책 거리 */}
             <View style={styles.metricColumn}>
               <View style={styles.metricValRow}>
                 <Text style={styles.metricIcon}>🐾</Text>
-                <Text style={[styles.metricValue, { color: cardTextColor }]}>{distanceKm}</Text>
+                <Text style={[styles.metricValue, { color: cardTextColor }]}>{displayDist}</Text>
               </View>
-              <Text style={[styles.metricLabel, { color: cardTextColor }]}>예상 거리</Text>
+              <Text style={[styles.metricLabel, { color: cardTextColor }]}>산책 거리</Text>
             </View>
 
             {/* 중간 얇은 세로 구분선 */}
             <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
 
-            {/* 예상 시간 */}
+            {/* 산책 시간 */}
             <View style={styles.metricColumn}>
               <View style={styles.metricValRow}>
                 <Text style={styles.metricIcon}>⏱</Text>
-                <Text style={[styles.metricValue, { color: cardTextColor }]}>{estimatedMinutes}분</Text>
+                <Text style={[styles.metricValue, { color: cardTextColor }]}>{displayTime}</Text>
               </View>
-              <Text style={[styles.metricLabel, { color: cardTextColor }]}>예상 시간</Text>
+              <Text style={[styles.metricLabel, { color: cardTextColor }]}>산책 시간</Text>
             </View>
           </View>
 
@@ -199,7 +235,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, minHeight: 48 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardTitle: { fontSize: 18, fontWeight: '800', color: '#2D3A31', letterSpacing: -0.2 },
+  freeWalkBadge: { paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 10, borderWidth: 1 },
+  freeWalkBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
   headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dogSwitchButton: {
     minHeight: 48, minWidth: 48, paddingHorizontal: 12, backgroundColor: 'rgba(255, 255, 255, 0.45)',
@@ -209,6 +248,17 @@ const styles = StyleSheet.create({
   bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { width: 42, height: 42 },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
+  gpsLoadingContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 16,
+  },
+  gpsLoadingIcon: { fontSize: 24, marginBottom: 2 },
+  gpsLoadingText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  gpsLoadingSubText: { fontSize: 11, textAlign: 'center' },
   bottomActionsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
