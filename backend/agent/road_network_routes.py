@@ -40,6 +40,15 @@ OSRM_CIRCUIT_OPEN_SECONDS = 60.0
 _OSRM_CONSECUTIVE_FAILURES = 0
 _OSRM_CIRCUIT_OPEN_UNTIL = 0.0
 
+# 공개 서버(routing.openstreetmap.de) 이용 규칙 "One request per second max" 준수.
+#   - 서버 전체(모든 요청·스레드 합산)에서 호출 시작 간격을 1초 이상으로 둔다.
+#   - 이전에는 요청 1번에 9회를 동시에 보내 운영에서 HTTP 429(요청 과다)와 연결 차단이 났다.
+#   - 줄이 길어 OSRM_MAX_QUEUE_WAIT_S 보다 오래 기다려야 하면 호출하지 않고 None (호출측은 오프라인 폴백).
+OSRM_POLICY_INTERVAL_S = 1.0
+OSRM_MIN_INTERVAL_S = OSRM_POLICY_INTERVAL_S  # 테스트는 가짜 OSRM 이라 0 으로 바꿔 쓴다 (conftest)
+OSRM_MAX_QUEUE_WAIT_S = 5.0
+_OSRM_NEXT_SLOT = 0.0
+
 
 def _osrm_cache_key(waypoints: List[Tuple[float, float]]) -> Tuple:
     return tuple((round(lat, 6), round(lon, 6)) for lat, lon in waypoints)
@@ -47,11 +56,12 @@ def _osrm_cache_key(waypoints: List[Tuple[float, float]]) -> Tuple:
 
 def clear_osrm_cache() -> None:
     """테스트/운영 점검용 캐시·서킷 상태 초기화."""
-    global _OSRM_CONSECUTIVE_FAILURES, _OSRM_CIRCUIT_OPEN_UNTIL
+    global _OSRM_CONSECUTIVE_FAILURES, _OSRM_CIRCUIT_OPEN_UNTIL, _OSRM_NEXT_SLOT
     with _OSRM_CACHE_LOCK:
         _OSRM_CACHE.clear()
         _OSRM_CONSECUTIVE_FAILURES = 0
         _OSRM_CIRCUIT_OPEN_UNTIL = 0.0
+        _OSRM_NEXT_SLOT = 0.0
 
 
 def osrm_circuit_is_open() -> bool:
@@ -71,9 +81,29 @@ def _record_osrm_outcome(success: bool) -> None:
             _OSRM_CONSECUTIVE_FAILURES = 0
 
 
+def _open_circuit_now() -> None:
+    """HTTP 429(요청 과다)를 받으면 연속 실패를 기다리지 않고 바로 쉰다. 계속 보내면 연결이 차단된다."""
+    global _OSRM_CONSECUTIVE_FAILURES, _OSRM_CIRCUIT_OPEN_UNTIL
+    with _OSRM_CACHE_LOCK:
+        _OSRM_CIRCUIT_OPEN_UNTIL = time.monotonic() + OSRM_CIRCUIT_OPEN_SECONDS
+        _OSRM_CONSECUTIVE_FAILURES = 0
+
+
+def _reserve_call_slot() -> Optional[float]:
+    """다음 호출 시작 시각을 예약한다. 기다릴 시간이 상한을 넘으면 None (예약하지 않음)."""
+    global _OSRM_NEXT_SLOT
+    with _OSRM_CACHE_LOCK:
+        now = time.monotonic()
+        start = max(now, _OSRM_NEXT_SLOT)
+        if start - now > OSRM_MAX_QUEUE_WAIT_S:
+            return None
+        _OSRM_NEXT_SLOT = start + OSRM_MIN_INTERVAL_S
+        return start
+
+
 # 운영 진단용 OSRM 호출 통계 (/health 의 osrm). 실패 이유를 남겨 대체 경로로 떨어지는 원인을 확인한다.
 _OSRM_STATS: Dict[str, Any] = {"success": 0, "failure": 0, "last_error": None, "last_error_elapsed_ms": None,
-                               "last_success_elapsed_ms": None}
+                               "last_success_elapsed_ms": None, "skipped_queue": 0}
 
 
 def _note_osrm_attempt(reason: Optional[str], started: float) -> None:
@@ -130,6 +160,16 @@ def fetch_osrm_foot_route(
     if osrm_circuit_is_open():
         return None  # 최근 연속 실패 → 호출 생략, 호출측은 즉시 오프라인 폴백
 
+    start = _reserve_call_slot()
+    if start is None:
+        with _OSRM_CACHE_LOCK:
+            _OSRM_STATS["skipped_queue"] += 1
+        return None  # 1초 1회 규칙상 너무 오래 기다려야 함 → 오프라인 폴백 (실패로 세지 않음)
+    while (wait := start - time.monotonic()) > 0:  # sleep 이 일찍 깨도 예약 시각 전에는 보내지 않는다
+        time.sleep(wait)
+    if osrm_circuit_is_open():
+        return None  # 기다리는 동안 다른 호출이 429 를 받았다
+
     result = _fetch_osrm_foot_route_uncached(waypoints, timeout_seconds)
     _record_osrm_outcome(result is not None)
     if result is not None and use_cache:
@@ -167,4 +207,6 @@ def _fetch_osrm_foot_route_uncached(
             _note_osrm_attempt("좌표가 4개 미만", started)
     except Exception as exc:  # 어떤 실패든 오프라인 경로로 넘어가되, 이유는 남긴다
         _note_osrm_attempt(_failure_reason(exc), started)
+        if isinstance(exc, urllib.error.HTTPError) and exc.code == 429:
+            _open_circuit_now()
     return None

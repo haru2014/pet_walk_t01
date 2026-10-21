@@ -17,6 +17,13 @@ for _var in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "GEMIN
     os.environ[_var] = ""
 
 
+@pytest.fixture(autouse=True)
+def _no_osrm_pacing(monkeypatch):
+    """[3번 서버] 테스트는 가짜 OSRM 을 쓰므로 공개 서버용 1초 간격을 끈다. 간격 자체는 test_walk_plan_latency 가 따로 검증한다."""
+    import agent.road_network_routes as rnr
+    monkeypatch.setattr(rnr, "OSRM_MIN_INTERVAL_S", 0.0)
+
+
 @pytest.fixture
 def sample_dog_profiles() -> Dict[str, Dict[str, Any]]:
     """5인 CBT 시나리오 테스터용 반려견 프로필 Fixture (Local-First AsyncStorage 호환)."""

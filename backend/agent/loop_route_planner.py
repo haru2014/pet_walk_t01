@@ -44,12 +44,13 @@ LOOP_WAYPOINT_COUNT = 6
 DISTANCE_TOLERANCE = 0.10  # 이 오차 이내이면 보정 종료 (인수 조건 ±15% 에 여유 확보)
 MAX_REFINEMENTS = 2
 SCALE_LIMITS = (0.4, 2.5)
-# [3번 서버] 지연 목표 ≤1.5초: OSRM 1회 상한 1.2초, 후보 생성 전체 예산 1.3초.
-#   첫 라운드는 반경 배율 3종을 '동시에' 질의해(투기적 병렬) 순차 보정 2~3회(≈1초×N)를 1회분으로 압축한다.
+# [3번 서버] 공개 OSRM 이용 규칙(1초 1회) 준수: 후보 1개당 첫 라운드는 반경 1종만 질의한다(요청 1번 = 3회).
+#   예전에는 반경 3종을 동시에 질의해(요청 1번 = 9회 동시) 운영에서 HTTP 429·연결 차단으로 직사각형 폴백이 났다.
+#   호출 간격은 road_network_routes 가 서버 전체에서 1초 이상으로 맞춘다.
 #   추가 보정은 남은 예산이 직전 라운드 소요 시간 이상일 때만 수행한다.
-OSRM_TIMEOUT_S = 1.2
-PLAN_TIME_BUDGET_S = 1.3
-SPECULATIVE_SCALES: Tuple[float, ...] = (0.8, 1.0, 1.25)
+OSRM_TIMEOUT_S = 3.0
+PLAN_TIME_BUDGET_S = 6.0
+SPECULATIVE_SCALES: Tuple[float, ...] = (1.0,)
 MAX_BACKTRACK_RATIO = 0.15
 MAX_CLOSURE_GAP_M = 15.0
 STATIC_MATCH_RADIUS_M = 300.0
