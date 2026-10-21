@@ -4,25 +4,57 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 
-export const PlanSourceBadge: React.FC<{ isLive: boolean }> = ({ isLive }) => (
-  <View style={styles.bar}>
-    <View style={[styles.badge, isLive ? styles.badgeLive : styles.badgeOffline]}>
-      <AppIcon name={isLive ? 'sparkle' : 'soft'} size={14} color={isLive ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
-      <Text style={[styles.text, isLive ? styles.textLive : styles.textOffline]}>{isLive ? '실시간 AI 맞춤 코스' : '안심 기본 코스'}</Text>
+export interface PlanSourceBadgeProps {
+  readonly isLive: boolean;
+  readonly style?: StyleProp<ViewStyle>;
+}
+
+export const PlanSourceBadge: React.FC<PlanSourceBadgeProps> = ({ isLive, style }) => {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={[styles.bar, style]}>
+      <View
+        style={[
+          styles.badge,
+          {
+            backgroundColor: isLive ? colors.primaryWash : colors.surface,
+            borderColor: isLive ? colors.primaryMint : colors.border,
+          },
+        ]}
+      >
+        <AppIcon
+          name={isLive ? 'sparkle' : 'soft'}
+          size={12}
+          color={isLive ? colors.primaryDark : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.text,
+            { color: isLive ? colors.primaryDark : colors.textMuted },
+          ]}
+        >
+          {isLive ? '실시간 AI 맞춤 코스' : '안심 기본 코스'}
+        </Text>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  badgeLive: { backgroundColor: TOKENS.colors.primaryWash, borderWidth: 1, borderColor: TOKENS.colors.primaryMint },
-  badgeOffline: { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  bar: { flexDirection: 'row', alignItems: 'center' },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   text: { fontSize: 11, fontWeight: '600' },
-  textLive: { color: '#059669' },
-  textOffline: { color: '#4B5563' },
 });

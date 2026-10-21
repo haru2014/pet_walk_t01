@@ -11,6 +11,8 @@ import { SoundSettings } from '../../types/voiceSettings';
 import { TTSNavigationService } from '../../services/ttsNavigation';
 import { VoiceSettingModal } from './VoiceSettingModal';
 
+import { useAppTheme } from '../../theme/themeManager';
+
 export interface VoiceQuickControlBarProps {
   compact?: boolean;
   variant?: 'standard' | 'compact' | 'emergency';
@@ -21,7 +23,7 @@ interface VoiceBarControlProps {
   readonly isMuted: boolean;
   readonly volume: number;
   readonly onToggleMute: () => void;
-  readonly onOpenSettings: () => void;
+  readonly onOpenSettings?: () => void;
   readonly style?: StyleProp<ViewStyle>;
 }
 
@@ -29,35 +31,38 @@ const CompactVoiceBar: React.FC<VoiceBarControlProps> = ({
   isMuted,
   volume,
   onToggleMute,
-  onOpenSettings,
   style,
 }) => {
+  const { colors } = useAppTheme();
   const muteText = isMuted ? '음소거' : `${Math.round(volume * 100)}%`;
-  const iconColor = isMuted ? '#F59E0B' : TOKENS.colors.pocketHud;
+  const iconColor = isMuted ? colors.warning : colors.primaryDark;
 
   return (
     <View style={[styles.compactContainer, style]}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggleMute}
-        style={[styles.compactMuteBtn, isMuted ? styles.compactMuteBtnActive : null]}
+        style={[
+          styles.compactMuteBtn,
+          {
+            backgroundColor: isMuted ? 'rgba(245, 158, 11, 0.15)' : colors.primaryLight,
+            borderColor: isMuted ? colors.warning : colors.primary,
+          },
+        ]}
       >
         <AppIcon
           name={isMuted ? 'volumeMute' : 'volume'}
-          size={18}
+          size={14}
           color={iconColor}
         />
-        <Text style={[styles.compactMuteText, isMuted ? styles.compactMuteTextActive : null]}>
+        <Text
+          style={[
+            styles.compactMuteText,
+            { color: isMuted ? colors.warning : colors.primaryDark },
+          ]}
+        >
           {muteText}
         </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onOpenSettings}
-        style={styles.compactSettingsBtn}
-      >
-        <AppIcon name="sparkle" size={16} color={TOKENS.colors.pocketHud} />
       </TouchableOpacity>
     </View>
   );
@@ -272,29 +277,17 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   settingTriggerText: { fontSize: 10, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  compactContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', marginTop: 10 },
+  compactContainer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: 0 },
   compactMuteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    gap: 4,
     borderWidth: 1,
-    borderColor: TOKENS.colors.pocketHud,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  compactMuteBtnActive: { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderColor: '#F59E0B' },
-  compactMuteText: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.pocketHud },
-  compactMuteTextActive: { color: '#F59E0B' },
-  compactSettingsBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
+  compactMuteText: { fontSize: 11, fontWeight: '700' },
   emergencyContainer: {
     flexDirection: 'row',
     alignItems: 'center',

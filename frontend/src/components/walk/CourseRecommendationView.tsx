@@ -230,22 +230,20 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
+        <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
+          {currentCourse.name}
+        </Text>
         <View style={styles.courseMetricsRow}>
-          <View style={styles.courseNameGroup}>
-            <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
-              {currentCourse.name}
-            </Text>
-            {extractCourseScore(currentCourse) != null && (
-              <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
-                <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
-                  AI 맞춤 {extractCourseScore(currentCourse)}점
-                </Text>
-              </View>
-            )}
-          </View>
           <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
             {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
           </Text>
+          {extractCourseScore(currentCourse) != null && (
+            <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
+                AI 맞춤 {extractCourseScore(currentCourse)}점
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
@@ -369,8 +367,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courseName: { fontSize: 14, fontWeight: '800' },
-  courseNameGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+  courseName: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
   scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   scoreBadgeText: { fontSize: 10, fontWeight: '800' },
   reasonBox: {
