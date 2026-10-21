@@ -1,29 +1,24 @@
-/**
- * [편안하개 - PetWalk]
- * 디자인 시안 02번 (Dusty Amber & Sage Green) 하단 Trail Info 카드 시트
- * (docs/reference/UI개선/app_design_n2-1.png 기준)
- *
- * 1. 상단 슬림 핸들 바
- * 2. Trail info 카드: 실시간 기상/지면온도 산책지수 + trees_01.png 자연 일러스트
- * 3. Leaf Green 카드: 노면 상태 및 관절 안심 맞춤 지표 + tree_02.png 일러스트
- * 4. 최근 AI 산책 피드백 / 주간 통계 퀵 링크
- */
-
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { HeatRiskResponse } from '../../types/weather';
 import { DogProfile } from '../../types/dogProfile';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
-import tree02Img from '../../../assets/ui_n2/tree_02.png';
+
+function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; grade: string } {
+  if (!weather) return { score: 92, grade: '매우 좋음' };
+  const temp = weather.current_surface_temp ?? 25.0;
+  if (weather.current_risk_level === 'DANGER' || temp > 45) return { score: 38, grade: '주의' };
+  if (weather.current_risk_level === 'CAUTION' || temp > 35) return { score: 65, grade: '보통' };
+  if ((weather.pop ?? 0) >= 60) return { score: 62, grade: '보통' };
+  if (weather.is_current_golden && temp <= 28) {
+    const s = Math.max(90, Math.min(98, Math.round(96 - Math.abs(temp - 24) * 1.5)));
+    return { score: s, grade: '매우 좋음' };
+  }
+  return { score: 85, grade: '좋음' };
+}
 
 export interface HomeTrailInfoCardN2Props {
   weather: HeatRiskResponse | null;
@@ -46,25 +41,28 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   onOpenPlanner,
   onOpenWeatherModal,
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
 
-  // 실시간 기상 및 지면온도 브리핑 문구 생성
   const surfaceTemp = weather?.current_surface_temp ?? 24.8;
   const isGolden = weather?.is_current_golden ?? true;
-
   const weatherNotice = isGolden
     ? `지면온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n안심하고 걷기 좋은 골든타임입니다.`
     : `지면온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
 
-  // 관절 케어 레벨 및 노면 정보
-  const jointLevel = dog.jointCareLevel ?? 1;
-  const jointCareText = jointLevel >= 2
-    ? '관절 집중 케어: 폭신한 흙길 85% 이상 권장'
-    : '폭신 노면 78% · 평탄한 완만 산책로';
+  const walkIndex = computeWalkIndex(weather);
+  const stats = weeklyStats ?? {
+    totalWalks: 0,
+    targetWalks: 5,
+    completionRatePercent: 0,
+    totalDistanceKm: 0,
+    totalDurationMinutes: 0,
+    safeSurfaceRatioPercent: 80,
+  };
 
   return (
     <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
-      {/* 1. 상단 핸들 바 */}
+      {/* 1. 상단 슬림 핸들 바 */}
       <View style={[styles.handleBar, { backgroundColor: colors.border }]} />
 
       {/* 2. 메인 Trail info 카드 (골든타임 기상 모달 오픈) */}
@@ -86,31 +84,85 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
             </Text>
           </View>
         </View>
+
+        {/* 개선된 산책 지수 (점수/단위 분리, 진행 막대, 등급 배지) */}
+        <View style={styles.walkIndexWrap}>
+          <View style={styles.scoreRow}>
+            <Text style={[styles.scoreNumber, { color: colors.textMain }]}>{walkIndex.score}</Text>
+            <Text style={[styles.scoreUnit, { color: colors.textMuted }]}>점</Text>
+          </View>
+          <View style={[styles.scoreBarTrack, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                styles.scoreBarFill,
+                {
+                  width: `${Math.min(100, Math.max(0, walkIndex.score))}%`,
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            />
+          </View>
+          <View style={[styles.gradeBadge, { backgroundColor: isDark ? 'rgba(90, 115, 97, 0.3)' : '#E8EFE9' }]}>
+            <Text style={[styles.gradeBadgeText, { color: colors.primaryDark }]}>{walkIndex.grade}</Text>
+          </View>
+        </View>
+
+        {/* 점수와 나무 일러스트 사이 얇은 구분선 */}
+        <View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
+
+        {/* 나무 일러스트 (시각적 우선순위 유지) */}
         <View style={styles.treeImageWrap}>
           <Image source={trees01Img} style={styles.tree01Image} resizeMode="contain" />
         </View>
       </TouchableOpacity>
 
-      {/* 3. 서브 Leaf Green 카드 (노면 & 관절 안심 지표) */}
+      {/* 3. 이번 주 산책 달성도 위젯 */}
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.88}
         onPress={onOpenStats}
-        style={[styles.leafGreenCard, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
-        accessibilityLabel="노면 상태 및 주간 산책 지표"
+        style={[styles.achievementCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        accessibilityRole="button"
+        accessibilityLabel="이번 주 산책 달성도 및 통계 보기"
       >
-        <View style={styles.cardTextCol}>
-          <Text style={[styles.leafTitle, { color: colors.primaryDark }]}>Leaf Green</Text>
-          <Text style={[styles.leafDescription, { color: colors.textMain }]} numberOfLines={2}>
-            {jointCareText}
-          </Text>
-          {weeklyStats && (
-            <Text style={[styles.statsMiniText, { color: colors.textMuted }]}>
-              이번 주 {weeklyStats.totalWalks}회 산책 ({weeklyStats.totalDistanceKm.toFixed(1)}km 완주)
+        <View style={styles.achievementHeaderRow}>
+          <View style={styles.achievementTitleGroup}>
+            <Text style={styles.achievementIcon}>🐾</Text>
+            <Text style={[styles.achievementTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
+            <Text style={[styles.achievementArrow, { color: colors.textMuted }]}>›</Text>
+          </View>
+          <View style={[styles.achievementBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.achievementBadgeText, { color: colors.primaryDark }]}>
+              주 {stats.totalWalks}/{stats.targetWalks}회 ({stats.completionRatePercent}%)
             </Text>
-          )}
+          </View>
         </View>
-        <View style={styles.tree02ImageWrap}>
-          <Image source={tree02Img} style={styles.tree02Image} resizeMode="contain" />
+
+        {/* 주간 달성 프로그레스 바 */}
+        <View style={[styles.progressBarTrack, { backgroundColor: colors.border }]}>
+          <View
+            style={[
+              styles.progressBarFill,
+              {
+                width: `${Math.min(100, Math.max(0, stats.completionRatePercent))}%`,
+                backgroundColor: colors.primary,
+              },
+            ]}
+          />
+        </View>
+
+        {/* 3대 핵심 보행 메트릭 1줄 요약 */}
+        <View style={styles.metricsRow}>
+          <Text style={[styles.metricText, { color: colors.textMuted }]}>
+            누적 <Text style={[styles.metricHighlight, { color: colors.textMain }]}>{stats.totalDistanceKm}km</Text>
+          </Text>
+          <Text style={[styles.metricDot, { color: colors.border }]}>·</Text>
+          <Text style={[styles.metricText, { color: colors.textMuted }]}>
+            시간 <Text style={[styles.metricHighlight, { color: colors.textMain }]}>{stats.totalDurationMinutes}분</Text>
+          </Text>
+          <Text style={[styles.metricDot, { color: colors.border }]}>·</Text>
+          <Text style={[styles.metricText, { color: colors.textMuted }]}>
+            완만 노면 <Text style={[styles.metricHighlight, { color: colors.primaryDark }]}>{stats.safeSurfaceRatioPercent}%</Text>
+          </Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -120,7 +172,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
 const styles = StyleSheet.create({
   sheetContainer: {
     width: '100%',
-    backgroundColor: '#F5EFE0', // Soft Cream
+    backgroundColor: '#F5EFE0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 8,
@@ -128,14 +180,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     gap: 8,
   },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#DCD2BE',
-    alignSelf: 'center',
-    marginBottom: 2,
-  },
+  handleBar: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#DCD2BE', alignSelf: 'center', marginBottom: 2 },
   trailCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FDFAF4',
     borderRadius: 18,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#EFE7D6',
     shadowColor: '#5A7361',
@@ -153,89 +198,49 @@ const styles = StyleSheet.create({
     elevation: 2,
     overflow: 'hidden',
   },
-  cardTextCol: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  trailTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#2D3A31',
-    marginBottom: 4,
-    letterSpacing: -0.2,
-  },
-  trailDescription: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#758579',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  goldenBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E3ECE4',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  goldenBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#5A7361',
-  },
-  treeImageWrap: {
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tree01Image: {
-    width: 60,
-    height: 60,
-  },
-  leafGreenCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#E3ECE4',
+  cardTextCol: { flex: 1, paddingRight: 6 },
+  trailTitle: { fontSize: 16, fontWeight: '800', color: '#2D3A31', marginBottom: 3, letterSpacing: -0.2 },
+  trailDescription: { fontSize: 11.5, lineHeight: 15, color: '#758579', fontWeight: '500', marginBottom: 4 },
+  goldenBadge: { alignSelf: 'flex-start', backgroundColor: '#E3ECE4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  goldenBadgeText: { fontSize: 10, fontWeight: '700', color: '#5A7361' },
+  // 산책 지수 UI 스타일
+  walkIndexWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 48, marginLeft: 4 },
+  scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  scoreNumber: { fontSize: 22, fontWeight: '900', letterSpacing: -0.6, lineHeight: 24 },
+  scoreUnit: { fontSize: 11, fontWeight: '700', marginBottom: 1.5, marginLeft: 1 },
+  scoreBarTrack: { width: 44, height: 3, borderRadius: 1.5, marginVertical: 3, overflow: 'hidden' },
+  scoreBarFill: { height: '100%', borderRadius: 1.5 },
+  gradeBadge: { paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 5, alignItems: 'center' },
+  gradeBadgeText: { fontSize: 9.5, fontWeight: '700' },
+  verticalDivider: { width: 1, height: 38, marginHorizontal: 8, opacity: 0.7 },
+  treeImageWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center', opacity: 0.9 },
+  tree01Image: { width: 52, height: 52 },
+  // 이번 주 산책 달성도 위젯
+  achievementCard: {
+    backgroundColor: '#FDFAF4',
     borderRadius: 18,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#D4E2D6',
-    shadowColor: '#000',
+    borderColor: '#EFE7D6',
+    shadowColor: '#5A7361',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
-    elevation: 1,
-    overflow: 'hidden',
+    elevation: 2,
   },
-  leafTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#3E5244',
-    marginBottom: 2,
-  },
-  leafDescription: {
-    fontSize: 11.5,
-    lineHeight: 15,
-    color: '#5A7361',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  statsMiniText: {
-    fontSize: 10.5,
-    color: '#758579',
-    fontWeight: '500',
-  },
-  tree02ImageWrap: {
-    width: 52,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tree02Image: {
-    width: 48,
-    height: 48,
-  },
+  achievementHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  achievementTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  achievementIcon: { fontSize: 13 },
+  achievementTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
+  achievementArrow: { fontSize: 15, fontWeight: '600', marginLeft: 2 },
+  achievementBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  achievementBadgeText: { fontSize: 10.5, fontWeight: '700' },
+  progressBarTrack: { width: '100%', height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
+  progressBarFill: { height: '100%', borderRadius: 2 },
+  metricsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metricText: { fontSize: 11, fontWeight: '500' },
+  metricHighlight: { fontWeight: '700' },
+  metricDot: { fontSize: 11, fontWeight: '800' },
 });
+

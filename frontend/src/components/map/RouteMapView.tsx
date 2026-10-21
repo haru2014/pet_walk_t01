@@ -28,6 +28,10 @@ export interface RouteMapViewProps {
   readonly onPinSelect?: (instruction: string) => void;
   /** 단독 뷰일 때만 요약 카드를 표시합니다. */
   readonly showSummaryCard?: boolean;
+  /** 지도 높이 직접 지정 */
+  readonly mapHeight?: number;
+  /** 부모 컨테이너(flex: 1)에 100% 꽉 채우기 */
+  readonly fillContainer?: boolean;
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -38,9 +42,11 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   onStart,
   onPinSelect,
   showSummaryCard = false,
+  mapHeight: customMapHeight,
+  fillContainer = false,
 }) => {
   const { colors } = useAppTheme();
-  const mapHeight = MAP_HEIGHT;
+  const mapHeight = customMapHeight ?? MAP_HEIGHT;
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
   const allCoords = useMemo<LonLat[]>(
@@ -82,13 +88,21 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   const selectedPin = mapPins.find((pin) => pin.id === selectedPinId);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.mapCanvas, { height: mapHeight }]}>
+    <View style={fillContainer ? styles.fillContainer : styles.container}>
+      <View
+        style={[
+          styles.mapCanvas,
+          fillContainer
+            ? { width: '100%', height: '100%', flex: 1, borderRadius: 0 }
+            : { width: MAP_WIDTH, height: mapHeight },
+        ]}
+      >
         <MapLibreMapView
           route={route}
           stepPins={mapPins}
-          width={MAP_WIDTH}
-          height={mapHeight}
+          width="100%"
+          height={fillContainer ? '100%' : mapHeight}
+          style={fillContainer ? { flex: 1, width: '100%', height: '100%', borderRadius: 0, borderWidth: 0 } : undefined}
           onPinSelect={(instruction) => {
             const pin = mapPins.find((item) => item.instruction === instruction);
             setSelectedPinId(pin?.id ?? null);
@@ -134,6 +148,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column', alignItems: 'center' },
+  fillContainer: { flex: 1, width: '100%', height: '100%' },
   mapCanvas: {
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
