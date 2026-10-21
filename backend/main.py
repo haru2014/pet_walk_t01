@@ -32,7 +32,10 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
-from agent.park_route_validation import RoutePlanningError, validate_park_route
+from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
+from agent.route_geometry import haversine_m
+from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set
+from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
 from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
@@ -367,6 +370,65 @@ def _resolve_parking_snap(
     return origin_lat, origin_lon, None
 
 
+# [#183] 앱의 공원 모드는 공원 중심 좌표를 보낸다(frontend pilotParks.ts center == PILOT_PARK_CENTERS).
+# 이때는 공원 한가운데가 아니라 그 공원 보행망에 이어지는 주차장 입구에서 출발·도착한다 (앱 수정 없이 주차장 자료 활용).
+# 출발 가능한 주차장이 없으면 지금처럼 공원 중심에서 출발한다. 주차장을 직접 지정한 요청은 그대로 둔다.
+PARK_CENTER_MATCH_M = 30.0
+_DEFAULT_PARK_LOT_CACHE: Dict[str, Optional[Dict[str, Any]]] = {}
+
+
+def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
+    """공원 보행망에 이어지는 주차장 중 하나. 좌표 경고(data_issue) 없는 것 → 진입로 없는 것 → 보행망에 가까운 것 순."""
+    if park_id in _DEFAULT_PARK_LOT_CACHE:
+        return _DEFAULT_PARK_LOT_CACHE[park_id]
+    best: Optional[Tuple[Tuple[bool, bool, float], Dict[str, Any]]] = None
+    try:
+        graph = build_park_graph(park_id)
+        for lot in _PILOT_PARKING_LOTS:
+            point = (lot["entrance_lon"], lot["entrance_lat"])
+            try:
+                start, approach = resolve_park_start(graph, park_id, point)
+            except RoutePlanningError:
+                continue  # 보행망에서 멀거나 진입로 자료가 없는 주차장
+            rank = (bool(lot.get("data_issue")), approach is not None, haversine_m(point, start))
+            if best is None or rank < best[0]:
+                best = (rank, lot)
+    except RoutePlanningError:
+        best = None
+    _DEFAULT_PARK_LOT_CACHE[park_id] = best[1] if best else None
+    return _DEFAULT_PARK_LOT_CACHE[park_id]
+
+
+def _parking_start_keeps_courses_distinct(park_id: str, lot: Dict[str, Any], target_distance_m: float) -> bool:
+    """주차장에서 출발해도 코스 3개가 서로 다른 길인지 (간선 겹침 < SAME_ROUTE_OVERLAP).
+
+    막다른 길 끝에 붙은 주차장(예: 세종 제1주차장)은 세 코스가 처음 수백 m 를 함께 갔다 돌아와 비슷해 보일 수 있다.
+    그런 경우는 공원 중심 출발을 유지한다 (코스가 서로 다른 길이어야 한다는 #125·#155 요구가 우선).
+    """
+    try:
+        routes = plan_park_walk_candidates(park_id, lot["entrance_lat"], lot["entrance_lon"], target_distance_m)
+    except RoutePlanningError:
+        return False
+    edges = [route_edge_set(route) for route in routes]
+    return all(_route_overlap(edges[i], edges[j]) < SAME_ROUTE_OVERLAP for i in range(len(edges)) for j in range(i + 1, len(edges)))
+
+
+def _park_center_to_parking(
+    origin_lat: float, origin_lon: float, origin_mode: str, pilot_park_id: Optional[str], parking_lot_id: Optional[str],
+    target_distance_m: float,
+) -> Optional[Dict[str, Any]]:
+    """공원 중심에서 출발하는 공원 모드 요청이면 그 공원의 기본 출발 주차장을 돌려준다. 아니면 None."""
+    if origin_mode != "park" or parking_lot_id or pilot_park_id not in PILOT_PARK_CENTERS:
+        return None
+    center_lat, center_lon, _ = PILOT_PARK_CENTERS[pilot_park_id]
+    if _haversine_distance_meters(origin_lat, origin_lon, center_lat, center_lon) > PARK_CENTER_MATCH_M:
+        return None
+    lot = _default_parking_for_park(pilot_park_id)
+    if lot is None or not _parking_start_keeps_courses_distinct(pilot_park_id, lot, target_distance_m):
+        return None
+    return lot
+
+
 def _validate_candidate_route(
     candidate: Any,
     selected_park: str,
@@ -591,6 +653,13 @@ def plan_walk_route(req: Dict[str, Any]):
     origin_lat, origin_lon, matched_parking = _resolve_parking_snap(
         origin_lat, origin_lon, parking_lot_id, origin_mode
     )
+    default_lot = _park_center_to_parking(
+        origin_lat, origin_lon, origin_mode, pilot_park_id, parking_lot_id,
+        target_distance_m=speed_kmh * 1000.0 / 60.0 * target_duration,  # walk_planning_agent 의 D = V × T 와 같은 식
+    )
+    if default_lot is not None:
+        origin_lat, origin_lon, matched_parking = default_lot["entrance_lat"], default_lot["entrance_lon"], default_lot
+        parking_lot_id = default_lot["parking_id"]
 
     weather_context = req.get("weather_context")
     if not weather_context:
