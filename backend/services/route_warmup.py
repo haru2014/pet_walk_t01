@@ -56,6 +56,11 @@ def warm_park_caches(park_ids: Optional[Iterable[str]] = None) -> Dict[str, dict
                 calculate_segment_slope_percent(a, b)
             except Exception:
                 failed += 1
+        try:  # 공원 순환 후보도 미리 찾아 둔다 (공원별 첫 요청이 이 계산을 기다리지 않게)
+            from agent.park_walk_planner import warm_park_cycles
+            warm_park_cycles(graph)
+        except Exception as err:
+            logger.warning("순환 워밍업 건너뜀: park=%s error=%s", park_id, type(err).__name__)
         summary[park_id] = {"edges": len(edges), "failed": failed}
         logger.info("워밍업 완료: park=%s edges=%d failed=%d %.1fs", park_id, len(edges), failed, time.monotonic() - started)
     return summary
