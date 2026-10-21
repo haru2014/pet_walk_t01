@@ -79,13 +79,18 @@ from services.voice_intent_service import (
 from contextlib import asynccontextmanager
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def _warm_up_route_caches() -> None:
     """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
     start_background_warmup(
         weather_fetch=_live_heat_risk_response,
         weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
     )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """[#125] 서버 수명 주기(lifespan): 백그라운드 캐시 워밍업 실행"""
+    _warm_up_route_caches()
     yield
 
 
