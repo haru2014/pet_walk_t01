@@ -344,6 +344,12 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
+def _app_intent_overrides(req: Dict[str, Any]) -> Dict[str, bool]:
+    """앱이 보내는 avoid_stairs / prefer_shade / prefer_cushion 을 의도 조건으로 바꾼다. 보내지 않은 항목은 넣지 않는다."""
+    mapping = {"avoid_stairs": "avoid_stairs", "prefer_shade": "shade_priority", "prefer_cushion": "prefer_soft"}
+    return {key: req[field] for field, key in mapping.items() if isinstance(req.get(field), bool)}
+
+
 def _resolve_parking_snap(
     origin_lat: float, origin_lon: float, parking_lot_id: Optional[str], origin_mode: str
 ) -> Tuple[float, float, Optional[Dict[str, Any]]]:
@@ -590,12 +596,15 @@ def plan_walk_route(req: Dict[str, Any]):
     if not weather_context:
         weather_context = weather_context_from_response(_live_heat_risk_response(origin_lat, origin_lon))
 
-    user_query = (
-        req.get("user_query")
-        or req.get("prompt")
-        or req.get("query")
-        or f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
-    )
+    # 앱 산책 설정의 체크 항목 (계단 피하기·그늘·폭신한 길). 예전에는 읽지 않아 설정이 추천에 반영되지 않았다
+    intent_overrides = _app_intent_overrides(req)
+    request_text = str(req.get("request_text") or "").strip()
+    if intent_overrides or request_text:
+        # 앱 요청: 조건은 체크 항목으로 받으므로 기본 문장에 특정 노면을 넣지 않고, 사용자가 쓴 요청 문장을 붙인다
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 산책하고 싶어요. {request_text}".strip()
+    else:
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
+    user_query = req.get("user_query") or req.get("prompt") or req.get("query") or default_query
 
     client_dog = {
         "dog_id": req.get("dog_id", "dog_default"),
@@ -637,6 +646,7 @@ def plan_walk_route(req: Dict[str, Any]):
             parking_lot_id=parking_lot_id,
             # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
             pilot_park_id=selected_park or pilot_park_id,
+            intent_overrides=intent_overrides,
         )
 
         validations = {}
