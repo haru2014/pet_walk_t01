@@ -103,3 +103,20 @@ def test_rank_puts_courses_that_fit_the_requested_time_first():
     assert sorted([both_fit_low, both_fit_high], key=rank_key)[0] is both_fit_high  # 맞는 코스끼리는 점수 순
     far, farther = scored(65, 0.71), scored(78, 0.84)
     assert sorted([farther, far], key=rank_key)[0] is far  # 모두 멀면 요청에 가까운 순
+
+
+def test_soft_score_uses_the_known_part_so_less_surveyed_courses_do_not_win():
+    """#188 승현님 폰(유림): 그늘을 골랐는데 그늘 62%·노면 확인 36% 코스가 그늘 81%·확인 73% 코스보다 앞섰다.
+    확인된 구간이 모두 포장길이면 확인 비율과 관계없이 폭신 0 으로 본다. 노면을 전혀 모를 때만 중간값."""
+    from agent.personalized_scorer import score_personalized
+    common = dict(distance_m=1900, target_distance_m=1900, air_temp_c=10.0, surface_temp_c=10.0, shade_priority=True)
+    less_surveyed = {"shade_ratio": 0.62, "surface_known_ratio": 0.36, "soft_surface_ratio": 0.0,
+                     "max_slope_percent": 4.4, "stairs_count": 0}
+    more_shade = {"shade_ratio": 0.81, "surface_known_ratio": 0.73, "soft_surface_ratio": 0.0,
+                  "max_slope_percent": 4.4, "stairs_count": 0}
+    assert score_personalized(more_shade, **common).total > score_personalized(less_surveyed, **common).total
+
+    half_soft = {"shade_ratio": 0.5, "surface_known_ratio": 0.4, "soft_surface_ratio": 0.2}  # 확인된 구간의 절반이 폭신
+    unknown = {"shade_ratio": 0.5, "surface_known_ratio": 0.0, "soft_surface_ratio": 0.0}
+    soft_pref = dict(distance_m=1000, target_distance_m=1000, preferred_surfaces=["dirt"])
+    assert score_personalized(half_soft, **soft_pref).preference == score_personalized(unknown, **soft_pref).preference

@@ -9,7 +9,7 @@
 | 계단 | 25 | 계단 회피 요청 시 계단이 있으면 0. 정보가 없으면 중간(15) |
 | 경사 | 25 | 관절 단계별 경사 상한(JOINT_SLOPE_LIMIT) 이하 만점, 1.5배 이하 12, 그 이상 0 |
 | 지면온도 | 20 | 실측 그늘 비율로 식힌 지면온도. 안전 기준(SAFE_MAX_C 33℃, #153) 이하 20, 주의 앞쪽 절반 12, 주의 6, 위험 0 |
-| 선호 적합도 | 15 | 그늘 비율·폭신 노면 비율을 선호에 따라 가중 평균. 모르는 값은 0.5 |
+| 선호 적합도 | 15 | 그늘 비율·폭신 노면 비율을 선호에 따라 가중 평균. 노면은 확인된 구간 안의 폭신 비율, 노면·그늘을 전혀 모르면 0.5 |
 | 거리 | 15 | 목표 거리 대비 오차 |
 
 자료가 없는 값은 지어내지 않고 중간값으로 둔다. 가중치는 현정님 검토 후 확정한다(제안 단계).
@@ -95,7 +95,11 @@ def score_personalized(profile: Dict[str, Any], *, distance_m: float, target_dis
 
     # 4. 선호 적합도 (15)
     weights = preference_weights(shade_priority, preferred_surfaces)
-    soft = profile.get("soft_surface_ratio") if (profile.get("surface_known_ratio") or 0) >= 0.5 else None
+    # 노면은 확인된 구간 안의 폭신한 비율로 본다. 예전에는 확인 비율이 50% 미만이면 '모름 = 0.5'를 줘서,
+    # 노면을 덜 확인한 코스가 더 확인된(그런데 포장길인) 코스보다 앞섰다 (#188 유림: 확인 36% 코스 > 73% 코스).
+    known = profile.get("surface_known_ratio") or 0.0
+    soft_of_route = profile.get("soft_surface_ratio")
+    soft = min(1.0, soft_of_route / known) if known > 0 and soft_of_route is not None else None
     fit = (weights["shade"] * (shade if shade is not None else UNKNOWN)
            + weights["soft"] * (soft if soft is not None else UNKNOWN))
     preference = round(15.0 * fit, 1)
