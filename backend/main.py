@@ -224,10 +224,16 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "shadePercent": int(cand.average_shade_ratio * 100),
         "softSurfacePercent": 85 if "grass" in surface_types else 65,
         "reason": reason,
+        "dataReliability": getattr(cand, "data_reliability", "estimated"),
+        "slopeSource": getattr(cand, "slope_source", "approximation"),
     }
     if profile:
         # 경사·폭신 노면·계단은 실측값으로 바꾼다 (#114). 그늘은 자료가 없어 앱이 '정보 없음'을 처리한 뒤 바꾼다.
         course.update(_measured_card_fields(profile))
+        if profile.get("slope_source"):
+            course["slopeSource"] = profile["slope_source"]
+        if profile.get("slope_source") == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
+            course["dataReliability"] = "measured"
     return course
 
 
