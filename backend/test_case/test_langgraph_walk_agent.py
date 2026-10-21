@@ -168,6 +168,24 @@ class TestLangGraphAgentFeedbackAdaptation:
         # 피드백에 의해 경사 기준이 하향 보정되었는지 확인 (기본 7.0% -> 5.0%)
         assert "MaxSlope: 5.0%" in calib_trace[0]
 
+    def test_agent_adapts_multi_factor_feedback_shade_and_surfaces(self):
+        """'lack_of_shade' 및 'rough_surface' 피드백 수신 시 그늘 우선(True) 및 부드러운 노면 보강 검증."""
+        user_query = "동네 한바퀴 20분"
+        dog_context = {"dog_id": "dog-01", "name": "보리", "breed": "시츄", "age_years": 4, "weight_kg": 5.5}
+        recent_feedback = [
+            {"tag": "lack_of_shade", "count": 1},
+            {"tag": "rough_surface", "count": 1},
+        ]
+        result = run_walk_planning_agent(
+            user_query=user_query,
+            client_dog_context=dog_context,
+            client_recent_feedback=recent_feedback,
+        )
+        assert result.status == "completed"
+        assert result.intent.shade_priority is True
+        assert "dirt" in result.intent.preferred_surfaces
+        assert "grass" in result.intent.preferred_surfaces
+
 
 class TestLangGraphAgentFallbackHandling:
     """[US-A1] 모호하거나 빈 질의 시 안전 프리셋 Fallback 검증."""
