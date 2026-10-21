@@ -156,6 +156,13 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
         webMapInstanceRef.current = mapInstance;
 
+        // 스타일 스프라이트에 누락된 POI 아이콘(office, recycling 등) 콘솔 경고 방지
+        if (typeof (mapInstance as any).setMissingStyleImageResolver === 'function') {
+          (mapInstance as any).setMissingStyleImageResolver(() => {
+            return { width: 1, height: 1, data: new Uint8Array(4) };
+          });
+        }
+
         // 스타일 로드 실패(오프라인/서버 장애)는 즉시, 응답 지연은 타임아웃으로 다음 단계 전환.
         // 스타일 파싱 이후의 글리프/스프라이트 오류는 폴백 대상이 아니므로 style.load 이전만 처리합니다.
         let styleParsed = false;

@@ -9,15 +9,16 @@
  * 4. 산책 거리(km) & 소요 시간(분) 및 원터치 [산책 시작] 바인딩
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DogProfile } from '../../types/dogProfile';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
+import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { RouteMapView } from '../map/RouteMapView';
 import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
+import { useAppTheme } from '../../theme/themeManager';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
-
-const BELL_ICON_IMG = require('../../../assets/images/home/bell_icon.png');
+import bellIconImg from '../../../assets/ui_n2/bell_icon.png';
 
 export interface HomeParkWalkCardN2Props {
   dog: DogProfile;
@@ -29,6 +30,7 @@ export interface HomeParkWalkCardN2Props {
   estimatedMinutes?: number;
   distanceKm?: string;
   courseName?: string;
+  userCoords?: { lon: number; lat: number } | null;
 }
 
 export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
@@ -41,9 +43,19 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   estimatedMinutes = 30,
   distanceKm = '2.1 km',
   courseName = '바로 산책하기',
+  userCoords,
 }) => {
+  const { theme, colors } = useAppTheme();
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
+  const activePins = useMemo(
+    () => mergeCurrentLocationPin(SAMPLE_STEP_PINS, userCoords?.lon, userCoords?.lat),
+    [userCoords]
+  );
+
+  const cardBgColor = theme === 'dusty_amber' ? colors.accent : colors.surface;
+  const isDark = theme === 'dark';
+  const cardTextColor = isDark ? colors.textMain : (theme === 'dusty_amber' ? '#2D3A31' : colors.textMain);
 
   return (
     <View style={styles.container}>
@@ -58,20 +70,29 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
       </TouchableOpacity>
 
       {/* 2. 메인 카드 본체 */}
-      <View style={styles.cardBody}>
+      <View style={[styles.cardBody, { backgroundColor: cardBgColor, borderColor: colors.border, borderWidth: 1 }]}>
         {/* 카드 헤더 (타이틀, 강아지 드롭다운, 알림 버튼) */}
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{courseName}</Text>
+          <Text style={[styles.cardTitle, { color: cardTextColor }]}>{courseName}</Text>
 
           <View style={styles.headerRightActions}>
             {isMultiDog && (
               <TouchableOpacity
                 onPress={() => setShowDropdown((prev) => !prev)}
-                style={styles.dogSwitchButton}
+                style={[
+                  styles.dogSwitchButton,
+                  {
+                    backgroundColor: isDark ? colors.primaryLight : 'rgba(255, 255, 255, 0.45)',
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                  },
+                ]}
                 activeOpacity={0.7}
                 accessibilityLabel={`${dog.name} 반려견 선택 드롭다운`}
               >
-                <Text style={styles.dogSwitchText}>{dog.name} ▾</Text>
+                <Text style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}>
+                  {dog.name} ▾
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -82,7 +103,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
               accessibilityLabel="알림"
               accessibilityRole="button"
             >
-              <Image source={BELL_ICON_IMG} style={styles.bellIcon} resizeMode="contain" />
+              <Image source={bellIconImg} style={styles.bellIcon} resizeMode="contain" />
             </TouchableOpacity>
           </View>
         </View>
@@ -98,47 +119,78 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
           />
         )}
 
-        {/* 3. 코스 지도 프리뷰 (flex 채움) */}
-        <View style={styles.mapFrame}>
+        {/* 3. 코스 지도 프리뷰 (부모 mapFrame에 100% 꽉 채움) */}
+        <View style={[styles.mapFrame, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}>
           <RouteMapView
             route={SAMPLE_ROUTE}
-            stepPins={SAMPLE_STEP_PINS}
+            stepPins={activePins}
             speedKmH={dog.speedKmH ?? 2.8}
             onStart={onStartWalk}
             showSummaryCard={false}
+            fillContainer={true}
           />
         </View>
 
-        {/* 4. 카드 하단: 산책 거리/시간 & 시작 버튼 */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={onStartWalk}
-          style={styles.statsBar}
-          accessibilityLabel="산책 시작하기"
-        >
-          <View style={styles.statsInfoRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>🚶</Text>
-              <Text style={styles.statLabel}>산책</Text>
-              <Text style={styles.statValue}>{distanceKm}</Text>
+        {/* 4. 카드 하단: [예상 거리 / 예상 시간] 정보 블록 + [산책 시작 →] 버튼 (와이어프레임 기준) */}
+        <View style={styles.bottomActionsRow}>
+          {/* 4-1. 좌측 메트릭 카드 (약 60% 비중) */}
+          <View
+            style={[
+              styles.metricsCard,
+              {
+                backgroundColor: isDark ? colors.background : (theme === 'dusty_amber' ? '#F4DFBD' : 'rgba(255, 255, 255, 0.5)'),
+                borderColor: colors.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            {/* 예상 거리 */}
+            <View style={styles.metricColumn}>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricIcon}>🐾</Text>
+                <Text style={[styles.metricValue, { color: cardTextColor }]}>{distanceKm}</Text>
+              </View>
+              <Text style={[styles.metricLabel, { color: cardTextColor }]}>예상 거리</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>⏱</Text>
-              <Text style={styles.statValue}>{estimatedMinutes}분</Text>
+
+            {/* 중간 얇은 세로 구분선 */}
+            <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+
+            {/* 예상 시간 */}
+            <View style={styles.metricColumn}>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricIcon}>⏱</Text>
+                <Text style={[styles.metricValue, { color: cardTextColor }]}>{estimatedMinutes}분</Text>
+              </View>
+              <Text style={[styles.metricLabel, { color: cardTextColor }]}>예상 시간</Text>
             </View>
           </View>
-          <View style={styles.startActionBadge}>
-            <Text style={styles.startActionText}>시작 →</Text>
-          </View>
-        </TouchableOpacity>
+
+          {/* 4-2. 우측 산책 시작 버튼 (약 40% 비중, 동일한 높이) */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onStartWalk}
+            style={[
+              styles.startWalkButton,
+              {
+                backgroundColor: colors.primaryDark,
+                borderColor: colors.border,
+                borderWidth: 1,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="산책 시작하기"
+          >
+            <Text style={[styles.startWalkButtonText, { color: colors.textWhite }]}>산책 시작 →</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, width: '100%', alignItems: 'center', marginTop: 28 },
+  container: { flex: 1, width: '100%', alignItems: 'center', marginTop: 22 },
   mascotTouchable: { position: 'absolute', top: -34, zIndex: 10, alignItems: 'center', justifyContent: 'center' },
   mascotImage: { width: 88, height: 60 },
   cardBody: {
@@ -154,19 +206,42 @@ const styles = StyleSheet.create({
     borderRadius: 24, alignItems: 'center', justifyContent: 'center',
   },
   dogSwitchText: { fontSize: 13, fontWeight: '700', color: '#2D3A31' },
-  bellButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F5EFE0', alignItems: 'center', justifyContent: 'center' },
-  bellIcon: { width: 22, height: 22, tintColor: '#2D3A31' },
+  bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  bellIcon: { width: 42, height: 42 },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
-  statsBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12, marginTop: 8, minHeight: 48,
+  bottomActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+    marginTop: 8,
+    minHeight: 52,
   },
-  statsInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statIcon: { fontSize: 15 },
-  statLabel: { fontSize: 12, fontWeight: '700', color: '#2D3A31' },
-  statValue: { fontSize: 13, fontWeight: '800', color: '#2D3A31' },
-  statDivider: { width: 1, height: 12, backgroundColor: 'rgba(45, 58, 49, 0.25)' },
-  startActionBadge: { backgroundColor: '#5A7361', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  startActionText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
+  metricsCard: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  metricColumn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  metricValRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metricIcon: { fontSize: 13 },
+  metricValue: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
+  metricLabel: { fontSize: 10.5, fontWeight: '600', opacity: 0.75, marginTop: 1 },
+  metricDivider: { width: 1, height: 26, opacity: 0.7 },
+  startWalkButton: {
+    flex: 1,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  startWalkButtonText: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
 });

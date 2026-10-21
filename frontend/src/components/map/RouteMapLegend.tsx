@@ -7,6 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { SegmentType } from '../../types/route';
+import { useAppTheme } from '../../theme/themeManager';
 
 export const SEGMENT_COLORS: Record<SegmentType, string> = {
   safe: TOKENS.colors.routeSafe,
@@ -21,12 +22,20 @@ const LEGEND = [
 ];
 
 export const RouteMapLegend: React.FC = () => {
+  const { colors } = useAppTheme();
+
+  const segmentColors: Record<SegmentType, string> = {
+    safe: colors.routeSafe ?? TOKENS.colors.routeSafe,
+    normal: colors.routeNormal ?? TOKENS.colors.routeNormal,
+    caution: colors.routeCaution ?? TOKENS.colors.routeCaution,
+  };
+
   return (
-    <View style={styles.legend}>
+    <View style={[styles.legend, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
       {LEGEND.map((item) => (
         <View key={item.type} style={styles.legendItem}>
-          <View style={[styles.legendBar, { backgroundColor: SEGMENT_COLORS[item.type] }]} />
-          <Text style={styles.legendLabel}>{item.label}</Text>
+          <View style={[styles.legendBar, { backgroundColor: segmentColors[item.type] }]} />
+          <Text style={[styles.legendLabel, { color: colors.textMain }]}>{item.label}</Text>
         </View>
       ))}
     </View>
@@ -35,7 +44,6 @@ export const RouteMapLegend: React.FC = () => {
 
 const styles = StyleSheet.create({
   legend: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -48,5 +56,6 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendBar: { width: 14, height: 4, borderRadius: 2 },
-  legendLabel: { fontSize: 10, color: TOKENS.colors.textMain, fontWeight: '500' },
+  legendLabel: { fontSize: 10, fontWeight: '600' },
 });
+

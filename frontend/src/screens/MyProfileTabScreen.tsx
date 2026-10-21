@@ -348,7 +348,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
     });
   };
   return (
-    <View style={[styles.container, { paddingHorizontal: myProfile.containerPaddingH }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingHorizontal: myProfile.containerPaddingH }]}>
       {/* 상단 헤더 */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
@@ -361,7 +361,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           onPress={() => handleSubTabChange('dog_profile')}
           style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'dog_profile' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'dog_profile' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.segmentText,
+              { fontSize: myProfile.segmentFontSize, color: subTab === 'dog_profile' ? colors.primaryDark : colors.textMuted },
+              subTab === 'dog_profile' && { fontWeight: '700' },
+            ]}
+          >
             🐾 프로필
           </Text>
         </TouchableOpacity>
@@ -369,7 +376,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           onPress={() => handleSubTabChange('theme_account')}
           style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'theme_account' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'theme_account' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.segmentText,
+              { fontSize: myProfile.segmentFontSize, color: subTab === 'theme_account' ? colors.primaryDark : colors.textMuted },
+              subTab === 'theme_account' && { fontWeight: '700' },
+            ]}
+          >
             🎨 테마·계정
           </Text>
         </TouchableOpacity>
@@ -377,7 +391,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           onPress={() => handleSubTabChange('walk_records')}
           style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'walk_records' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'walk_records' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.segmentText,
+              { fontSize: myProfile.segmentFontSize, color: subTab === 'walk_records' ? colors.primaryDark : colors.textMuted },
+              subTab === 'walk_records' && { fontWeight: '700' },
+            ]}
+          >
             📜 활동
           </Text>
         </TouchableOpacity>
@@ -385,7 +406,14 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           onPress={() => handleSubTabChange('settings')}
           style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'settings' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
         >
-          <Text numberOfLines={1} style={[styles.segmentText, { fontSize: myProfile.segmentFontSize }, subTab === 'settings' && { color: colors.primaryDark, fontWeight: '700' }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.segmentText,
+              { fontSize: myProfile.segmentFontSize, color: subTab === 'settings' ? colors.primaryDark : colors.textMuted },
+              subTab === 'settings' && { fontWeight: '700' },
+            ]}
+          >
             ⚙️ 설정
           </Text>
         </TouchableOpacity>
@@ -480,8 +508,11 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               <Text
                 style={[
                   styles.filterChipText,
-                  { fontSize: myProfile.segmentFontSize },
-                  walkSubFilter === 'history' && { color: colors.primaryDark, fontWeight: '700' },
+                  {
+                    fontSize: myProfile.segmentFontSize,
+                    color: walkSubFilter === 'history' ? colors.primaryDark : colors.textMuted,
+                  },
+                  walkSubFilter === 'history' && { fontWeight: '700' },
                 ]}
               >
                 🐾 완주 산책 기록
@@ -499,8 +530,11 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               <Text
                 style={[
                   styles.filterChipText,
-                  { fontSize: myProfile.segmentFontSize },
-                  walkSubFilter === 'bookmarks' && { color: colors.primaryDark, fontWeight: '700' },
+                  {
+                    fontSize: myProfile.segmentFontSize,
+                    color: walkSubFilter === 'bookmarks' ? colors.primaryDark : colors.textMuted,
+                  },
+                  walkSubFilter === 'bookmarks' && { fontWeight: '700' },
                 ]}
               >
                 ⭐ 찜한 안심 코스

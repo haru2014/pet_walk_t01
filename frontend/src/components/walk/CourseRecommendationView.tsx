@@ -29,6 +29,8 @@ import { PlanSourceBadge } from './PlanSourceBadge';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
+import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
+import { getCurrentLocationCoords } from '../../services/locationService';
 
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
@@ -93,8 +95,34 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     );
   }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark]);
 
+  const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
+  const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
+    if (preferences?.userCoordinates) {
+      return { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (isCurrentLocOrigin && !gpsCoords) {
+      let isMounted = true;
+      void getCurrentLocationCoords(4000).then((res) => {
+        if (isMounted && res.ok && res.coords) {
+          setGpsCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+        }
+      });
+      return () => { isMounted = false; };
+    }
+  }, [isCurrentLocOrigin, gpsCoords]);
+
   const activeRoute = activePlan.route;
-  const activePins = activePlan.stepPins;
+  const activePins = useMemo(() => {
+    const pins = activePlan.stepPins;
+    if (isCurrentLocOrigin && gpsCoords) {
+      return mergeCurrentLocationPin(pins, gpsCoords.lon, gpsCoords.lat);
+    }
+    return pins;
+  }, [activePlan.stepPins, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
   const activeSummary = useMemo(
     () => buildCourseSummary(activeRoute, dog.speedKmH),
@@ -157,13 +185,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               {dog.name}에게 맞는 산책 코스를 찾았어요.
             </Text>
           </View>
-          <Text style={[styles.briefingDesc, { color: colors.textMuted }]} numberOfLines={2}>
+          <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85 }]} numberOfLines={2}>
             {briefingText}
           </Text>
           {/* 가로 태그 칩 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
             {conditionLabels.map((lbl) => (
-              <View key={lbl} style={[styles.tagChip, { backgroundColor: colors.primaryLight }]}>
+              <View
+                key={lbl}
+                style={[
+                  styles.tagChip,
+                  { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, borderWidth: 1 },
+                ]}
+              >
                 <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
               </View>
             ))}
@@ -208,7 +242,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                     styles.courseChip,
                     {
                       paddingVertical: courseRecommend.altCourseChipPadV,
-                      backgroundColor: isSelected ? colors.primaryLight : colors.surface,
+                      backgroundColor: isSelected ? colors.primaryWash : colors.background,
                       borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
@@ -216,7 +250,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   <Text
                     style={[
                       styles.courseChipText,
-                      { color: isSelected ? colors.primaryDark : colors.textMuted },
+                      { color: isSelected ? colors.primaryDark : colors.textMain },
                       isSelected && styles.courseChipTextActive,
                     ]}
                   >
@@ -230,28 +264,26 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
+        <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
+          {currentCourse.name}
+        </Text>
         <View style={styles.courseMetricsRow}>
-          <View style={styles.courseNameGroup}>
-            <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
-              {currentCourse.name}
-            </Text>
-            {extractCourseScore(currentCourse) != null && (
-              <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
-                <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
-                  AI 맞춤 {extractCourseScore(currentCourse)}점
-                </Text>
-              </View>
-            )}
-          </View>
           <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
             {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
           </Text>
+          {extractCourseScore(currentCourse) != null && (
+            <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
+                AI 맞춤 {extractCourseScore(currentCourse)}점
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
         {currentCourse.reason ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Text style={[styles.reasonText, { color: colors.textMuted }]} numberOfLines={2}>
+            <Text style={[styles.reasonText, { color: colors.textMain }]} numberOfLines={2}>
               💡 {currentCourse.reason}
             </Text>
           </View>
@@ -273,27 +305,27 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {surfaceInfo.isUnknown ? (
                   <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
                 ) : (
-                  <>폭신 노면 <Text style={{ color: colors.primary, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                  <>폭신 노면 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
                 )}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {currentCourse.stairsCount.includes('계단') ? (
                   <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
                 ) : (
                   <>계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text></>
                 )}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 {slopeContent}
               </Text>
-              <Text style={styles.metricDot}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMuted }]}>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
                 그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
               </Text>
             </View>
@@ -369,8 +401,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courseName: { fontSize: 14, fontWeight: '800' },
-  courseNameGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+  courseName: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
   scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   scoreBadgeText: { fontSize: 10, fontWeight: '800' },
   reasonBox: {
@@ -392,7 +423,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metricText: { fontSize: 10 },
-  metricDot: { color: 'rgba(0,0,0,0.2)', fontSize: 10 },
+  metricDot: { fontSize: 10 },
   startButton: {
     height: 48,
     borderRadius: 14,

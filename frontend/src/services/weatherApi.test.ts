@@ -169,7 +169,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
     });
 
     it('서버 통신 실패/에러 발생 시에도 예외 없이 안전한 폴백을 반환해야 한다', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
       const result = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
 

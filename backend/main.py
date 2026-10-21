@@ -76,21 +76,41 @@ from services.voice_intent_service import (
     resolve_landmark_park_id,
 )
 
+from contextlib import asynccontextmanager
+
+
+def _warm_up_route_caches() -> None:
+    """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
+    start_background_warmup(
+        weather_fetch=_live_heat_risk_response,
+        weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """[#125] 서버 수명 주기(lifespan): 백그라운드 캐시 워밍업 실행"""
+    _warm_up_route_caches()
+    yield
+
+
 app = FastAPI(
     title="편안하개 (PetWalk) API",
     description="AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼 REST API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 logger = logging.getLogger(__name__)
 
 # 🌐 크로스 오리진(CORS) 미들웨어 설정 (Expo Web 및 모바일 통신 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r".*",  # 모든 도메인(온라인/로컬/배포 URL) 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 위험 제보 저장소: community_repo 의 Supabase 클라이언트를 공유 (미연결 시 인메모리)
 hazard_repo = HazardReportRepository(lambda: community_repo._client)
@@ -106,15 +126,6 @@ def read_root():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
-
-
-@app.on_event("startup")
-def _warm_up_route_caches() -> None:
-    """[#125] 서버가 켜지면 공원 그래프·구간 고도를 백그라운드에서 미리 계산한다. (헬스체크는 막지 않는다)"""
-    start_background_warmup(
-        weather_fetch=_live_heat_risk_response,
-        weather_points=[(lat, lon) for lat, lon, _name in PILOT_PARK_CENTERS.values()],
-    )
 
 
 @app.get("/health")
@@ -777,6 +788,39 @@ def share_walk_review(walk_id: str, authorization: Optional[str] = Header(defaul
 def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
     return _run_walk_share(unshare_walk, walk_id, authorization)
+
+
+@app.post("/api/v1/community/share", status_code=status.HTTP_201_CREATED)
+def share_community_course_endpoint(body: CommunityCourseShareRequest):
+    """[US-G2] 200m 공간 마스킹(Spatial Jittering)을 적용한 완주 코스를 커뮤니티 피드에 공유 등록."""
+    masked_result = apply_spatial_masking_to_course(body.raw_coordinates, masking_radius_m=200.0)
+    masked_coords = masked_result["masked_coordinates"]
+    
+    # 총 거리 및 예상 산책 시간 계산 (평균 시속 3.6km/h = 분당 60m 기준)
+    total_dist_m = sum(
+        _haversine_distance_meters(c1[1], c1[0], c2[1], c2[0])
+        for c1, c2 in zip(masked_coords[:-1], masked_coords[1:])
+    ) if len(masked_coords) > 1 else 1000.0
+    duration_min = max(10, round(total_dist_m / 60.0))
+
+    feed_item = {
+        "course_id": f"feed_{uuid4().hex[:8]}",
+        "title": body.course_title,
+        "masked_polyline": masked_coords,
+        "distance_m": round(total_dist_m),
+        "duration_min": duration_min,
+        "rating": float(body.satisfaction_rating),
+        "is_origin_masked": True,
+        "user_id": body.user_id,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    saved_feed = community_repo.save_course(feed_item)
+    return {
+        "status": "success",
+        "message": "코스가 성공적으로 커뮤니티에 공유되었습니다.",
+        "feed": saved_feed,
+        "is_supabase": community_repo.is_connected(),
+    }
 
 
 @app.get("/api/v1/community/feed")

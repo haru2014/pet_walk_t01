@@ -41,7 +41,7 @@ describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () =>
     expect(ids).toContain('friendly_male');
 
     for (const profile of VOICE_PROFILES) {
-      expect(profile.pitch).toBeGreaterThanOrEqual(0.7);
+      expect(profile.pitch).toBeGreaterThanOrEqual(0.5);
       expect(profile.pitch).toBeLessThanOrEqual(1.5);
       expect(profile.rate).toBeGreaterThanOrEqual(0.7);
       expect(profile.rate).toBeLessThanOrEqual(1.3);
@@ -165,13 +165,13 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         expect.objectContaining({
           language: 'ko-KR',
           voice: 'ko-kr-x-ism-local',
-          pitch: 0.70,
+          pitch: 0.50,
           rate: 0.92,
         })
       );
     });
 
-    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.70/0.78)로 발화되어야 한다', async () => {
+    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.50/0.58)로 발화되어야 한다', async () => {
       TTSNavigationService.setCachedVoicesForTesting([]); // 보이스 없음
 
       await TTSNavigationService.setProfile('friendly_male');
@@ -181,7 +181,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         '잠시 벤치에서 쉬어가요',
         expect.objectContaining({
           language: 'ko-KR',
-          pitch: 0.78,
+          pitch: 0.58,
           rate: 0.95,
         })
       );

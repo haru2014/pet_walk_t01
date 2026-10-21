@@ -1,25 +1,12 @@
-/**
- * [편안하개 - PetWalk]
- * FastAPI 백엔드 라우팅 API 통신 클라이언트 및 오프라인 Mock 폴백 서비스
- *
- * - Live 서버 (FastAPI POST /api/v1/walk/plan) 연결 시 실시간 도로망 경로 수신
- * - 지정 공원 요청은 서버의 모든 코스 검증을 확인하며, 오류 시 로컬 샘플로 대체하지 않음
- */
-
 import { DogProfile } from '../types/dogProfile';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { RecommendedCourse, WalkPreferences, DEFAULT_RECOMMENDED_COURSES, CourseProfile } from '../types/walkSettings';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanByParkId } from './sampleRoute';
 import { FeedbackSummaryPayload } from './feedbackContext';
 import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdaptivePlanner';
-
 import { fetchWithServerFallback } from './apiClient';
-
-/**
- * 반려견 조건과 피드백을 기반으로 안심 산책 코스를 요청한다.
- * 공원 모드는 경계·보행망 검증을 통과한 서버 결과만 반환한다.
- */
 import { getPilotParkById } from '../types/pilotParks';
+import { mergeCurrentLocationPin, createCurrentLocationPin } from './locationPinHelper';
 
 export class RoutePlanError extends Error {
   constructor(public readonly code: string, message: string, public readonly requestId?: string) {
@@ -35,14 +22,10 @@ export interface RoutePlanResult {
   readonly stepPins: readonly RouteStepPin[];
   readonly briefingMessage: string;
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
-  /** 후보별 실측 경사·노면 지표 (US-B1, US-B2) */
   readonly courseProfiles?: Record<string, CourseProfile>;
-  /** 경사·구간 색을 계산한 고도 자료의 출처 문구 (서버 elevation_source.attribution, DEM 미사용 시 null) */
   readonly elevationAttribution?: string | null;
 }
 
-// 코스 계산 요청은 서버가 잠들었다 깨는 시간(Render 무료, 10~15초)과 계산 시간을 합쳐도 기다린다.
-// 예전 3.5초는 운영 서버 응답(평균 6초)보다 짧아, 공원 모드는 경로가 안 나오고 현재 위치 모드는 샘플(유림)로 바뀌었다. (이슈 #125)
 const API_TIMEOUT_MS = 20000;
 
 function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
@@ -72,12 +55,7 @@ function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: R
   };
 
   const stepPins: RouteStepPin[] = [
-    {
-      id: 'current_loc_pin_1',
-      kind: 'safe',
-      position: [lon, lat],
-      instruction: '현재 위치 주변 오프라인 안심 완만 순환 코스입니다.',
-    },
+    createCurrentLocationPin(lon, lat, '현재 위치 기반 완만 순환 코스'),
   ];
 
   return { route, stepPins };
@@ -228,11 +206,15 @@ export async function requestWalkPlan(
         };
       });
 
+      const resolvedStepPins = isCurrentLocation
+        ? mergeCurrentLocationPin(data.step_pins ?? defaultPlan.stepPins, originLon, originLat)
+        : (data.step_pins ?? defaultPlan.stepPins);
+
       return {
         isLiveServer: true,
         courses,
         route: data.geojson ?? defaultPlan.route,
-        stepPins: data.step_pins ?? defaultPlan.stepPins,
+        stepPins: resolvedStepPins,
         coursePlans: data.course_plans,
         courseProfiles: profiles,
         elevationAttribution: data.elevation_source?.attribution ?? null,
@@ -252,12 +234,15 @@ export async function requestWalkPlan(
   const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback);
   const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
   const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
+  const fallbackStepPins = isCurrentLocation
+    ? mergeCurrentLocationPin(defaultPlan.stepPins, originLon, originLat)
+    : defaultPlan.stepPins;
 
   return {
     isLiveServer: false,
     courses: fallbackCourses,
     route: defaultPlan.route,
-    stepPins: defaultPlan.stepPins,
+    stepPins: fallbackStepPins,
     briefingMessage: fallbackBriefing,
   };
 }

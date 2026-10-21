@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
 import { DogAvatar } from '../common/DogAvatar';
@@ -51,6 +52,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   initialRecords,
   onOpenAuthModal,
 }) => {
+  const { colors } = useAppTheme();
   const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
   const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
@@ -110,11 +112,13 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
       <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
         <View style={styles.headerRow}>
           <View style={styles.titleLine}>
-            <Text style={styles.title}>🐾 나의 산책 기록 목록</Text>
-            <View style={styles.badge}><Text style={styles.badgeText}>클라우드 연동</Text></View>
+            <Text style={[styles.title, { color: colors.textMain }]}>🐾 나의 산책 기록 목록</Text>
+            <View style={[styles.badge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+              <Text style={[styles.badgeText, { color: colors.primaryDark }]}>클라우드 연동</Text>
+            </View>
           </View>
         </View>
-        <Text style={styles.emptyText}>
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
           아직 완주한 산책 기록이 없습니다. {dogName}와 첫 안심 산책을 시작해보세요!
         </Text>
       </CardWrapper>
@@ -130,14 +134,14 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
       {/* 1. 상단 타이틀 및 DB동기화 뱃지 (제목 바로 옆에 나란히 배치) */}
       <View style={styles.headerRow}>
         <View style={styles.titleLine}>
-          <Text style={styles.title}>
+          <Text style={[styles.title, { color: colors.textMain }]}>
             🐾 산책 통계 및 기록 ({periodStats.periodLabel} {filteredRecords.length}회)
           </Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>DB 동기화</Text>
+          <View style={[styles.badge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+            <Text style={[styles.badgeText, { color: colors.primaryDark }]}>DB 동기화</Text>
           </View>
         </View>
-        <Text style={styles.subDesc}>
+        <Text style={[styles.subDesc, { color: colors.textMuted }]}>
           {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
         </Text>
       </View>
@@ -152,9 +156,21 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
               key={p}
               activeOpacity={0.8}
               onPress={() => handlePeriodChange(p)}
-              style={[styles.periodChip, isSelected && styles.periodChipActive]}
+              style={[
+                styles.periodChip,
+                {
+                  backgroundColor: isSelected ? colors.primaryLight : colors.background,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}
             >
-              <Text style={[styles.periodChipText, isSelected && styles.periodChipTextActive]}>
+              <Text
+                style={[
+                  styles.periodChipText,
+                  { color: isSelected ? colors.primaryDark : colors.textMuted },
+                  isSelected && { fontWeight: '700' },
+                ]}
+              >
                 {labels[p]}
               </Text>
             </TouchableOpacity>
@@ -163,33 +179,33 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
       </View>
 
       {/* 3. 기간별 헬스케어 통계 요약 박스 (시각적 카드) */}
-      <View style={styles.statsSummaryBox}>
+      <View style={[styles.statsSummaryBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>🐾</Text>
-          <Text style={styles.summaryLabel}>산책 횟수</Text>
-          <Text style={styles.summaryValue}>{periodStats.totalWalks}회</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>산책 횟수</Text>
+          <Text style={[styles.summaryValue, { color: colors.textMain }]}>{periodStats.totalWalks}회</Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>📍</Text>
-          <Text style={styles.summaryLabel}>총 거리</Text>
-          <Text style={styles.summaryValue}>{periodStats.totalDistanceKm}km</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>총 거리</Text>
+          <Text style={[styles.summaryValue, { color: colors.textMain }]}>{periodStats.totalDistanceKm}km</Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>⏱️</Text>
-          <Text style={styles.summaryLabel}>총 시간</Text>
-          <Text style={styles.summaryValue}>{periodStats.totalDurationMinutes}분</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>총 시간</Text>
+          <Text style={[styles.summaryValue, { color: colors.textMain }]}>{periodStats.totalDurationMinutes}분</Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>🌿</Text>
-          <Text style={styles.summaryLabel}>완만 노면율</Text>
-          <Text style={[styles.summaryValue, { color: TOKENS.colors.primaryDark }]}>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>완만 노면율</Text>
+          <Text style={[styles.summaryValue, { color: colors.primaryDark }]}>
             {periodStats.averageSafeRatioPercent}%
           </Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>💩</Text>
-          <Text style={styles.summaryLabel}>총 배변</Text>
-          <Text style={styles.summaryValue}>{periodStats.totalPoopCount}회</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>총 배변</Text>
+          <Text style={[styles.summaryValue, { color: colors.textMain }]}>{periodStats.totalPoopCount}회</Text>
         </View>
       </View>
 
