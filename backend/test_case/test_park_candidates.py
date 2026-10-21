@@ -126,3 +126,17 @@ def test_api_routes_are_really_different(park):
             containment = inter / min(len(s1), len(s2))
             assert containment < 0.70, f"Park {park}: candidates {ids[i]} and {ids[j]} overlap too much ({containment:.1%})"
 
+
+
+def test_long_request_in_a_small_park_recommends_the_longest_course_first():
+    """#170: 송강(작은 공원)에서 120분을 요청하면 경사 점수가 높은 짧은 코스보다 가장 긴 코스를 먼저 추천한다."""
+    from fastapi.testclient import TestClient
+    from main import app
+    res = TestClient(app).post("/api/v1/walk/plan", json={
+        "origin_mode": "park", "pilot_park_id": "songgang",
+        "origin_lat": 36.4353, "origin_lon": 127.3847, "target_duration_minutes": 120,
+    })
+    assert res.status_code == 200
+    data = res.json()
+    minutes = [data["route_validation"][course["id"]]["estimated_minutes"] for course in data["courses"]]
+    assert minutes[0] == max(minutes)

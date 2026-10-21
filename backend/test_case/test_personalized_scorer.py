@@ -86,3 +86,20 @@ def test_walk_plan_scores_change_with_the_dogs_joint_care_level():
 
     young, senior = scores({"joint_care_level": 0}), scores({"joint_care_level": 3})
     assert max(senior) <= max(young)
+
+
+def test_rank_puts_courses_that_fit_the_requested_time_first():
+    """#170: 요청 시간에 맞는(±25%) 코스를 먼저, 맞는 코스가 없으면 요청에 가까운 코스를 먼저 추천한다."""
+    from agent.walk_planning_agent import RouteCandidate, ScoredRoute, rank_key
+
+    def scored(score, err):
+        candidate = RouteCandidate(route_id=f"r{score}", name="코스", total_distance_m=1000, estimated_duration_minutes=20)
+        return ScoredRoute(candidate=candidate, total_score=score, stairs_score=0, slope_score=0, thermal_score=0,
+                           distance_score=0, rank=1, distance_error_ratio=err)
+
+    gentle_but_short, fits = scored(78, 0.35), scored(72, 0.12)
+    assert sorted([gentle_but_short, fits], key=rank_key)[0] is fits
+    both_fit_high, both_fit_low = scored(90, 0.20), scored(80, 0.02)
+    assert sorted([both_fit_low, both_fit_high], key=rank_key)[0] is both_fit_high  # 맞는 코스끼리는 점수 순
+    far, farther = scored(65, 0.71), scored(78, 0.84)
+    assert sorted([farther, far], key=rank_key)[0] is far  # 모두 멀면 요청에 가까운 순
