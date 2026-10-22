@@ -53,28 +53,73 @@ export class BackupService {
   }
 
   /**
-   * 브라우저 환경에서 통합 백업 JSON 파일 다운로드 트리거
+   * 통합 백업 파일을 기기에 저장한다. 웹은 브라우저 다운로드, 모바일은 시스템 공유 시트를 연다.
    */
-  static downloadUnifiedBackupJsonFile(profile: DogProfile, records: WalkRecord[]): boolean {
+  static async downloadUnifiedBackupJsonFile(profile: DogProfile, records: WalkRecord[]): Promise<boolean> {
     try {
       const jsonStr = this.exportUnifiedBackupToJson(profile, records);
       if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `편안하개_통합백업_${profile.name}_${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        this.downloadJsonInBrowser(jsonStr, this.getUnifiedBackupFilename(profile));
         return true;
       }
-      return false;
+
+      const [{ File, Paths }, Sharing] = await Promise.all([
+        import('expo-file-system'),
+        import('expo-sharing'),
+      ]);
+      if (!(await Sharing.isAvailableAsync())) return false;
+
+      const file = new File(Paths.cache, this.getUnifiedBackupFilename(profile));
+      if (file.exists) file.delete();
+      file.create();
+      file.write(jsonStr);
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/json',
+        dialogTitle: '편안하개 백업 파일 저장',
+        UTI: 'public.json',
+      });
+      return true;
     } catch (error) {
       console.warn('[BackupService] 통합 백업 파일 다운로드 실패:', error);
       return false;
     }
+  }
+
+  /** 시스템 파일 선택기에서 JSON 백업 파일을 선택해 문자열로 읽는다. */
+  static async pickBackupJsonFile(): Promise<string | null> {
+    try {
+      const [DocumentPicker, { File }] = await Promise.all([
+        import('expo-document-picker'),
+        import('expo-file-system'),
+      ]);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'public.json'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets[0]) return null;
+      return await new File(result.assets[0].uri).text();
+    } catch (error) {
+      console.warn('[BackupService] 백업 파일 열기 실패:', error);
+      throw error;
+    }
+  }
+
+  private static getUnifiedBackupFilename(profile: DogProfile): string {
+    const safeName = profile.name.replace(/[\\/:*?"<>|]/g, '_').trim() || '반려견';
+    return `편안하개_통합백업_${safeName}_${new Date().toISOString().slice(0, 10)}.json`;
+  }
+
+  private static downloadJsonInBrowser(jsonString: string, filename: string): void {
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   /**
