@@ -57,20 +57,24 @@ def _shape(coords: list) -> LineString:
 
 
 def spatial_overlap(a: LineString, b: LineString) -> float:
-    """한 코스가 다른 코스에서 SAME_PATH_TOLERANCE_M 이내에 있는 비율 (둘 중 큰 쪽)."""
+    """두 코스가 서로 얼마나 닮았나: 각 코스가 상대 코스 SAME_PATH_TOLERANCE_M 이내에 있는 비율 중 작은 값.
+
+    한 코스가 다른 코스의 일부분에 포함되는 것은 괜찮다 (작은 공원은 길이 한정돼 서로 다른 코스도 일부 길을 함께 쓴다).
+    양쪽이 모두 대부분 겹칠 때만 같은 코스로 본다.
+    """
     if a.length == 0 or b.length == 0:
         return 1.0
-    return max(
+    return min(
         a.intersection(b.buffer(SAME_PATH_TOLERANCE_M)).length / a.length,
         b.intersection(a.buffer(SAME_PATH_TOLERANCE_M)).length / b.length,
     )
 
 
 def routes_overlap(coords_a: list, coords_b: list) -> float:
-    """실제 지도 위에서 두 코스가 겹치는 비율.
+    """실제 지도 위에서 두 코스가 서로 닮은 정도 (spatial_overlap).
 
     간선 겹침만 보면 같은 길을 조금씩 다른 점으로 이은 코스가 서로 다른 길로 보인다
-    (유림 20분: 간선 겹침 0.55~0.61 인데 지도에서는 83~94% 겹침).
+    (유림 20분: 간선 겹침 0.55~0.61 인데 지도에서는 77~88% 서로 겹침).
     """
     return spatial_overlap(_shape(coords_a), _shape(coords_b))
 

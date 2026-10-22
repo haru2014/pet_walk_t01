@@ -1,7 +1,7 @@
 """[3번 노희선 - 서버] 공원 코스 3개는 지도 위에서도 서로 다른 길이어야 한다 (#125).
 
 운영 QA(2026-10-22, 지도로 확인): 유림공원 20분 3개 코스가 간선 겹침 0.55~0.61(기준 0.65 미만)이라 '다른 길'로
-통과했지만, 지도에서는 83~94% 가 같은 길이었다 (같은 길을 조금씩 다른 점으로 이은 코스, 나란한 보행로).
+통과했지만, 지도에서는 77~88% 가 서로 겹쳤다 (20m 안, 서로 겹침 비율 중 작은 값) (같은 길을 조금씩 다른 점으로 이은 코스, 나란한 보행로).
 간선 개수만 세던 비교에 '20m 안에 붙어 있는 비율'을 더했다.
 """
 import itertools
@@ -21,6 +21,11 @@ def _line(offset_m, points=30, length_m=300.0):
 
 def test_parallel_routes_few_meters_apart_are_the_same_path():
     assert pwp.routes_overlap(_line(0), _line(5)) > 0.95
+
+
+def test_route_lying_inside_a_longer_one_is_not_the_same_path():
+    """짧은 코스가 긴 코스의 일부분에 통째로 포함돼도 다른 코스다 (서로 닮은 게 아니다)."""
+    assert pwp.routes_overlap(_line(0, points=30, length_m=300.0), _line(0, points=30, length_m=1200.0)) < pwp.SAME_ROUTE_OVERLAP
 
 
 def test_routes_far_apart_are_different_paths():
