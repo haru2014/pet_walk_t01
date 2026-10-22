@@ -25,7 +25,7 @@ load_dotenv()
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from uuid import UUID
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Tuple
@@ -79,6 +79,7 @@ from services.voice_intent_service import (
     parse_voice_walk_intent,
     resolve_landmark_park_id,
 )
+from services.gemini_tts import generate_speech_audio
 
 from contextlib import asynccontextmanager
 
@@ -160,6 +161,25 @@ class VoiceIntentRequest(BaseModel):
     dog_name: Optional[str] = None
     origin_lat: Optional[float] = None
     origin_lon: Optional[float] = None
+
+
+class TtsRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+    voice: str = Field(..., pattern=r"^(Kore|Aoede|Puck|Charon)$")
+    style: str = Field(..., max_length=120)
+
+
+@app.post("/api/v1/voice/tts")
+def generate_tts_endpoint(body: TtsRequest):
+    """산책 안내 문구를 Gemini TTS WAV 오디오로 변환한다."""
+    try:
+        audio = generate_speech_audio(body.text.strip(), body.voice, body.style)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Gemini TTS generation failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Gemini TTS generation failed") from exc
+    return Response(content=audio, media_type="audio/wav")
 
 
 @app.post("/api/v1/voice/intent")
