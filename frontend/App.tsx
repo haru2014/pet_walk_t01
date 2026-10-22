@@ -8,7 +8,7 @@
  * - Phase 5: 완주 기록 영구 저장 (100회 FIFO) & 3초 인포그래픽 리포트
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
@@ -29,6 +29,8 @@ import { ConsentService } from './src/services/consentService';
 import { LocationConsentModal } from './src/components/common/LocationConsentModal';
 import { OnboardingService } from './src/services/onboardingService';
 import { OnboardingWizard } from './src/components/onboarding/OnboardingWizard';
+import { AppThemeService, persistThemeSelection } from './src/services/appThemeService';
+import { APP_THEMES, AppThemeId, DEFAULT_APP_THEME_ID } from './src/types/appTheme';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { WalkTabScreen } from './src/screens/WalkTabScreen';
@@ -52,6 +54,11 @@ export default function App() {
   const [preferences, setPreferences] = useState<WalkPreferences>({
     durationMinutes: 30, environments: ['soft', 'shade', 'stairs'], requestText: '',
   });
+  const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(DEFAULT_APP_THEME_ID);
+  const [themeReady, setThemeReady] = useState(false);
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [walkHistory, setWalkHistory] = useState<WalkRecord[]>([]);
+  const themeSaveInProgress = useRef(false);
 
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummaryPayload | null>(null);
   const [completedRecord, setCompletedRecord] = useState<WalkRecord | null>(null);
@@ -68,12 +75,48 @@ export default function App() {
       } else {
         await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, DEFAULT_DOGS[0]);
       }
+      setWalkHistory(await LocalStorageService.getWalkHistory());
       setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
       if (typeof window !== 'undefined') (window as any).__petWalkNav = { setSubScreen, setActiveTab, setCompletedRecord, handleStopWalkAndReport, consent };
       if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
     }
     void loadData();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    void AppThemeService.getTheme().then((themeId) => {
+      if (!isMounted) return;
+      setActiveThemeId(themeId);
+      setThemeReady(true);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleSelectTheme = async (themeId: AppThemeId): Promise<boolean> => {
+    if (themeSaveInProgress.current) return false;
+    themeSaveInProgress.current = true;
+    setThemeSaving(true);
+    try {
+      const activated = await persistThemeSelection(
+        themeId,
+        (nextThemeId) => AppThemeService.saveTheme(nextThemeId),
+        setActiveThemeId,
+      );
+      if (!activated) {
+        Alert.alert('테마 저장 실패', '테마를 저장하지 못했어요. 기존 테마를 유지합니다.');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('[App] 테마 저장 중 오류:', error);
+      Alert.alert('테마 저장 실패', '테마를 저장하지 못했어요. 기존 테마를 유지합니다.');
+      return false;
+    } finally {
+      themeSaveInProgress.current = false;
+      setThemeSaving(false);
+    }
+  };
 
   const handleSaveActiveDog = async (fields: Partial<DogProfile>) => {
     const updated = { ...activeDog, ...fields, updatedAt: new Date().toISOString() };
@@ -155,7 +198,8 @@ export default function App() {
       averageSpeedKmH: walk.stats.speedKmH > 0 ? walk.stats.speedKmH : activeDog.speedKmH,
       safeSurfaceRatio: 0.88, gpsTrack,
     };
-    await LocalStorageService.appendWalkRecord(newRecord);
+    const saved = await LocalStorageService.appendWalkRecord(newRecord);
+    if (saved) setWalkHistory((records) => [newRecord, ...records].slice(0, 100));
     await walk.stop();
     setCompletedRecord(newRecord);
     setSubScreen('report');
@@ -165,6 +209,8 @@ export default function App() {
     await ConsentService.resetAllLocalData();
     setDogs([...DEFAULT_DOGS]); setSelectedDogId(DEFAULT_DOGS[0].id);
     setFeedbackSummary(null); setCompletedRecord(null); setWalkBookmark(null);
+    setWalkHistory([]);
+    setActiveThemeId(DEFAULT_APP_THEME_ID);
   };
 
   const handleSaveReportFeedback = async (feedback: WalkFeedback) => {
@@ -198,7 +244,8 @@ export default function App() {
         comment: dissatisfied ? '계단과 언덕이 조금 힘들었어요' : '발이 편하고 좋았어요',
       },
     };
-    await LocalStorageService.appendWalkRecord(sampleWalk);
+    const saved = await LocalStorageService.appendWalkRecord(sampleWalk);
+    if (saved) setWalkHistory((records) => [sampleWalk, ...records].slice(0, 100));
     const updated = await FeedbackContextService.buildRecentFeedbackContext();
     setFeedbackSummary(updated);
     const msg = dissatisfied
@@ -268,7 +315,7 @@ export default function App() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
               {activeTab === '홈' && (
                 <HomeScreen
-                  dog={activeDog} feedbackSummary={feedbackSummary}
+                  dog={activeDog} walkRecords={walkHistory} theme={APP_THEMES[activeThemeId]} feedbackSummary={feedbackSummary}
                   onPressProfile={() => setSubScreen('dog_selection')} onStartWalk={() => setSubScreen('course_recommend')}
                   onOpenPlanner={() => setSubScreen('walk_settings')}
                 />
@@ -289,7 +336,8 @@ export default function App() {
                 <MyProfileTabScreen
                   dog={activeDog} feedbackSummary={feedbackSummary} onSaveDog={handleSaveActiveDog} onInjectFeedback={handleInjectSampleWalk}
                   onResetFeedback={handleResetFeedback} onStartBookmark={handleStartBookmark} onResetData={handleResetAllData}
-                  onOpenOnboarding={() => setSubScreen('onboarding')}
+                  onOpenOnboarding={() => setSubScreen('onboarding')} activeThemeId={activeThemeId} themeReady={themeReady}
+                  themeSaving={themeSaving} onSelectTheme={handleSelectTheme}
                 />
               )}
             </ScrollView>

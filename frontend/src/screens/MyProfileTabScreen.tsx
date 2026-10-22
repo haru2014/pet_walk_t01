@@ -16,6 +16,7 @@ import { BookmarkListView } from '../components/bookmark/BookmarkListView';
 import { BookmarkedRoute } from '../types/bookmark';
 import { DataResetCard } from '../components/privacy/DataResetCard';
 import { FeedbackSummaryPayload } from '../services/feedbackContext';
+import { APP_THEMES, AppThemeId } from '../types/appTheme';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
@@ -26,10 +27,15 @@ export interface MyProfileTabScreenProps {
   onStartBookmark: (bookmark: BookmarkedRoute) => void;
   onResetData?: () => Promise<void>;
   onOpenOnboarding?: () => void;
+  activeThemeId: AppThemeId;
+  themeReady: boolean;
+  themeSaving: boolean;
+  onSelectTheme: (themeId: AppThemeId) => Promise<boolean>;
 }
 
 export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   dog, feedbackSummary, onSaveDog, onInjectFeedback, onResetFeedback, onStartBookmark, onResetData, onOpenOnboarding,
+  activeThemeId, themeReady, themeSaving, onSelectTheme,
 }) => {
   const [resetCount, setResetCount] = useState(0);
   return (
@@ -38,6 +44,36 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         <Text style={styles.sectionSubtitle}>반려견 안심 케어 프로필</Text>
         <Text style={styles.sectionTitle}>우리 아이 정보 관리 🐾</Text>
       </View>
+
+      <CardWrapper variant="flat" style={{ marginBottom: 16 }}>
+        <Text style={styles.cardHeaderTitle}>앱 테마</Text>
+        <Text style={styles.backupDesc}>산책 달성 배지에 적용할 기본 색상을 선택해 주세요.</Text>
+        <View style={styles.themeOptions}>
+          {Object.values(APP_THEMES).map((theme) => {
+            const isSelected = activeThemeId === theme.id;
+            return (
+              <TouchableOpacity
+                key={theme.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected, disabled: !themeReady || themeSaving }}
+                disabled={!themeReady || themeSaving}
+                onPress={() => { void onSelectTheme(theme.id); }}
+                style={[
+                  styles.themeOption,
+                  { borderColor: isSelected ? theme.primary : TOKENS.colors.border },
+                  isSelected && { backgroundColor: theme.primaryWash },
+                  (!themeReady || themeSaving) && styles.themeOptionDisabled,
+                ]}
+              >
+                <View style={[styles.themeSwatch, { backgroundColor: theme.primary }]} />
+                <Text style={[styles.themeOptionText, isSelected && { color: theme.primaryDark }]}>
+                  {theme.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </CardWrapper>
 
       <CardWrapper style={{ marginBottom: 16 }}>
         <Text style={styles.fieldLabel}>이름</Text>
@@ -266,6 +302,20 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 4,
   },
+  themeOptions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  themeOption: {
+    flex: 1,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  themeOptionDisabled: { opacity: 0.6 },
+  themeSwatch: { width: 12, height: 12, borderRadius: 6 },
+  themeOptionText: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.textMuted },
   simStatusBadge: {
     marginTop: 8,
     paddingHorizontal: 10,

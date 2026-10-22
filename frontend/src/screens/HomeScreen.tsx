@@ -16,9 +16,14 @@ import { AiPlannerBanner } from '../components/home/AiPlannerBanner';
 import { RecentWalkCard } from '../components/home/RecentWalkCard';
 import { FeedbackContextService, FeedbackSummaryPayload } from '../services/feedbackContext';
 import { AppIcon } from '../components/common/AppIcon';
+import { WalkRecord } from '../types/storage';
+import { AppTheme } from '../types/appTheme';
+import { WeeklyWalkAchievementCard } from '../components/home/WeeklyWalkAchievementCard';
 
 export interface HomeScreenProps {
   dog: DogProfile;
+  walkRecords: WalkRecord[];
+  theme: AppTheme;
   feedbackSummary: FeedbackSummaryPayload | null;
   onPressProfile: () => void;
   onStartWalk: () => void;
@@ -27,11 +32,15 @@ export interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   dog,
+  walkRecords,
+  theme,
   feedbackSummary,
   onPressProfile,
   onStartWalk,
   onOpenPlanner,
 }) => {
+  const weeklyWalkCount = getWeeklyWalkCount(walkRecords, dog.id);
+
   return (
     <View style={styles.container}>
       {/* 환영 인사 */}
@@ -46,6 +55,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         onPressProfile={onPressProfile}
         onStartWalk={onStartWalk}
       />
+
+      <WeeklyWalkAchievementCard walkCount={weeklyWalkCount} theme={theme} />
 
       {/* 오늘의 산책 골든타임 위젯 (Screen-01) */}
       <GoldenTimeWidget
@@ -88,6 +99,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     </View>
   );
 };
+
+function getWeeklyWalkCount(records: WalkRecord[], dogId: string): number {
+  const now = new Date();
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+  const startOfNextWeek = new Date(startOfWeek);
+  startOfNextWeek.setDate(startOfNextWeek.getDate() + 7);
+
+  return records.filter((record) => {
+    if (record.dogId !== dogId) return false;
+    const completedAt = new Date(record.completedAt);
+    return completedAt >= startOfWeek && completedAt < startOfNextWeek;
+  }).length;
+}
 
 const styles = StyleSheet.create({
   container: {
