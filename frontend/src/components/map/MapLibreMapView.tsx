@@ -90,15 +90,17 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const latestRouteRef = useRef(route);
   const latestPinsRef = useRef(stepPins);
   const latestRouteColorsRef = useRef(routeColors);
+  const latestMaskingCenterRef = useRef(maskingCenter);
   const latestOnMapLoadedRef = useRef(onMapLoaded);
   const latestOnPinSelectRef = useRef(onPinSelect);
   useEffect(() => {
     latestRouteRef.current = route;
     latestPinsRef.current = stepPins;
     latestRouteColorsRef.current = routeColors;
+    latestMaskingCenterRef.current = maskingCenter;
     latestOnMapLoadedRef.current = onMapLoaded;
     latestOnPinSelectRef.current = onPinSelect;
-  }, [route, stepPins, routeColors, onMapLoaded, onPinSelect]);
+  }, [route, stepPins, routeColors, maskingCenter, onMapLoaded, onPinSelect]);
 
   // 모든 좌표 Bounding Box 계산
   const routeBounds = useMemo(() => getRouteBounds(route), [route]);
@@ -141,7 +143,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         const initialBounds = getRouteBounds(latestRouteRef.current);
         const defaultCenter: [number, number] = initialBounds
           ? [(initialBounds[0][0] + initialBounds[1][0]) / 2, (initialBounds[0][1] + initialBounds[1][1]) / 2]
-          : (maskingCenter ? [maskingCenter[0], maskingCenter[1]] : [127.3805, 36.4315]);
+          : (latestMaskingCenterRef.current
+            ? [latestMaskingCenterRef.current[0], latestMaskingCenterRef.current[1]]
+            : [127.3805, 36.4315]);
 
         mapInstance = new maplibregl.Map({
           container: webContainerRef.current,

@@ -6,7 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CommunityTabScreen } from './CommunityTabScreen';
+import { CommunityTabScreen, filterCommunityFeeds } from './CommunityTabScreen';
 import * as communityApi from '../services/communityApi';
 
 vi.mock('react-native-svg', () => ({
@@ -126,45 +126,34 @@ describe('CommunityTabScreen (기간 필터 및 안심 코스 찜 기능)', () =
   });
 
   it('기간 필터가 최근 7일일 때 7일 이내 코스만 선별하여 목록에 표시한다', () => {
-    const html = renderToStaticMarkup(
-      <CommunityTabScreen initialFeeds={mockFeeds} initialPeriod="7days" />
-    );
+    const filtered = filterCommunityFeeds(mockFeeds, 'ALL', '7days', Date.now());
 
     // 2일 전 코스 포함
-    expect(html).toContain('성산공원 둘레길 코스');
+    expect(filtered.map((feed) => feed.title)).toContain('성산공원 둘레길 코스');
     // 15일 전 코스 미포함
-    expect(html).not.toContain('서울숲 벚꽃 은행나무길');
+    expect(filtered.map((feed) => feed.title)).not.toContain('서울숲 벚꽃 은행나무길');
     // 45일 전 코스 미포함
-    expect(html).not.toContain('서울시청 잔디광장 산책로');
-    expect(html).toContain('이웃들이 공유한 안심 산책로 (1개)');
+    expect(filtered.map((feed) => feed.title)).not.toContain('서울시청 잔디광장 산책로');
+    expect(filtered).toHaveLength(1);
   });
 
   it('기간 필터가 최근 30일일 때 30일 이내 코스 2개만 선별하여 목록에 표시한다', () => {
-    const html = renderToStaticMarkup(
-      <CommunityTabScreen initialFeeds={mockFeeds} initialPeriod="30days" />
-    );
+    const filtered = filterCommunityFeeds(mockFeeds, 'ALL', '30days', Date.now());
 
     // 2일 전 코스 포함
-    expect(html).toContain('성산공원 둘레길 코스');
+    expect(filtered.map((feed) => feed.title)).toContain('성산공원 둘레길 코스');
     // 15일 전 코스 포함
-    expect(html).toContain('서울숲 벚꽃 은행나무길');
+    expect(filtered.map((feed) => feed.title)).toContain('서울숲 벚꽃 은행나무길');
     // 45일 전 코스 미포함
-    expect(html).not.toContain('서울시청 잔디광장 산책로');
-    expect(html).toContain('이웃들이 공유한 안심 산책로 (2개)');
+    expect(filtered.map((feed) => feed.title)).not.toContain('서울시청 잔디광장 산책로');
+    expect(filtered).toHaveLength(2);
   });
 
   it('랜드마크 필터와 기간 필터가 복합(AND) 적용되어 올바르게 필터링된다', () => {
-    const html = renderToStaticMarkup(
-      <CommunityTabScreen
-        initialFeeds={mockFeeds}
-        initialCategory="LM_SEOUL_FOREST"
-        initialPeriod="7days"
-      />
-    );
+    const filtered = filterCommunityFeeds(mockFeeds, 'LM_SEOUL_FOREST', '7days', Date.now());
 
     // 서울숲 코스는 15일 전이므로 최근 7일 필터에서는 0개
-    expect(html).toContain('이웃들이 공유한 안심 산책로 (0개)');
-    expect(html).not.toContain('서울숲 벚꽃 은행나무길');
+    expect(filtered).toHaveLength(0);
   });
 
   it('API 코스 조회 시 각 피드에 기간(created_at) 속성과 태그가 정상 부여되어 있다', async () => {

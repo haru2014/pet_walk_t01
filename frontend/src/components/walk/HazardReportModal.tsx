@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { HazardType, RerouteResult } from '../../types/hazard';
 import {
@@ -21,7 +20,6 @@ import {
   requestRerouteAroundHazard,
   createEmergencyReturnRoute,
 } from '../../services/hazardApi';
-import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 
 export interface HazardReportModalProps {
   readonly visible: boolean;
