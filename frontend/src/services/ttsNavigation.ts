@@ -8,7 +8,6 @@
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { File, Paths } from 'expo-file-system';
 import {
   DEFAULT_SOUND_SETTINGS,
   SoundSettings,
@@ -43,7 +42,9 @@ export class TTSNavigationService {
   private static utteranceId = 0;
   private static watchdog: ReturnType<typeof setTimeout> | null = null;
   private static currentPlayer: ReturnType<typeof createAudioPlayer> | null = null;
-  private static currentAudioFile: File | null = null;
+  private static currentAudioFile: { delete: () => void } | null = null;
+  private static currentWebAudio: HTMLAudioElement | null = null;
+  private static currentWebAudioUrl: string | null = null;
   private static playbackSubscription: { remove: () => void } | null = null;
   private static requestController: AbortController | null = null;
 
@@ -362,6 +363,12 @@ export class TTSNavigationService {
       if (id !== self.utteranceId) return;
       if (!bytes.length) throw new Error('Gemini TTS returned empty audio');
 
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        await self.playGeminiAudioOnWeb(bytes, message, fallbackOptions, id, finish);
+        return;
+      }
+
+      const { File, Paths } = await import('expo-file-system');
       const file = new File(Paths.cache, `petwalk-tts-${id}.wav`);
       file.create({ overwrite: true });
       await file.write(self.bytesToBase64(bytes), { encoding: 'base64' });
@@ -398,8 +405,44 @@ export class TTSNavigationService {
       self.startPlaybackWatchdog(message, finish);
     } catch (error) {
       if (id !== self.utteranceId || controller.signal.aborted) return;
-      console.info('[TTSNavigationService] Gemini TTS 실패, 기기 음성으로 전환:', error);
+      if (Platform.OS === 'web') {
+        console.debug('[TTSNavigationService] 웹 Gemini TTS를 사용할 수 없어 브라우저 음성으로 전환:', error);
+      } else {
+        console.info('[TTSNavigationService] Gemini TTS 실패, 기기 음성으로 전환:', error);
+      }
       await self.playNativeFallback(message, fallbackOptions, id, finish);
+    }
+  }
+
+  private static async playGeminiAudioOnWeb(
+    bytes: Uint8Array,
+    message: string,
+    fallbackOptions: Speech.SpeechOptions,
+    id: number,
+    finish: () => void,
+  ): Promise<void> {
+    const self = TTSNavigationService;
+    const audioUrl = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: 'audio/wav' }));
+    const audio = new Audio(audioUrl);
+    self.currentWebAudio = audio;
+    self.currentWebAudioUrl = audioUrl;
+    audio.volume = self.settings.volume;
+
+    let fallbackStarted = false;
+    const useBrowserSpeech = () => {
+      if (fallbackStarted || id !== self.utteranceId) return;
+      fallbackStarted = true;
+      void self.playNativeFallback(message, fallbackOptions, id, finish);
+    };
+
+    audio.onended = finish;
+    audio.onerror = useBrowserSpeech;
+    try {
+      await audio.play();
+      if (id === self.utteranceId) self.isSpeaking = true;
+      self.startPlaybackWatchdog(message, finish);
+    } catch {
+      useBrowserSpeech();
     }
   }
 
@@ -440,6 +483,18 @@ export class TTSNavigationService {
 
   private static async releaseCurrentPlayer(): Promise<void> {
     const self = TTSNavigationService;
+    const webAudio = self.currentWebAudio;
+    self.currentWebAudio = null;
+    if (webAudio) {
+      webAudio.onended = null;
+      webAudio.onerror = null;
+      webAudio.pause();
+      webAudio.src = '';
+    }
+    if (self.currentWebAudioUrl && typeof URL !== 'undefined') {
+      URL.revokeObjectURL(self.currentWebAudioUrl);
+      self.currentWebAudioUrl = null;
+    }
     self.playbackSubscription?.remove();
     self.playbackSubscription = null;
     self.currentPlayer?.clearLockScreenControls();

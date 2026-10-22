@@ -71,6 +71,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('음량 조절 시 0.0 ~ 1.0 범위로 클램핑되어야 한다', async () => {
@@ -143,6 +144,33 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     expect(createAudioPlayer).not.toHaveBeenCalled();
   });
 
+  it('웹에서는 Gemini 오디오를 브라우저 Audio로 재생하고 파일 시스템을 사용하지 않아야 한다', async () => {
+    const audio = {
+      volume: 1,
+      onended: null,
+      onerror: null,
+      src: '',
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+    };
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:petwalk-tts'),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal('Audio', function AudioMock() { return audio; });
+    vi.mocked(fetchWithServerFallback).mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    } as Response);
+
+    TTSNavigationService.speak('웹 음성 재생 확인');
+
+    await vi.waitFor(() => expect(audio.play).toHaveBeenCalledOnce());
+    expect(createAudioPlayer).not.toHaveBeenCalled();
+    expect(Speech.speak).not.toHaveBeenCalled();
+    await TTSNavigationService.stop();
+  });
   it('Gemini TTS 생성이 재생 안전 타이머보다 오래 걸려도 요청을 먼저 취소하지 않아야 한다', async () => {
     vi.useFakeTimers();
     let requestSignal: AbortSignal | null | undefined;

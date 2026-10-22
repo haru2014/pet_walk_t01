@@ -314,7 +314,7 @@ export function buildMapLibreHtml({
           pins.forEach(function(pin) {
             const el = document.createElement('div');
             el.className = 'step-pin pin-' + pin.kind;
-            el.innerText = pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '↱'));
+            el.innerText = pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤'));
             if (pin.title) {
               el.innerText = '';
               el.style.width = 'auto';
