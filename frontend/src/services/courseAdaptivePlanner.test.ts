@@ -5,12 +5,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { DogProfile, DEFAULT_DOGS } from '../types/dogProfile';
-import { WalkPreferences } from '../types/walkSettings';
+import { DEFAULT_RECOMMENDED_COURSES, WalkPreferences } from '../types/walkSettings';
 import {
   generateAdaptiveCourses,
   generateAdaptiveBriefing,
   buildAdaptiveConditionLabels,
   extractCourseScore,
+  calculateAdaptiveCourseScore,
 } from './courseAdaptivePlanner';
 
 const TEST_DOG: DogProfile = {
@@ -202,6 +203,22 @@ describe('courseAdaptivePlanner', () => {
       // score 필드가 없더라도 reason 문자열에서 안전하게 파싱
       const noScoreField = { ...testCourse, score: undefined };
       expect(extractCourseScore(noScoreField)).toBe(94);
+    });
+
+    it('그늘 자료가 없는 코스도 유효한 중립 점수로 평가한다', () => {
+      const unknownShadeCourse = {
+        ...DEFAULT_RECOMMENDED_COURSES[0],
+        shadeLevel: null,
+        shadePercent: null,
+      };
+
+      const score = calculateAdaptiveCourseScore(unknownShadeCourse, TEST_DOG, {
+        durationMinutes: 30,
+        environments: ['shade'],
+        requestText: '',
+      });
+
+      expect(Number.isFinite(score)).toBe(true);
     });
   });
 });

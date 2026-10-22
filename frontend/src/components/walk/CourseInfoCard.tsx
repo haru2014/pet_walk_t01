@@ -64,7 +64,12 @@ export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, summary,
           value={surfaceInfo.isUnknown ? '정보 없음' : surfaceInfo.text}
           isMuted={surfaceInfo.isUnknown}
         />
-        <StatBox icon="shade" label="그늘 구간" value={course.shadeLevel} />
+        <StatBox
+          icon="shade"
+          label="그늘 구간"
+          value={course.shadeLevel ?? '정보 없음'}
+          isMuted={course.shadeLevel == null}
+        />
         <StatBox icon="stairs" label="계단" value={course.stairsCount} />
       </View>
       {course.reason ? (
