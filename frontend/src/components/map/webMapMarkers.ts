@@ -8,6 +8,7 @@
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { RemovableHandle } from './webMapLifecycle';
+import { getRouteStepPinIcon } from './routeStepIcon';
 
 /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
 export interface MarkerLike extends RemovableHandle {
@@ -19,8 +20,6 @@ export type MarkerConstructor = new (options: {
   anchor?: string;
   offset?: [number, number];
 }) => MarkerLike;
-
-const DEFAULT_PIN_ICON: Record<RouteStepPin['kind'], string> = { caution: '!', safe: '🌿', turn: '↱' };
 
 function createStartElement(colors: MapRouteColors): HTMLElement {
   const element = document.createElement('div');
@@ -58,7 +57,7 @@ function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElemen
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
-  element.textContent = pin.icon ?? DEFAULT_PIN_ICON[pin.kind];
+  element.textContent = getRouteStepPinIcon(pin);
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
     borderRadius: hasTitle ? '10px' : '50%',

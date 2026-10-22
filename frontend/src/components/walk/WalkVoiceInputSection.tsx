@@ -17,7 +17,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { File } from 'expo-file-system';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { TTSNavigationService } from '../../services/ttsNavigation';
@@ -93,7 +92,10 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
       const mimeType = isWebRecording ? 'audio/webm' : 'audio/m4a';
       const recordingBlob = isWebRecording
         ? await (await fetch(uri)).blob()
-        : new File(uri);
+        : await (async () => {
+            const { File } = await import('expo-file-system');
+            return new File(uri);
+          })();
       const transcript = await transcribeVoiceCommand(
         recordingBlob,
         isWebRecording ? 'walk-command.webm' : 'walk-command.m4a',

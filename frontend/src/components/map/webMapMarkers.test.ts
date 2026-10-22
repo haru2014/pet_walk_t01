@@ -97,6 +97,20 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     expect(titled.options.element.tagName).toBe('div');
   });
 
+  it('회전 핀은 안내 문구의 좌회전·우회전·유턴 방향에 맞는 아이콘을 사용한다', () => {
+    const turnPins: RouteStepPin[] = [
+      { id: 'left', kind: 'turn', position: [127.381, 36.43], instruction: '좌회전하세요' },
+      { id: 'right', kind: 'turn', position: [127.382, 36.43], instruction: '우회전하세요' },
+      { id: 'uturn', kind: 'turn', position: [127.383, 36.43], instruction: '유턴하여 반대 방향으로 이동하세요' },
+      { id: 'unspecified', kind: 'turn', position: [127.384, 36.43], instruction: '다음 보행로로 이동하세요' },
+    ];
+
+    renderWebMarkers({}, MarkerClass, route, turnPins, colors, vi.fn());
+
+    expect(FakeMarker.created.slice(1).map((marker) => marker.options.element.textContent))
+      .toEqual(['↰', '↱', '↶', '➤']);
+  });
+
   it('제목형 핀은 아이콘/제목/상세 문구를 자식 요소로 구성한다', () => {
     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
     const titled = FakeMarker.created[3].options.element;

@@ -20,6 +20,8 @@ import { useMapFallbackTier } from '../../hooks/useMapFallbackTier';
 import { buildMapLibreHtml } from './maplibreWebTemplate';
 import { disposeWebMap, removeHandles } from './webMapLifecycle';
 import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
+import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
+import { getRouteStepPinIcon } from './routeStepIcon';
 
 function getRouteBounds(routeData: RouteFeatureCollection): [[number, number], [number, number]] | null {
   const coordinates = routeData.features.flatMap((feature) => feature.geometry.coordinates);
@@ -79,6 +81,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 }) => {
   const { mapStyleUrl, routeColors, appColors } = useMapThemeStyle();
   const isWeb = Platform.OS === 'web';
+  const directionalPins = useMemo(
+    () => stepPins.map((pin) => pin.icon ? pin : { ...pin, icon: getRouteStepPinIcon(pin) }),
+    [stepPins],
+  );
 
   // ============================================================================
   // 1. 웹 환경 (Expo Web) - maplibre-gl 직접 마운트
@@ -88,19 +94,19 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const webMapLoadedRef = useRef(false);
   const webMarkersRef = useRef<any[]>([]);
   const latestRouteRef = useRef(route);
-  const latestPinsRef = useRef(stepPins);
+  const latestPinsRef = useRef(directionalPins);
   const latestRouteColorsRef = useRef(routeColors);
   const latestMaskingCenterRef = useRef(maskingCenter);
   const latestOnMapLoadedRef = useRef(onMapLoaded);
   const latestOnPinSelectRef = useRef(onPinSelect);
   useEffect(() => {
     latestRouteRef.current = route;
-    latestPinsRef.current = stepPins;
+    latestPinsRef.current = directionalPins;
     latestRouteColorsRef.current = routeColors;
     latestMaskingCenterRef.current = maskingCenter;
     latestOnMapLoadedRef.current = onMapLoaded;
     latestOnPinSelectRef.current = onPinSelect;
-  }, [route, stepPins, routeColors, maskingCenter, onMapLoaded, onPinSelect]);
+  }, [route, directionalPins, routeColors, maskingCenter, onMapLoaded, onPinSelect]);
 
   // 모든 좌표 Bounding Box 계산
   const routeBounds = useMemo(() => getRouteBounds(route), [route]);
@@ -160,12 +166,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
         webMapInstanceRef.current = mapInstance;
 
-        // 스타일 스프라이트에 누락된 POI 아이콘(office, recycling 등) 콘솔 경고 방지
-        if (typeof (mapInstance as any).setMissingStyleImageResolver === 'function') {
-          (mapInstance as any).setMissingStyleImageResolver(() => {
-            return { width: 1, height: 1, data: new Uint8Array(4) };
-          });
-        }
+        registerMissingStyleImageResolver(mapInstance);
 
         // 스타일 로드 실패(오프라인/서버 장애)는 즉시, 응답 지연은 타임아웃으로 다음 단계 전환.
         // 스타일 파싱 이후의 글리프/스프라이트 오류는 폴백 대상이 아니므로 style.load 이전만 처리합니다.
@@ -265,7 +266,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       if (webMapInstanceRef.current !== map || !webMapLoadedRef.current) return;
       removeHandles(webMarkersRef.current);
       webMarkersRef.current = renderWebMarkers(
-        map, maplibregl.Marker as MarkerConstructor, route, stepPins, routeColors,
+        map, maplibregl.Marker as MarkerConstructor, route, directionalPins, routeColors,
         (instruction) => onPinSelect?.(instruction),
       );
     };
@@ -275,7 +276,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     } else if (maskingCenter) {
       map.setCenter(maskingCenter);
     }
-  }, [isWeb, route, routeBounds, stepPins, routeColors, maskingCenter, onPinSelect]);
+  }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, onPinSelect]);
 
   // ============================================================================
   // 2. 모바일 환경 (Android / iOS) - react-native-webview 브릿지
@@ -285,7 +286,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const [htmlSource] = useState(() => {
     if (isWeb) return '';
     return buildMapLibreHtml({
-      styleUrl: mapStyleUrl, route, stepPins, routeColors, maskingCenter, interactive,
+      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, interactive,
     });
   });
   const mobileMapLoadedRef = useRef(false);
@@ -318,9 +319,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
   useEffect(() => {
     if (!isWeb && mobileMapLoadedRef.current && webViewRef.current) {
-      webViewRef.current.postMessage(JSON.stringify({ action: 'UPDATE_ROUTE', route, stepPins }));
+      webViewRef.current.postMessage(JSON.stringify({ action: 'UPDATE_ROUTE', route, stepPins: directionalPins }));
     }
-  }, [isWeb, route, stepPins]);
+  }, [isWeb, route, directionalPins]);
 
   // ============================================================================
   // 3. 렌더링

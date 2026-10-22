@@ -88,6 +88,10 @@ export class BackupService {
   /** 시스템 파일 선택기에서 JSON 백업 파일을 선택해 문자열로 읽는다. */
   static async pickBackupJsonFile(): Promise<string | null> {
     try {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        return await this.pickBackupJsonFileInBrowser();
+      }
+
       const [DocumentPicker, { File }] = await Promise.all([
         import('expo-document-picker'),
         import('expo-file-system'),
@@ -103,6 +107,28 @@ export class BackupService {
       console.warn('[BackupService] 백업 파일 열기 실패:', error);
       throw error;
     }
+  }
+
+  private static pickBackupJsonFileInBrowser(): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(await file.text());
+        } catch (error) {
+          reject(error);
+        }
+      };
+      input.oncancel = () => resolve(null);
+      input.click();
+    });
   }
 
   private static getUnifiedBackupFilename(profile: DogProfile): string {
