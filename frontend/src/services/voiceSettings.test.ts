@@ -171,7 +171,6 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     expect(Speech.speak).not.toHaveBeenCalled();
     await TTSNavigationService.stop();
   });
-
   it('Gemini TTS 생성이 재생 안전 타이머보다 오래 걸려도 요청을 먼저 취소하지 않아야 한다', async () => {
     vi.useFakeTimers();
     let requestSignal: AbortSignal | null | undefined;
