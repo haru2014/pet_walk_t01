@@ -20,7 +20,7 @@ export interface BookmarkedRoute {
   totalDistanceKm: number;
   estimatedMinutes: number;
   maxSlopePercent: number;
-  shadePercent: number;
+  shadePercent: number | null;
   tags: string[];
   routeGeoJson: RouteFeatureCollection;
   stepPins: readonly RouteStepPin[];

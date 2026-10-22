@@ -36,6 +36,7 @@ import { OnboardingWizard } from './src/components/onboarding/OnboardingWizard';
 import { SupabaseService } from './src/services/supabaseService';
 import { LandingAuthModal } from './src/components/auth/LandingAuthModal';
 import { useAppBackHandler } from './src/hooks/useAppBackHandler';
+import { generateUuid } from './src/utils/uuid';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { WalkTabScreen } from './src/screens/WalkTabScreen';
@@ -287,7 +288,7 @@ export default function App() {
     }
 
     const newRecord: WalkRecord = {
-      id: `walk_${Date.now()}`,
+      id: generateUuid(),
       dogId: activeDog.id,
       dogSummary: toWalkDogSummary(activeDog),
       startedAt: new Date(Date.now() - walk.stats.elapsedSec * 1000).toISOString(),
@@ -308,6 +309,7 @@ export default function App() {
       ended_at: newRecord.completedAt,
       distance_m: newRecord.totalDistanceKm * 1000,
       duration_min: newRecord.durationMinutes,
+      route_coords: gpsTrack.map(({ lat, lon }) => [lon, lat] as [number, number]),
       is_public: false,
     });
     await walk.stop();

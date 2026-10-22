@@ -42,6 +42,27 @@ export interface CommunityTabScreenProps {
   readonly initialCategory?: LandmarkCategoryCode;
 }
 
+export function filterCommunityFeeds(
+  feeds: readonly CommunityFeedItem[],
+  category: LandmarkCategoryCode,
+  period: StatsPeriodType,
+  now: number,
+): CommunityFeedItem[] {
+  let result = [...feeds];
+
+  if (category !== 'ALL') {
+    result = result.filter((feed) => feed.landmark_code === category);
+  }
+
+  const periodDays = period === '7days' ? 7 : period === '30days' ? 30 : null;
+  if (periodDays !== null) {
+    const cutoff = now - periodDays * 24 * 60 * 60 * 1000;
+    result = result.filter((feed) => !feed.created_at || new Date(feed.created_at).getTime() >= cutoff);
+  }
+
+  return result;
+}
+
 /** 이웃이 공유한 마스킹 좌표열을 3대 안심 등급 GeoJSON FeatureCollection 규격으로 변환 */
 function buildRouteFromMaskedPolyline(coords: readonly (readonly [number, number])[]): RouteFeatureCollection {
   const safeCoords: LonLat[] = coords.map((c) => [c[0], c[1]]);
@@ -122,6 +143,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   const { colors } = useAppTheme();
   const { community } = useAppResponsive();
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>(initialFeeds ?? []);
+  const [filterTime, setFilterTime] = useState(() => Date.now());
   const [isSupabase, setIsSupabase] = useState(false);
   const [isLoading, setIsLoading] = useState(!initialFeeds);
   const currentUser = SupabaseService.getCurrentUser();
@@ -152,6 +174,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
     }
   }, [initialFeeds]);
 
+  const filteredFeeds = useMemo(
+    () => filterCommunityFeeds(feeds, selectedCategory, selectedPeriod, filterTime),
+    [feeds, selectedCategory, selectedPeriod, filterTime],
+  );
+
   const handleToggleAccordion = (courseId: string) => {
     setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
   };
@@ -179,25 +206,6 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
     { period: '7days', label: '최근 7일' },
     { period: '30days', label: '최근 30일' },
   ];
-
-  // 랜드마크 필터와 기간 필터 복합(AND) 적용
-  const filteredFeeds = useMemo(() => {
-    let result = [...feeds];
-
-    if (selectedCategory !== 'ALL') {
-      result = result.filter((f) => f.landmark_code === selectedCategory);
-    }
-
-    if (selectedPeriod === '7days') {
-      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      result = result.filter((f) => !f.created_at || new Date(f.created_at).getTime() >= cutoff);
-    } else if (selectedPeriod === '30days') {
-      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      result = result.filter((f) => !f.created_at || new Date(f.created_at).getTime() >= cutoff);
-    }
-
-    return result;
-  }, [feeds, selectedCategory, selectedPeriod]);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
@@ -271,7 +279,10 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               <TouchableOpacity
                 key={chip.code}
                 activeOpacity={0.75}
-                onPress={() => setSelectedCategory(chip.code)}
+                onPress={() => {
+                  setSelectedCategory(chip.code);
+                  setFilterTime(Date.now());
+                }}
                 style={[
                   styles.filterChip,
                   {
@@ -304,7 +315,10 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               <TouchableOpacity
                 key={chip.period}
                 activeOpacity={0.75}
-                onPress={() => setSelectedPeriod(chip.period)}
+                onPress={() => {
+                  setSelectedPeriod(chip.period);
+                  setFilterTime(Date.now());
+                }}
                 style={[
                   styles.periodFilterChip,
                   {

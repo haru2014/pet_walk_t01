@@ -22,7 +22,7 @@ import { AppScreenHeader } from '../common/AppScreenHeader';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
-import { RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
+import { formatShadePercentLabel, formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
@@ -314,11 +314,9 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMain }]}>
-                {currentCourse.stairsCount.includes('계단') ? (
-                  <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text>
-                ) : (
-                  <>계단 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.stairsCount}</Text></>
-                )}
+                <Text style={{ color: colors.textMain, fontWeight: '700' }}>
+                  {formatStairsCountLabel(currentCourse.stairsCount)}
+                </Text>
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMain }]}>
@@ -326,7 +324,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
               <Text style={[styles.metricText, { color: colors.textMain }]}>
-                그늘 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text>
+                {currentCourse.shadePercent == null ? (
+                  <Text style={{ color: colors.textMuted }}>{formatShadePercentLabel(currentCourse.shadePercent)}</Text>
+                ) : (
+                  <>{'그늘 '}<Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text></>
+                )}
               </Text>
             </View>
           );

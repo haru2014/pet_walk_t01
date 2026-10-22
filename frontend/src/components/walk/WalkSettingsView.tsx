@@ -115,12 +115,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const [isFreeWalk, setIsFreeWalk] = useState<boolean>(
     initialPreferences?.isFreeWalk ?? false
   );
-  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(
-    Boolean(
-      initialPreferences?.isFreeWalk ||
-      (initialPreferences?.durationMinutes && ![20, 30, 40, 60].includes(initialPreferences.durationMinutes))
-    )
-  );
+  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(false);
   const [environments, setEnvironments] = useState<EnvironmentId[]>(
     initialPreferences?.environments ?? ['soft', 'shade', 'stairs']
   );

@@ -85,6 +85,16 @@ export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean
   return `${hours}시간 ${remainingMinutes}분`;
 }
 
+/** 그늘 비율을 표시용 문구로 변환한다. 값이 없으면 확인되지 않은 비율을 만들지 않는다. */
+export function formatShadePercentLabel(shadePercent: number | null | undefined): string {
+  return shadePercent == null ? '그늘 정보 없음' : `그늘 ${shadePercent}%`;
+}
+
+/** 계단 횟수 문구에 항목명을 보완한다. 이미 완성된 문구는 중복 접두어를 붙이지 않는다. */
+export function formatStairsCountLabel(stairsCount: string): string {
+  return stairsCount.includes('계단') ? stairsCount : `계단 ${stairsCount}`;
+}
+
 export interface CourseProfile {
   readonly distance_m?: number;
   readonly max_slope_percent?: number | null;
@@ -105,10 +115,10 @@ export interface RecommendedCourse {
   distanceKm: string;
   estimatedMinutes: number;
   softRatio: string;
-  shadeLevel: string;
+  shadeLevel: string | null;
   stairsCount: string;
   maxSlopePercent?: number | null;
-  shadePercent: number;
+  shadePercent: number | null;
   softSurfacePercent?: number | null;
   reason: string;
   score?: number | null;

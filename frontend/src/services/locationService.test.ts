@@ -168,6 +168,46 @@ describe('locationService - 웹 환경 및 GPS 추적 안전 동작 테스트', 
         Platform.OS = originalOS;
       }
     });
+
+    it.each([
+      [
+        'Location services are disabled',
+        'service_disabled',
+        '기기의 위치 서비스를 사용할 수 없습니다. 위치 설정을 켜고 다시 시도해 주세요.',
+      ],
+      [
+        'Location provider is unavailable.',
+        'service_disabled',
+        '기기의 위치 서비스를 사용할 수 없습니다. 위치 설정을 켜고 다시 시도해 주세요.',
+      ],
+      [
+        'unexpected native failure',
+        'error',
+        '현재 위치를 확인할 수 없습니다. GPS와 위치 설정을 확인한 뒤 다시 시도해 주세요.',
+      ],
+    ] as const)('모바일 위치 오류 "%s"는 한국어 안내로 반환해야 한다', async (nativeError, reason, errorMessage) => {
+      const originalOS = Platform.OS;
+      Platform.OS = 'android';
+
+      vi.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({
+        status: Location.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+        granted: true,
+      } as any);
+      vi.mocked(Location.getCurrentPositionAsync).mockRejectedValueOnce(new Error(nativeError));
+
+      try {
+        const result = await getCurrentLocationCoords(10_000);
+        expect(result.ok).toBe(false);
+        expect(result.reason).toBe(reason);
+        expect(result.errorMessage).toBe(errorMessage);
+        expect(result.errorMessage).not.toContain(nativeError);
+        expect(result.errorMessage).not.toMatch(/Location|unavailable|disabled|unexpected/i);
+      } finally {
+        Platform.OS = originalOS;
+      }
+    });
   });
 });
 

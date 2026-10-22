@@ -50,6 +50,20 @@ describe('US-29 createBookmark', () => {
     expect(a1.id).not.toBe(b.id);
   });
 
+  it('그늘 자료가 없으면 null 비율을 보관하고 정보 없음 태그를 만든다', () => {
+    const course = {
+      ...DEFAULT_RECOMMENDED_COURSES[0],
+      shadeLevel: null,
+      shadePercent: null,
+      stairsCount: '정보 없음',
+    };
+    const bm = createBookmark(course, PLAN, '초코');
+
+    expect(bm.shadePercent).toBeNull();
+    expect(bm.tags).toContain('그늘 정보 없음');
+    expect(bm.tags).toContain('계단 정보 없음');
+  });
+
   it('WalkDogSummary 객체를 전달하면 dogName과 dogSummary 객체가 함께 보관된다', () => {
     const summary: WalkDogSummary = {
       id: 'dog_123',

@@ -8,7 +8,7 @@
 import { LocalStorageService } from './storage';
 import { STORAGE_KEYS } from '../types/storage';
 import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
-import { RecommendedCourse } from '../types/walkSettings';
+import { formatStairsCountLabel, RecommendedCourse } from '../types/walkSettings';
 import { RouteFeatureCollection } from '../types/route';
 import { WalkDogSummary } from '../types/dogProfile';
 
@@ -49,8 +49,8 @@ export function createBookmark(
     shadePercent: course.shadePercent,
     tags: [
       course.softSurfacePercent != null ? `폭신 ${course.softSurfacePercent}%` : '폭신 노면 정보없음',
-      `그늘 ${course.shadeLevel}`,
-      course.stairsCount.includes('계단') ? course.stairsCount : `계단 ${course.stairsCount}`,
+      `그늘 ${course.shadeLevel ?? '정보 없음'}`,
+      formatStairsCountLabel(course.stairsCount),
     ],
     routeGeoJson: plan.route,
     stepPins: plan.stepPins,

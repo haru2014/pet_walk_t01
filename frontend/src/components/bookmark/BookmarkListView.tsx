@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { BookmarkedRoute } from '../../types/bookmark';
+import { formatShadePercentLabel } from '../../types/walkSettings';
 import { BookmarkService } from '../../services/bookmarkService';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
@@ -149,7 +150,9 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                     </View>
                     <View style={styles.metaItem}>
                       <AppIcon name="shade" size={13} color={TOKENS.colors.textMuted} />
-                      <Text style={styles.meta}>그늘 {bm.shadePercent}%</Text>
+                      <Text style={styles.meta}>
+                        {formatShadePercentLabel(bm.shadePercent)}
+                      </Text>
                     </View>
                   </View>
 

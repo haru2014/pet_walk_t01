@@ -13,7 +13,6 @@ import {
   computeFocusedGoldenWindow,
   computeGoldenWindowDay,
   NO_SUN_SURFACE_OFFSET_C,
-  SAFE_MAX_SURFACE_TEMP,
 } from './weatherApi';
 
 describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () => {

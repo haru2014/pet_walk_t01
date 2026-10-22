@@ -223,7 +223,10 @@ export function calculateAdaptiveCourseScore(
   }
 
   // 3. 지면온도 / 그늘 (20점)
-  const shadeRatio = Math.max(0, Math.min(1.0, course.shadePercent / 100));
+  // 자료가 없을 때 중립값을 사용해 NaN 점수나 그늘 선호 편향을 만들지 않는다.
+  const shadeRatio = course.shadePercent == null
+    ? 0.5
+    : Math.max(0, Math.min(1.0, course.shadePercent / 100));
   const thermalScore = Math.round(10.0 + shadeRatio * 10.0);
 
   // 4. 선호 적합도 (15점)

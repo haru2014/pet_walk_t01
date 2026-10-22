@@ -45,6 +45,16 @@ describe('ThemeManager & Theme Tokens', () => {
     expect(ids).toContain<ThemeId>('dark');
   });
 
+  it('테마 선택 UI에 디자인 파일명이나 시안 번호 대신 사용자용 배지를 표시한다', () => {
+    expect(THEME_LIST.map((theme) => theme.badgeText)).toEqual([
+      '앰버 & 세이지',
+      '숲길',
+      '바이올렛',
+      '야간',
+    ]);
+    expect(THEME_LIST.map((theme) => theme.description).join(' ')).not.toMatch(/app_design|시안|zlzl/i);
+  });
+
   it('기본 테마는 dusty_amber(더스티 앰버 & 세이지 그린)이며 토큰 기본 색상을 반영한다', () => {
     expect(themeManager.getTheme()).toBe('dusty_amber');
     expect(TOKENS.colors.primary).toBe(THEME_PALETTES.dusty_amber.primary);

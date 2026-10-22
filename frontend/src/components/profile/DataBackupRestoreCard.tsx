@@ -42,62 +42,62 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
     };
   }, []);
 
-  const handleBackup = () => {
-    const success = BackupService.downloadUnifiedBackupJsonFile(dog, records);
+  const handleBackup = async () => {
+    const success = await BackupService.downloadUnifiedBackupJsonFile(dog, records);
     if (success) {
       Alert.alert('백업 완료', `🐾 ${dog.name}의 프로필과 산책 기록(${records.length}건)이 백업되었습니다.`);
       return;
     }
-
-    const jsonStr = BackupService.exportUnifiedBackupToJson(dog, records);
-    Alert.alert('백업 완료', `총 ${records.length}건의 산책 기록과 프로필이 백업되었습니다:\n${jsonStr.slice(0, 100)}...`);
+    Alert.alert('백업 실패', '백업 파일을 만들거나 저장하지 못했습니다. 다시 시도해 주세요.');
   };
 
-  const handleTriggerFilePicker = () => {
-    if (Platform.OS === 'web' && fileInputRef.current) {
-      fileInputRef.current.click();
+  const handleRestoreContent = async (content: string) => {
+    const result = await BackupService.restoreAnyBackup(content);
+    if (result) {
+      const profileMsg = result.profile ? `[${result.profile.name}] 프로필` : '';
+      const recordsMsg = result.recordsCount > 0 ? `산책 기록 ${result.recordsCount}건` : '';
+      const combined = [profileMsg, recordsMsg].filter(Boolean).join(' 및 ');
+
+      const message = `🐾 ${combined || '데이터'}이(가) 성공적으로 복원되었습니다!`;
+      if (typeof window !== 'undefined') {
+        window.alert(message);
+      } else {
+        Alert.alert('복원 완료', message);
+      }
+      onRestoreCompleted?.(result);
     } else {
-      Alert.alert(
-        '복원하기',
-        '백업해 둔 편안하개 백업 파일을 선택해 복원할 수 있습니다.',
-        [{ text: '확인' }]
-      );
+      const errorMsg = '유효한 편안하개 백업 파일이 아니거나 손상되었습니다.';
+      if (typeof window !== 'undefined') {
+        window.alert(errorMsg);
+      } else {
+        Alert.alert('복원 실패', errorMsg);
+      }
     }
   };
 
-  const handleWebFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleTriggerFilePicker = async () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const content = await BackupService.pickBackupJsonFile();
+      if (content !== null) await handleRestoreContent(content);
+    } catch {
+      Alert.alert('복원 실패', '백업 파일을 열지 못했습니다. 파일을 확인하고 다시 시도해 주세요.');
+    }
+  };
+
+  const handleWebFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
-      const content = event.target?.result;
-      if (typeof content !== 'string') return;
-
-      const result = await BackupService.restoreAnyBackup(content);
-      if (result) {
-        const profileMsg = result.profile ? `[${result.profile.name}] 프로필` : '';
-        const recordsMsg = result.recordsCount > 0 ? `산책 기록 ${result.recordsCount}건` : '';
-        const combined = [profileMsg, recordsMsg].filter(Boolean).join(' 및 ');
-
-        const message = `🐾 ${combined || '데이터'}이(가) 성공적으로 복원되었습니다!`;
-        if (typeof window !== 'undefined') {
-          window.alert(message);
-        } else {
-          Alert.alert('복원 완료', message);
-        }
-        onRestoreCompleted?.(result);
-      } else {
-        const errorMsg = '유효한 편안하개 백업 파일이 아니거나 손상되었습니다.';
-        if (typeof window !== 'undefined') {
-          window.alert(errorMsg);
-        } else {
-          Alert.alert('복원 실패', errorMsg);
-        }
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    reader.onload = (loadEvent) => {
+      const content = loadEvent.target?.result;
+      if (typeof content === 'string') void handleRestoreContent(content);
+      event.target.value = '';
     };
     reader.readAsText(file);
   };
@@ -168,17 +168,17 @@ export const DataBackupRestoreCard: React.FC<DataBackupRestoreCardProps> = ({
             <Text style={[styles.restoreBtnText, { color: colors.primaryDark }]}>📂 복원하기</Text>
           </TouchableOpacity>
 
-          {/* Web 전용 보이지 않는 File Input */}
           {Platform.OS === 'web' && (
             <input
               type="file"
-              ref={fileInputRef as any}
-              onChange={handleWebFileChange as any}
+              ref={fileInputRef as React.RefObject<HTMLInputElement>}
+              onChange={handleWebFileChange}
               accept=".json,application/json"
               style={{ display: 'none' }}
               data-testid="backup-file-input"
             />
           )}
+
         </View>
       )}
     </View>

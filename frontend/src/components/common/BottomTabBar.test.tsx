@@ -48,6 +48,8 @@ describe('BottomTabBar - 하단 내비게이션 바', () => {
     expect(html).toContain('aria-label="산책 탭"');
     // activeBg (rgba(227,236,228,1.00)) 및 active 텍스트 font-weight:600 확인
     expect(html).toContain('rgba(227,236,228,1.00)');
+    expect(html).toContain('r-borderRadius-');
+    expect(html).toContain('r-overflow-');
     expect(html).toContain('font-weight:600');
     expect(html).toContain('stroke="#3E5244"');
   });

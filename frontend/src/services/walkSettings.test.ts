@@ -11,6 +11,8 @@ import {
   DURATION_OPTIONS_15MIN,
   BREED_DURATION_GUIDES,
   formatDurationLabel,
+  formatShadePercentLabel,
+  formatStairsCountLabel,
 } from '../types/walkSettings';
 import {
   calculateRecommendedSpeedKmH,
@@ -47,9 +49,20 @@ describe('AI 추천 코스 및 3대 안심 지표 (Screen-04)', () => {
     for (const course of DEFAULT_RECOMMENDED_COURSES) {
       expect(course.maxSlopePercent).toBeLessThanOrEqual(5.0); // 완만 경사 보장
       expect(course.softSurfacePercent).toBeGreaterThanOrEqual(50); // 푹신 노면 50% 이상
-      expect(course.shadePercent).toBeGreaterThanOrEqual(40); // 그늘 40% 이상
+      expect(course.shadePercent ?? 0).toBeGreaterThanOrEqual(40); // 기본 코스 그늘 40% 이상
       expect(course.reason).toBeTruthy();
     }
+  });
+
+  it('그늘 비율이 없으면 그늘 정보 없음으로 포맷한다 (Issue #144)', () => {
+    expect(formatShadePercentLabel(null)).toBe('그늘 정보 없음');
+    expect(formatShadePercentLabel(undefined)).toBe('그늘 정보 없음');
+    expect(formatShadePercentLabel(62)).toBe('그늘 62%');
+  });
+
+  it('계단 횟수의 정보 없음 문구를 계단 정보 없음으로 보완한다 (Issue #144)', () => {
+    expect(formatStairsCountLabel('정보 없음')).toBe('계단 정보 없음');
+    expect(formatStairsCountLabel('확인된 계단 0회')).toBe('확인된 계단 0회');
   });
 });
 

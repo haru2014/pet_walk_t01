@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   OPENFREEMAP_STYLES,
-  THEME_TO_MAP_STYLE,
-  getMapStyleUrl,
   getMapStyleKeyForTheme,
   getMapStyleForTheme,
   getMapRouteColors,

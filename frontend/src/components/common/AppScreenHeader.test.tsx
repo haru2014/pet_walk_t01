@@ -5,6 +5,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { AppScreenHeader } from './AppScreenHeader';
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
@@ -16,8 +17,6 @@ vi.mock('react-native-svg', () => ({
   Line: (props: any) => React.createElement('line', props),
   Polyline: (props: any) => React.createElement('polyline', props),
 }));
-
-import { AppScreenHeader } from './AppScreenHeader';
 
 describe('AppScreenHeader - 공통 상단 헤더 컴포넌트', () => {
   it('제목과 뒤로가기 버튼을 정상 렌더링한다', () => {
