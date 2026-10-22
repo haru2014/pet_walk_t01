@@ -46,7 +46,7 @@ describe('WalkVoiceInputSection (US-A1, 영역 1 & 2)', () => {
     );
 
     expect(html).toContain('30분 산책');
-    expect(html).toContain('AI 분석');
+    expect(html).toContain('조건 적용');
   });
 
   it('accepts hideResultBadge prop without breaking render', () => {

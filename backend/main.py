@@ -80,6 +80,7 @@ from services.voice_intent_service import (
     resolve_landmark_park_id,
 )
 from services.gemini_tts import generate_speech_audio
+from services.voice_transcription import transcribe_walk_command
 
 from contextlib import asynccontextmanager
 
@@ -161,6 +162,37 @@ class VoiceIntentRequest(BaseModel):
     dog_name: Optional[str] = None
     origin_lat: Optional[float] = None
     origin_lon: Optional[float] = None
+
+
+@app.post("/api/v1/voice/transcribe")
+def transcribe_voice_command(
+    audio: UploadFile = File(...),
+    dog_name: str = Form(default=""),
+    mime_type: str = Form(default=""),
+):
+    """짧은 산책 음성 명령을 Gemini로 받아쓰기만 한다."""
+    allowed_mime_types = {
+        "audio/mp4", "audio/m4a", "audio/webm", "audio/ogg", "audio/wav",
+        "audio/mpeg", "audio/mp3", "audio/aac",
+    }
+    resolved_mime_type = (mime_type or audio.content_type or "").split(";")[0].strip().lower()
+    if resolved_mime_type not in allowed_mime_types:
+        raise HTTPException(status_code=415, detail="지원하지 않는 음성 파일 형식입니다.")
+
+    audio_data = audio.file.read(10 * 1024 * 1024 + 1)
+    if not audio_data:
+        raise HTTPException(status_code=400, detail="녹음된 음성이 비어 있습니다.")
+    if len(audio_data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="음성 파일이 너무 큽니다. 짧게 다시 녹음해 주세요.")
+
+    try:
+        transcript = transcribe_walk_command(audio_data, resolved_mime_type, dog_name[:80])
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="음성 인식 서비스를 사용할 수 없습니다.") from exc
+    except Exception as exc:
+        logger.warning("Gemini voice transcription failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Gemini 음성 인식에 실패했습니다.") from exc
+    return {"status": "success", "transcript": transcript, "model_used": "gemini-3.5-transcribe"}
 
 
 class TtsRequest(BaseModel):
