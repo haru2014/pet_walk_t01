@@ -7,6 +7,8 @@
 
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import {
   DEFAULT_SOUND_SETTINGS,
   SoundSettings,
@@ -15,6 +17,7 @@ import {
 } from '../types/voiceSettings';
 import { LocalStorageService } from './storage';
 import { STORAGE_KEYS } from '../types/storage';
+import { fetchWithServerFallback } from './apiClient';
 
 export type SpeakPriority = 'normal' | 'high';
 
@@ -39,6 +42,17 @@ export class TTSNavigationService {
   private static isBusy = false;
   private static utteranceId = 0;
   private static watchdog: ReturnType<typeof setTimeout> | null = null;
+  private static currentPlayer: ReturnType<typeof createAudioPlayer> | null = null;
+  private static currentAudioFile: File | null = null;
+  private static playbackSubscription: { remove: () => void } | null = null;
+  private static requestController: AbortController | null = null;
+
+  private static readonly geminiVoices: Record<VoiceProfileId, { voice: string; style: string }> = {
+    calm_female: { voice: 'Kore', style: 'Speak Korean calmly, gently, and reassuringly at a natural, measured pace.' },
+    bright_female: { voice: 'Aoede', style: 'Speak Korean brightly, warmly, and cheerfully at a natural pace.' },
+    calm_male: { voice: 'Charon', style: 'Speak Korean in a calm, steady, trustworthy, and measured manner.' },
+    friendly_male: { voice: 'Puck', style: 'Speak Korean in a friendly, warm, and natural manner.' },
+  };
 
   /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
   static async loadAvailableVoices(): Promise<Speech.Voice[]> {
@@ -226,7 +240,7 @@ export class TTSNavigationService {
       self.queue = [];
       self.utteranceId += 1; // 이전 발화의 콜백 무효화
       self.clearWatchdog();
-      void Speech.stop().catch(() => {});
+      void self.stopCurrentOutput();
       self.utter({ message, profileId: overrideProfileId, priority });
       return;
     }
@@ -281,6 +295,9 @@ export class TTSNavigationService {
     const finish = (): void => {
       if (id !== self.utteranceId) return; // stop()·새 발화로 이미 무효화된 콜백
       self.clearWatchdog();
+      self.requestController?.abort();
+      self.requestController = null;
+      void self.releaseCurrentPlayer();
       self.isSpeaking = false;
       self.playNext();
     };
@@ -308,16 +325,139 @@ export class TTSNavigationService {
 
     // 종료 콜백이 오지 않는 환경에서도 대기열이 멈추지 않도록 문장 길이 기반 안전 타이머를 둔다.
     self.clearWatchdog();
-    self.watchdog = setTimeout(finish, Math.min(20000, 3000 + message.length * 350));
+    self.watchdog = setTimeout(finish, Math.min(45000, 8000 + message.length * 500));
+    void self.speakWithGemini(message, profileId, id, speechOptions, finish);
+  }
 
+  private static async speakWithGemini(
+    message: string,
+    profileId: VoiceProfileId,
+    id: number,
+    fallbackOptions: Speech.SpeechOptions,
+    finish: () => void,
+  ): Promise<void> {
+    const self = TTSNavigationService;
+    const profile = self.geminiVoices[profileId];
+    const controller = new AbortController();
+    self.requestController = controller;
     try {
-      Speech.speak(message, speechOptions);
-    } catch (e) {
-      if (Platform.OS !== 'web') {
-        console.warn('[TTSNavigationService] TTS 미지원 환경:', e);
+      const response = await fetchWithServerFallback(
+        '/api/v1/voice/tts',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: message, ...profile }),
+          signal: controller.signal,
+        },
+        30000,
+        2000,
+      );
+      if (!response.ok) throw new Error(`Gemini TTS returned ${response.status}`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.length || id !== self.utteranceId) return;
+
+      const file = new File(Paths.cache, `petwalk-tts-${id}.wav`);
+      file.create({ overwrite: true });
+      await file.write(self.bytesToBase64(bytes), { encoding: 'base64' });
+      if (id !== self.utteranceId) {
+        file.delete();
+        return;
       }
+      self.currentAudioFile = file;
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        allowsRecording: false,
+        shouldPlayInBackground: true,
+      });
+      if (id !== self.utteranceId) {
+        file.delete();
+        return;
+      }
+      const player = createAudioPlayer({ uri: file.uri });
+      self.currentPlayer = player;
+      player.volume = self.settings.volume;
+      player.setActiveForLockScreen(true, { title: '편안하개 산책 안내', artist: '편안하개' });
+      let fallbackStarted = false;
+      self.playbackSubscription = player.addListener('playbackStatusUpdate', (status) => {
+        if (status.playing) self.isSpeaking = true;
+        if (status.error && !fallbackStarted) {
+          fallbackStarted = true;
+          void self.playNativeFallback(message, fallbackOptions, id, finish);
+        } else if (status.didJustFinish) {
+          finish();
+        }
+      });
+      player.play();
+    } catch (error) {
+      if (id !== self.utteranceId || controller.signal.aborted) return;
+      console.info('[TTSNavigationService] Gemini TTS 실패, 기기 음성으로 전환:', error);
+      await self.playNativeFallback(message, fallbackOptions, id, finish);
+    }
+  }
+
+  private static bytesToBase64(bytes: Uint8Array): string {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let encoded = '';
+    for (let i = 0; i < bytes.length; i += 3) {
+      const a = bytes[i];
+      const hasB = i + 1 < bytes.length;
+      const hasC = i + 2 < bytes.length;
+      const b = hasB ? bytes[i + 1] : 0;
+      const c = hasC ? bytes[i + 2] : 0;
+      encoded += alphabet[a >> 2];
+      encoded += alphabet[((a & 3) << 4) | (b >> 4)];
+      encoded += hasB ? alphabet[((b & 15) << 2) | (c >> 6)] : '=';
+      encoded += hasC ? alphabet[c & 63] : '=';
+    }
+    return encoded;
+  }
+
+  private static async playNativeFallback(
+    message: string,
+    options: Speech.SpeechOptions,
+    id: number,
+    finish: () => void,
+  ): Promise<void> {
+    const self = TTSNavigationService;
+    if (id !== self.utteranceId) return;
+    await self.releaseCurrentPlayer();
+    try {
+      Speech.speak(message, options);
+    } catch (error) {
+      if (Platform.OS !== 'web') console.warn('[TTSNavigationService] TTS 미지원 환경:', error);
       finish();
     }
+  }
+
+  private static async releaseCurrentPlayer(): Promise<void> {
+    const self = TTSNavigationService;
+    self.playbackSubscription?.remove();
+    self.playbackSubscription = null;
+    self.currentPlayer?.clearLockScreenControls();
+    self.currentPlayer?.remove();
+    self.currentPlayer = null;
+    const file = self.currentAudioFile;
+    self.currentAudioFile = null;
+    try {
+      file?.delete();
+    } catch {
+      // 캐시 파일이 이미 정리된 경우 무시
+    }
+  }
+
+  private static async stopCurrentOutput(): Promise<void> {
+    const self = TTSNavigationService;
+    self.requestController?.abort();
+    self.requestController = null;
+    let speechStop: Promise<void>;
+    try {
+      speechStop = Speech.stop();
+    } catch {
+      speechStop = Promise.resolve();
+    }
+    await self.releaseCurrentPlayer();
+    await speechStop.catch(() => {});
   }
 
   /** 진행 중인 발화를 멈추고 대기열을 비운다. */
@@ -327,11 +467,7 @@ export class TTSNavigationService {
     self.isBusy = false;
     self.utteranceId += 1;
     self.clearWatchdog();
-    try {
-      await Speech.stop();
-    } catch {
-      // 정지 실패는 무시
-    }
+    await self.stopCurrentOutput();
     self.isSpeaking = false;
   }
 

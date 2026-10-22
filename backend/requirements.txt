@@ -21,7 +21,7 @@ pydantic-settings>=2.2.0,<3.0.0
 langgraph>=0.2.0                         # 상태 머신(StateGraph) 기반 ReAct 에이전트
 langchain>=0.2.0                         # LLM 오케스트레이션 도구 추상화
 langchain-core>=0.2.0                    # 에이전트 메시지 및 툴 인터페이스
-google-genai>=2.0.0                      # 최신 Google GenAI Python SDK (Gemini 3.x)
+google-genai>=2.25.0                     # Gemini 3.8 TTS Interactions API 포함
 google-generativeai>=0.8.0               # Gemini Multimodal Vision API 체인
 
 # --- [4. GIS, Spatial Processing & Routing Engine] ---
