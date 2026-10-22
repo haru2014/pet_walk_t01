@@ -31,7 +31,7 @@ def test_failed_candidate_is_dropped_not_rectangle(monkeypatch):
     """3번 후보가 방향을 바꿔도 실패하면 3번만 빠지고 네모는 나오지 않는다."""
     _no_offline_fallbacks(monkeypatch)
 
-    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0):
+    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0, **kwargs):
         return None if variant == 3 else _live_plan(variant)
 
     monkeypatch.setattr(lrp, "_plan_live", fake_live)
@@ -41,13 +41,13 @@ def test_failed_candidate_is_dropped_not_rectangle(monkeypatch):
 
 
 def test_failed_candidate_is_retried_with_another_bearing(monkeypatch):
-    """처음 방향에서 탈락한 후보는 다른 방향으로 한 번 더 시도해 3개를 채운다."""
+    """처음 방향에서 탈락한 후보는 다른 방향으로 다시 시도해 3개를 채운다 (두 번째 방향에서 성공)."""
     _no_offline_fallbacks(monkeypatch)
     calls = []
 
-    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0):
+    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0, **kwargs):
         calls.append((variant, bearing_offset))
-        if variant == 3 and bearing_offset == 0.0:
+        if variant == 3 and bearing_offset in (0.0, lrp.RETRY_BEARING_OFFSETS[0]):
             return None
         return _live_plan(variant)
 
@@ -55,8 +55,7 @@ def test_failed_candidate_is_retried_with_another_bearing(monkeypatch):
     plans = lrp.plan_loop_candidates(*ORIGIN, TARGET_M)
     assert sorted(plans) == [1, 2, 3]
     assert all(p.source == "osrm_live" for p in plans.values())
-    assert calls.count((3, 0.0)) == 1
-    assert any(v == 3 and off != 0.0 for v, off in calls)
+    assert [off for v, off in calls if v == 3] == [0.0, *lrp.RETRY_BEARING_OFFSETS[:2]]
 
 
 def test_all_failed_still_returns_fallback(monkeypatch):
@@ -73,7 +72,7 @@ def test_retry_skipped_when_budget_exhausted(monkeypatch):
     _no_offline_fallbacks(monkeypatch)
     calls = []
 
-    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0):
+    def fake_live(lat, lon, target, variant, deadline, bearing_offset=0.0, **kwargs):
         calls.append((variant, bearing_offset))
         return None if variant == 3 else _live_plan(variant)
 
@@ -81,3 +80,18 @@ def test_retry_skipped_when_budget_exhausted(monkeypatch):
     plans = lrp.plan_loop_candidates(*ORIGIN, TARGET_M, time_budget_s=0.0)
     assert sorted(plans) == [1, 2]
     assert all(off == 0.0 for _, off in calls)
+
+
+def test_invalid_loop_is_not_refined_but_left_to_bearing_retry(monkeypatch):
+    """순환이 닫히지 않는 방향은 반경 보정(OSRM 추가 호출)을 하지 않고 바로 포기한다 (예산을 방향 교체에 쓰기 위해)."""
+    calls = []
+
+    def open_line(waypoints, timeout_seconds=3.0, use_cache=True):
+        calls.append(1)
+        coords = [[127.349 + i * 0.0005, 36.3905] for i in range(20)]  # 출발지로 돌아오지 않는 직선
+        return coords, 900.0, 100.0
+
+    monkeypatch.setattr(lrp, "fetch_osrm_foot_route", open_line)
+    plan = lrp._plan_live(*ORIGIN, TARGET_M, 3, lrp.time.monotonic() + 60)
+    assert plan is None
+    assert len(calls) == 1
