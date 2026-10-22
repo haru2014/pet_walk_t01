@@ -198,8 +198,9 @@ class TestLangGraphAgentFallbackHandling:
         assert result.intent.avoid_stairs is True
         assert result.intent.slope_preference == "gentle"
         assert result.best_route is not None
-        # [제안 맞춤 점수] 자료가 없는 서울 좌표라 중간 점수: 80 → 70
-        assert result.best_score >= 70.0
+        # [제안 맞춤 점수] 자료가 없는 서울 좌표라 중간 점수: 80 → 70 → 65
+        # (OSRM 이 막힌 환경에서는 직사각형 후보를 더 이상 내지 않아, 거리 오차가 큰 오프라인 도로망 경로가 최고점이 된다)
+        assert result.best_score >= 65.0
 
 
 class TestCandidateRouteScorerMultiFactorBreakdown:
