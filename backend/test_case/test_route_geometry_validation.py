@@ -66,6 +66,8 @@ class TestRouteGeometryIntegrity:
             avoid_stairs=True,
         )
         candidates = generate_loop_candidates(req)
+        if variant_idx >= len(candidates):
+            pytest.skip("실제 길 기반 코스를 못 만든 후보는 제외된다 (OSRM 장애 시)")
         cand = candidates[variant_idx]
         ratio = backtrack_ratio(cand.geojson_coordinates)
         assert ratio <= 0.15, (
