@@ -262,11 +262,18 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
         stairs_text = "확인된 계단 0회"
     else:
         stairs_text = f"{stairs}회"
+    # 그늘: 위성 토지피복으로 잰 비율(#146). 도안·공원 밖 경로처럼 모르면 null (앱은 "그늘 정보 없음", #144).
+    # 예전에는 코스 번호별 고정값(85/60/35%)이 그대로 나갔다.
+    shade = profile.get("shade_ratio")
+    shade_percent = round(shade * 100) if shade is not None else None
+    shade_level = None if shade is None else ("많음" if shade > 0.5 else "보통")
     return {
         "maxSlopePercent": profile.get("max_slope_percent"),
         "softSurfacePercent": soft_percent,
         "softRatio": soft_text,
         "stairsCount": stairs_text,
+        "shadePercent": shade_percent,
+        "shadeLevel": shade_level,
     }
 
 
