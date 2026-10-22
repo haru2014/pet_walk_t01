@@ -56,8 +56,10 @@ MAX_CLOSURE_GAP_M = 15.0
 STATIC_MATCH_RADIUS_M = 300.0
 FALLBACK_EDGE_SPACING_M = 25.0
 M_PER_DEG_LAT = 111_320.0
-# 처음 방향에서 탈락한 후보를 한 번 더 시도할 때 돌리는 각도 (현재 위치 모드, 시간 예산이 남을 때만)
-RETRY_BEARING_OFFSET = 40.0
+# 처음 방향에서 탈락한 후보를 다른 방향으로 다시 시도한다 (현재 위치 모드, 시간 예산이 남을 때만, 방향당 OSRM 1회).
+#   애경연구원 근처 실측: 서쪽(270도)은 하천·큰 도로에 막혀 반경을 바꿔도 길이가 2282→842→2282m 로 널뛰며 수렴하지 않았다.
+#   반면 60·90·120·180·210도는 첫 시도부터 오차 16% 이내였다 -> 보정 반복보다 방향 교체가 효과적이다.
+RETRY_BEARING_OFFSETS: Tuple[float, ...] = (-60.0, 60.0, -90.0)
 RETRY_MIN_REMAINING_S = 2.0  # 재시도는 남은 예산이 이만큼 있을 때만 (OSRM 한 번이 보통 0.5~1.5초)
 
 STATIC_SEOUL_LOOPS: Dict[int, List[List[float]]] = {
@@ -154,13 +156,17 @@ def _plan_live(
     variant: int,
     deadline: float,
     bearing_offset: float = 0.0,
+    max_refinements: int = MAX_REFINEMENTS,
 ) -> Optional[LoopPlan]:
-    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다. bearing_offset 은 재시도 때 방향을 돌린다."""
+    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다.
+
+    bearing_offset 은 재시도 때 방향을 돌리고, max_refinements=0 이면 반경 보정 없이 한 번만 질의한다.
+    """
     loop_length = target_distance_m / DETOUR_FACTOR
     best: Optional[Tuple[List[List[float]], float]] = None
     scales: Tuple[float, ...] = SPECULATIVE_SCALES
 
-    for _ in range(MAX_REFINEMENTS + 1):
+    for _ in range(max_refinements + 1):
         round_started = time.monotonic()
         lengths = [loop_length * sc for sc in scales]
 
@@ -178,6 +184,10 @@ def _plan_live(
         anchor, best = _update_round_best(lengths, results, target_distance_m, best)
 
         if anchor is None:
+            break
+        if best is None:
+            # 순환 종결·왕복 기준을 못 맞춘 방향은 반경을 바꿔도 거의 나아지지 않는다 (서쪽 실측: 2282→842→2282m 널뜀).
+            # 예산을 쓰지 말고 호출자가 다른 방향으로 다시 시도하게 한다.
             break
         if (best is not None and best[1] <= DISTANCE_TOLERANCE) or time.monotonic() + round_elapsed > deadline:
             break
@@ -326,9 +336,11 @@ def _plan_variant(
     plan = _plan_offline_network(origin_lat, origin_lon, offline_target, variant)
     if plan is not None:
         return plan
-    # 조건에서 탈락한 후보는 방향을 돌려 한 번 더 시도한다 (시간 예산이 남을 때만).
-    if deadline - time.monotonic() >= RETRY_MIN_REMAINING_S:
-        plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, RETRY_BEARING_OFFSET)
+    # 조건에서 탈락한 후보는 방향을 바꿔 다시 시도한다 (방향당 OSRM 1회, 시간 예산이 남을 때만).
+    for offset in RETRY_BEARING_OFFSETS:
+        if deadline - time.monotonic() < RETRY_MIN_REMAINING_S:
+            break
+        plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0)
         if plan is not None:
             return plan
     return None
