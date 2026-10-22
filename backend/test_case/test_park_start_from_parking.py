@@ -69,9 +69,10 @@ def test_park_without_connectable_lot_keeps_center(monkeypatch):
     assert "parking_lot" not in data
 
 
-def test_parking_start_skipped_when_courses_would_look_the_same():
-    """세종 제1주차장은 막다른 길 끝이라 30분 코스 3개가 처음 수백 m 를 함께 쓴다(간선 겹침 0.65 이상).
-    코스가 서로 다른 길이어야 한다는 요구(#125·#155)가 우선이라 이때는 공원 중심 출발을 유지한다."""
+def test_parking_start_skipped_when_courses_would_look_the_same(monkeypatch):
+    """주차장에서 출발하면 코스 3개가 서로 비슷해지는 공원은 공원 중심 출발을 유지한다 (#125·#155 가 우선).
+    예전에는 세종 제1주차장 30분이 그랬지만, 세종중앙공원을 합친 뒤로는 코스가 갈려서 데이터와 무관하게 판정 함수를 바꿔 확인한다."""
+    monkeypatch.setattr(main, "_parking_start_keeps_courses_distinct", lambda *args, **kwargs: False)
     lat, lon, _ = PILOT_PARK_CENTERS["sejong"]
     data = _plan({"origin_lat": lat, "origin_lon": lon, "origin_mode": "park", "pilot_park_id": "sejong",
                   "target_duration_minutes": 30})
