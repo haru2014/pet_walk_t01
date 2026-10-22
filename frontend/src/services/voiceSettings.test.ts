@@ -31,6 +31,10 @@ vi.mock('expo-speech', () => ({
   getAvailableVoicesAsync: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('./apiClient', () => ({
+  fetchWithServerFallback: vi.fn().mockRejectedValue(new Error('offline')),
+}));
+
 describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () => {
   it('4종 AI 목소리 프로필이 올바른 톤과 성별로 정의되어 있어야 한다', () => {
     expect(VOICE_PROFILES).toHaveLength(4);
@@ -101,7 +105,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     expect(Speech.speak).not.toHaveBeenCalled();
   });
 
-  it('음소거 해제 상태에서는 선택된 프로필의 pitch/rate와 함께 발화되어야 한다', async () => {
+  it('Gemini 요청 실패 시 기기 음성이 선택된 프로필 설정으로 대체되어야 한다', async () => {
     await TTSNavigationService.updateSettings({
       profileId: 'bright_female',
       volume: 0.9,
@@ -109,6 +113,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     });
 
     TTSNavigationService.speak('안녕하세요, 산책 안내입니다');
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     expect(Speech.speak).toHaveBeenCalledWith(
       '안녕하세요, 산책 안내입니다',
       expect.objectContaining({
@@ -159,6 +164,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
 
       await TTSNavigationService.setProfile('calm_male');
       TTSNavigationService.speak('전방 100m 앞 좌회전입니다');
+      await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
 
       expect(Speech.speak).toHaveBeenCalledWith(
         '전방 100m 앞 좌회전입니다',
@@ -176,6 +182,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
 
       await TTSNavigationService.setProfile('friendly_male');
       TTSNavigationService.speak('잠시 벤치에서 쉬어가요');
+      await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
 
       expect(Speech.speak).toHaveBeenCalledWith(
         '잠시 벤치에서 쉬어가요',
@@ -199,35 +206,41 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     vi.clearAllMocks();
   });
 
-  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', () => {
+  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', async () => {
     TTSNavigationService.speak('산책을 시작합니다');
     TTSNavigationService.speak('출발지에서 직진하세요');
 
-    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     expect(Speech.stop).not.toHaveBeenCalled();
 
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     expect(Speech.speak).toHaveBeenCalledTimes(2);
     expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('출발지에서 직진하세요');
   });
 
-  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', () => {
+  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', async () => {
     TTSNavigationService.speak('A');
     TTSNavigationService.speak('B');
     TTSNavigationService.speak('C', undefined, false, 'high');
 
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
     doneOf(1)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(3));
     expect(vi.mocked(Speech.speak).mock.calls[2][0]).toBe('B');
   });
 
-  it('같은 문구가 대기 중이면 중복 등록하지 않는다', () => {
+  it('같은 문구가 대기 중이면 중복 등록하지 않는다', async () => {
     TTSNavigationService.speak('A');
     TTSNavigationService.speak('B');
     TTSNavigationService.speak('B');
 
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     doneOf(1)();
     expect(Speech.speak).toHaveBeenCalledTimes(2);
   });
@@ -237,10 +250,10 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     TTSNavigationService.speak('B');
     await TTSNavigationService.stop();
 
-    doneOf(0)(); // 무효화된 이전 발화의 종료 콜백
-    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(Speech.speak).not.toHaveBeenCalled();
 
     TTSNavigationService.speak('C');
-    expect(Speech.speak).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
   });
 });
