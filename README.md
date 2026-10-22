@@ -6,8 +6,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-507%2F507%20Passed-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-358%2F358%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-796%20passed%2C%205%20skipped-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-406%2F406%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -134,11 +134,11 @@ open mockup/index.html
 백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.
 
 ```bash
-# 1. 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
+# 1. 백엔드 Pytest 전수 검증 (801개 수집, 796개 통과, 5개 건너뜀)
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
+# 2. 프론트엔드 Vitest 단위 테스트 (70개 파일, 406개 통과)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -361,12 +361,12 @@ graph LR
 #### 1) 종합 품질 검증 지표
 | 구분 | 검증 항목 | 달성 지표 | 상태 | 세부 내용 |
 | :--- | :--- | :---: | :---: | :--- |
-| **Backend** | Pytest TDD 스위트 | **507 / 507** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
-| **Frontend** | Vitest 단위 테스트 | **358 / 358** | `PASS` | 62개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임, 커뮤니티/마이페이지) |
+| **Backend** | Pytest TDD 스위트 | **796 passed / 5 skipped** | `PASS` | 801개 수집, LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 검증 |
+| **Frontend** | Vitest 단위 테스트 | **406 / 406** | `PASS` | 70개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임, 커뮤니티/마이페이지) |
 | **Frontend** | TypeScript 컴파일 검사 | **0 Errors** | `PASS` | `tsc --noEmit` 완벽 무결성 통과 (Strict Mode) |
 | **Code Quality** | SonarLint 단일 파일 줄수 | **100% 준수** | `PASS` | 모든 신규/수정 파일 250줄 이하 가드레일 엄수 (`App.tsx` 249줄) |
 | **UX & Copy** | 전문 용어 순화 가드레일 | **100% 완료** | `PASS` | 스토리 번호(`US-xx`) 및 개발자 용어 전면 배제, 웰니스 어휘 적용 |
-| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (507) + `mobile-app-ci` (358) 통과 시 자동 머지 파이프라인 |
+| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (796 passed, 5 skipped) + `mobile-app-ci` (406) 통과 시 자동 머지 파이프라인 |
 
 #### 2) 최근 완성된 주요 기능 구현 내용
 1. **대전 3대 공원 & 세종 2대 공원 5대 파일럿 실증 거점 연동**:
@@ -417,53 +417,19 @@ graph LR
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
 ```bash
-# 전체 백엔드 TDD 테스트 스위트 실행 (507개 테스트 100% Pass)
+# 전체 백엔드 TDD 테스트 스위트 실행
 python -m pytest
 # 또는: cd backend && pytest test_case/ -v
 ```
 
 ```text
 ============================= test session starts =============================
-platform win32 -- Python 3.14.x / pytest-9.x
-rootdir: d:\코디세이\pet_walk_t01\backend, configfile: pytest.ini
-collected 507 items / 1 skipped
-
-test_case\test_airkorea_client.py ....                                   [  0%]
-test_case\test_api_contracts.py ...                                      [  1%]
-test_case\test_building_avoidance.py .....                               [  2%]
-test_case\test_kma_grid_converter.py ................................... [  9%]
-test_case\test_kma_weather_client.py ................................... [ 16%]
-test_case\test_langgraph_walk_agent.py ..............                    [ 21%]
-test_case\test_loop_target_duration.py ............                      [ 24%]
-test_case\test_mobile_and_voice_navigation.py ........                   [ 25%]
-test_case\test_open_meteo_client.py .................................... [ 32%]
-test_case\test_origin_mode.py ........                                   [ 35%]
-test_case\test_park_route_guardrail.py ................................. [ 41%]
-test_case\test_parking_endpoint_wiring.py ...                            [ 42%]
-test_case\test_parking_lots.py ......................................... [ 50%]
-test_case\test_parking_pnr_convergence.py ..........                     [ 55%]
-test_case\test_phase2_extended_features.py ..........                    [ 57%]
-test_case\test_rest_api_v1_endpoints.py ..................               [ 61%]
-test_case\test_route_geometry_validation.py .............                [ 63%]
-test_case\test_spatial_masking.py ...                                    [ 64%]
-test_case\test_supabase_repository.py ...                                [ 64%]
-test_case\test_surface_cost_model.py ....................                [ 68%]
-test_case\test_surface_slope_evaluation.py ......................        [ 73%]
-test_case\test_thermal_and_parking.py ......                             [ 74%]
-test_case\test_vision_safety_inspector.py .............                  [ 76%]
-test_case\test_voice_intent_service.py .....                             [ 77%]
-test_case\test_walk_agent_weather_binding.py ...                         [ 78%]
-test_case\test_walk_plan_agent_schema.py .............                   [ 81%]
-test_case\test_walk_plan_latency.py ..............                       [ 83%]
-test_case\test_walk_tracking_and_feedback.py .........                   [ 85%]
-test_case\test_weather_context.py ...................................... [ 93%]
-test_case\test_weather_endpoint_wiring.py .........                      [100%]
-
-======================= 507 passed, 1 skipped in 17.70s =======================
+collected 801 items
+==================== 796 passed, 5 skipped in 122.71s ====================
 ```
 
 ```bash
-# 모바일 프론트엔드 Vitest 단위 테스트 실행 (62개 파일, 358개 테스트 100% Pass)
+# 모바일 프론트엔드 Vitest 단위 테스트 실행 (70개 파일, 406개 통과)
 cd frontend && npm test
 ```
 
@@ -548,7 +514,7 @@ pet_walk_t01/
 │   │   ├── kma_grid_converter.py              # 위경도 <-> 기상청 격자(X, Y) 양방향 변환기
 │   │   └── kma_weather_client.py              # 기상청 단기예보 실시간 수집 및 캐시 클라이언트
 │   ├── fixtures/                              # 테스트용 서울시 건물 외곽선 GeoJSON
-│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (507개 Pytest 전수 Pass)
+│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (796개 통과, 5개 건너뜀)
 ├── frontend/                                  # 📱 [Expo 모바일 앱 & 웹] React Native / Expo SDK 57
 │   ├── README.md                              # 프론트엔드 모바일 아키텍처 및 실행 가이드
 │   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~05 통합 라우팅)
@@ -557,7 +523,7 @@ pet_walk_t01/
 │   ├── package.json                           # React Native, Expo, Vitest 의존성
 │   └── src/                                   # components, screens, services, theme, hooks, types
 └── .github/workflows/                         # GitHub Actions CI 파이프라인
-    └── ci.yml                                 # pytest(507개) + mobile vitest(358개) & tsc 자동 머지
+    └── ci.yml                                 # pytest(796 통과, 5 건너뜀) + mobile vitest(406) & tsc 자동 머지
 ```
 
 ---
@@ -592,7 +558,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # 5. 브라우저에서 Swagger UI 접속하여 실시간 API 테스트
 # URL: http://localhost:8000/docs
 
-# 6. 백엔드 507개 전수 단위 테스트 실행
+# 6. 백엔드 단위 테스트 실행
 pytest test_case/ -v
 ```
 
@@ -630,14 +596,14 @@ npm run ota:update
 ### 9.4 의존성 설치 및 TDD/단위 테스트 실행
 
 ```bash
-# 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
+# 백엔드 Pytest 전수 검증 (801개 수집, 796개 통과, 5개 건너뜀)
 # 방법 1) 루트에서 바로 실행 (pytest.ini 기반 backend/test_case 자동 탐색)
 python -m pytest
 
 # 방법 2) backend 폴더로 이동 후 실행
 cd backend && pytest test_case/ -v
 
-# 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
+# 프론트엔드 Vitest 단위 테스트 (70개 파일, 406개 통과)
 cd frontend && npm test
 
 # 프론트엔드 TypeScript 무결성 검증 (0 Errors)
