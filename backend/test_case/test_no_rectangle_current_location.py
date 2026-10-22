@@ -18,7 +18,8 @@ TARGET_M = 1400.0
 
 
 def _live_plan(variant, bearing_offset=0.0):
-    coords = [[127.349 + i * 0.0001, 36.3905 + i * 0.0001] for i in range(20)]
+    # 후보마다 다른 길이어야 한다 (같은 길은 하나만 남기는 규칙 때문)
+    coords = [[127.349 + i * 0.0001 + variant * 0.01, 36.3905 + i * 0.0001] for i in range(20)]
     return lrp._to_plan(coords, "osrm_live")
 
 
