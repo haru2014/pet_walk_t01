@@ -220,3 +220,22 @@ class TestShadeStage1:
         notice = (landcover.LANDCOVER_PATH.parent / "NOTICE.md").read_text(encoding="utf-8")
         assert landcover.LANDCOVER_ATTRIBUTION in notice
         assert "CC BY 4.0" in notice
+
+
+def test_course_card_shade_comes_from_the_measured_ratio_or_is_null():
+    """카드의 그늘 칸은 실측 그늘(shade_ratio)을 쓰고, 모르면 null 이다 (앱은 '그늘 정보 없음', #144).
+    예전에는 그늘을 모르는 도안·공원 밖 코스에도 코스 번호별 고정값(85/60/35%)이 나갔다."""
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    weather = {"current": {"air_temp_celsius": 20.0, "estimated_surface_temp": 22.0}}
+    for park, lat, lon in (("doan", 36.332629, 127.3505325), ("songgang", 36.4353, 127.3847)):
+        data = client.post("/api/v1/walk/plan", json={
+            "origin_mode": "park", "pilot_park_id": park, "origin_lat": lat, "origin_lon": lon,
+            "target_duration_minutes": 30, "weather_context": weather}).json()
+        for course in data["courses"]:
+            shade = data["course_profiles"][course["id"]].get("shade_ratio")
+            if shade is None:
+                assert course["shadePercent"] is None and course["shadeLevel"] is None, (park, course["id"])
+            else:
+                assert course["shadePercent"] == round(shade * 100), (park, course["id"])
