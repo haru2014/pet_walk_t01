@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from shapely.geometry import MultiPoint
+
 from agent.road_network_routes import (
     V1_ROAD_ALIGNED_COORDS,
     V2_ROAD_ALIGNED_COORDS,
@@ -53,6 +55,11 @@ PLAN_TIME_BUDGET_S = 6.0
 SPECULATIVE_SCALES: Tuple[float, ...] = (1.0,)
 MAX_BACKTRACK_RATIO = 0.15
 MAX_CLOSURE_GAP_M = 15.0
+# 엄격 조건(거리 ±25%, 왕복 15%)을 맞추는 길이 없을 때만 쓰는 완화 기준. 직사각형(건물·철로 관통)보다는 실제 도로가 낫다.
+#   운영 QA(10/22, 대전역·송강 20분): 두 곳은 900m 에 맞는 되돌아가지 않는 순환로가 도로망에 거의 없어 후보가 모두 네모가 됐다.
+RELAXED_MAX_BACKTRACK = 0.30
+RELAXED_MAX_ERROR = 0.50  # 20분 요청에 30분까지. 실측에서 1.77배(34분)는 시간이 너무 어긋났다.
+RELAXED_MAX_TORTUOSITY = 1.8  # 길이 / 볼록껍질 둘레. 실제 순환 코스 62개는 1.02~1.69, 역 앞 광장을 헤매던 길은 1.97 이었다.
 STATIC_MATCH_RADIUS_M = 300.0
 FALLBACK_EDGE_SPACING_M = 25.0
 M_PER_DEG_LAT = 111_320.0
@@ -149,6 +156,24 @@ def _update_round_best(
     return anchor, best
 
 
+def route_tortuosity(coords: List[List[float]]) -> float:
+    """길이 / 볼록껍질 둘레. 1에 가까우면 시원하게 한 바퀴, 크면 좁은 곳을 빙빙 도는 길이다."""
+    kx = M_PER_DEG_LAT * math.cos(math.radians(coords[0][1]))
+    hull = MultiPoint([(lon * kx, lat * M_PER_DEG_LAT) for lon, lat in coords]).convex_hull
+    perimeter = hull.length if hull.geom_type == "Polygon" else 2.0 * hull.length
+    return polyline_length_m(coords) / perimeter if perimeter > 0 else float("inf")
+
+
+def _collect_relaxed(sink: Optional[List[Tuple[float, List[List[float]]]]], coords: List[List[float]], error: float) -> None:
+    """엄격 조건에는 못 미치지만 실제 도로 순환으로 쓸 만한 결과를 (나쁜 정도, 좌표) 로 모아 둔다."""
+    if sink is None or loop_closure_gap_m(coords) > MAX_CLOSURE_GAP_M:
+        return
+    retrace = backtrack_ratio(coords)
+    if retrace > RELAXED_MAX_BACKTRACK or error > RELAXED_MAX_ERROR or route_tortuosity(coords) > RELAXED_MAX_TORTUOSITY:
+        return
+    sink.append((error + 2.0 * max(0.0, retrace - MAX_BACKTRACK_RATIO), coords))
+
+
 def _plan_live(
     origin_lat: float,
     origin_lon: float,
@@ -157,10 +182,12 @@ def _plan_live(
     deadline: float,
     bearing_offset: float = 0.0,
     max_refinements: int = MAX_REFINEMENTS,
+    relaxed_sink: Optional[List[Tuple[float, List[List[float]]]]] = None,
 ) -> Optional[LoopPlan]:
     """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다.
 
     bearing_offset 은 재시도 때 방향을 돌리고, max_refinements=0 이면 반경 보정 없이 한 번만 질의한다.
+    relaxed_sink 를 주면 엄격 조건에는 못 미쳐도 쓸 만한 실제 도로 순환을 모아 둔다 (호출자가 마지막에 고른다).
     """
     loop_length = target_distance_m / DETOUR_FACTOR
     best: Optional[Tuple[List[List[float]], float]] = None
@@ -181,6 +208,9 @@ def _plan_live(
                 results = [f.result() for f in futures]
 
         round_elapsed = time.monotonic() - round_started
+        for res in results:
+            if res is not None:
+                _collect_relaxed(relaxed_sink, res[0], res[2])
         anchor, best = _update_round_best(lengths, results, target_distance_m, best)
 
         if anchor is None:
@@ -324,7 +354,8 @@ def _plan_variant(
         )
 
     # 📍 현위치 기반 모드 (current_location)
-    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline)
+    relaxed: List[Tuple[float, List[List[float]]]] = []
+    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, relaxed_sink=relaxed)
     if plan is not None:
         return plan
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
@@ -340,9 +371,16 @@ def _plan_variant(
     for offset in RETRY_BEARING_OFFSETS:
         if deadline - time.monotonic() < RETRY_MIN_REMAINING_S:
             break
-        plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0)
+        plan = _plan_live(
+            origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0, relaxed_sink=relaxed
+        )
         if plan is not None:
             return plan
+    if relaxed:
+        # 엄격 조건을 맞춘 길이 끝내 없으면, 지금까지 계산해 본 것 중 덜 나쁜 실제 도로 순환을 쓴다 (직사각형보다 낫다).
+        _, coords = min(relaxed, key=lambda item: item[0])
+        logger.info("엄격 조건을 맞춘 순환이 없어 완화 기준의 실제 도로 순환을 사용합니다(variant=%d).", variant)
+        return _to_plan(coords, "osrm_live")
     return None
 
 
@@ -409,5 +447,15 @@ def plan_loop_candidates(
         if alternate_signature not in seen_routes:
             plans[variant] = alternate
             seen_routes.add(alternate_signature)
+
+    if origin_mode not in ("park", "parking_pnr"):
+        # 도로가 성긴 곳에서는 방향이 달라도 OSRM 이 같은 길을 줄 수 있다. 실제 길(osrm_live)끼리 같으면 하나만 남긴다 (후보 번호가 작은 쪽 유지).
+        unique: Dict[Tuple, int] = {}
+        for variant in sorted(plans):
+            if plans[variant].source != "osrm_live":
+                continue
+            unique.setdefault(tuple((round(lon, 6), round(lat, 6)) for lon, lat in plans[variant].coords), variant)
+        keep = set(unique.values())
+        plans = {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
 
     return plans
