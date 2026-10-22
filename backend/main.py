@@ -34,7 +34,7 @@ from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
 from agent.route_geometry import haversine_m
-from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set
+from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set, routes_overlap
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
@@ -469,7 +469,10 @@ def _parking_start_keeps_courses_distinct(park_id: str, lot: Dict[str, Any], tar
     except RoutePlanningError:
         return False
     edges = [route_edge_set(route) for route in routes]
-    return all(_route_overlap(edges[i], edges[j]) < SAME_ROUTE_OVERLAP for i in range(len(edges)) for j in range(i + 1, len(edges)))
+    return all(
+        _route_overlap(edges[i], edges[j]) < SAME_ROUTE_OVERLAP and routes_overlap(routes[i], routes[j]) < SAME_ROUTE_OVERLAP
+        for i in range(len(edges)) for j in range(i + 1, len(edges))
+    )
 
 
 def _park_center_to_parking(

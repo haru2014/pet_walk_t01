@@ -8,6 +8,7 @@
 import math
 
 import networkx as nx
+from shapely.geometry import LineString
 
 from agent.park_route_validation import build_park_graph, resolve_park_start, RoutePlanningError
 from agent.route_geometry import polyline_length_m
@@ -16,6 +17,7 @@ CANDIDATE_COUNT = 3
 SAME_ROUTE_OVERLAP = 0.65  # 간선 겹침(자카드 또는 포함률)이 이 값 이상이면 "같은 길"로 보고 고르지 않는다
 RELAXED_OVERLAP = 0.85  # 후보가 모자랄 때만 이 값 미만까지 허용한다
 MAX_LAP_REPEATS = 4
+SAME_PATH_TOLERANCE_M = 20.0  # 두 코스의 선이 이 거리 안에 붙어 있으면 같은 길로 본다 (나란한 보행로·잘게 쪼개진 간선 대비)
 _CANDIDATE_CACHE: dict = {}
 _CANDIDATE_CACHE_MAX = 256
 # cycle_basis 는 그래프의 "기본 순환"만 준다(송강 11개, 가장 긴 것 410m). 공원 바깥쪽을 크게 도는 길은
@@ -46,6 +48,31 @@ def _overlap(a: frozenset, b: frozenset) -> float:
     jaccard = inter / len(a | b)
     containment = inter / min(len(a), len(b))
     return max(jaccard, containment)
+
+
+def _shape(coords: list) -> LineString:
+    """미터 단위로 편 선. 위도에 따른 경도 길이 차이를 맞춘다."""
+    kx = 111320.0 * math.cos(math.radians(coords[0][1]))
+    return LineString([(lon * kx, lat * 110540.0) for lon, lat in coords])
+
+
+def spatial_overlap(a: LineString, b: LineString) -> float:
+    """한 코스가 다른 코스에서 SAME_PATH_TOLERANCE_M 이내에 있는 비율 (둘 중 큰 쪽)."""
+    if a.length == 0 or b.length == 0:
+        return 1.0
+    return max(
+        a.intersection(b.buffer(SAME_PATH_TOLERANCE_M)).length / a.length,
+        b.intersection(a.buffer(SAME_PATH_TOLERANCE_M)).length / b.length,
+    )
+
+
+def routes_overlap(coords_a: list, coords_b: list) -> float:
+    """실제 지도 위에서 두 코스가 겹치는 비율.
+
+    간선 겹침만 보면 같은 길을 조금씩 다른 점으로 이은 코스가 서로 다른 길로 보인다
+    (유림 20분: 간선 겹침 0.55~0.61 인데 지도에서는 83~94% 겹침).
+    """
+    return spatial_overlap(_shape(coords_a), _shape(coords_b))
 
 
 def route_direction_label(coords: list) -> str:
@@ -181,30 +208,33 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
 
 def _select_distinct(candidates: list) -> list:
     """서로 다른 길 3개를 고른다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
-    chosen: list = []  # [(coords, edge_set)]
+    chosen: list = []  # [(coords, edge_set, shape)]
 
     def add_if(max_overlap: float) -> None:
         for _, edges, build in candidates:
             if len(chosen) == CANDIDATE_COUNT:
                 return
-            if all(_overlap(edges, other) < max_overlap for _, other in chosen):
+            if all(_overlap(edges, other) < max_overlap for _, other, _ in chosen):
                 coords = build()
-                if not any(coords == c for c, _ in chosen):
-                    chosen.append((coords, edges))
+                if any(coords == c for c, _, _ in chosen):
+                    continue
+                shape = _shape(coords)
+                if all(spatial_overlap(shape, other) < max_overlap for _, _, other in chosen):
+                    chosen.append((coords, edges, shape))
 
     add_if(SAME_ROUTE_OVERLAP)
     if len(chosen) < CANDIDATE_COUNT:
         add_if(RELAXED_OVERLAP)
     base = list(chosen)
-    for coords, edges in base:  # 같은 길의 반대 방향으로 채운다
+    for coords, edges, shape in base:  # 같은 길의 반대 방향으로 채운다
         if len(chosen) == CANDIDATE_COUNT:
             break
         reverse = list(reversed(coords))
-        if not any(reverse == c for c, _ in chosen):
-            chosen.append((reverse, edges))
+        if not any(reverse == c for c, _, _ in chosen):
+            chosen.append((reverse, edges, shape))
     while len(chosen) < CANDIDATE_COUNT:  # 최후 수단: 가장 가까운 후보를 다시 쓴다
         chosen.append(chosen[len(chosen) % len(base)] if base else chosen[0])
-    return [coords for coords, _ in chosen]
+    return [coords for coords, _, _ in chosen]
 
 
 def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float) -> list:
