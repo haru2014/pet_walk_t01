@@ -78,7 +78,7 @@ export default function App() {
   useEffect(() => {
     async function loadData() {
       void themeManager.init();
-      void SupabaseService.initSession();
+      await SupabaseService.initSession();
       const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
       if (savedProfiles !== null && Array.isArray(savedProfiles)) {
         setDogs(savedProfiles);

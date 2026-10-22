@@ -78,14 +78,41 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
+    await SupabaseService.initSession();
+    const shareAccess = SupabaseService.getWalkShareAccess();
+    if (!shareAccess.ok) {
+      if (shareAccess.code === 'AUTH_REQUIRED') {
+        Alert.alert(
+          '회원 전용 기능',
+          '커뮤니티 후기 공유는 회원만 가능합니다. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
+          ]
+        );
+      } else if (shareAccess.code === 'CLOUD_ACCOUNT_REQUIRED') {
+        Alert.alert(
+          '회원 로그인이 필요해요',
+          shareAccess.message,
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
+          ]
+        );
+      } else {
+        Alert.alert('클라우드 연결을 확인해 주세요', shareAccess.message);
+      }
+      return;
+    }
+
     const user = SupabaseService.getCurrentUser();
     if (!user) {
       Alert.alert(
         '회원 전용 기능',
-        '커뮤니티 후기 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 강아지 안심 코스를 공유해 보세요!',
+        '커뮤니티 후기 공유는 회원만 가능합니다. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.',
         [
           { text: '취소', style: 'cancel' },
-          { text: '회원가입하기', onPress: () => onOpenAuthModal?.('signup') },
+          { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
         ]
       );
       return;

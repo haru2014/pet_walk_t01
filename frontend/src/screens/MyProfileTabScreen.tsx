@@ -393,6 +393,16 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
 
   useEffect(() => {
     let isMounted = true;
+    void SupabaseService.initSession().then(() => {
+      if (isMounted) setCurrentUser(SupabaseService.getCurrentUser());
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
     void LocalStorageService.getWalkHistory().then((history) => {
       if (!isMounted) return;
       if (history.length === 0) {

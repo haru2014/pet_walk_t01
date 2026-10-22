@@ -43,6 +43,7 @@ function walkShareFailure(code: string): WalkShareResult {
 class SupabaseServiceManager {
   private readonly client: SupabaseClient | null = null;
   private currentSession: AuthSession | null = null;
+  private hasCloudAuthSession = false;
 
   constructor() {
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -55,12 +56,51 @@ class SupabaseServiceManager {
   }
 
   async initSession(): Promise<AuthSession | null> {
+    if (this.client) {
+      try {
+        const { data, error } = await this.client.auth.getSession();
+        if (!error && data.session?.user) {
+          const session: AuthSession = {
+            user: {
+              id: data.session.user.id,
+              email: data.session.user.email ?? '',
+            },
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+          };
+          this.currentSession = session;
+          this.hasCloudAuthSession = true;
+          await LocalStorageService.setItem(SESSION_KEY, session);
+          return session;
+        }
+      } catch (error) {
+        console.warn('[SupabaseService] 클라우드 로그인 세션 복원 실패:', error);
+      }
+      this.hasCloudAuthSession = false;
+    }
+
     if (this.currentSession) return this.currentSession;
     const saved = await LocalStorageService.getItem<AuthSession>(SESSION_KEY);
     if (saved) {
       this.currentSession = saved;
     }
     return this.currentSession;
+  }
+
+  getWalkShareAccess(): { readonly ok: true } | { readonly ok: false; readonly code: 'CLOUD_NOT_CONFIGURED' | 'AUTH_REQUIRED' | 'CLOUD_ACCOUNT_REQUIRED'; readonly message: string } {
+    if (!this.client) {
+      return { ok: false, code: 'CLOUD_NOT_CONFIGURED', message: '이 앱 빌드에 클라우드 연결 정보가 없어 산책 기록을 공유할 수 없어요.' };
+    }
+    if (!this.currentSession || !this.hasCloudAuthSession) {
+      if (this.currentSession && (!isUuid(this.currentSession.user.id) || this.currentSession.accessToken.startsWith('local_token_'))) {
+        return { ok: false, code: 'CLOUD_ACCOUNT_REQUIRED', message: '로컬 체험 계정으로 로그인되어 있어요. 실제 회원 계정으로 로그인한 뒤 다시 시도해 주세요.' };
+      }
+      return { ok: false, code: 'AUTH_REQUIRED', message: '로그인이 필요해요. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.' };
+    }
+    if (!isUuid(this.currentSession.user.id) || !this.currentSession.accessToken || this.currentSession.accessToken.startsWith('local_token_')) {
+      return { ok: false, code: 'CLOUD_ACCOUNT_REQUIRED', message: '실제 회원 계정으로 로그인한 뒤 산책 기록을 공유해 주세요.' };
+    }
+    return { ok: true };
   }
 
   getSession(): AuthSession | null {
@@ -84,6 +124,7 @@ class SupabaseServiceManager {
           const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? email };
           const session: AuthSession = { user: authUser, accessToken: data.session?.access_token ?? 'token_' + Date.now() };
           this.currentSession = session;
+          this.hasCloudAuthSession = Boolean(data.session?.access_token && isUuid(authUser.id));
           await LocalStorageService.setItem(SESSION_KEY, session);
           return { user: authUser };
         }
@@ -96,6 +137,7 @@ class SupabaseServiceManager {
     const mockUser: AuthUser = { id: 'usr_' + Date.now(), email, createdAt: new Date().toISOString() };
     const mockSession: AuthSession = { user: mockUser, accessToken: 'local_token_' + Date.now() };
     this.currentSession = mockSession;
+    this.hasCloudAuthSession = false;
     await LocalStorageService.setItem(SESSION_KEY, mockSession);
     return { user: mockUser };
   }
@@ -109,6 +151,7 @@ class SupabaseServiceManager {
           const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? email };
           const session: AuthSession = { user: authUser, accessToken: data.session.access_token };
           this.currentSession = session;
+          this.hasCloudAuthSession = true;
           await LocalStorageService.setItem(SESSION_KEY, session);
           return { user: authUser };
         }
@@ -120,6 +163,7 @@ class SupabaseServiceManager {
     const mockUser: AuthUser = { id: 'usr_' + Date.now(), email, createdAt: new Date().toISOString() };
     const mockSession: AuthSession = { user: mockUser, accessToken: 'local_token_' + Date.now() };
     this.currentSession = mockSession;
+    this.hasCloudAuthSession = false;
     await LocalStorageService.setItem(SESSION_KEY, mockSession);
     return { user: mockUser };
   }
@@ -133,6 +177,7 @@ class SupabaseServiceManager {
       }
     }
     this.currentSession = null;
+    this.hasCloudAuthSession = false;
     await LocalStorageService.removeItem(SESSION_KEY);
   }
 
@@ -270,8 +315,9 @@ class SupabaseServiceManager {
   /** Ensure a locally saved walk has a cloud row and return its UUID for sharing. */
   async ensureWalkRecordSynced(record: WalkRecord): Promise<string> {
     const user = this.getCurrentUser();
-    if (!this.client || !user || !isUuid(user.id)) {
-      throw new Error('로그인 정보와 클라우드 연결을 확인한 뒤 다시 시도해 주세요.');
+    const access = this.getWalkShareAccess();
+    if (!access.ok || !user || !this.client) {
+      throw new Error(access.ok ? '로그인 정보를 확인한 뒤 다시 시도해 주세요.' : access.message);
     }
 
     const remoteId = isUuid(record.remoteId)
@@ -333,7 +379,9 @@ class SupabaseServiceManager {
       );
       if (response.ok) return { ok: true };
       const body = await response.json().catch(() => ({}));
-      const code = typeof body?.detail?.code === 'string' ? body.detail.code : `HTTP_${response.status}`;
+      const code = typeof body?.detail?.code === 'string'
+        ? body.detail.code
+        : response.status === 401 ? 'AUTH_INVALID' : `HTTP_${response.status}`;
       return walkShareFailure(code);
     } catch (e) {
       console.warn('[SupabaseService] 후기 공개 요청 실패:', e);
