@@ -3,13 +3,15 @@
  * US-C2, #37 AI 음성 가이드 보이스 프로필 및 사운드 설정 단위 테스트
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as Speech from 'expo-speech';
+import { createAudioPlayer } from 'expo-audio';
 import {
   DEFAULT_SOUND_SETTINGS,
   VOICE_PROFILES,
 } from '../types/voiceSettings';
 import { TTSNavigationService } from './ttsNavigation';
+import { fetchWithServerFallback } from './apiClient';
 
 const memoryStore = new Map<string, string>();
 
@@ -65,6 +67,10 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     vi.clearAllMocks();
     await TTSNavigationService.stop(); // 이전 테스트의 미완료 발화/대기열 정리
     await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('음량 조절 시 0.0 ~ 1.0 범위로 클램핑되어야 한다', async () => {
@@ -123,6 +129,41 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         volume: 0.9,
       })
     );
+  });
+
+  it('Gemini가 빈 오디오를 반환하면 기기 음성으로 대체되어야 한다', async () => {
+    vi.mocked(fetchWithServerFallback).mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as Response);
+
+    TTSNavigationService.speak('빈 오디오 폴백 확인');
+
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
+    expect(createAudioPlayer).not.toHaveBeenCalled();
+  });
+
+  it('Gemini TTS 생성이 재생 안전 타이머보다 오래 걸려도 요청을 먼저 취소하지 않아야 한다', async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | null | undefined;
+    let resolveRequest!: (response: Response) => void;
+    vi.mocked(fetchWithServerFallback).mockImplementationOnce((_endpoint, init) => {
+      requestSignal = init?.signal;
+      return new Promise<Response>((resolve) => {
+        resolveRequest = resolve;
+      });
+    });
+
+    TTSNavigationService.speak('안심 산책 안내 미리듣기');
+    await vi.advanceTimersByTimeAsync(20000);
+
+    expect(requestSignal).toBeDefined();
+    expect(requestSignal?.aborted).toBe(false);
+
+    resolveRequest({ ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer } as Response);
+    await vi.waitFor(() => expect(createAudioPlayer).toHaveBeenCalledTimes(1));
+    expect(Speech.speak).not.toHaveBeenCalled();
+    await TTSNavigationService.stop();
   });
 
   it('구독자(listener)가 설정 변경을 정상 수신해야 한다', async () => {

@@ -78,14 +78,41 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
+    await SupabaseService.initSession();
+    const shareAccess = SupabaseService.getWalkShareAccess();
+    if (!shareAccess.ok) {
+      if (shareAccess.code === 'AUTH_REQUIRED') {
+        Alert.alert(
+          '회원 전용 기능',
+          '커뮤니티 후기 공유는 회원만 가능합니다. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
+          ]
+        );
+      } else if (shareAccess.code === 'CLOUD_ACCOUNT_REQUIRED') {
+        Alert.alert(
+          '회원 로그인이 필요해요',
+          shareAccess.message,
+          [
+            { text: '취소', style: 'cancel' },
+            { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
+          ]
+        );
+      } else {
+        Alert.alert('클라우드 연결을 확인해 주세요', shareAccess.message);
+      }
+      return;
+    }
+
     const user = SupabaseService.getCurrentUser();
     if (!user) {
       Alert.alert(
         '회원 전용 기능',
-        '커뮤니티 후기 공유는 회원만 가능합니다.\n회원가입 후 동네 이웃들에게 우리 강아지 안심 코스를 공유해 보세요!',
+        '커뮤니티 후기 공유는 회원만 가능합니다. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.',
         [
           { text: '취소', style: 'cancel' },
-          { text: '회원가입하기', onPress: () => onOpenAuthModal?.('signup') },
+          { text: '로그인하기', onPress: () => onOpenAuthModal?.('signin') },
         ]
       );
       return;
@@ -94,7 +121,25 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
     const current = publicMap[record.id] ?? false;
     const nextState = !current;
 
-    const result = await SupabaseService.setWalkRecordPublic(record.id, nextState);
+    let remoteId: string;
+    try {
+      remoteId = await SupabaseService.ensureWalkRecordSynced(record);
+      if (record.remoteId !== remoteId) {
+        const saved = await LocalStorageService.updateWalkRecordRemoteId(record.id, remoteId);
+        if (!saved) throw new Error('산책 기록 연결 정보를 저장하지 못했어요. 다시 시도해 주세요.');
+        setRecords((currentRecords) => currentRecords.map((current) =>
+          current.id === record.id ? { ...current, remoteId } : current
+        ));
+      }
+    } catch (error) {
+      Alert.alert(
+        '산책 기록을 준비하지 못했어요',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.'
+      );
+      return;
+    }
+
+    const result = await SupabaseService.setWalkRecordPublic(remoteId, nextState);
     if (!result.ok) {
       Alert.alert('공개 설정을 바꾸지 못했어요', result.message);
       return;

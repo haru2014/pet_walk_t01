@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import * as Updates from 'expo-updates';
 import { DogProfile } from '../types/dogProfile';
 import { CardWrapper } from '../components/common/CardWrapper';
 import { BookmarkListView } from '../components/bookmark/BookmarkListView';
@@ -130,7 +131,53 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
   onResetData,
   onOpenLegal,
   onResetCompleted,
-}) => (
+}) => {
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateStatusMessage, setUpdateStatusMessage] = useState('');
+  const { isUpdateAvailable, isUpdatePending } = Updates.useUpdates();
+
+  const checkAndDownloadUpdate = async () => {
+    if (!Updates.isEnabled) {
+      setUpdateStatusMessage('이 빌드에서는 OTA 업데이트를 사용할 수 없습니다.');
+      return;
+    }
+
+    setIsCheckingUpdate(true);
+    setUpdateStatusMessage('업데이트를 확인하고 있습니다.');
+    try {
+      const checkResult = await Updates.checkForUpdateAsync();
+      if (checkResult.isRollBackToEmbedded) {
+        setUpdateStatusMessage('서버에서 설치된 앱 버전으로 되돌리도록 안내했습니다. 앱을 재시작하면 적용됩니다.');
+        return;
+      }
+      if (!checkResult.isAvailable) {
+        setUpdateStatusMessage('현재 설치된 앱과 호환되는 새 업데이트가 없습니다.');
+        return;
+      }
+
+      setUpdateStatusMessage('새 업데이트를 찾았습니다. 기기로 다운로드하고 있습니다.');
+      const fetchResult = await Updates.fetchUpdateAsync();
+      setUpdateStatusMessage(fetchResult.isNew
+        ? '업데이트를 기기에 다운로드했습니다. 아래의 적용 버튼을 누르면 실행됩니다.'
+        : '새로 다운로드할 업데이트가 없습니다.');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '알 수 없는 오류';
+      setUpdateStatusMessage(`업데이트 확인에 실패했습니다: ${detail}`);
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const applyDownloadedUpdate = async () => {
+    try {
+      await Updates.reloadAsync();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '알 수 없는 오류';
+      setUpdateStatusMessage(`업데이트를 적용하지 못했습니다: ${detail}`);
+    }
+  };
+
+  return (
   <ScrollView
     style={styles.tabScrollContainer}
     contentContainerStyle={styles.scrollContent}
@@ -215,8 +262,59 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
       <DataResetCard onReset={onResetData} onCompleted={onResetCompleted} />
     )}
 
+    <CardWrapper variant="flat" style={{ marginTop: 2, marginBottom: 8 }}>
+      <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>📲 앱 업데이트 상태</Text>
+      <Text style={[styles.backupDesc, { color: colors.textMuted, marginTop: 6 }]}>
+        {Updates.isEnabled
+          ? Updates.isEmbeddedLaunch ? '현재 설치된 앱에 포함된 버전을 실행 중입니다.' : 'OTA로 다운로드한 버전을 실행 중입니다.'
+          : '이 실행 환경에서는 OTA 상태를 확인할 수 없습니다.'}
+      </Text>
+      <View style={{ gap: 3, marginTop: 8 }}>
+        <Text style={[styles.updateInfoText, { color: colors.textMuted }]}>채널: {Updates.channel ?? '확인할 수 없음'}</Text>
+        <Text style={[styles.updateInfoText, { color: colors.textMuted }]}>런타임 버전: {Updates.runtimeVersion ?? '확인할 수 없음'}</Text>
+        <Text style={[styles.updateInfoText, { color: colors.textMuted }]}>현재 업데이트 ID: {Updates.updateId ?? '확인할 수 없음'}</Text>
+        <Text style={[styles.updateInfoText, { color: colors.textMuted }]}>현재 업데이트 생성 시각: {Updates.createdAt?.toLocaleString('ko-KR') ?? '확인할 수 없음'}</Text>
+      </View>
+      {(isUpdatePending || isUpdateAvailable) && (
+        <Text style={[styles.updateInfoText, { color: colors.primaryDark, fontWeight: '700', marginTop: 8 }]}>
+          {isUpdatePending ? '새 업데이트가 다운로드되어 적용을 기다리고 있습니다.' : '호환되는 새 업데이트를 확인했습니다.'}
+        </Text>
+      )}
+      {!!updateStatusMessage && (
+        <Text accessibilityRole="alert" style={[styles.updateInfoText, { color: colors.textMain, marginTop: 8 }]}>
+          {updateStatusMessage}
+        </Text>
+      )}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          disabled={!Updates.isEnabled || isCheckingUpdate}
+          onPress={() => void checkAndDownloadUpdate()}
+          style={[styles.simButton, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, flex: 1, opacity: !Updates.isEnabled || isCheckingUpdate ? 0.55 : 1 }]}
+          accessibilityRole="button"
+          accessibilityLabel="OTA 업데이트 확인 및 다운로드"
+        >
+          <Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+            {isCheckingUpdate ? '확인 중…' : '업데이트 확인 및 다운로드'}
+          </Text>
+        </TouchableOpacity>
+        {(isUpdatePending || updateStatusMessage.includes('다운로드했습니다')) && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => void applyDownloadedUpdate()}
+            style={[styles.simButton, { backgroundColor: colors.primary, borderColor: colors.primary, flex: 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="다운로드한 업데이트 적용"
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>업데이트 적용</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </CardWrapper>
+
   </ScrollView>
-);
+  );
+};
 
 const confirmAndSignOut = (onSuccess: () => void) => {
   const title = '로그아웃';
@@ -292,6 +390,16 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
     WalkStatisticsService.getWeeklyStats([])
   );
   const [recentStats, setRecentStats] = useState<RecentWalkInfo | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    void SupabaseService.initSession().then(() => {
+      if (isMounted) setCurrentUser(SupabaseService.getCurrentUser());
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -636,6 +744,7 @@ const styles = StyleSheet.create({
   authBtnGroup: { flexDirection: 'row', gap: 6 },
   accountBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10 },
   accountBtnText: { fontSize: 10, fontWeight: '700' },
+  updateInfoText: { fontSize: 11, lineHeight: 16 },
   logoutBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,

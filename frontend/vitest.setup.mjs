@@ -2,14 +2,23 @@ import Module from 'node:module';
 import { vi } from 'vitest';
 
 vi.mock('expo-audio', () => ({
-  createAudioPlayer: () => ({
+  RecordingPresets: { HIGH_QUALITY: {} },
+  requestRecordingPermissionsAsync: async () => ({ granted: true }),
+  useAudioRecorder: () => ({
+    isRecording: false,
+    uri: 'file:///mock/walk-command.m4a',
+    prepareToRecordAsync: async () => {},
+    record() {},
+    stop: async () => {},
+  }),
+  createAudioPlayer: vi.fn(() => ({
     volume: 1,
     play() {},
     addListener: () => ({ remove() {} }),
     setActiveForLockScreen() {},
     clearLockScreenControls() {},
     remove() {},
-  }),
+  })),
   setAudioModeAsync: async () => {},
 }));
 

@@ -29,7 +29,35 @@ export interface VoiceIntentResult {
   intent: VoiceWalkIntent;
   landmark_park_id?: string | null;
   model_used: string;
-  data_source: 'gemini_live' | 'local_fallback';
+  data_source: 'gemini_live' | 'local_fallback' | 'gemini_transcription';
+}
+
+/** Send a recorded utterance to the backend for Gemini transcription only. */
+export async function transcribeVoiceCommand(
+  audio: Blob,
+  fileName: string,
+  mimeType: string,
+  dogName?: string
+): Promise<string> {
+  const form = new FormData();
+  form.append('audio', audio, fileName);
+  form.append('mime_type', mimeType);
+  form.append('dog_name', dogName ?? '');
+
+  const response = await fetchWithServerFallback(
+    '/api/v1/voice/transcribe',
+    { method: 'POST', body: form },
+    18000,
+    2500
+  );
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(typeof detail?.detail === 'string' ? detail.detail : '음성 인식에 실패했어요. 다시 말씀해 주세요.');
+  }
+  const data = await response.json();
+  const transcript = typeof data?.transcript === 'string' ? data.transcript.trim() : '';
+  if (!transcript) throw new Error('음성을 알아듣지 못했어요. 조금 더 또렷하게 말씀해 주세요.');
+  return transcript;
 }
 
 /**
