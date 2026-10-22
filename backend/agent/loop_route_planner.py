@@ -56,6 +56,11 @@ MAX_CLOSURE_GAP_M = 15.0
 STATIC_MATCH_RADIUS_M = 300.0
 FALLBACK_EDGE_SPACING_M = 25.0
 M_PER_DEG_LAT = 111_320.0
+# 처음 방향에서 탈락한 후보를 다른 방향으로 다시 시도한다 (현재 위치 모드, 시간 예산이 남을 때만, 방향당 OSRM 1회).
+#   애경연구원 근처 실측: 서쪽(270도)은 하천·큰 도로에 막혀 반경을 바꿔도 길이가 2282→842→2282m 로 널뛰며 수렴하지 않았다.
+#   반면 60·90·120·180·210도는 첫 시도부터 오차 16% 이내였다 -> 보정 반복보다 방향 교체가 효과적이다.
+RETRY_BEARING_OFFSETS: Tuple[float, ...] = (-60.0, 60.0, -90.0)
+RETRY_MIN_REMAINING_S = 2.0  # 재시도는 남은 예산이 이만큼 있을 때만 (OSRM 한 번이 보통 0.5~1.5초)
 
 STATIC_SEOUL_LOOPS: Dict[int, List[List[float]]] = {
     1: V1_ROAD_ALIGNED_COORDS,
@@ -113,9 +118,11 @@ def _evaluate_scale(
     length_m: float,
     variant: int,
     target_distance_m: float,
+    bearing_offset: float = 0.0,
 ) -> Optional[Tuple[List[List[float]], float, float]]:
     """단일 순환 반경에 대해 OSRM 경로를 평가하고 (좌표열, 실측거리, 오차율)을 반환."""
-    waypoints = build_loop_waypoints(origin_lat, origin_lon, length_m, VARIANT_BEARINGS[variant])
+    bearing = (VARIANT_BEARINGS[variant] + bearing_offset) % 360.0
+    waypoints = build_loop_waypoints(origin_lat, origin_lon, length_m, bearing)
     coords = _route_waypoints(waypoints)
     if coords is None:
         return None
@@ -148,22 +155,27 @@ def _plan_live(
     target_distance_m: float,
     variant: int,
     deadline: float,
+    bearing_offset: float = 0.0,
+    max_refinements: int = MAX_REFINEMENTS,
 ) -> Optional[LoopPlan]:
-    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다."""
+    """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다.
+
+    bearing_offset 은 재시도 때 방향을 돌리고, max_refinements=0 이면 반경 보정 없이 한 번만 질의한다.
+    """
     loop_length = target_distance_m / DETOUR_FACTOR
     best: Optional[Tuple[List[List[float]], float]] = None
     scales: Tuple[float, ...] = SPECULATIVE_SCALES
 
-    for _ in range(MAX_REFINEMENTS + 1):
+    for _ in range(max_refinements + 1):
         round_started = time.monotonic()
         lengths = [loop_length * sc for sc in scales]
 
         if len(lengths) == 1:
-            results = [_evaluate_scale(origin_lat, origin_lon, lengths[0], variant, target_distance_m)]
+            results = [_evaluate_scale(origin_lat, origin_lon, lengths[0], variant, target_distance_m, bearing_offset)]
         else:
             with ThreadPoolExecutor(max_workers=len(lengths)) as pool:
                 futures = [
-                    pool.submit(_evaluate_scale, origin_lat, origin_lon, lm, variant, target_distance_m)
+                    pool.submit(_evaluate_scale, origin_lat, origin_lon, lm, variant, target_distance_m, bearing_offset)
                     for lm in lengths
                 ]
                 results = [f.result() for f in futures]
@@ -172,6 +184,10 @@ def _plan_live(
         anchor, best = _update_round_best(lengths, results, target_distance_m, best)
 
         if anchor is None:
+            break
+        if best is None:
+            # 순환 종결·왕복 기준을 못 맞춘 방향은 반경을 바꿔도 거의 나아지지 않는다 (서쪽 실측: 2282→842→2282m 널뜀).
+            # 예산을 쓰지 말고 호출자가 다른 방향으로 다시 시도하게 한다.
             break
         if (best is not None and best[1] <= DISTANCE_TOLERANCE) or time.monotonic() + round_elapsed > deadline:
             break
@@ -297,8 +313,11 @@ def _plan_variant(
     deadline: float,
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
-) -> LoopPlan:
-    """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다."""
+) -> Optional[LoopPlan]:
+    """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
+
+    현재 위치 모드에서 실제 길 기반 코스를 못 만들면 None 을 돌려준다 (직사각형은 호출자가 마지막 수단으로만 쓴다).
+    """
     if origin_mode in ("park", "parking_pnr"):
         return _plan_static_pilot_park(
             origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m
@@ -317,7 +336,22 @@ def _plan_variant(
     plan = _plan_offline_network(origin_lat, origin_lon, offline_target, variant)
     if plan is not None:
         return plan
-    return _plan_rectangle_fallback(origin_lat, origin_lon, offline_target, variant)
+    # 조건에서 탈락한 후보는 방향을 바꿔 다시 시도한다 (방향당 OSRM 1회, 시간 예산이 남을 때만).
+    for offset in RETRY_BEARING_OFFSETS:
+        if deadline - time.monotonic() < RETRY_MIN_REMAINING_S:
+            break
+        plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0)
+        if plan is not None:
+            return plan
+    return None
+
+
+def _rectangle_candidates(origin_lat: float, origin_lon: float, target_distance_m: float) -> Dict[int, LoopPlan]:
+    """실제 길 기반 후보가 하나도 없을 때만 쓰는 마지막 수단. 건물을 관통할 수 있다."""
+    return {
+        variant: _plan_rectangle_fallback(origin_lat, origin_lon, target_distance_m * factor, variant)
+        for variant, factor in {1: 1.0, 2: 1.2, 3: 1.1}.items()
+    }
 
 
 def plan_loop_candidates(
@@ -344,7 +378,12 @@ def plan_loop_candidates(
             )
             for variant in VARIANT_BEARINGS
         }
-        plans = {variant: future.result() for variant, future in futures.items()}
+        results = {variant: future.result() for variant, future in futures.items()}
+
+    # 실제 길 기반 코스를 못 만든 후보는 뺀다 (네모를 내보내지 않는다). 하나도 없을 때만 마지막 수단.
+    plans = {variant: plan for variant, plan in results.items() if plan is not None}
+    if not plans:
+        return _rectangle_candidates(origin_lat, origin_lon, target_distance_m)
 
     # Sparse offline graphs can resolve multiple bearings to the same cycle.
     # For the Seoul City Hall area, substitute a validated road-aligned loop

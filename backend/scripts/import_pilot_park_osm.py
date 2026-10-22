@@ -22,10 +22,13 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERIES = {
     "songgang": ("127.378,36.430,127.387,36.437", "송강공원", "way/564388430"),
     "yurim": ("127.350,36.357,127.362,36.367", "유림공원", None),
-    "sejong": ("127.267,36.491,127.283,36.505", "세종호수공원", "relation/9734480"),
+    "sejong": ("127.265,36.489,127.287,36.505", "세종호수공원", "relation/9734480"),
     "doan": ("127.347,36.324,127.355,36.338", "갑천 생태호수공원", "relation/19159630"),
 }
 WALK_HIGHWAYS = ("footway", "path", "pedestrian")
+# 같은 공원으로 묶는 이웃 OSM 공원 (이름이 다른 별도 공원으로 등록돼 있지만 사용자에게는 한 공원이다).
+# 세종호수공원: 호수 가장자리 띠뿐이라, 호수 동쪽 넓은 길 구역(세종중앙공원)을 같이 써야 실제 산책 범위가 된다.
+EXTRA_PARTS = {"sejong": [("way/799013763", "세종중앙공원")]}
 # 세종호수공원은 공원 안 길 일부가 자전거도로로만 등록돼 보행망이 끊긴다. 보행 금지 표시가 없으면 넣는다 (#148)
 CYCLEWAY_PARKS = {"sejong"}
 
@@ -56,6 +59,18 @@ def _relation_polygon(relation_id, name):
     if shell.is_empty or not shell.is_valid:
         return None
     return relation, shell
+
+
+def _way_polygon(way_id, name):
+    """닫힌 way 로 된 공원 경계. leisure=park 이고 이름이 맞을 때만 돌려준다."""
+    root = _fetch(f"https://api.openstreetmap.org/api/0.6/way/{way_id}/full")
+    nodes = {n.attrib["id"]: (float(n.attrib["lon"]), float(n.attrib["lat"])) for n in root.findall("node")}
+    way = root.find(f"way[@id='{way_id}']")
+    tags = {tag.attrib["k"]: tag.attrib["v"] for tag in way.findall("tag")}
+    coords = [nodes[nd.attrib["ref"]] for nd in way.findall("nd")]
+    if tags.get("leisure") != "park" or tags.get("name") != name or len(coords) < 4 or coords[0] != coords[-1]:
+        return None
+    return way, Polygon(coords)
 
 
 def main(selected=None):
@@ -100,9 +115,19 @@ def main(selected=None):
             continue
         element, poly = matches[0]
         source = f"https://www.openstreetmap.org/{osm_type if osm_type == 'relation' else 'way'}/{element.attrib['id']}"
+        extra_sources = []
+        for extra_ref, extra_name in EXTRA_PARTS.get(park_id, []):
+            extra = _way_polygon(extra_ref.partition("/")[2], extra_name)
+            if extra is None or not extra[1].is_valid:
+                print(park_id, extra_ref, "EXTRA_PART_UNAVAILABLE")
+                sys.exit(1)
+            # 경계끼리 맞닿는 곳의 틈(수 센티미터)을 메우려고 아주 살짝 부풀려 합친 뒤 원래 크기로 되돌린다
+            poly = unary_union([poly.buffer(1e-6), extra[1].buffer(1e-6)]).buffer(-1e-6)
+            extra_sources.append(f"https://www.openstreetmap.org/way/{extra[0].attrib['id']}")
         properties = {
             "park_id": park_id, "name": name, "quality": "verified_osm",
             "source": source, "source_version": element.attrib["version"],
+            **({"extra_sources": extra_sources} if extra_sources else {}),
             "source_updated_at": element.attrib["timestamp"], "retrieved_at": retrieved_at,
             "crs": "EPSG:4326", "license": "ODbL-1.0", "attribution": "© OpenStreetMap contributors",
         }
