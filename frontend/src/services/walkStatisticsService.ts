@@ -25,7 +25,8 @@ export interface WeeklyWalkStats {
   weekRangeLabel: string; // '10.08 ~ 10.14'
   totalDistanceKm: number;
   totalWalks: number;
-  targetWalks: number;    // 기본 권장 5회
+  completedDays: number;
+  targetDays: number;
   completionRatePercent: number; // 0 ~ 100%
   safeSurfaceRatioPercent: number; // 완만 노면율 (%)
   totalDurationMinutes: number;
@@ -124,8 +125,9 @@ export class WalkStatisticsService {
     });
 
     const totalWalks = thisWeekRecords.length;
-    const targetWalks = 5;
-    const completionRatePercent = Math.min(100, Math.round((totalWalks / targetWalks) * 100));
+    const completedDays = dailyStats.filter((day) => day.hasWalked).length;
+    const targetDays = dailyStats.length;
+    const completionRatePercent = Math.min(100, Math.round((completedDays / targetDays) * 100));
     const safeSurfaceRatioPercent =
       totalWalks > 0 ? Math.round((totalSafeRatioSum / totalWalks) * 100) : 0;
 
@@ -144,7 +146,8 @@ export class WalkStatisticsService {
       weekRangeLabel,
       totalDistanceKm: Math.round(totalDist * 10) / 10,
       totalWalks,
-      targetWalks,
+      completedDays,
+      targetDays,
       completionRatePercent,
       safeSurfaceRatioPercent,
       totalDurationMinutes: totalDur,

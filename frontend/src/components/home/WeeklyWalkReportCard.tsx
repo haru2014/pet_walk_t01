@@ -1,8 +1,8 @@
 /**
  * [편안하개 - PetWalk]
- * 홈 화면 이번 주 산책 달성도 & 관절 케어 리포트 카드 (WeeklyWalkReportCard.tsx)
+ * 마이페이지 활동 탭 주간 산책 달성도 & 관절 케어 리포트 카드
  *
- * 1. 주간 목표 달성 프로그레스 바 (예: 주 5회 목표 중 3회 완주, 60%)
+ * 1. 주간 산책일 달성 프로그레스 바 (예: 주 7일 중 3일 산책, 43%)
  * 2. 3대 보행 헬스케어 지표 (누적 거리, 총 소요 시간, 완만 노면율)
  * 3. 매일 목표 대비 달성도 막대그래프 (Daily Goal Bar Chart)
  * 4. 관절 안심 케어 피드백 & 산책 통계 화면 원터치 이동
@@ -74,9 +74,9 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
             styles.badge,
             {
               backgroundColor:
-                stats.totalWalks >= stats.targetWalks ? colors.primaryLight : colors.background,
+                stats.completedDays >= stats.targetDays ? colors.primaryLight : colors.background,
               borderColor:
-                stats.totalWalks >= stats.targetWalks ? colors.primary : colors.border,
+                stats.completedDays >= stats.targetDays ? colors.primary : colors.border,
             },
           ]}
         >
@@ -85,11 +85,11 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
               styles.badgeText,
               {
                 color:
-                  stats.totalWalks >= stats.targetWalks ? colors.primaryDark : colors.textMuted,
+                  stats.completedDays >= stats.targetDays ? colors.primaryDark : colors.textMuted,
               },
             ]}
           >
-            주 {stats.totalWalks}/{stats.targetWalks}회 ({stats.completionRatePercent}%)
+            {stats.completedDays}/{stats.targetDays}일 완료 ({stats.completionRatePercent}%)
           </Text>
         </View>
       </View>

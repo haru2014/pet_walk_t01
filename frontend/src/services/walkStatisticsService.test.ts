@@ -46,14 +46,33 @@ describe('WalkStatisticsService', () => {
     expect(stats.totalDistanceKm).toBe(3.5);
     expect(stats.totalDurationMinutes).toBe(55);
     expect(stats.totalPoopCount).toBe(3);
+    expect(stats.completedDays).toBe(2);
+    expect(stats.targetDays).toBe(7);
     expect(stats.dailyStats).toHaveLength(7);
     expect(stats.dailyStats[0].dayLabel).toBe('월');
     expect(stats.dailyStats[0].walkCount).toBe(1);
     expect(stats.dailyStats[0].durationMinutes).toBe(30);
     expect(stats.dailyStats[0].achievementRatePercent).toBe(100);
-    expect(stats.completionRatePercent).toBe(40); // 2 / 5 = 40%
+    expect(stats.completionRatePercent).toBe(29); // 2 / 7일 = 29%
     expect(stats.safeSurfaceRatioPercent).toBe(88); // (0.9 + 0.85) / 2 = 87.5 -> 88%
     expect(stats.jointCareMessage).toContain('완만 노면');
+  });
+
+  it('주간 달성도는 전체 산책 횟수가 아닌 산책한 날짜 수를 7일 기준으로 계산한다', () => {
+    const duplicateSameDayRecord: WalkRecord = {
+      ...mockRecords[0],
+      id: 'walk_3',
+    };
+    const refDate = new Date('2026-10-14T12:00:00.000Z');
+    const stats = WalkStatisticsService.getWeeklyStats(
+      [...mockRecords, duplicateSameDayRecord],
+      refDate
+    );
+
+    expect(stats.totalWalks).toBe(3);
+    expect(stats.completedDays).toBe(2);
+    expect(stats.targetDays).toBe(7);
+    expect(stats.completionRatePercent).toBe(29);
   });
 
   it('기간별(7일, 30일, 전체) 산책 헬스케어 통계를 집계한다', () => {
