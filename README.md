@@ -13,7 +13,7 @@
 
 ---
 ## 테스트용 앱 다운로드 주소
-https://expo.dev/artifacts/eas/h-R2a_ScDhYTcv1JQjzw3imfeaJVuozp2tChyEmOBZA.apk
+https://expo.dev/artifacts/eas/VBEa7RZrgonb30FUxB63-3YPJXY6IOlySrvw32uJJrg.apk
 
 
 ## 웹 서비스 운영 서버 주소
