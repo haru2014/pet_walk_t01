@@ -4,12 +4,14 @@ from typing import Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
+
 
 class VoiceWalkIntentPayload(BaseModel):
     model_config = ConfigDict(strict=True)
 
     target_duration_minutes: int = Field(
-        default=30, ge=10, le=90,
+        default=30, ge=MIN_WALK_MINUTES, le=MAX_WALK_MINUTES,
         validation_alias=AliasChoices("target_duration_minutes", "duration_minutes"),
     )
     prefer_shade: bool = True

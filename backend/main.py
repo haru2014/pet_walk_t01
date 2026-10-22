@@ -32,11 +32,15 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
-from agent.park_route_validation import RoutePlanningError, validate_park_route
+from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
+from agent.route_geometry import haversine_m
+from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set
+from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.supabase_repository import community_repo
-from services.route_warmup import start_background_warmup
+from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
     HazardReportRepository,
@@ -127,6 +131,14 @@ def read_root():
         "version": "1.0.0",
         "docs_url": "/docs"
     }
+
+
+@app.middleware("http")
+async def _track_activity(request, call_next):
+    """[#125] 사용자 요청이 있었던 시각을 기록한다. 헬스체크(/health, /)는 서버를 깨우는 용도일 수 있어 제외한다."""
+    if request.url.path not in ("/health", "/"):
+        mark_activity()
+    return await call_next(request)
 
 
 @app.get("/health")
@@ -339,10 +351,10 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     try:
         target_duration = float(req.get("target_duration_minutes", 30))
         speed_kmh = float(req.get("speed_kmh", 2.8))
-        if not math.isfinite(target_duration) or not 10 <= target_duration <= 90 or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or speed_kmh <= 0:
             raise ValueError()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="산책 시간(10~90분)과 양수 보행 속도가 필요합니다.")
+        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 양수 보행 속도가 필요합니다.")
 
     return {
         "origin_lat": origin_lat,
@@ -353,6 +365,12 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
         "speed_kmh": speed_kmh,
         "parking_lot_id": req.get("parking_lot_id") or req.get("parking_id"),
     }
+
+
+def _app_intent_overrides(req: Dict[str, Any]) -> Dict[str, bool]:
+    """앱이 보내는 avoid_stairs / prefer_shade / prefer_cushion 을 의도 조건으로 바꾼다. 보내지 않은 항목은 넣지 않는다."""
+    mapping = {"avoid_stairs": "avoid_stairs", "prefer_shade": "shade_priority", "prefer_cushion": "prefer_soft"}
+    return {key: req[field] for field, key in mapping.items() if isinstance(req.get(field), bool)}
 
 
 def _resolve_parking_snap(
@@ -370,6 +388,65 @@ def _resolve_parking_snap(
         )
         return closest["entrance_lat"], closest["entrance_lon"], closest
     return origin_lat, origin_lon, None
+
+
+# [#183] 앱의 공원 모드는 공원 중심 좌표를 보낸다(frontend pilotParks.ts center == PILOT_PARK_CENTERS).
+# 이때는 공원 한가운데가 아니라 그 공원 보행망에 이어지는 주차장 입구에서 출발·도착한다 (앱 수정 없이 주차장 자료 활용).
+# 출발 가능한 주차장이 없으면 지금처럼 공원 중심에서 출발한다. 주차장을 직접 지정한 요청은 그대로 둔다.
+PARK_CENTER_MATCH_M = 30.0
+_DEFAULT_PARK_LOT_CACHE: Dict[str, Optional[Dict[str, Any]]] = {}
+
+
+def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
+    """공원 보행망에 이어지는 주차장 중 하나. 좌표 경고(data_issue) 없는 것 → 진입로 없는 것 → 보행망에 가까운 것 순."""
+    if park_id in _DEFAULT_PARK_LOT_CACHE:
+        return _DEFAULT_PARK_LOT_CACHE[park_id]
+    best: Optional[Tuple[Tuple[bool, bool, float], Dict[str, Any]]] = None
+    try:
+        graph = build_park_graph(park_id)
+        for lot in _PILOT_PARKING_LOTS:
+            point = (lot["entrance_lon"], lot["entrance_lat"])
+            try:
+                start, approach = resolve_park_start(graph, park_id, point)
+            except RoutePlanningError:
+                continue  # 보행망에서 멀거나 진입로 자료가 없는 주차장
+            rank = (bool(lot.get("data_issue")), approach is not None, haversine_m(point, start))
+            if best is None or rank < best[0]:
+                best = (rank, lot)
+    except RoutePlanningError:
+        best = None
+    _DEFAULT_PARK_LOT_CACHE[park_id] = best[1] if best else None
+    return _DEFAULT_PARK_LOT_CACHE[park_id]
+
+
+def _parking_start_keeps_courses_distinct(park_id: str, lot: Dict[str, Any], target_distance_m: float) -> bool:
+    """주차장에서 출발해도 코스 3개가 서로 다른 길인지 (간선 겹침 < SAME_ROUTE_OVERLAP).
+
+    막다른 길 끝에 붙은 주차장(예: 세종 제1주차장)은 세 코스가 처음 수백 m 를 함께 갔다 돌아와 비슷해 보일 수 있다.
+    그런 경우는 공원 중심 출발을 유지한다 (코스가 서로 다른 길이어야 한다는 #125·#155 요구가 우선).
+    """
+    try:
+        routes = plan_park_walk_candidates(park_id, lot["entrance_lat"], lot["entrance_lon"], target_distance_m)
+    except RoutePlanningError:
+        return False
+    edges = [route_edge_set(route) for route in routes]
+    return all(_route_overlap(edges[i], edges[j]) < SAME_ROUTE_OVERLAP for i in range(len(edges)) for j in range(i + 1, len(edges)))
+
+
+def _park_center_to_parking(
+    origin_lat: float, origin_lon: float, origin_mode: str, pilot_park_id: Optional[str], parking_lot_id: Optional[str],
+    target_distance_m: float,
+) -> Optional[Dict[str, Any]]:
+    """공원 중심에서 출발하는 공원 모드 요청이면 그 공원의 기본 출발 주차장을 돌려준다. 아니면 None."""
+    if origin_mode != "park" or parking_lot_id or pilot_park_id not in PILOT_PARK_CENTERS:
+        return None
+    center_lat, center_lon, _ = PILOT_PARK_CENTERS[pilot_park_id]
+    if _haversine_distance_meters(origin_lat, origin_lon, center_lat, center_lon) > PARK_CENTER_MATCH_M:
+        return None
+    lot = _default_parking_for_park(pilot_park_id)
+    if lot is None or not _parking_start_keeps_courses_distinct(pilot_park_id, lot, target_distance_m):
+        return None
+    return lot
 
 
 def _validate_candidate_route(
@@ -429,8 +506,11 @@ def _update_park_briefing(
     approach_m = validations[best.route_id].get("entry_approach_m") or 0
     if approach_m:
         # 공원 경계 밖 주차장 출발 (#160): 공원 코스는 목표 시간에 맞추고 진입로 왕복을 더했다
+        road_m = validations[best.route_id].get("entry_approach_road_m") or 0
+        # 보행 전용 진입로는 예전 문구 그대로, 주택가 도로가 섞이면 알린다 (#183)
+        way_text = f"공원 밖 길(주택가 도로 약 {road_m:.0f}m 포함, 차량에 주의해 주세요)을" if road_m else "공원 밖 보행로를"
         agent_result.briefing_message += (
-            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 공원 밖 보행로를 왕복하는 시간이 포함돼 있고,"
+            f" 주차장에서 공원 보행로까지 편도 약 {approach_m:.0f}m의 {way_text} 왕복하는 시간이 포함돼 있고,"
             f" 공원 안 코스는 약 {validations[best.route_id]['loop_estimated_minutes']:.0f}분입니다."
         )
 
@@ -596,17 +676,27 @@ def plan_walk_route(req: Dict[str, Any]):
     origin_lat, origin_lon, matched_parking = _resolve_parking_snap(
         origin_lat, origin_lon, parking_lot_id, origin_mode
     )
+    default_lot = _park_center_to_parking(
+        origin_lat, origin_lon, origin_mode, pilot_park_id, parking_lot_id,
+        target_distance_m=speed_kmh * 1000.0 / 60.0 * target_duration,  # walk_planning_agent 의 D = V × T 와 같은 식
+    )
+    if default_lot is not None:
+        origin_lat, origin_lon, matched_parking = default_lot["entrance_lat"], default_lot["entrance_lon"], default_lot
+        parking_lot_id = default_lot["parking_id"]
 
     weather_context = req.get("weather_context")
     if not weather_context:
         weather_context = weather_context_from_response(_live_heat_risk_response(origin_lat, origin_lon))
 
-    user_query = (
-        req.get("user_query")
-        or req.get("prompt")
-        or req.get("query")
-        or f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
-    )
+    # 앱 산책 설정의 체크 항목 (계단 피하기·그늘·폭신한 길). 예전에는 읽지 않아 설정이 추천에 반영되지 않았다
+    intent_overrides = _app_intent_overrides(req)
+    request_text = str(req.get("request_text") or "").strip()
+    if intent_overrides or request_text:
+        # 앱 요청: 조건은 체크 항목으로 받으므로 기본 문장에 특정 노면을 넣지 않고, 사용자가 쓴 요청 문장을 붙인다
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 산책하고 싶어요. {request_text}".strip()
+    else:
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
+    user_query = req.get("user_query") or req.get("prompt") or req.get("query") or default_query
 
     client_dog = {
         "dog_id": req.get("dog_id", "dog_default"),
@@ -648,6 +738,7 @@ def plan_walk_route(req: Dict[str, Any]):
             parking_lot_id=parking_lot_id,
             # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
             pilot_park_id=selected_park or pilot_park_id,
+            intent_overrides=intent_overrides,
         )
 
         validations = {}

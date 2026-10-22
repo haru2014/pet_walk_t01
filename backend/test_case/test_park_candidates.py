@@ -126,3 +126,58 @@ def test_api_routes_are_really_different(park):
             containment = inter / min(len(s1), len(s2))
             assert containment < 0.70, f"Park {park}: candidates {ids[i]} and {ids[j]} overlap too much ({containment:.1%})"
 
+
+
+def test_long_request_in_a_small_park_recommends_the_longest_course_first():
+    """#170: 송강(작은 공원)에서 120분을 요청하면 경사 점수가 높은 짧은 코스보다 가장 긴 코스를 먼저 추천한다."""
+    from fastapi.testclient import TestClient
+    from main import app
+    res = TestClient(app).post("/api/v1/walk/plan", json={
+        "origin_mode": "park", "pilot_park_id": "songgang",
+        "origin_lat": 36.4353, "origin_lon": 127.3847, "target_duration_minutes": 120,
+    })
+    assert res.status_code == 200
+    data = res.json()
+    minutes = [data["route_validation"][course["id"]]["estimated_minutes"] for course in data["courses"]]
+    assert minutes[0] == max(minutes)
+
+
+# ---- 작은 공원도 공원 전체를 쓰고 요청 시간에 맞춘다 (단톡 10/21 승현 님: "송강 같은 작은 공원은 70% 정도만 쓴다") ----
+# 예전에는 nx.cycle_basis 의 기본 순환(송강 11개, 가장 긴 것 410m)만 후보였다. 송강에는 단순 순환이 591개,
+# 가장 긴 것이 699m 라 공원 바깥쪽을 도는 길이 후보에서 빠졌고, 40분 요청에 1안이 35분이었다.
+
+def test_small_park_considers_loops_longer_than_basis():
+    import networkx as nx
+    from agent.park_walk_planner import _cached_extra_cycles
+
+    graph = build_park_graph("songgang")
+    nodes = max(nx.connected_components(graph), key=len)
+    basis_longest = max(polyline_length_m([list(n) for n in c + c[:1]]) for c in nx.cycle_basis(graph.subgraph(nodes)))
+    extra_longest = max(length for _, length, _ in _cached_extra_cycles(graph, frozenset(nodes)))
+    assert extra_longest > basis_longest * 1.5
+
+
+@pytest.mark.parametrize("minutes", [40, 50])
+def test_small_park_first_course_matches_requested_time(minutes):
+    lat, lon = CENTERS["songgang"]
+    target = _target(minutes)
+    first = plan_park_walk_candidates("songgang", lat, lon, target)[0]
+    assert abs(polyline_length_m(first) - target) / target <= 0.10
+
+
+def test_long_request_in_big_park_still_gives_different_routes():
+    """긴 요청(120분)은 바퀴 수만 다른 같은 길이 위로 몰리기 쉽다. 순환 하나당 후보 하나만 남겨 서로 다른 길을 고른다."""
+    lat, lon = CENTERS["doan"]
+    routes = plan_park_walk_candidates("doan", lat, lon, _target(120))
+    sims = [_similarity(routes[i], routes[j]) for i in range(3) for j in range(i + 1, 3)]
+    assert max(sims) < 0.65, sims
+
+
+def test_extra_cycles_are_cached_per_graph(monkeypatch):
+    import agent.park_walk_planner as pwp
+
+    graph = build_park_graph("songgang")
+    pwp.warm_park_cycles(graph)
+    monkeypatch.setattr(pwp, "_extra_cycles", lambda *a, **k: pytest.fail("캐시가 있으면 다시 찾지 않아야 한다"))
+    lat, lon = CENTERS["songgang"]
+    plan_park_walk_candidates("songgang", lat, lon, _target(33))

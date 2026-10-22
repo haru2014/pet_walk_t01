@@ -18,6 +18,12 @@ RELAXED_OVERLAP = 0.85  # 후보가 모자랄 때만 이 값 미만까지 허용
 MAX_LAP_REPEATS = 4
 _CANDIDATE_CACHE: dict = {}
 _CANDIDATE_CACHE_MAX = 256
+# cycle_basis 는 그래프의 "기본 순환"만 준다(송강 11개, 가장 긴 것 410m). 공원 바깥쪽을 크게 도는 길은
+# 기본 순환들을 합친 모양이라 후보에 들어오지 않아, 작은 공원은 공원 일부만 도는 짧은 코스가 나왔다.
+# 갈림길끼리 잇는 구간 그래프에서 단순 순환을 더 찾는다 (송강 591개 전부, 가장 긴 것 699m).
+# 큰 공원은 순환 수가 폭발하므로 개수 상한까지만 찾는다 (기본 순환은 그대로 후보에 남는다).
+EXTRA_CYCLE_LIMIT = 3000
+_CYCLE_CACHE: dict = {}
 
 
 def route_edge_set(coords: list) -> frozenset:
@@ -54,26 +60,122 @@ def route_direction_label(coords: list) -> str:
     return "반시계 방향" if area2 > 0 else "시계 방향"
 
 
+def _junction_segments(graph: nx.Graph) -> dict:
+    """갈림길(차수 2가 아닌 점)끼리 잇는 구간. {frozenset(갈림길 쌍): (길이, 점 목록)} — 같은 쌍은 짧은 구간만 남긴다."""
+    junctions = {node for node in graph if graph.degree(node) != 2}
+    segments: dict = {}
+    for u in junctions:
+        for v in graph.neighbors(u):
+            path = [u, v]
+            while path[-1] not in junctions:
+                path.append(next(w for w in graph.neighbors(path[-1]) if w != path[-2]))
+            end = path[-1]
+            if end == u:  # 한 갈림길로 되돌아오는 고리는 기본 순환이 이미 다룬다
+                continue
+            length = sum(graph[a][b]["weight"] for a, b in zip(path, path[1:]))
+            key = frozenset((u, end))
+            if key not in segments or length < segments[key][0]:
+                segments[key] = (length, path, frozenset(frozenset(edge) for edge in zip(path, path[1:])))
+    return segments
+
+
+def _extra_cycles(component: nx.Graph) -> list:
+    """구간 그래프의 단순 순환 [(점 목록, 길이, 간선 집합)]. 점 목록은 cycle_basis 와 같은 형식(끝점 반복 없음).
+
+    길이·간선 집합은 구간별로 미리 계산한 값을 합친다 (점마다 다시 계산하면 도안은 첫 계산이 10초 걸렸다).
+    """
+    segments = _junction_segments(component)
+    junction_graph = nx.Graph()
+    junction_graph.add_edges_from(tuple(key) for key in segments)
+    cycles = []
+    for junction_cycle in nx.simple_cycles(junction_graph):
+        if len(junction_cycle) < 3:
+            continue
+        nodes = [junction_cycle[0]]
+        parts = [segments[frozenset(pair)] for pair in zip(junction_cycle, junction_cycle[1:] + junction_cycle[:1])]
+        for a, (_, path, _) in zip(junction_cycle, parts):
+            nodes.extend((path if path[0] == a else path[::-1])[1:])
+        cycles.append((nodes[:-1], sum(part[0] for part in parts), frozenset().union(*(part[2] for part in parts))))
+        if len(cycles) >= EXTRA_CYCLE_LIMIT:
+            break
+    return cycles
+
+
+def _cycle_edges(cycle: list) -> frozenset:
+    return frozenset(frozenset(edge) for edge in zip(cycle, cycle[1:] + cycle[:1]))
+
+
+def _cycle_length(component: nx.Graph, cycle: list) -> float:
+    return sum(component[a][b]["weight"] for a, b in zip(cycle, cycle[1:] + cycle[:1]))
+
+
+def _cached_extra_cycles(graph: nx.Graph, component_nodes: frozenset) -> list:
+    """출발점과 무관한 추가 순환 [(점 목록, 길이, 간선 집합)]. 같은 그래프·연결 조각이면 다시 계산하지 않는다."""
+    key = (id(graph), component_nodes)
+    cached = _CYCLE_CACHE.get(key)
+    if cached is not None and cached[0] is graph:
+        return cached[1]
+    cycles = _extra_cycles(graph.subgraph(component_nodes))
+    if len(_CYCLE_CACHE) >= 64:
+        _CYCLE_CACHE.clear()
+    _CYCLE_CACHE[key] = (graph, cycles)
+    return cycles
+
+
+def warm_park_cycles(graph: nx.Graph) -> int:
+    """서버 시작 워밍업용: 연결 조각마다 추가 순환을 미리 찾아 캐시에 넣는다. 찾은 순환 수를 돌려준다."""
+    return sum(len(_cached_extra_cycles(graph, frozenset(nodes))) for nodes in nx.connected_components(graph))
+
+
 def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float) -> list:
-    """조건에 맞는 모든 순환 코스를 (목표와의 거리 차이, 좌표열) 로 모아 정렬한다."""
-    component = graph.subgraph(nx.node_connected_component(graph, start))
+    """조건에 맞는 순환 코스를 목표 거리에 가까운 순으로 모은다.
+
+    각 후보는 (목표와의 거리 차이, 간선 집합, 좌표열을 만드는 함수). 좌표열은 고른 후보만 만든다
+    (큰 공원은 후보가 수천 개라 미리 다 만들면 요청 1번에 수 초가 걸린다).
+    """
+    component_nodes = frozenset(nx.node_connected_component(graph, start))
+    component = graph.subgraph(component_nodes)
     distances, paths = nx.single_source_dijkstra(component, start, weight="weight")
-    candidates = []
-    for cycle in nx.cycle_basis(component, root=start):
+    basis = [(c, _cycle_length(graph, c), _cycle_edges(c)) for c in nx.cycle_basis(component, root=start)]
+    cycles = []
+    seen = set()
+    for cycle, cycle_length, signature in basis + _cached_extra_cycles(graph, component_nodes):
+        if signature not in seen:
+            seen.add(signature)
+            cycles.append((cycle, cycle_length, signature))
+    scored = []
+    for index, (cycle, cycle_length, _) in enumerate(cycles):
         # Approach and return use the shortest path on the same connected graph.
-        entry = min(cycle, key=lambda node: distances[node])
-        index = cycle.index(entry)
-        cycle = cycle[index:] + cycle[:index]
-        approach = paths[entry]
-        for repeats in range(1, MAX_LAP_REPEATS + 1):
-            nodes = approach + (cycle[1:] + [entry]) * repeats + list(reversed(approach[:-1]))
-            coords = [list(node) for node in nodes]
-            length = polyline_length_m(coords)
-            if 0 < length <= target_distance_m * 1.25:
-                candidates.append((abs(length - target_distance_m), coords))
-    if not candidates:
+        entry = min(cycle, key=distances.__getitem__)
+        # 같은 순환의 바퀴 수만 다른 코스는 사실상 같은 길이므로, 목표에 가장 가까운 바퀴 수 하나만 남긴다.
+        options = [
+            (abs(length - target_distance_m), repeats)
+            for repeats in range(1, MAX_LAP_REPEATS + 1)
+            if 0 < (length := 2 * distances[entry] + repeats * cycle_length) <= target_distance_m * 1.25
+        ]
+        if options:
+            diff, repeats = min(options)
+            scored.append((diff, index, repeats, entry))
+    if not scored:
         raise RoutePlanningError("NO_VALID_LOOP", "공원 내부의 연결된 보행로에서 조건에 맞는 순환 경로가 없습니다.")
-    candidates.sort(key=lambda item: (item[0], item[1]))
+    scored.sort(key=lambda item: item[:3])
+
+    def builder(index: int, repeats: int, entry: tuple):
+        def build() -> list:
+            cycle = cycles[index][0]
+            position = cycle.index(entry)
+            cycle = cycle[position:] + cycle[:position]
+            approach = paths[entry]
+            nodes = approach + (cycle[1:] + [entry]) * repeats + list(reversed(approach[:-1]))
+            return [list(node) for node in nodes]
+        return build
+
+    approach_edges: dict = {}
+    candidates = []
+    for diff, index, repeats, entry in scored:
+        if entry not in approach_edges:  # route_edge_set 과 같은 모양: 방향 없는 간선의 집합
+            approach_edges[entry] = frozenset(frozenset(edge) for edge in zip(paths[entry], paths[entry][1:]))
+        candidates.append((diff, cycles[index][2] | approach_edges[entry], builder(index, repeats, entry)))
     return candidates
 
 
@@ -82,12 +184,13 @@ def _select_distinct(candidates: list) -> list:
     chosen: list = []  # [(coords, edge_set)]
 
     def add_if(max_overlap: float) -> None:
-        for _, coords in candidates:
+        for _, edges, build in candidates:
             if len(chosen) == CANDIDATE_COUNT:
                 return
-            edges = route_edge_set(coords)
-            if all(_overlap(edges, other) < max_overlap for _, other in chosen) and not any(coords == c for c, _ in chosen):
-                chosen.append((coords, edges))
+            if all(_overlap(edges, other) < max_overlap for _, other in chosen):
+                coords = build()
+                if not any(coords == c for c, _ in chosen):
+                    chosen.append((coords, edges))
 
     add_if(SAME_ROUTE_OVERLAP)
     if len(chosen) < CANDIDATE_COUNT:

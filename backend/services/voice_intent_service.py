@@ -139,7 +139,7 @@ def _build_system_prompt(dog_name: Optional[str]) -> str:
 3. 대상 반려견 이름: {name}
 
 [추출 규칙]
-- target_duration_minutes: 10~90분 사이 정수 (미언급 시 30)
+- target_duration_minutes: 10~120분 사이 정수 (미언급 시 30)
 - prefer_shade: 그늘길/시원한 길 선호 여부 (날씨가 덥거나 그늘 요청 시 true)
 - prefer_cushion: 흙길/잔디/폭신한 길 선호 여부 (기본 true)
 - avoid_stairs: 계단 회피 여부 (기본 true)

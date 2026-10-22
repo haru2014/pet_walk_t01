@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import estimate_duration_minutes
@@ -50,7 +51,7 @@ class FeedbackSummaryItem(BaseModel):
 
 class WalkIntent(BaseModel):
     """[US-A1] 자연어 질의에서 추출된 산책 의도 구조화 모델."""
-    target_duration_minutes: int = Field(default=25, ge=10, le=90)
+    target_duration_minutes: int = Field(default=25, ge=MIN_WALK_MINUTES, le=MAX_WALK_MINUTES)
     avoid_stairs: bool = Field(default=True)
     slope_preference: SlopePreference = Field(default="gentle")
     shade_priority: bool = Field(default=False)
@@ -91,6 +92,21 @@ class ScoredRoute(BaseModel):
     distance_score: float
     rank: int
     preference_score: float = 0.0  # [제안] 맞춤 점수의 선호 적합도 (agent/personalized_scorer.py)
+    distance_error_ratio: float = 0.0  # |코스 거리 − 목표| / 목표 (진입로 왕복 제외). 순위의 시간 적합 판단에 쓴다
+
+
+# 이 비율 안의 코스를 "요청 시간에 맞는 코스"로 본다 (공원 안내의 '짧은 대안 코스' 기준 0.75 와 같은 폭)
+DURATION_FIT_TOLERANCE = 0.25
+
+
+def rank_key(scored: "ScoredRoute") -> tuple:
+    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고 그 안에서는 점수 순,
+    맞는 코스가 없으면 요청 시간에 가까운 순(같으면 점수 순). 점수 자체는 바꾸지 않는다.
+    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다."""
+    err = scored.distance_error_ratio
+    if err <= DURATION_FIT_TOLERANCE:
+        return (0, 0.0, -scored.total_score)
+    return (1, round(err, 3), -scored.total_score)
 
 
 class WalkPlanningResult(BaseModel):
@@ -143,7 +159,10 @@ def get_standard_speed_kmh(weight_kg: float, age_years: int, joint_care_level: i
 # ==============================================================================
 
 def _extract_target_duration(query_str: str) -> Optional[int]:
-    """자연어 발화에서 목표 산책 시간(분) 추출 (10~90분 클램핑)."""
+    """자연어 발화에서 목표 산책 시간(분) 추출 (한도: walk_limits.MIN/MAX_WALK_MINUTES 로 맞춤)."""
+    # 0. 두 시간, 2시간 (앱은 최대 2시간까지 고를 수 있다)
+    if re.search(r"(?:2\s*시간|두\s*시간)", query_str):
+        return max(MIN_WALK_MINUTES, min(MAX_WALK_MINUTES, 120))
     # 1. 1시간 반, 한시간 30분 등 복합 표현
     if re.search(r"(?:1\s*시간|한\s*시간)\s*(?:반|30\s*분)", query_str):
         return 90
@@ -157,7 +176,7 @@ def _extract_target_duration(query_str: str) -> Optional[int]:
     match = re.search(r"(\d{1,3})\s*(?:분|min)", query_str)
     if match:
         dur = int(match.group(1))
-        return max(10, min(90, dur))
+        return max(MIN_WALK_MINUTES, min(MAX_WALK_MINUTES, dur))
     return None
 
 
@@ -426,6 +445,8 @@ class WalkPlanningState(TypedDict):
     origin_mode: str
     parking_lot_id: Optional[str]
     pilot_park_id: Optional[str]
+    # 앱 산책 설정에서 고른 조건 (avoid_stairs / shade_priority / prefer_soft). 문장 분석 결과보다 앞선다
+    intent_overrides: Optional[Dict[str, Any]]
     # 분석 & 보정 산출물
     parsed_intent: Optional[Dict[str, Any]]
     calibrated_speed_kmh: float
@@ -445,13 +466,36 @@ class WalkPlanningState(TypedDict):
 # 5. LangGraph Node 함수 구현 (ReAct Cycle)
 # ==============================================================================
 
+SOFT_SURFACE_PREFERENCES: List[AllowedSurface] = ["dirt", "grass", "rubber"]
+
+
+def apply_intent_overrides(intent: WalkIntent, overrides: Optional[Dict[str, Any]]) -> WalkIntent:
+    """앱 산책 설정의 체크 항목을 의도에 반영한다.
+
+    - avoid_stairs: 앱의 '계단 피하기' 체크 여부 그대로 (체크 안 하면 계단을 피하지 않는다)
+    - shade_priority: '그늘이 많은 길'을 체크했거나 요청 문장에 그늘·더위 낱말이 있으면 켠다
+    - prefer_soft: '폭신한 길'을 체크하면 흙·잔디·탄성 노면을 선호에 넣는다
+    """
+    if not overrides:
+        return intent
+    updated = intent.model_copy()
+    if isinstance(overrides.get("avoid_stairs"), bool):
+        updated.avoid_stairs = overrides["avoid_stairs"]
+    if overrides.get("shade_priority") is True:
+        updated.shade_priority = True
+    if overrides.get("prefer_soft") is True:
+        surfaces = list(updated.preferred_surfaces)
+        updated.preferred_surfaces = surfaces + [s for s in SOFT_SURFACE_PREFERENCES if s not in surfaces]
+    return updated
+
+
 def node_parse_intent(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 1] 사용자의 자연어 발화에서 의도를 파싱하고 Pydantic 스키마로 검증."""
     query = state.get("user_query", "")
     trace = list(state.get("execution_trace", []))
     trace.append(f"[Node: parse_intent] User query: '{query}'")
 
-    intent = parse_natural_language_walk_query(query)
+    intent = apply_intent_overrides(parse_natural_language_walk_query(query), state.get("intent_overrides"))
     trace.append(
         f"[Node: parse_intent] Parsed -> Duration: {intent.target_duration_minutes}m, "
         f"AvoidStairs: {intent.avoid_stairs}, Slope: {intent.slope_preference}, Shade: {intent.shade_priority}"
@@ -571,8 +615,9 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
         profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
         # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
         approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
+        loop_distance_m = c.total_distance_m - 2 * approach_m
         result = score_personalized(
-            profile, distance_m=c.total_distance_m - 2 * approach_m, target_distance_m=target_dist,
+            profile, distance_m=loop_distance_m, target_distance_m=target_dist,
             joint_care_level=int(dog.get("joint_care_level", 1)),
             calibrated_max_slope=state.get("max_slope_allowed"),
             avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
@@ -602,6 +647,7 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
         scored_list.append(ScoredRoute(
             candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
             thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+            distance_error_ratio=abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0,
         ))
     return scored_list
 
@@ -615,8 +661,8 @@ def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
     candidates = [RouteCandidate(**cd) for cd in candidate_dicts]
     scored_list: List[ScoredRoute] = _score_candidates_personalized(state, candidates, target_dist)
 
-    # 점수 내림차순 정렬
-    scored_list.sort(key=lambda s: s.total_score, reverse=True)
+    # 요청 시간에 맞는 코스 먼저, 그 안에서 점수 내림차순 (#170)
+    scored_list.sort(key=rank_key)
     for i, s in enumerate(scored_list):
         s.rank = i + 1
 
@@ -774,6 +820,7 @@ def run_walk_planning_agent(
     origin_mode: Optional[str] = None,
     parking_lot_id: Optional[str] = None,
     pilot_park_id: Optional[str] = None,
+    intent_overrides: Optional[Dict[str, Any]] = None,
 ) -> WalkPlanningResult:
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
@@ -805,6 +852,7 @@ def run_walk_planning_agent(
         "origin_mode": origin_mode,
         "parking_lot_id": parking_lot_id,
         "pilot_park_id": pilot_park_id,
+        "intent_overrides": intent_overrides,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

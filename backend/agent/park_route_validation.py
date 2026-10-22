@@ -193,6 +193,7 @@ def validate_park_route(coords: list, park_id: str, speed_kmh: float, target_min
         "snapped_origin": coords[0],
         "origin_snap_m": round(haversine_m(origin, coords[0]), 1) if origin is not None else 0,
         "entry_approach_m": 0,
+        "entry_approach_road_m": 0,
     }
     if approach is not None:
         # 거리·시간은 진입로 왕복을 더한 전체 값, 목표 시간 비교는 공원 안 순환 부분만 (#160 가 안)
@@ -201,6 +202,9 @@ def validate_park_route(coords: list, park_id: str, speed_kmh: float, target_min
             distance_m=total, estimated_minutes=estimate_duration_minutes(total, speed_kmh),
             loop_distance_m=distance, loop_estimated_minutes=duration,
             entry_approach_m=round(polyline_length_m(approach), 1), snapped_origin=full_coords[0],
+            # 진입로 중 주택가·이면도로 구간 길이 (#183). 안내 문구에 알린다
+            entry_approach_road_m=next((a.get("road_m") or 0 for a in load_entry_approaches().values()
+                                        if a.get("coordinates") == approach), 0),
             origin_snap_m=round(haversine_m(start_origin, full_coords[0]), 1),
         )
     return result

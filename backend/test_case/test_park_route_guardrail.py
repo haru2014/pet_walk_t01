@@ -116,6 +116,8 @@ def test_api_discards_bad_best_and_returns_verified_alternatives(monkeypatch):
     bad.geojson_coordinates = copy.deepcopy(ppr.SONGGANG_PARK_OSM_COORDS)
     result.best_route = bad
     monkeypatch.setattr(main, "run_walk_planning_agent", lambda **kwargs: result)
+    # 공원 중심 출발로 만든 가짜 결과를 검증하므로, 주차장 자동 출발(#183)은 끈다
+    monkeypatch.setattr(main, "_park_center_to_parking", lambda *args, **kwargs: None)
     response = client.post("/api/v1/walk/plan", json=body())
     assert response.status_code == 200
     data = response.json()
@@ -129,6 +131,8 @@ def test_api_blocks_injected_empty_fallback(monkeypatch):
     for scored in result.all_scored_candidates:
         scored.candidate.geojson_coordinates = []
     monkeypatch.setattr(main, "run_walk_planning_agent", lambda **kwargs: result)
+    # 공원 중심 출발로 만든 가짜 결과를 검증하므로, 주차장 자동 출발(#183)은 끈다
+    monkeypatch.setattr(main, "_park_center_to_parking", lambda *args, **kwargs: None)
     response = client.post("/api/v1/walk/plan", json=body())
     assert response.status_code == 422
     assert response.json()["code"] == "ROUTE_VALIDATION_FAILED"
@@ -141,6 +145,8 @@ def test_api_recalculates_metadata_from_final_geometry(monkeypatch):
         scored.candidate.total_distance_m = 999999
         scored.candidate.estimated_duration_minutes = 9999
     monkeypatch.setattr(main, "run_walk_planning_agent", lambda **kwargs: result)
+    # 공원 중심 출발로 만든 가짜 결과를 검증하므로, 주차장 자동 출발(#183)은 끈다
+    monkeypatch.setattr(main, "_park_center_to_parking", lambda *args, **kwargs: None)
     response = client.post("/api/v1/walk/plan", json=body())
     assert response.status_code == 200
     assert all(c["estimatedMinutes"] < 50 for c in response.json()["courses"])
