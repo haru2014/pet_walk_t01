@@ -11,14 +11,14 @@ vi.mock('expo-audio', () => ({
     record() {},
     stop: async () => {},
   }),
-  createAudioPlayer: () => ({
+  createAudioPlayer: vi.fn(() => ({
     volume: 1,
     play() {},
     addListener: () => ({ remove() {} }),
     setActiveForLockScreen() {},
     clearLockScreenControls() {},
     remove() {},
-  }),
+  })),
   setAudioModeAsync: async () => {},
 }));
 

@@ -270,6 +270,12 @@ export class TTSNavigationService {
     }
   }
 
+  /** 재생이 시작된 뒤에만 문장 길이에 따른 완료 안전 타이머를 적용한다. */
+  private static startPlaybackWatchdog(message: string, finish: () => void): void {
+    this.clearWatchdog();
+    this.watchdog = setTimeout(finish, Math.min(45000, 8000 + message.length * 500));
+  }
+
   private static playNext(): void {
     const self = TTSNavigationService;
     const next = self.queue.shift();
@@ -323,9 +329,8 @@ export class TTSNavigationService {
       },
     };
 
-    // 종료 콜백이 오지 않는 환경에서도 대기열이 멈추지 않도록 문장 길이 기반 안전 타이머를 둔다.
+    // 앞선 발화의 안전 타이머를 정리한다. Gemini 요청 시간은 재생 제한에 포함하지 않는다.
     self.clearWatchdog();
-    self.watchdog = setTimeout(finish, Math.min(45000, 8000 + message.length * 500));
     void self.speakWithGemini(message, profileId, id, speechOptions, finish);
   }
 
@@ -354,7 +359,8 @@ export class TTSNavigationService {
       );
       if (!response.ok) throw new Error(`Gemini TTS returned ${response.status}`);
       const bytes = new Uint8Array(await response.arrayBuffer());
-      if (!bytes.length || id !== self.utteranceId) return;
+      if (id !== self.utteranceId) return;
+      if (!bytes.length) throw new Error('Gemini TTS returned empty audio');
 
       const file = new File(Paths.cache, `petwalk-tts-${id}.wav`);
       file.create({ overwrite: true });
@@ -389,6 +395,7 @@ export class TTSNavigationService {
         }
       });
       player.play();
+      self.startPlaybackWatchdog(message, finish);
     } catch (error) {
       if (id !== self.utteranceId || controller.signal.aborted) return;
       console.info('[TTSNavigationService] Gemini TTS 실패, 기기 음성으로 전환:', error);
@@ -423,6 +430,7 @@ export class TTSNavigationService {
     if (id !== self.utteranceId) return;
     await self.releaseCurrentPlayer();
     try {
+      self.startPlaybackWatchdog(message, finish);
       Speech.speak(message, options);
     } catch (error) {
       if (Platform.OS !== 'web') console.warn('[TTSNavigationService] TTS 미지원 환경:', error);
