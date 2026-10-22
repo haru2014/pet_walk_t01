@@ -36,6 +36,39 @@ export interface CurrentLocationResult {
   readonly errorMessage?: string;
 }
 
+function getLocationErrorDetails(error: unknown): {
+  reason: NonNullable<CurrentLocationResult['reason']>;
+  errorMessage: string;
+} {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+
+  if (/GPS_TIMEOUT/i.test(message)) {
+    return {
+      reason: 'timeout',
+      errorMessage: 'GPS 신호 수신 시간이 초과되었습니다. 실외에서 다시 시도해 주세요.',
+    };
+  }
+
+  if (/location services? (?:are )?disabled|location provider (?:is )?unavailable|location is unavailable|current location is unavailable|unsatisfied device settings|cannot obtain current location/i.test(message)) {
+    return {
+      reason: 'service_disabled',
+      errorMessage: '기기의 위치 서비스를 사용할 수 없습니다. 위치 설정을 켜고 다시 시도해 주세요.',
+    };
+  }
+
+  if (/permission.*(?:required|denied)|not authorized/i.test(message)) {
+    return {
+      reason: 'permission_denied',
+      errorMessage: '위치 권한이 허용되지 않았습니다. 단말기 설정에서 위치 권한을 허용해 주세요.',
+    };
+  }
+
+  return {
+    reason: 'error',
+    errorMessage: '현재 위치를 확인할 수 없습니다. GPS와 위치 설정을 확인한 뒤 다시 시도해 주세요.',
+  };
+}
+
 type PointListener = (point: GpsPoint) => void;
 
 const buffer: GpsPoint[] = [];
@@ -280,11 +313,17 @@ export async function getCurrentLocationCoords(timeoutMs = 5000): Promise<Curren
     const positionPromise = Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced ?? 3,
     });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('GPS_TIMEOUT')), timeoutMs)
-    );
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('GPS_TIMEOUT')), timeoutMs);
+    });
 
-    const loc = (await Promise.race([positionPromise, timeoutPromise])) as Location.LocationObject;
+    let loc: Location.LocationObject;
+    try {
+      loc = (await Promise.race([positionPromise, timeoutPromise])) as Location.LocationObject;
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
 
     return {
       ok: true,
@@ -294,19 +333,12 @@ export async function getCurrentLocationCoords(timeoutMs = 5000): Promise<Curren
         accuracy: loc.coords.accuracy,
       },
     };
-  } catch (err: any) {
-    if (err?.message === 'GPS_TIMEOUT') {
-      return {
-        ok: false,
-        reason: 'timeout',
-        errorMessage: 'GPS 신호 수신 시간이 초과되었습니다. 실외에서 다시 시도해 주세요.',
-      };
-    }
-    console.warn('[locationService] getCurrentLocationCoords 오류:', err);
+  } catch (error) {
+    console.warn('[locationService] getCurrentLocationCoords 오류:', error);
+    const details = getLocationErrorDetails(error);
     return {
       ok: false,
-      reason: 'error',
-      errorMessage: err?.message || '현재 위치를 확인할 수 없습니다.',
+      ...details,
     };
   }
 }
