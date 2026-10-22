@@ -94,7 +94,25 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
     const current = publicMap[record.id] ?? false;
     const nextState = !current;
 
-    const result = await SupabaseService.setWalkRecordPublic(record.id, nextState);
+    let remoteId: string;
+    try {
+      remoteId = await SupabaseService.ensureWalkRecordSynced(record);
+      if (record.remoteId !== remoteId) {
+        const saved = await LocalStorageService.updateWalkRecordRemoteId(record.id, remoteId);
+        if (!saved) throw new Error('산책 기록 연결 정보를 저장하지 못했어요. 다시 시도해 주세요.');
+        setRecords((currentRecords) => currentRecords.map((current) =>
+          current.id === record.id ? { ...current, remoteId } : current
+        ));
+      }
+    } catch (error) {
+      Alert.alert(
+        '산책 기록을 준비하지 못했어요',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.'
+      );
+      return;
+    }
+
+    const result = await SupabaseService.setWalkRecordPublic(remoteId, nextState);
     if (!result.ok) {
       Alert.alert('공개 설정을 바꾸지 못했어요', result.message);
       return;

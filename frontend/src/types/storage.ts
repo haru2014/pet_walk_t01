@@ -38,6 +38,8 @@ export interface PoopEvent {
 
 export interface WalkRecord {
   id: string;
+  /** Supabase walk_records.id. Legacy local records may not have a UUID in id. */
+  remoteId?: string;
   dogId: string;
   dogSummary?: WalkDogSummary;
   startedAt: string;

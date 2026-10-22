@@ -10,6 +10,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AuthSession, AuthUser, DogProfileRemote, WalkRecordRemote } from '../types/auth';
+import { WalkRecord } from '../types/storage';
 import { LocalStorageService } from './storage';
 import { generateUuid, isUuid } from '../utils/uuid';
 import { fetchWithServerFallback } from './apiClient';
@@ -264,6 +265,56 @@ class SupabaseServiceManager {
       }
     }
     return newRecord;
+  }
+
+  /** Ensure a locally saved walk has a cloud row and return its UUID for sharing. */
+  async ensureWalkRecordSynced(record: WalkRecord): Promise<string> {
+    const user = this.getCurrentUser();
+    if (!this.client || !user || !isUuid(user.id)) {
+      throw new Error('로그인 정보와 클라우드 연결을 확인한 뒤 다시 시도해 주세요.');
+    }
+
+    const remoteId = isUuid(record.remoteId)
+      ? record.remoteId
+      : isUuid(record.id)
+        ? record.id
+        : generateUuid();
+
+    const findRemoteRecord = async () => this.client!
+      .from('walk_records')
+      .select('id')
+      .eq('id', remoteId)
+      .maybeSingle();
+
+    const existing = await findRemoteRecord();
+    if (existing.error) {
+      throw new Error('산책 기록을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    }
+    if (existing.data?.id) return String(existing.data.id);
+
+    const payload = {
+      id: remoteId,
+      user_id: user.id,
+      dog_id: isUuid(record.dogId) ? record.dogId : undefined,
+      started_at: record.startedAt,
+      ended_at: record.completedAt,
+      distance_m: Math.round(record.totalDistanceKm * 1000),
+      duration_min: record.durationMinutes,
+      route_coords: record.gpsTrack.map(({ lat, lon }) => [lon, lat] as [number, number]),
+      note: record.feedback?.comment ?? '',
+      rating: record.feedback?.comfortScore ?? 5,
+    };
+    const inserted = await this.client.from('walk_records').insert(payload);
+    if (inserted.error) {
+      // A concurrent sync may have inserted this UUID after the initial lookup.
+      const retry = await findRemoteRecord();
+      if (retry.error || !retry.data?.id) {
+        console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', inserted.error.message);
+        throw new Error('산책 기록을 클라우드에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      }
+      return String(retry.data.id);
+    }
+    return remoteId;
   }
 
   /**
