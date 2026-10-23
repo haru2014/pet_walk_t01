@@ -33,12 +33,24 @@ describe('parkingApi - US-G1 대전/세종 4대 거점 공영주차장 P&R 서�
   });
 
   describe('PILOT_PARKING_LOTS_DATA 데이터셋 정밀도', () => {
-    it('대전 3대 공원과 세종호수공원 주차장이 20개 등록되어 있어야 한다 (공식 9곳 + 레거시 11곳)', () => {
+    it('생성된 JSON의 주차장 20곳을 사용해야 한다 (검증 12곳 + 미검증 8곳)', () => {
       expect(PILOT_PARKING_LOTS_DATA.length).toBe(20);
       const verified = PILOT_PARKING_LOTS_DATA.filter((p) => p.verified === true);
       const legacy = PILOT_PARKING_LOTS_DATA.filter((p) => p.verified === false);
-      expect(verified.length).toBe(9);
-      expect(legacy.length).toBe(11);
+      expect(verified.length).toBe(12);
+      expect(legacy.length).toBe(8);
+    });
+
+    it('세종호수공원 1~3주차장은 생성된 서버 JSON의 좌표를 사용해야 한다', () => {
+      const sejongLots = PILOT_PARKING_LOTS_DATA.filter((lot) =>
+        ['pkg_sejong_01', 'pkg_sejong_02', 'pkg_sejong_03'].includes(lot.parking_id),
+      );
+
+      expect(sejongLots.map(({ entrance_lat, entrance_lon }) => [entrance_lat, entrance_lon])).toEqual([
+        [36.492486, 127.268722],
+        [36.500506, 127.269823],
+        [36.500309, 127.268138],
+      ]);
     });
 
     it('공식 인증 주차장(status=official)은 official_id가 명시되어야 한다', () => {

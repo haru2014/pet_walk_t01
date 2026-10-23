@@ -5,13 +5,11 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as Speech from 'expo-speech';
-import { createAudioPlayer } from 'expo-audio';
 import {
   DEFAULT_SOUND_SETTINGS,
   VOICE_PROFILES,
 } from '../types/voiceSettings';
 import { TTSNavigationService } from './ttsNavigation';
-import { fetchWithServerFallback } from './apiClient';
 
 const memoryStore = new Map<string, string>();
 
@@ -31,10 +29,6 @@ vi.mock('expo-speech', () => ({
   speak: vi.fn(),
   stop: vi.fn().mockResolvedValue(undefined),
   getAvailableVoicesAsync: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('./apiClient', () => ({
-  fetchWithServerFallback: vi.fn().mockRejectedValue(new Error('offline')),
 }));
 
 describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () => {
@@ -132,66 +126,13 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     );
   });
 
-  it('Gemini가 빈 오디오를 반환하면 기기 음성으로 대체되어야 한다', async () => {
-    vi.mocked(fetchWithServerFallback).mockResolvedValueOnce({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(0),
-    } as Response);
+  it('Gemini 요청 없이 expo-speech로 즉시 안내를 시작해야 한다', () => {
+    TTSNavigationService.speak('즉시 안내 확인');
 
-    TTSNavigationService.speak('빈 오디오 폴백 확인');
-
-    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
-    expect(createAudioPlayer).not.toHaveBeenCalled();
-  });
-
-  it('웹에서는 Gemini 오디오를 브라우저 Audio로 재생하고 파일 시스템을 사용하지 않아야 한다', async () => {
-    const audio = {
-      volume: 1,
-      onended: null,
-      onerror: null,
-      src: '',
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
-    };
-    vi.stubGlobal('window', {});
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn(() => 'blob:petwalk-tts'),
-      revokeObjectURL: vi.fn(),
-    });
-    vi.stubGlobal('Audio', function AudioMock() { return audio; });
-    vi.mocked(fetchWithServerFallback).mockResolvedValueOnce({
-      ok: true,
-      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
-    } as Response);
-
-    TTSNavigationService.speak('웹 음성 재생 확인');
-
-    await vi.waitFor(() => expect(audio.play).toHaveBeenCalledOnce());
-    expect(createAudioPlayer).not.toHaveBeenCalled();
-    expect(Speech.speak).not.toHaveBeenCalled();
-    await TTSNavigationService.stop();
-  });
-  it('Gemini TTS 생성이 재생 안전 타이머보다 오래 걸려도 요청을 먼저 취소하지 않아야 한다', async () => {
-    vi.useFakeTimers();
-    let requestSignal: AbortSignal | null | undefined;
-    let resolveRequest!: (response: Response) => void;
-    vi.mocked(fetchWithServerFallback).mockImplementationOnce((_endpoint, init) => {
-      requestSignal = init?.signal;
-      return new Promise<Response>((resolve) => {
-        resolveRequest = resolve;
-      });
-    });
-
-    TTSNavigationService.speak('안심 산책 안내 미리듣기');
-    await vi.advanceTimersByTimeAsync(20000);
-
-    expect(requestSignal).toBeDefined();
-    expect(requestSignal?.aborted).toBe(false);
-
-    resolveRequest({ ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer } as Response);
-    await vi.waitFor(() => expect(createAudioPlayer).toHaveBeenCalledTimes(1));
-    expect(Speech.speak).not.toHaveBeenCalled();
-    await TTSNavigationService.stop();
+    expect(Speech.speak).toHaveBeenCalledWith(
+      '즉시 안내 확인',
+      expect.objectContaining({ language: 'ko-KR' }),
+    );
   });
 
   it('구독자(listener)가 설정 변경을 정상 수신해야 한다', async () => {
@@ -319,10 +260,11 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     TTSNavigationService.speak('B');
     await TTSNavigationService.stop();
 
-    await Promise.resolve();
-    expect(Speech.speak).not.toHaveBeenCalled();
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Speech.speak).mock.calls[0][0]).toBe('A');
 
     TTSNavigationService.speak('C');
-    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
   });
 });
