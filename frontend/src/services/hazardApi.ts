@@ -12,6 +12,7 @@ import {
   RerouteRequestPayload,
   RerouteResult,
   HazardType,
+  HazardSeverity,
   DeviationReroutePayload,
 } from '../types/hazard';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
@@ -26,6 +27,93 @@ export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
   dog_danger: '들개/맹견 출몰',
   none: '일반 구간',
 };
+
+export interface NearbyHazardReport {
+  readonly report_id: string;
+  readonly lat: number;
+  readonly lon: number;
+  readonly hazard_type: HazardType;
+  readonly severity: HazardSeverity;
+  readonly description?: string | null;
+  readonly distance_m: number;
+}
+
+export interface ForwardSafetyAnalysis {
+  readonly route_status: 'available' | 'unknown';
+  readonly route_distance_m: number | null;
+  readonly slope: { readonly status: 'warning' | 'clear' | 'unknown'; readonly direction?: '오르막' | '내리막' | null; readonly max_grade_percent?: number | null; readonly warning_distance_m?: number | null };
+  readonly stairs: { readonly status: 'warning' | 'clear' | 'unknown'; readonly count?: number | null };
+}
+
+/** 현재 보행 방향으로 임시 생성한 보행 경로에서 확인 가능한 지형 정보를 조회한다. */
+export async function getForwardSafetyAnalysis(
+  lat: number,
+  lon: number,
+  headingDeg: number,
+): Promise<ForwardSafetyAnalysis> {
+  const response = await fetchWithServerFallback('/api/v1/walk/forward-safety', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat, lon, heading_deg: headingDeg }),
+  });
+  if (!response.ok) throw new Error(`전방 보행로 안전 분석 실패 (${response.status})`);
+  const result = await response.json() as ForwardSafetyAnalysis;
+  if (!result || !['available', 'unknown'].includes(result.route_status)
+    || !result.slope || !result.stairs) throw new Error('전방 안전 분석 응답 형식이 올바르지 않습니다.');
+  return result;
+}
+
+/** 조회 성공과 '위험 없음'은 다르다. 제보가 없다는 이유로 안전하다고 판정하지 않는다. */
+export async function getNearbyHazardReports(
+  lat: number,
+  lon: number,
+  radiusM = 300,
+): Promise<NearbyHazardReport[]> {
+  const query = new URLSearchParams({ lat: String(lat), lon: String(lon), radius_m: String(radiusM) });
+  const response = await fetchWithServerFallback(`/api/v1/hazards?${query.toString()}`);
+  if (!response.ok) throw new Error(`주변 위험 제보 조회 실패 (${response.status})`);
+  const data = await response.json() as { reports?: unknown };
+  if (!Array.isArray(data.reports)) throw new Error('주변 위험 제보 응답 형식이 올바르지 않습니다.');
+  return data.reports.filter((report): report is NearbyHazardReport => {
+    const item = report as Partial<NearbyHazardReport>;
+    return typeof item.report_id === 'string'
+      && typeof item.lat === 'number'
+      && typeof item.lon === 'number'
+      && typeof item.distance_m === 'number'
+      && typeof item.hazard_type === 'string'
+      && item.hazard_type in HAZARD_TYPE_LABELS
+      && (item.severity === 'warning' || item.severity === 'danger' || item.severity === 'info');
+  });
+}
+
+export function getForwardHazardReports(
+  reports: readonly NearbyHazardReport[],
+  currentLat: number,
+  currentLon: number,
+  headingDeg: number,
+  maxDistanceM = 180,
+  maxHeadingDeltaDeg = 55,
+): NearbyHazardReport[] {
+  return reports.filter((report) => {
+    const distance = haversineMeters([currentLat, currentLon], [report.lat, report.lon]);
+    if (distance < 12 || distance > maxDistanceM) return false;
+    const hazardBearing = calculateBearingDeg(currentLat, currentLon, report.lat, report.lon);
+    const delta = Math.abs(((hazardBearing - headingDeg + 540) % 360) - 180);
+    return delta <= maxHeadingDeltaDeg;
+  }).sort((a, b) =>
+    haversineMeters([currentLat, currentLon], [a.lat, a.lon])
+    - haversineMeters([currentLat, currentLon], [b.lat, b.lon]),
+  );
+}
+
+function calculateBearingDeg(fromLat: number, fromLon: number, toLat: number, toLon: number): number {
+  const lat1 = (fromLat * Math.PI) / 180;
+  const lat2 = (toLat * Math.PI) / 180;
+  const deltaLon = ((toLon - fromLon) * Math.PI) / 180;
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
 
 const HAZARD_CLEARANCE_METERS = 60.0;
 const DETOUR_OFFSET_METERS = 80.0;

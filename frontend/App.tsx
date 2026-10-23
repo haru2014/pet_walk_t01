@@ -54,6 +54,8 @@ import { SplashScreen } from './src/components/common/SplashScreen';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
+const EMPTY_WALK_ROUTE: RouteFeatureCollection = { type: 'FeatureCollection', features: [] };
+
 export default function App() {
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
@@ -199,13 +201,21 @@ export default function App() {
     setSplashAnimationComplete(true);
   }, []);
 
-  const beginWalk = async (title: string, plan: CoursePlan | undefined, bookmark: BookmarkedRoute | null) => {
+  const beginWalk = async (
+    title: string,
+    plan: CoursePlan | undefined,
+    bookmark: BookmarkedRoute | null,
+    mode: 'route' | 'free' = 'route',
+  ) => {
     try {
       const agreed = await consent.ensureConsent();
       if (!agreed) return;
 
       if (plan) walk.loadCourse(plan.route, plan.stepPins);
-      const status = await walk.start();
+      else if (mode === 'free') walk.loadCourse(EMPTY_WALK_ROUTE, []);
+      else walk.loadCourse(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
+      setPreferences((prev) => ({ ...prev, isFreeWalk: mode === 'free', ...(mode === 'free' ? { durationMinutes: null } : {}) }));
+      const status = await walk.start(mode);
       if (status === 'permission_denied') {
         const msg = '안심 산책을 위해 위치 권한을 허용해 주세요.';
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -249,12 +259,7 @@ export default function App() {
    * 사전에 추천 경로를 생성하지 않고, 실제 GPS 트래킹을 수행하는 자유 산책 모드로 즉시 진입
    */
   const handleStartFreeWalk = async () => {
-    setPreferences((prev) => ({
-      ...prev,
-      isFreeWalk: true,
-      durationMinutes: null,
-    }));
-    await beginWalk('자유 산책', undefined, null);
+    await beginWalk('자유 산책', undefined, null, 'free');
   };
 
   /**
@@ -474,13 +479,14 @@ export default function App() {
             dogName={activeDog.name}
             stats={walk.stats}
             targetMinutes={preferences.durationMinutes}
-            isFreeWalk={preferences.isFreeWalk}
+            isFreeWalk={walk.mode === 'free'}
+            freeWalkSafety={walk.freeWalkSafety}
             onUnlock={handlePocketUnlock}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
-            currentCoords={walk.getTrackBuffer().length > 0 ? {
-              lat: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].latitude,
-              lon: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].longitude,
+            currentCoords={walk.currentPoint ? {
+              lat: walk.currentPoint.latitude,
+              lon: walk.currentPoint.longitude,
             } : null}
             startCoords={walk.route.features[0]?.geometry?.coordinates[0] ? {
               lat: walk.route.features[0].geometry.coordinates[0][1],

@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../theme/tokens';
-import { WalkStats } from '../hooks/useWalkGuidance';
+import { FreeWalkSafetyInfo, WalkStats } from '../hooks/useWalkGuidance';
 import { SlideToUnlock } from '../components/common/SlideToUnlock';
 import { formatElapsed } from '../services/walkFormat';
 import { AppIcon } from '../components/common/AppIcon';
@@ -27,6 +27,7 @@ export interface DarkPocketScreenProps {
   readonly onUnlock: () => void;
   readonly targetMinutes?: number | null;
   readonly isFreeWalk?: boolean;
+  readonly freeWalkSafety?: FreeWalkSafetyInfo;
   readonly onMarkPoop?: (type: 'poop' | 'pee') => void;
   readonly poopCount?: number;
   readonly currentCoords?: { lat: number; lon: number } | null;
@@ -51,6 +52,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   onUnlock,
   targetMinutes,
   isFreeWalk,
+  freeWalkSafety,
   onMarkPoop,
   poopCount = 0,
   currentCoords,
@@ -103,6 +105,17 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <Text style={[styles.subtitle, isOvertime && styles.subtitleOvertime]}>
         {getSubtitle()}
       </Text>
+      {isFreeWalk && (
+        <View style={[
+          styles.safetyInfoBanner,
+          freeWalkSafety?.status === 'alert' ? styles.safetyInfoAlert : null,
+          freeWalkSafety?.status === 'unavailable' ? styles.safetyInfoUnavailable : null,
+        ]} accessibilityRole="alert">
+          <Text style={styles.safetyInfoText}>
+            {freeWalkSafety?.message ?? '전방 위험 제보와 계단·경사 정보가 확인되지 않았어요. 정보가 없다고 안전한 것은 아닙니다.'}
+          </Text>
+        </View>
+      )}
 
       {/* US-C2, #37: 비상 상황 원터치 대형 퀵 음소거 제어 바 */}
       <VoiceQuickControlBar variant="emergency" />
@@ -234,6 +247,17 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   subtitle: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, textAlign: 'center', marginTop: 4 },
   subtitleOvertime: { color: '#FBBF24', opacity: 0.95, fontWeight: '700' },
+  safetyInfoBanner: {
+    borderColor: 'rgba(245, 158, 11, 0.75)',
+    borderWidth: 1,
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
+  safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
+  safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   hud: { flex: 1, justifyContent: 'center', gap: 20 },
   hudItem: { alignItems: 'center' },
   hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2 },

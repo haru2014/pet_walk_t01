@@ -54,6 +54,7 @@ from agent.surface_slope_evaluator import build_segmented_geojson
 from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
+from services.forward_safety import analyze_forward_safety
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -881,6 +882,18 @@ def list_nearby_hazards(
     """현재 위치 반경 내 활성 위험 제보 조회 (가까운 순)."""
     reports = hazard_repo.nearby(lat, lon, radius_m)
     return {"count": len(reports), "radius_m": radius_m, "reports": reports, "is_supabase": hazard_repo.is_connected()}
+
+
+class ForwardSafetyRequest(BaseModel):
+    lat: float = Field(..., ge=-90.0, le=90.0)
+    lon: float = Field(..., ge=-180.0, le=180.0)
+    heading_deg: float = Field(..., ge=0.0, lt=360.0)
+
+
+@app.post("/api/v1/walk/forward-safety")
+def forward_walk_safety(req: ForwardSafetyRequest):
+    """자유 산책 중 진행 방향의 임시 보행 경로를 분석한다. 확인 불가 데이터는 unknown."""
+    return analyze_forward_safety(req.lat, req.lon, req.heading_deg)
 
 
 @app.post("/api/v1/community/share")

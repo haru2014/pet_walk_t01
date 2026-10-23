@@ -7,12 +7,42 @@ import {
   requestDeviationReroute,
   generateLocalDeviationReroute,
   HAZARD_TYPE_LABELS,
+  getForwardHazardReports,
+  getNearbyHazardReports,
 } from './hazardApi';
 import * as apiClient from './apiClient';
 
 describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테스트', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('자유 산책 전방 위험 조회', () => {
+    it('위치 기반 제보를 조회하고 이동 방향 앞에 있는 제보만 가까운 순으로 반환한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ reports: [
+          { report_id: 'ahead', lat: 0, lon: 0.001, hazard_type: 'stairs', severity: 'danger', distance_m: 111 },
+          { report_id: 'behind', lat: 0, lon: -0.001, hazard_type: 'construction', severity: 'warning', distance_m: 111 },
+          { report_id: 'side', lat: 0.001, lon: 0, hazard_type: 'high_curb', severity: 'warning', distance_m: 111 },
+        ] }),
+      } as any);
+
+      const reports = await getNearbyHazardReports(0, 0);
+      const ahead = getForwardHazardReports(reports, 0, 0, 90);
+
+      expect(apiClient.fetchWithServerFallback).toHaveBeenCalledWith(expect.stringContaining('/api/v1/hazards?'));
+      expect(ahead.map((report) => report.report_id)).toEqual(['ahead']);
+    });
+
+    it('조회 응답 형식이 잘못되면 위험 없음으로 취급하지 않고 실패 처리한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ reports: null }),
+      } as any);
+
+      await expect(getNearbyHazardReports(0, 0)).rejects.toThrow('응답 형식');
+    });
   });
 
   describe('reportHazard', () => {
