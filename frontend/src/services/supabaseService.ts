@@ -9,6 +9,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthSession, AuthUser, DogProfileRemote, WalkRecordRemote } from '../types/auth';
 import { WalkRecord } from '../types/storage';
 import { LocalStorageService } from './storage';
@@ -32,9 +33,16 @@ const WALK_SHARE_MESSAGES: Record<string, string> = {
   INVALID_ROUTE: '공개할 수 있는 경로가 아니에요.',
   INVALID_WALK_ID: '기록 번호가 올바르지 않아 공개할 수 없어요.',
   DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  WALK_SHARE_DB_ERROR: '산책 기록을 커뮤니티에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  WALK_SHARE_FAILED: '산책 기록을 공개하는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_500: '서버가 산책 기록 공개 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_502: '공개 서버가 일시적으로 응답하지 않아요. 잠시 후 다시 시도해 주세요.',
+  HTTP_503: '공개 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_504: '공개 서버 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.',
   NETWORK: '서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.',
 };
-const WALK_SHARE_TIMEOUT_MS = 20000;
+// Render가 절전 상태에서 깨어나는 시간(운영 상태 확인에서 약 17초)을 포함한다.
+const WALK_SHARE_TIMEOUT_MS = 60000;
 
 function walkShareFailure(code: string): WalkShareResult {
   return { ok: false, code, message: WALK_SHARE_MESSAGES[code] ?? '지금은 공개 설정을 바꿀 수 없어요. 잠시 후 다시 시도해 주세요.' };
@@ -48,7 +56,14 @@ class SupabaseServiceManager {
   constructor() {
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
-        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            storage: AsyncStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+          },
+        });
       } catch (e) {
         console.warn('[SupabaseService] 클라이언트 초기화 실패 (로컬 모드 유지):', e);
       }
@@ -79,9 +94,33 @@ class SupabaseServiceManager {
       this.hasCloudAuthSession = false;
     }
 
-    if (this.currentSession) return this.currentSession;
-    const saved = await LocalStorageService.getItem<AuthSession>(SESSION_KEY);
+    if (this.currentSession && !this.client) return this.currentSession;
+    const saved = await LocalStorageService.getItem<AuthSession>(SESSION_KEY) ?? this.currentSession;
     if (saved) {
+      if (this.client && saved.refreshToken) {
+        try {
+          const { data, error } = await this.client.auth.setSession({
+            access_token: saved.accessToken,
+            refresh_token: saved.refreshToken,
+          });
+          if (!error && data.session?.user) {
+            const restored: AuthSession = {
+              user: {
+                id: data.session.user.id,
+                email: data.session.user.email ?? saved.user.email,
+              },
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+            };
+            this.currentSession = restored;
+            this.hasCloudAuthSession = isUuid(restored.user.id);
+            await LocalStorageService.setItem(SESSION_KEY, restored);
+            return restored;
+          }
+        } catch (error) {
+          console.warn('[SupabaseService] 저장된 로그인 세션 갱신 실패:', error);
+        }
+      }
       this.currentSession = saved;
     }
     return this.currentSession;
@@ -149,7 +188,11 @@ class SupabaseServiceManager {
         if (error) return { user: null, error: error.message };
         if (data.user && data.session) {
           const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? email };
-          const session: AuthSession = { user: authUser, accessToken: data.session.access_token };
+          const session: AuthSession = {
+            user: authUser,
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+          };
           this.currentSession = session;
           this.hasCloudAuthSession = true;
           await LocalStorageService.setItem(SESSION_KEY, session);
@@ -166,6 +209,20 @@ class SupabaseServiceManager {
     this.hasCloudAuthSession = false;
     await LocalStorageService.setItem(SESSION_KEY, mockSession);
     return { user: mockUser };
+  }
+
+  async getDogProfiles(): Promise<DogProfileRemote[]> {
+    const user = this.getCurrentUser();
+    if (!this.client || !user || !isUuid(user.id)) return [];
+
+    const { data, error } = await this.client
+      .from('dog_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true });
+    if (error) throw new Error('계정의 반려견 프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+    return (data ?? []) as DogProfileRemote[];
   }
 
   async signOut(): Promise<void> {
@@ -330,6 +387,7 @@ class SupabaseServiceManager {
       .from('walk_records')
       .select('id')
       .eq('id', remoteId)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     const existing = await findRemoteRecord();
@@ -344,10 +402,25 @@ class SupabaseServiceManager {
       return existingId;
     }
 
+    // A local dog ID can be UUID-shaped without existing in this account's cloud
+    // dog_profiles table. Only attach the optional FK when the owned cloud row exists.
+    let cloudDogId: string | undefined;
+    if (isUuid(record.dogId)) {
+      const dogProfile = await this.client
+        .from('dog_profiles')
+        .select('id')
+        .eq('id', record.dogId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!dogProfile.error && dogProfile.data?.id) {
+        cloudDogId = String(dogProfile.data.id);
+      }
+    }
+
     const payload = {
       id: remoteId,
       user_id: user.id,
-      dog_id: isUuid(record.dogId) ? record.dogId : undefined,
+      ...(cloudDogId ? { dog_id: cloudDogId } : {}),
       started_at: record.startedAt,
       ended_at: record.completedAt,
       distance_m: Math.round(record.totalDistanceKm * 1000),
@@ -361,8 +434,16 @@ class SupabaseServiceManager {
       // A concurrent sync may have inserted this UUID after the initial lookup.
       const retry = await findRemoteRecord();
       if (retry.error || !retry.data?.id) {
-        console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', inserted.error.message);
-        throw new Error('산책 기록을 클라우드에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+        console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', {
+          code: inserted.error.code,
+          message: inserted.error.message,
+          details: inserted.error.details,
+          hint: inserted.error.hint,
+        });
+        if (inserted.error.code === '23503') {
+          throw new Error('산책 기록과 연결된 반려견 정보를 확인하지 못했어요. 다시 시도해 주세요.');
+        }
+        throw new Error(`산책 기록을 클라우드에 저장하지 못했어요 (${inserted.error.code ?? 'DB_ERROR'}). 잠시 후 다시 시도해 주세요.`);
       }
       const retryId = String(retry.data.id);
       if (!isUuid(retryId)) {
@@ -397,6 +478,7 @@ class SupabaseServiceManager {
       const code = typeof body?.detail?.code === 'string'
         ? body.detail.code
         : response.status === 401 ? 'AUTH_INVALID' : `HTTP_${response.status}`;
+      console.warn('[SupabaseService] 산책 공개 서버 오류:', { status: response.status, code });
       return walkShareFailure(code);
     } catch (e) {
       console.warn('[SupabaseService] 후기 공개 요청 실패:', e);

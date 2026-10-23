@@ -138,7 +138,10 @@ export default function App() {
   };
 
   const handleAddDog = async (newDog: DogProfile) => {
-    const updatedDogs = [...dogs, newDog];
+    const alreadyRegistered = dogs.some((dog) => dog.id === newDog.id);
+    const updatedDogs = alreadyRegistered
+      ? dogs.map((dog) => dog.id === newDog.id ? { ...dog, ...newDog } : dog)
+      : [...dogs, newDog];
     setDogs(updatedDogs); setSelectedDogId(newDog.id);
     await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, updatedDogs);
     await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, newDog);

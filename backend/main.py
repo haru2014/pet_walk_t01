@@ -148,12 +148,22 @@ def health_check():
         "status": "ok",
         "mode": "live",
         "supabase_connected": community_repo.is_connected(),
+        "walk_share_service_role_configured": community_repo.raw_client() is not None,
         # 지금 서버에 올라가 있는 커밋(Render 가 자동으로 넣어 주는 값). 로컬 실행에서는 빈 문자열.
         "commit": os.getenv("RENDER_GIT_COMMIT", "")[:7],
         # 경사 계산에 쓰는 고도 자료 (운영 반영 확인용). DEM 을 끄면 "off"
         "dem": (elevation_source() or {}).get("name") or "off",
         # 현재 위치 경로의 외부 보행 경로(OSRM) 호출 성공·실패 수와 마지막 실패 이유 (대체 경로 원인 확인용)
         "osrm": osrm_status(),
+    }
+
+
+@app.get("/health/walk-share")
+def walk_share_health_check():
+    """공개 API의 service role 및 필수 DB 스키마 진단. 일반 헬스체크에서는 DB 쿼리를 하지 않는다."""
+    return {
+        "service_role_configured": community_repo.raw_client() is not None,
+        "storage_ready": community_repo.walk_share_storage_ready(),
     }
 
 
@@ -383,7 +393,8 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
 
     origin_mode = req.get("origin_mode")
     if not origin_mode:
-        origin_mode = "park" if pilot_park_id else "current_location"
+        # 공원 명칭 언급만으로 출발점을 공원으로 간주하지 않는다.
+        origin_mode = "current_location"
     if origin_mode not in ("park", "parking_pnr", "current_location"):
         raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
 
@@ -923,6 +934,14 @@ def _run_walk_share(action, walk_id: str, authorization: Optional[str]):
         return action(client, user_id, walk_id)
     except WalkShareError as err:
         raise HTTPException(status_code=err.status, detail={"code": err.code, "message": err.message})
+    except Exception as err:
+        # 공개 API의 예상하지 못한 DB/마스킹 오류를 500 일반 HTML로 흘려보내지 않고
+        # 서버 로그에 traceback을 남기며 앱에는 고정 코드로 돌려준다.
+        logger.exception("산책 기록 공개 처리 중 예상하지 못한 오류: walk_id=%s", walk_id)
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "WALK_SHARE_FAILED", "message": "산책 기록 공개 처리에 실패했습니다."},
+        ) from err
 
 
 _WALK_SHARE_RESPONSES = {

@@ -98,4 +98,20 @@ describe('apiClient - 탄력적 멀티 타깃 API 통신', () => {
       /All API endpoints failed/
     );
   });
+
+  it('Render가 5xx를 반환하고 로컬 폴백도 실패하면 실제 Render 응답을 보존해야 한다', async () => {
+    const primaryResponse = {
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: { code: 'DB_NOT_CONNECTED' } }),
+    } as Response;
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(primaryResponse)
+      .mockRejectedValueOnce(new Error('Local backend unavailable'));
+
+    const response = await fetchWithServerFallback('/api/v1/walks/id/share');
+
+    expect(response).toBe(primaryResponse);
+    expect(response.status).toBe(503);
+  });
 });

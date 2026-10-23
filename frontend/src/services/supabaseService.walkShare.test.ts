@@ -71,8 +71,22 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
   });
 
   it('알 수 없는 서버 오류도 실패로 알린다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(500, {}));
-    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({ ok: false, code: 'HTTP_500' });
+    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({
+      ok: false,
+      code: 'HTTP_500',
+      message: expect.stringContaining('서버가 산책 기록 공개 요청을 처리하지 못했어요'),
+    });
+  });
+
+  it('서버가 공유 처리 오류 코드를 반환하면 원인 구분이 가능한 안내를 표시한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(503, { detail: { code: 'WALK_SHARE_FAILED' } }));
+    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({
+      ok: false,
+      code: 'WALK_SHARE_FAILED',
+      message: expect.stringContaining('공개하는 중 오류'),
+    });
   });
 
   it('로그인하지 않았으면 서버를 부르지 않고 로그인이 필요하다고 알린다', async () => {

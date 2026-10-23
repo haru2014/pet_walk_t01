@@ -37,15 +37,28 @@ def test_extract_local_voice_intent_stairs_allowed():
 
 def test_resolve_landmark_park_id():
     assert resolve_landmark_park_id("유림공원") == "yurim"
-    assert resolve_landmark_park_id("갑천 둔치") == "yurim"
     assert resolve_landmark_park_id("세종호수공원") == "sejong"
     assert resolve_landmark_park_id("송강공원") == "songgang"
     assert resolve_landmark_park_id("송강근린공원") == "songgang"
     assert resolve_landmark_park_id("도안호수공원") == "doan"
     assert resolve_landmark_park_id("갑천생태공원") == "doan"
     assert resolve_landmark_park_id("도안호수공원(갑천생태공원)") == "doan"
+    for ambiguous in ("호수공원", "갑천", "송강", "송강이랑", "도안동", "유림동 근처"):
+        assert resolve_landmark_park_id(ambiguous) is None
     assert resolve_landmark_park_id("알 수 없는 장소") is None
     assert resolve_landmark_park_id(None) is None
+
+
+@pytest.mark.parametrize("speech", ["호수공원 30분", "갑천 따라 산책", "송강이랑 30분 산책", "도안동 사는데 산책", "유림동 근처"])
+def test_local_intent_ignores_ambiguous_place_words(speech):
+    payload = extract_local_voice_intent(speech, dog_name="송강")
+    assert payload.destination_landmark is None
+
+
+def test_local_intent_recognizes_explicit_composite_park_name():
+    payload = extract_local_voice_intent("도안호수공원(갑천생태공원) 30분 산책")
+    assert payload.destination_landmark == "도안호수공원"
+    assert resolve_landmark_park_id(payload.destination_landmark) == "doan"
 
 
 def test_parse_voice_walk_intent_fallback_without_key():
@@ -81,4 +94,17 @@ def test_voice_intent_api_endpoint():
     assert intent["prefer_cushion"] is True
     assert intent["avoid_stairs"] is True
     assert intent["destination_landmark"] == "유림공원"
+
+
+def test_walk_plan_does_not_infer_park_origin_from_park_id():
+    from main import _validate_and_parse_walk_plan_request
+
+    params = _validate_and_parse_walk_plan_request({
+        "origin_lat": 36.3504,
+        "origin_lon": 127.3845,
+        "pilot_park_id": "yurim",
+        "user_query": "유림공원 가서 30분 걷자",
+    })
+    assert params["pilot_park_id"] == "yurim"
+    assert params["origin_mode"] == "current_location"
 

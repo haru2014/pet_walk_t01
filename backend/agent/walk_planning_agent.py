@@ -565,7 +565,7 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     pilot_park_id = state.get("pilot_park_id")
     origin_mode = state.get("origin_mode")
     if not origin_mode:
-        origin_mode = "park" if pilot_park_id else "current_location"
+        origin_mode = "current_location"
 
     request = LoopCandidateRequest(
         origin_lat=state.get("origin_lat", 37.5665),
@@ -826,7 +826,7 @@ def run_walk_planning_agent(
     agent = get_agent()
 
     if not origin_mode:
-        origin_mode = "park" if pilot_park_id else "current_location"
+        origin_mode = "current_location"
 
     # 기상 컨텍스트 미제공 시 실시간 기상청 지면열 모델 자동 바인딩 (기본 안전 산책 프리셋)
     if weather_context is None:

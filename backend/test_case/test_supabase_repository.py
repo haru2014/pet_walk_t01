@@ -33,6 +33,40 @@ def test_supabase_repository_save_course():
     assert feeds[0]["title"] == "한강 망원나들목 그늘 산책로"
 
 
+def test_raw_walk_share_client_requires_service_role_key(monkeypatch):
+    repo = SupabaseCommunityRepository()
+    repo._client = object()
+
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    assert repo.raw_client() is None
+
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "server-secret")
+    assert repo.raw_client() is repo._client
+
+
+def test_walk_share_storage_readiness_checks_table_columns_and_public_view(monkeypatch):
+    class Query:
+        def select(self, *_args):
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            return type("Response", (), {"data": []})()
+
+    class Client:
+        def table(self, name):
+            assert name in {"walk_records", "public_walk_reviews_v"}
+            return Query()
+
+    repo = SupabaseCommunityRepository()
+    repo._client = Client()
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "server-secret")
+
+    assert repo.walk_share_storage_ready() is True
+
+
 def test_get_feeds_combines_public_walk_reviews_without_exposing_private_fields():
     """공개 후기 뷰의 마스킹 경로는 기존 코스와 함께 피드에 노출한다."""
     class Query:
@@ -90,6 +124,8 @@ def test_get_feeds_combines_public_walk_reviews_without_exposing_private_fields(
     assert "user_id" not in walk_feed
     assert "route_coords" not in walk_feed
     assert "public_route_coords" not in walk_feed
+
+
 
 
 def test_get_feeds_keeps_existing_courses_when_public_review_view_fails():
