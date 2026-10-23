@@ -35,7 +35,8 @@ const WALK_SHARE_MESSAGES: Record<string, string> = {
   DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
   NETWORK: '서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.',
 };
-const WALK_SHARE_TIMEOUT_MS = 20000;
+// Render가 절전 상태에서 깨어나는 시간(운영 상태 확인에서 약 17초)을 포함한다.
+const WALK_SHARE_TIMEOUT_MS = 60000;
 
 function walkShareFailure(code: string): WalkShareResult {
   return { ok: false, code, message: WALK_SHARE_MESSAGES[code] ?? '지금은 공개 설정을 바꿀 수 없어요. 잠시 후 다시 시도해 주세요.' };
