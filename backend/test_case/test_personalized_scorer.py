@@ -54,8 +54,20 @@ def test_unknown_data_gets_middle_scores_not_full_marks():
 
 def test_stairs_are_penalised_only_when_the_user_avoids_them():
     stairs = _profile(stairs_count=2)
-    assert _score(stairs, avoid_stairs=True).stairs == 0.0
+    assert _score(stairs, avoid_stairs=True).stairs < 25.0
     assert _score(stairs, avoid_stairs=False).stairs == 15.0
+
+
+def test_fewer_stairs_score_higher_when_the_user_avoids_them():
+    """계단 1곳이든 10곳이든 똑같이 0점이라 계단 적은 코스를 고를 수 없었다 (유림 현재 위치 20분: 4곳 코스가 2곳 코스보다 앞섰다)."""
+    scores = [_score(_profile(stairs_count=n), avoid_stairs=True).stairs for n in (0, 1, 2, 4, 6, 10)]
+    assert scores[0] == 25.0
+    assert scores == sorted(scores, reverse=True) and len(set(scores)) == len(scores)
+    four, two = _score(_profile(stairs_count=4)), _score(_profile(stairs_count=2))
+    assert two.total > four.total
+    # 계단을 피하지 않기로 했으면 횟수는 점수에 영향을 주지 않는다
+    assert _score(_profile(stairs_count=10), avoid_stairs=False).stairs == _score(
+        _profile(stairs_count=2), avoid_stairs=False).stairs == 15.0
 
 
 def test_thermal_score_follows_the_shared_safety_thresholds():
