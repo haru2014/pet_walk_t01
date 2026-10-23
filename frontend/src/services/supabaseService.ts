@@ -33,6 +33,12 @@ const WALK_SHARE_MESSAGES: Record<string, string> = {
   INVALID_ROUTE: '공개할 수 있는 경로가 아니에요.',
   INVALID_WALK_ID: '기록 번호가 올바르지 않아 공개할 수 없어요.',
   DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  WALK_SHARE_DB_ERROR: '산책 기록을 커뮤니티에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  WALK_SHARE_FAILED: '산책 기록을 공개하는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_500: '서버가 산책 기록 공개 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_502: '공개 서버가 일시적으로 응답하지 않아요. 잠시 후 다시 시도해 주세요.',
+  HTTP_503: '공개 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  HTTP_504: '공개 서버 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.',
   NETWORK: '서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.',
 };
 // Render가 절전 상태에서 깨어나는 시간(운영 상태 확인에서 약 17초)을 포함한다.
@@ -472,6 +478,7 @@ class SupabaseServiceManager {
       const code = typeof body?.detail?.code === 'string'
         ? body.detail.code
         : response.status === 401 ? 'AUTH_INVALID' : `HTTP_${response.status}`;
+      console.warn('[SupabaseService] 산책 공개 서버 오류:', { status: response.status, code });
       return walkShareFailure(code);
     } catch (e) {
       console.warn('[SupabaseService] 후기 공개 요청 실패:', e);

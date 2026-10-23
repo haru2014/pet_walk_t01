@@ -154,8 +154,25 @@ class SupabaseCommunityRepository:
         return self._client is not None
 
     def raw_client(self):
-        """서비스 키로 만든 Supabase 클라이언트(미연결이면 None). 서버 전용 — 앱에 노출하지 않는다."""
+        """공개 설정 API 전용 클라이언트. anon 키로 보호 필드를 쓰지 않도록 service role만 허용한다."""
+        if not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+            return None
         return self._client
+
+    def walk_share_storage_ready(self) -> bool:
+        """공유 API에 필요한 칼럼과 공개 피드 view가 실제 DB에 준비됐는지 확인한다."""
+        client = self.raw_client()
+        if client is None:
+            return False
+        try:
+            client.table("walk_records").select(
+                "id,user_id,route_coords,is_public,public_route_coords"
+            ).limit(0).execute()
+            client.table("public_walk_reviews_v").select("id").limit(0).execute()
+            return True
+        except Exception:
+            logger.exception("산책 기록 공개 스키마 확인 실패")
+            return False
 
     def get_feeds(self) -> List[Dict[str, Any]]:
         """기존 공유 코스와 공개 산책 후기를 합쳐 커뮤니티 피드를 조회한다."""

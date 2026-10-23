@@ -63,13 +63,17 @@ def _is_valid_route(route: Any) -> bool:
 
 def _load_own_record(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
     """본인 기록만 돌려준다. 없거나 남의 것이면 똑같이 404 (남의 기록 존재 여부를 알려 주지 않는다)."""
-    res = (
-        client.table("walk_records")
-        .select("id,user_id,route_coords,is_public")
-        .eq("id", walk_id)
-        .limit(1)
-        .execute()
-    )
+    try:
+        res = (
+            client.table("walk_records")
+            .select("id,user_id,route_coords,is_public")
+            .eq("id", walk_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("산책 기록 공개용 조회 실패: walk_id=%s", walk_id)
+        raise WalkShareError(503, "WALK_SHARE_DB_ERROR", "산책 기록을 확인할 수 없습니다.") from exc
     rows = getattr(res, "data", None) or []
     if not rows or str(rows[0].get("user_id")) != user_id:
         raise WalkShareError(404, "WALK_NOT_FOUND", "산책 기록을 찾을 수 없습니다.")
@@ -91,12 +95,16 @@ def share_walk(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
         # 마스킹 후 남는 경로가 없으면(너무 짧음) 공개하지 않는다. 원본을 대신 공개하지 않는다.
         raise WalkShareError(
             422, "ROUTE_TOO_SHORT_TO_MASK",
-            "경로가 너무 짧아 출발·도착 주변 200m 를 가리면 남는 경로가 없어 공개할 수 없습니다.",
+            "경로가 너무 짧아 출발·도착 주변 200m 를 가리면 공개할 수 없습니다.",
         )
 
-    client.table("walk_records").update(
-        {"is_public": True, "public_route_coords": masked_coords}
-    ).eq("id", walk_id).eq("user_id", user_id).execute()
+    try:
+        client.table("walk_records").update(
+            {"is_public": True, "public_route_coords": masked_coords}
+        ).eq("id", walk_id).eq("user_id", user_id).execute()
+    except Exception as exc:
+        logger.exception("산책 기록 공개 저장 실패: walk_id=%s", walk_id)
+        raise WalkShareError(503, "WALK_SHARE_DB_ERROR", "산책 기록을 커뮤니티에 저장하지 못했습니다.") from exc
     logger.info("산책 기록 공개: walk_id=%s masked_points=%d", walk_id, len(masked_coords))
     return {"walk_id": walk_id, "is_public": True, "masked_point_count": len(masked_coords)}
 
@@ -104,8 +112,12 @@ def share_walk(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
 def unshare_walk(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
     """공개를 해제하고 공개용 좌표를 지운다."""
     _load_own_record(client, user_id, walk_id)
-    client.table("walk_records").update(
-        {"is_public": False, "public_route_coords": None}
-    ).eq("id", walk_id).eq("user_id", user_id).execute()
+    try:
+        client.table("walk_records").update(
+            {"is_public": False, "public_route_coords": None}
+        ).eq("id", walk_id).eq("user_id", user_id).execute()
+    except Exception as exc:
+        logger.exception("산책 기록 공개 해제 실패: walk_id=%s", walk_id)
+        raise WalkShareError(503, "WALK_SHARE_DB_ERROR", "산책 기록 공개를 해제하지 못했습니다.") from exc
     logger.info("산책 기록 공개 해제: walk_id=%s", walk_id)
     return {"walk_id": walk_id, "is_public": False}

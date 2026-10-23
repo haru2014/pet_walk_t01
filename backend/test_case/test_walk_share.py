@@ -10,6 +10,7 @@ import copy
 import uuid
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import main
@@ -22,6 +23,8 @@ USER_B = str(uuid.uuid4())
 WALK_ID = str(uuid.uuid4())
 # 약 1.2km 직선 경로 [경도, 위도] — 출발·도착 200m 를 빼도 좌표가 남는다.
 LONG_ROUTE = [[127.38 + i * 0.0001, 36.435 + i * 0.00005] for i in range(120)]
+# 약 6.6km 산책 기록 크기의 경로 — 긴 좌표열도 마스킹 후 공개 가능해야 한다.
+LONG_WALK_ROUTE = [[127.38 + i * 0.00005, 36.435 + i * 0.0001] for i in range(550)]
 SHORT_ROUTE = LONG_ROUTE[:6]
 
 
@@ -144,6 +147,21 @@ def test_share_walk_writes_masked_coords_not_raw():
     assert result["is_public"] is True and result["masked_point_count"] == len(stored["public_route_coords"])
 
 
+def test_share_walk_accepts_a_6_6_km_scale_route():
+    fk = FakeSupabase([_row(route_coords=copy.deepcopy(LONG_WALK_ROUTE))])
+
+    result = share_walk(fk, USER_A, WALK_ID)
+
+    stored = fk.walk_records.rows[0]
+    assert result["is_public"] is True
+    assert stored["is_public"] is True
+    assert 2 <= len(stored["public_route_coords"]) < len(LONG_WALK_ROUTE)
+    assert LONG_WALK_ROUTE[0] not in stored["public_route_coords"]
+    assert LONG_WALK_ROUTE[-1] not in stored["public_route_coords"]
+
+
+
+
 def test_share_walk_refuses_other_users_record():
     fk = FakeSupabase([_row()])
     with pytest.raises(WalkShareError) as e:
@@ -212,6 +230,8 @@ def test_api_share_success_and_unshare(fake):
     assert res.status_code == 200 and res.json()["is_public"] is False
 
 
+
+
 def test_api_share_other_user_gets_404(fake):
     res = client.post(f"/api/v1/walks/{WALK_ID}/share", headers={"Authorization": "Bearer token-b"})
     assert res.status_code == 404
@@ -226,3 +246,44 @@ def test_api_share_returns_503_when_database_not_connected(monkeypatch):
     monkeypatch.setattr(main, "_supabase_client", lambda: None)
     res = client.post(f"/api/v1/walks/{WALK_ID}/share", headers={"Authorization": "Bearer token-a"})
     assert res.status_code == 503
+
+
+def test_api_share_maps_database_query_failure_to_structured_503(monkeypatch):
+    class BrokenQuery:
+        def select(self, *_args):
+            return self
+
+        def eq(self, *_args):
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            raise RuntimeError("database query failed")
+
+    class BrokenSupabase(FakeSupabase):
+        def table(self, name):
+            assert name == "walk_records"
+            return BrokenQuery()
+
+    monkeypatch.setattr(main, "_supabase_client", lambda: BrokenSupabase([]))
+
+    with pytest.raises(HTTPException) as err:
+        main._run_walk_share(main.share_walk, WALK_ID, "Bearer token-a")
+
+    assert err.value.status_code == 503
+    assert err.value.detail["code"] == "WALK_SHARE_DB_ERROR"
+
+
+def test_api_share_maps_unexpected_processing_failure_to_structured_503(fake, monkeypatch):
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("masking failure")
+
+    monkeypatch.setattr(main, "_supabase_client", lambda: fake)
+
+    with pytest.raises(HTTPException) as err:
+        main._run_walk_share(fail, WALK_ID, "Bearer token-a")
+
+    assert err.value.status_code == 503
+    assert err.value.detail["code"] == "WALK_SHARE_FAILED"
