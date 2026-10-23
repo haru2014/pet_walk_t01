@@ -17,25 +17,36 @@ interface LandmarkCenter {
   readonly radiusM: number;
 }
 
+const EARTH_RADIUS_M = 6_371_000;
+
 const LANDMARK_CENTERS: readonly LandmarkCenter[] = [
+  { code: 'LM_SEJONG', lat: 36.5020, lon: 127.2680, radiusM: 5000 },
+  { code: 'LM_YURIM', lat: 36.3628, lon: 127.3592, radiusM: 5000 },
   { code: 'LM_CITY_HALL', lat: 37.5663, lon: 126.9784, radiusM: 2500 },
   { code: 'LM_SEOUL_FOREST', lat: 37.5445, lon: 127.0374, radiusM: 3000 },
   { code: 'LM_GANGNAM', lat: 37.4980, lon: 127.0276, radiusM: 2500 },
   { code: 'LM_SEONGSAN', lat: 37.5680, lon: 126.9050, radiusM: 3000 },
 ];
 
+const TITLE_HINT_PATTERNS: readonly [RegExp, LandmarkMetadata][] = [
+  [/세종|호수공원|은빛해변/, LANDMARK_DEFINITIONS.LM_SEJONG],
+  [/유림|갑천|반도지/, LANDMARK_DEFINITIONS.LM_YURIM],
+  [/시청|덕수궁|청계천/, LANDMARK_DEFINITIONS.LM_CITY_HALL],
+  [/서울숲|뚝섬/, LANDMARK_DEFINITIONS.LM_SEOUL_FOREST],
+  [/강남|테헤란/, LANDMARK_DEFINITIONS.LM_GANGNAM],
+  [/성산|마포/, LANDMARK_DEFINITIONS.LM_SEONGSAN],
+];
+
 function haversineDistM(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+      Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return EARTH_RADIUS_M * c;
 }
 
 function extractFirstCoord(
@@ -44,21 +55,31 @@ function extractFirstCoord(
   if (!coordsOrRoute) return null;
 
   if ('features' in coordsOrRoute && Array.isArray(coordsOrRoute.features)) {
-    const firstFeature = coordsOrRoute.features[0];
-    if (firstFeature?.geometry?.coordinates?.[0]) {
-      const c = firstFeature.geometry.coordinates[0];
-      return [c[0], c[1]];
+    const firstFeature = coordsOrRoute.features.at(0);
+    const coord = firstFeature?.geometry?.coordinates?.at(0);
+    if (coord && Array.isArray(coord) && coord.length >= 2) {
+      return [coord[0], coord[1]];
     }
     return null;
   }
 
   if (Array.isArray(coordsOrRoute) && coordsOrRoute.length > 0) {
-    const first = coordsOrRoute[0];
+    const first = coordsOrRoute.at(0);
     if (Array.isArray(first) && first.length >= 2) {
       return [first[0], first[1]];
     }
   }
 
+  return null;
+}
+
+function matchTitleHint(titleHint?: string): LandmarkMetadata | null {
+  if (!titleHint) return null;
+  for (const [pattern, definition] of TITLE_HINT_PATTERNS) {
+    if (pattern.test(titleHint)) {
+      return definition;
+    }
+  }
   return null;
 }
 
@@ -69,26 +90,16 @@ export function detectLandmarkCategory(
   coordsOrRoute: readonly (readonly [number, number])[] | RouteFeatureCollection | undefined,
   titleHint?: string
 ): LandmarkMetadata {
-  if (titleHint) {
-    if (titleHint.includes('시청') || titleHint.includes('덕수궁') || titleHint.includes('청계천')) {
-      return LANDMARK_DEFINITIONS.LM_CITY_HALL;
-    }
-    if (titleHint.includes('서울숲') || titleHint.includes('뚝섬')) {
-      return LANDMARK_DEFINITIONS.LM_SEOUL_FOREST;
-    }
-    if (titleHint.includes('강남') || titleHint.includes('테헤란')) {
-      return LANDMARK_DEFINITIONS.LM_GANGNAM;
-    }
-    if (titleHint.includes('성산') || titleHint.includes('마포')) {
-      return LANDMARK_DEFINITIONS.LM_SEONGSAN;
-    }
+  const matched = matchTitleHint(titleHint);
+  if (matched) {
+    return matched;
   }
 
   const firstCoord = extractFirstCoord(coordsOrRoute);
   if (firstCoord) {
     const [lon, lat] = firstCoord;
     let closestCenter: LandmarkCenter | null = null;
-    let minDistance = Infinity;
+    let minDistance = Number.POSITIVE_INFINITY;
 
     for (const center of LANDMARK_CENTERS) {
       const dist = haversineDistM(lat, lon, center.lat, center.lon);

@@ -6,9 +6,16 @@ on:
       - main
       - 'feat/**'
       - 'feature/**'
+
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+  workflow_dispatch:
 
 jobs:
   # ========================================================
@@ -86,9 +93,12 @@ jobs:
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: PR 자동 머지 활성화 (Squash & Merge)
+      - name: PR 자동 머지 실행 (Squash & Merge)
         run: |
           gh pr merge "${{ github.event.pull_request.number }}" --squash --auto --repo "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

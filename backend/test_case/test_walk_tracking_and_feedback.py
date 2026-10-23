@@ -160,7 +160,7 @@ class TestWalkFeedbackCollection:
             walk_id="walk-001",
             satisfaction_rating=5,
             tags=["gentle", "shady", "paw_friendly"],
-            comment="계단이 없어 말티즈 아이가 편하게 걸었습니다."
+            comment="계단이 없어 말티즈 강아지가 편하게 걸었습니다."
         )
         assert feedback.satisfaction_rating == 5
         assert len(feedback.tags) == 3

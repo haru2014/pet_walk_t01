@@ -46,6 +46,7 @@ export function calculateOsmTiles(
   project: (coord: LonLat) => { x: number; y: number },
   zoom: number = 15,
   provider: 'carto' | 'osm' = 'carto',
+  marginTiles: number = 0,
 ): readonly MapTile[] {
   if (coords.length === 0) return [];
 
@@ -56,10 +57,10 @@ export function calculateOsmTiles(
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
 
-  const startX = lon2tile(minLon, zoom);
-  const endX = lon2tile(maxLon, zoom);
-  const startY = lat2tile(maxLat, zoom);
-  const endY = lat2tile(minLat, zoom);
+  const startX = lon2tile(minLon, zoom) - marginTiles;
+  const endX = lon2tile(maxLon, zoom) + marginTiles;
+  const startY = lat2tile(maxLat, zoom) - marginTiles;
+  const endY = lat2tile(minLat, zoom) + marginTiles;
 
   const tiles: MapTile[] = [];
 

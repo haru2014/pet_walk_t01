@@ -12,19 +12,42 @@ import { View, Text, StyleSheet } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 
+import { formatSlopeDisplay, formatSurfaceDisplay } from '../../services/routeProfileFormatter';
+
 export interface RouteReasonCardProps {
   reasonText: string;
-  maxSlopePercent?: number;
-  softSurfacePercent?: number;
+  maxSlopePercent?: number | null;
+  slopeSource?: 'dem' | 'approximation' | 'unknown' | string | null;
+  softSurfacePercent?: number | null;
+  surfaceKnownRatio?: number | null;
+  surfaceBreakdown?: Record<string, number> | null;
   shadePercent?: number;
 }
 
 export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
   reasonText,
-  maxSlopePercent = 2.1,
-  softSurfacePercent = 85,
+  maxSlopePercent,
+  slopeSource,
+  softSurfacePercent,
+  surfaceKnownRatio,
+  surfaceBreakdown,
   shadePercent = 57,
 }) => {
+  const slopeInfo = formatSlopeDisplay(maxSlopePercent, slopeSource);
+
+  // profile mock or breakdown mapping
+  const profileMock =
+    surfaceKnownRatio !== undefined || surfaceBreakdown !== undefined
+      ? {
+          surface_known_ratio: surfaceKnownRatio ?? null,
+          soft_surface_ratio: softSurfacePercent != null ? softSurfacePercent / 100 : null,
+          surface_breakdown: surfaceBreakdown ?? null,
+        }
+      : null;
+
+  const fallbackStr = softSurfacePercent != null ? `${softSurfacePercent}%` : null;
+  const surfaceInfo = formatSurfaceDisplay(profileMock, fallbackStr);
+
   return (
     <View style={styles.card}>
       {/* 헤더 */}
@@ -35,20 +58,24 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
 
       {/* 3대 안심 지표 인포그래픽 그리드 */}
       <View style={styles.metricsGrid}>
-        {/* 지표 1: 완만 경사 */}
+        {/* 지표 1: 경사도 */}
         <View style={styles.metricItem}>
           <View style={styles.metricIcon}><AppIcon name="mountain" size={20} color={TOKENS.colors.primaryDark} /></View>
-          <Text style={styles.metricLabel}>완만한 경사</Text>
-          <Text style={styles.metricValue}>최대 {maxSlopePercent}%</Text>
-          <Text style={styles.metricSub}>관절 무리 없는 평지 위주</Text>
+          <Text style={styles.metricLabel}>{slopeInfo.label}</Text>
+          <Text style={[styles.metricValue, slopeInfo.isUnknown && { color: TOKENS.colors.textMuted }]}>
+            {slopeInfo.valueText}
+          </Text>
+          <Text style={styles.metricSub}>{slopeInfo.subText}</Text>
         </View>
 
-        {/* 지표 2: 폭신 노면 */}
+        {/* 지표 2: 노면 */}
         <View style={styles.metricItem}>
           <View style={styles.metricIcon}><AppIcon name="soft" size={20} color={TOKENS.colors.primaryDark} /></View>
-          <Text style={styles.metricLabel}>폭신한 노면</Text>
-          <Text style={styles.metricValue}>{softSurfacePercent}%</Text>
-          <Text style={styles.metricSub}>흙길·잔디로 발바닥 안심</Text>
+          <Text style={styles.metricLabel}>{surfaceInfo.label}</Text>
+          <Text style={[styles.metricValue, surfaceInfo.isUnknown && { color: TOKENS.colors.textMuted }]}>
+            {surfaceInfo.valueText}
+          </Text>
+          <Text style={styles.metricSub}>{surfaceInfo.subText}</Text>
         </View>
 
         {/* 지표 3: 그늘 구간 */}

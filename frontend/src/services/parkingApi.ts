@@ -8,16 +8,175 @@
  */
 
 import { ParkingLotDTO, NearbyParkingResponse, ParkingSearchOptions } from '../types/parking';
+import { fetchWithServerFallback } from './apiClient';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 const API_TIMEOUT_MS = 3000;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간 TTL
 
 /**
  * 대전 3대 공원 & 세종호수공원 4대 파일럿 거점 실제 공영주차장 정밀 데이터셋
+ * (전국주차장정보표준데이터 및 대전시 공식 안내 기준 9곳 + 기존 레거시 11곳)
  */
 export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>[] = [
-  // 🌿 대전 유림공원 (어은동/봉명동)
+  // ── [공식 인증 1] 대전 유림공원 ──
+  {
+    parking_id: 'std_186-1-000005',
+    name: '유림공원주차장',
+    entrance_lat: 36.36038081,
+    entrance_lon: 127.3551748,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료 (상시 개방)',
+    capacity: 49,
+    park_zone: '유림공원',
+    address: '대전광역시 유성구 봉명동 496-1',
+    verified: true,
+    status: 'official',
+    official_id: '186-1-000005',
+    park_link_verified: true,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+
+  // ── [공식 인증 2] 대전 송강근린공원 ──
+  {
+    parking_id: 'std_186-2-000002',
+    name: '송강동(프라자옆)공영',
+    entrance_lat: 36.4358228,
+    entrance_lon: 127.3860096,
+    is_public: true,
+    fee_type: 'paid',
+    fee_info: '혼합 / 최초 60분 0원 / 이후 10분당 100원',
+    capacity: 86,
+    park_zone: '송강근린공원',
+    address: '대전광역시 유성구 송강동 16-1',
+    verified: true,
+    status: 'official',
+    official_id: '186-2-000002',
+    park_link_verified: true,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+  {
+    parking_id: 'std_186-2-000003',
+    name: '송강동(GS마트앞)공영',
+    entrance_lat: 36.43441777,
+    entrance_lon: 127.3865088,
+    is_public: true,
+    fee_type: 'paid',
+    fee_info: '혼합 / 최초 60분 0원 / 이후 10분당 100원',
+    capacity: 53,
+    park_zone: '송강근린공원',
+    address: '대전광역시 유성구 송강동 36-2',
+    verified: true,
+    status: 'official',
+    official_id: '186-2-000003',
+    park_link_verified: true,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+
+  // ── [공식 인증 3] 대전 도안호수공원 (갑천생태호수공원) ──
+  {
+    parking_id: 'opr_doan_a',
+    name: '갑천생태호수공원 주차장A',
+    entrance_lat: 36.336316,
+    entrance_lon: 127.351153,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료 (공원 북측 진입)',
+    capacity: 108,
+    park_zone: '도안호수공원',
+    address: '대전광역시 유성구 원신흥동 130-6',
+    verified: true,
+    status: 'park_operator',
+    park_link_verified: true,
+    source: '대전광역시 갑천생태호수공원 누리집 공식 안내',
+  },
+  {
+    parking_id: 'opr_doan_b',
+    name: '갑천생태호수공원 주차장B',
+    entrance_lat: 36.333671,
+    entrance_lon: 127.349336,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료 (공원 북측 서편 도로변)',
+    capacity: 168,
+    park_zone: '도안호수공원',
+    address: '대전광역시 유성구 원신흥동 105-2',
+    verified: true,
+    status: 'park_operator',
+    park_link_verified: true,
+    source: '대전광역시 갑천생태호수공원 누리집 공식 안내',
+  },
+  {
+    parking_id: 'opr_doan_c',
+    name: '갑천생태호수공원 주차장C',
+    entrance_lat: 36.327485,
+    entrance_lon: 127.349489,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료 (공원 남측)',
+    capacity: 196,
+    park_zone: '도안호수공원',
+    address: '대전광역시 서구 도안동 382-2',
+    verified: true,
+    status: 'park_operator',
+    park_link_verified: true,
+    source: '대전광역시 갑천생태호수공원 누리집 공식 안내',
+  },
+  {
+    parking_id: 'std_185-2-000045',
+    name: '도안제2공한지무료주차장',
+    entrance_lat: 36.3241096,
+    entrance_lon: 127.3474932,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료',
+    capacity: 10,
+    park_zone: '도안호수공원',
+    address: '대전광역시 서구 도안동 1088',
+    verified: true,
+    status: 'official',
+    official_id: '185-2-000045',
+    park_link_verified: false,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+  {
+    parking_id: 'std_185-2-000076',
+    name: '도안동 제5공한지유료주차장',
+    entrance_lat: 36.30511638,
+    entrance_lon: 127.3493764,
+    is_public: true,
+    fee_type: 'paid',
+    fee_info: '유료 / 최초 30분 200원 / 이후 10분당 200원',
+    capacity: 49,
+    park_zone: '도안호수공원',
+    address: '대전광역시 서구 도안동 1777',
+    verified: true,
+    status: 'official',
+    official_id: '185-2-000076',
+    park_link_verified: false,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+
+  // ── [공식 인증 4] 세종호수공원 ──
+  {
+    parking_id: 'std_413-2-000001',
+    name: '어진동(C47)',
+    entrance_lat: 36.49734559,
+    entrance_lon: 127.2674606,
+    is_public: true,
+    fee_type: 'free',
+    fee_info: '무료',
+    capacity: 208,
+    park_zone: '세종호수공원',
+    address: '세종특별자치시 어진동 645',
+    verified: true,
+    status: 'official',
+    official_id: '413-2-000001',
+    park_link_verified: false,
+    source: '전국주차장정보표준데이터 (공공데이터포털 15012896)',
+  },
+
+  // ── [레거시 주차장 목록 11곳] ──
   {
     parking_id: 'pkg_yurim_01',
     name: '유림공원 부설 공영주차장',
@@ -29,6 +188,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 60,
     park_zone: '유림공원',
     address: '대전광역시 유성구 어은로 27',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 주차장(유림공원주차장)과 449m 차이, 보행망 이격 118m',
   },
   {
     parking_id: 'pkg_yurim_02',
@@ -41,6 +203,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 220,
     park_zone: '유림공원',
     address: '대전광역시 유성구 대학로 211',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 주차장과 433m 차이, 공원 경계 내부 지정',
   },
   {
     parking_id: 'pkg_yurim_03',
@@ -53,9 +218,10 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 45,
     park_zone: '유림공원',
     address: '대전광역시 유성구 어은동 갑천변',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 주차장과 451m 차이, 보행망 이격 311m',
   },
-
-  // 🌲 대전 송강근린공원 (송강동)
   {
     parking_id: 'pkg_songgang_01',
     name: '송강근린공원 공영주차장',
@@ -67,6 +233,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 35,
     park_zone: '송강근린공원',
     address: '대전광역시 유성구 송강동 22',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 주차장과 561m 차이, 보행망 이격 449m',
   },
   {
     parking_id: 'pkg_songgang_02',
@@ -79,9 +248,10 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 50,
     park_zone: '송강근린공원',
     address: '대전광역시 유성구 송강로 42',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 주차장과 800m 차이, 보행망 이격 693m',
   },
-
-  // 🌊 대전 도안호수공원 / 갑천생태공원 (도안동/원신흥동)
   {
     parking_id: 'pkg_doan_01',
     name: '도안호수공원 임시 공영주차장',
@@ -93,6 +263,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 80,
     park_zone: '도안호수공원',
     address: '대전광역시 서구 도안동 1500',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '좌표가 도안동 공식 주차장보다 2.4km 북쪽으로 이격',
   },
   {
     parking_id: 'pkg_doan_02',
@@ -105,9 +278,10 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 100,
     park_zone: '도안호수공원',
     address: '대전광역시 유성구 원신흥동 갑천변',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '좌표가 도안동 공식 주차장보다 2.1km 북쪽으로 이격',
   },
-
-  // 🏞️ 세종호수공원 (세종특별자치시)
   {
     parking_id: 'pkg_sejong_01',
     name: '세종호수공원 제1주차장',
@@ -119,6 +293,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 350,
     park_zone: '세종호수공원',
     address: '세종특별자치시 연기면 세종리 1201',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 공원 도로명 주소(다솜로 216)와 다름',
   },
   {
     parking_id: 'pkg_sejong_02',
@@ -131,6 +308,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 280,
     park_zone: '세종호수공원',
     address: '세종특별자치시 연기면 세종리 1205',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 공원 도로명 주소와 다름',
   },
   {
     parking_id: 'pkg_sejong_03',
@@ -143,6 +323,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 420,
     park_zone: '세종호수공원',
     address: '세종특별자치시 수목원로 136',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 공원 도로명 주소와 다름',
   },
   {
     parking_id: 'pkg_sejong_04',
@@ -155,6 +338,9 @@ export const PILOT_PARKING_LOTS_DATA: readonly Omit<ParkingLotDTO, 'distance_m'>
     capacity: 200,
     park_zone: '세종호수공원',
     address: '세종특별자치시 다솜로 250',
+    verified: false,
+    status: 'legacy_unverified',
+    data_issue: '공식 공원 도로명 주소와 다름',
   },
 ];
 
@@ -197,12 +383,18 @@ export function calculateDistanceMeters(
 export function generateFallbackNearbyParking(
   lat: number,
   lon: number,
-  radiusM: number = 1500
+  radiusM: number = 1500,
+  verifiedOnly: boolean = false
 ): NearbyParkingResponse {
-  const lotsWithDistance: ParkingLotDTO[] = PILOT_PARKING_LOTS_DATA.map((p) => {
-    const dist = calculateDistanceMeters(lat, lon, p.entrance_lat, p.entrance_lon);
-    return { ...p, distance_m: dist };
-  })
+  const sourceList = verifiedOnly
+    ? PILOT_PARKING_LOTS_DATA.filter((p) => p.verified === true)
+    : PILOT_PARKING_LOTS_DATA;
+
+  const lotsWithDistance: ParkingLotDTO[] = sourceList
+    .map((p) => {
+      const dist = calculateDistanceMeters(lat, lon, p.entrance_lat, p.entrance_lon);
+      return { ...p, distance_m: dist };
+    })
     .filter((p) => p.distance_m <= radiusM)
     .sort((a, b) => a.distance_m - b.distance_m);
 
@@ -225,7 +417,8 @@ export async function fetchNearbyParkingLots(
   options?: ParkingSearchOptions
 ): Promise<NearbyParkingResponse> {
   const radius = options?.radius_m ?? 1500;
-  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}_${radius}`;
+  const verifiedOnly = options?.verified_only ?? false;
+  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}_${radius}_v${verifiedOnly}`;
 
   if (!options?.forceRefresh) {
     const cached = parkingMemoryCache.get(cacheKey);
@@ -238,8 +431,20 @@ export async function fetchNearbyParkingLots(
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const url = `${API_BASE_URL}/api/v1/parking/nearby?lat=${lat}&lon=${lon}&radius_m=${radius}`;
-    const res = await fetch(url, { signal: controller.signal });
+    const query = new URLSearchParams({
+      lat: String(lat),
+      lon: String(lon),
+      radius_m: String(radius),
+    });
+    if (verifiedOnly) {
+      query.set('verified_only', 'true');
+    }
+
+    const res = await fetchWithServerFallback(
+      `/api/v1/parking/nearby?${query.toString()}`,
+      { signal: controller.signal },
+      API_TIMEOUT_MS
+    );
     clearTimeout(timer);
 
     if (res.ok) {
@@ -255,13 +460,13 @@ export async function fetchNearbyParkingLots(
       parkingMemoryCache.set(cacheKey, { timestamp: Date.now(), data: response });
       return response;
     }
-  } catch (_e) {
+  } catch {
     // 서버 장애 시 오프라인 안전 폴백
   } finally {
     clearTimeout(timer);
   }
 
-  const fallback = generateFallbackNearbyParking(lat, lon, radius);
+  const fallback = generateFallbackNearbyParking(lat, lon, radius, verifiedOnly);
   parkingMemoryCache.set(cacheKey, { timestamp: Date.now(), data: fallback });
   return fallback;
 }

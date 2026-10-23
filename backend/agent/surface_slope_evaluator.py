@@ -9,6 +9,7 @@ import math
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from agent.route_geometry import haversine_m, polyline_length_m
+from services.dem import get_elevation_m
 
 
 # ==============================================================================
@@ -18,9 +19,18 @@ from agent.route_geometry import haversine_m, polyline_length_m
 def estimate_elevation_m(lon: float, lat: float) -> float:
     """위경도 좌표에 대한 지형 표고(해발 고도, m)를 추정/반환한다.
     
-    서울 주요 랜드마크 지형(남산/회현 능선, 인왕산/정동 언덕, 테헤란로 고개, 서울숲 평지)의
-    실제 DEM 실측 데이터를 모델링하고 부드러운 2차 표면 보간을 적용한다.
+    DEM_DIR 의 실제 DEM 파일이 이 좌표를 덮으면 그 값(주변 4칸 쌍선형 보간)을 쓴다.
+    그렇지 않으면 서울 주요 랜드마크 지형(남산/회현 능선, 인왕산/정동 언덕, 테헤란로 고개,
+    서울숲 평지)을 모델링한 근사값을 쓴다.
     """
+    real_elevation = get_elevation_m(lat, lon)  # services/dem.py
+    if real_elevation is not None:
+        return round(real_elevation, 1)
+    return _approximate_elevation_m(lon, lat)
+
+
+def _approximate_elevation_m(lon: float, lat: float) -> float:
+    """실제 DEM 이 없을 때 쓰는 근사 고도 모델 (서울 주요 지형 기반)."""
     # 1. 서울숲 / 성수동 (한강 평지: 해발 약 8 ~ 14m)
     if 127.030 <= lon <= 127.050 and 37.535 <= lat <= 37.550:
         base = 11.0
@@ -60,16 +70,127 @@ def estimate_elevation_m(lon: float, lat: float) -> float:
     return round(max(10.0, base_dem), 1)
 
 
-def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float]) -> float:
-    """두 좌표 사이의 수평 거리(m)와 DEM 고도차(m)를 이용하여 경사도(%)를 계산한다."""
+MIN_SLOPE_BASELINE_M = 150.0
+# DEM 칸(약 25~31m, 90m)과 건물·나무 잡음 때문에 24m 정도의 짧은 구간에서 구한 경사는 믿기 어렵다.
+# (대전 유림공원 하천변 평지 경로: 구간 그대로 최대 23%, 150m 로 늘리면 7%) 그래서 짧은 구간은
+# 중심에서 양쪽으로 늘려 최소 150m 간격의 고도 차이로 경사를 구한다.
+
+
+def _elevations_from_one_source(p1: Sequence[float], p2: Sequence[float]) -> Tuple[float, float]:
+    """두 점의 고도를 같은 출처(실제 DEM 둘 다, 아니면 근사 모델 둘 다)에서 구한다.
+
+    한 점만 DEM 범위 안이면 실제 값과 근사값을 비교하게 되어 엉뚱한 경사가 나오므로 막는다.
+    """
+    real1, real2 = get_elevation_m(p1[1], p1[0]), get_elevation_m(p2[1], p2[0])
+    if real1 is not None and real2 is not None:
+        return real1, real2
+    return _approximate_elevation_m(p1[0], p1[1]), _approximate_elevation_m(p2[0], p2[1])
+
+
+def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float],
+                                    min_baseline_m: float = MIN_SLOPE_BASELINE_M) -> float:
+    """두 좌표 구간의 경사도(%)를 계산한다. 구간이 min_baseline_m 보다 짧으면 중심에서 양쪽으로 늘려 구한다."""
     dist_m = haversine_m(p1, p2)
     if dist_m < 1.0:
         return 0.0
-    ele1 = estimate_elevation_m(p1[0], p1[1])
-    ele2 = estimate_elevation_m(p2[0], p2[1])
-    d_ele = abs(ele2 - ele1)
-    slope = (d_ele / dist_m) * 100.0
+    scale = max(1.0, min_baseline_m / dist_m)
+    mid_lon, mid_lat = (p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0
+    start = (mid_lon + (p1[0] - mid_lon) * scale, mid_lat + (p1[1] - mid_lat) * scale)
+    end = (mid_lon + (p2[0] - mid_lon) * scale, mid_lat + (p2[1] - mid_lat) * scale)
+    ele1, ele2 = _elevations_from_one_source(start, end)
+    slope = (abs(ele2 - ele1) / (dist_m * scale)) * 100.0
     return round(slope, 1)
+
+
+# ==============================================================================
+# 1-2. 무장애길 하드 제약 (US-B1): 계단 및 15도 이상 급경사 링크 배제
+# ==============================================================================
+
+MAX_WALKABLE_SLOPE_DEGREE = 15.0
+# 15도 = tan(15°) x 100 = 약 26.8%. 이 값 이상의 링크는 후보에서 완전히 제외한다.
+MAX_WALKABLE_SLOPE_PERCENT = math.tan(math.radians(MAX_WALKABLE_SLOPE_DEGREE)) * 100.0
+
+
+def filter_links_avoiding_stairs(
+    links: Sequence[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """[US-B1] OSM 링크에서 계단(highway=steps)을 후보 네트워크에서 완전히 배제한다.
+
+    반환 메타데이터의 has_stairs 는 '결과 네트워크에 계단이 남아 있는지'를 뜻하므로
+    배제가 적용되면 항상 False 이다. 배제된 계단의 수와 위치는 removed_stairs_* 로
+    전달하여, 우회가 불가능한 경우 사용자에게 사전 고지할 수 있게 한다.
+    """
+    filtered = [l for l in links if l.get("highway") != "steps"]
+    removed = [l for l in links if l.get("highway") == "steps"]
+    metadata = {
+        "has_stairs": any(l.get("highway") == "steps" for l in filtered),
+        "stairs_data_source": "osm",
+        "confidence": 0.90,
+        "stairs_avoidance_applied": True,
+        "removed_stairs_count": len(removed),
+        "removed_stairs_link_ids": [l.get("id") for l in removed],
+    }
+    return filtered, metadata
+
+
+def _slope_magnitude(link: Dict[str, Any]) -> Optional[float]:
+    """링크의 경사 크기(%, 절댓값)를 반환한다. 확인할 수 없는 값은 None 이다.
+
+    None, 숫자가 아닌 값(문자열 등), NaN, 무한대는 '경사 미확인'으로 본다.
+    내리막(음수)도 오르막과 같은 크기의 위험이므로 절댓값으로 비교한다.
+    """
+    value = link.get("slope_percent")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if math.isnan(value) or math.isinf(value):
+        return None
+    return abs(float(value))
+
+
+def exclude_steep_links(
+    links: Sequence[Dict[str, Any]],
+    max_slope_percent: float = MAX_WALKABLE_SLOPE_PERCENT,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """[US-B1] 경사도가 한계(기본 15도 = 약 26.8%) 이상인 링크를 후보에서 배제한다.
+
+    경사를 확인할 수 없는 링크는 배제하지 않고 유지하되, slope_unknown_* 메타데이터로
+    보고한다. 호출 측은 이 링크를 '검증된 무장애길'로 안내하면 안 된다.
+    """
+    kept: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+    unknown: List[Dict[str, Any]] = []
+    for link in links:
+        slope = _slope_magnitude(link)
+        if slope is None:
+            unknown.append(link)
+            kept.append(link)
+        elif slope >= max_slope_percent:
+            excluded.append(link)
+        else:
+            kept.append(link)
+    metadata = {
+        "max_slope_limit_percent": round(max_slope_percent, 1),
+        "excluded_steep_count": len(excluded),
+        "excluded_steep_link_ids": [l.get("id") for l in excluded],
+        "slope_unknown_count": len(unknown),
+        "slope_unknown_link_ids": [l.get("id") for l in unknown],
+    }
+    return kept, metadata
+
+
+def apply_barrier_free_constraints(
+    links: Sequence[Dict[str, Any]],
+    max_slope_percent: float = MAX_WALKABLE_SLOPE_PERCENT,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """[US-B1] 계단 배제와 급경사 배제를 순서대로 적용하고 메타데이터를 합쳐 반환한다.
+
+    is_barrier_free 는 남은 링크가 있고 모든 링크의 경사가 확인된 경우에만 True 이다.
+    경사 미확인 링크가 하나라도 있거나 남은 링크가 없으면 False 이다.
+    """
+    no_stairs, stairs_meta = filter_links_avoiding_stairs(links)
+    barrier_free, slope_meta = exclude_steep_links(no_stairs, max_slope_percent)
+    verified = bool(barrier_free) and slope_meta["slope_unknown_count"] == 0
+    return barrier_free, {**stairs_meta, **slope_meta, "is_barrier_free": verified}
 
 
 # ==============================================================================
@@ -119,8 +240,7 @@ def evaluate_route_metrics(coords: Sequence[Sequence[float]]) -> Dict[str, Any]:
         p1, p2 = coords[i], coords[i + 1]
         dist = haversine_m(p1, p2)
         if dist >= 1.0:
-            ele_diff = abs(elevations[i + 1] - elevations[i])
-            slope = (ele_diff / dist) * 100.0
+            slope = calculate_segment_slope_percent(p1, p2)
             slopes.append(slope)
             total_len += dist
             weighted_slope_sum += slope * dist

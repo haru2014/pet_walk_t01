@@ -8,6 +8,7 @@ import { BookmarkService, createBookmark, MAX_BOOKMARKS } from './bookmarkServic
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './sampleRoute';
 import { DEFAULT_RECOMMENDED_COURSES } from '../types/walkSettings';
 import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
+import { WalkDogSummary } from '../types/dogProfile';
 
 const memoryStore = new Map<string, string>();
 
@@ -36,7 +37,7 @@ describe('US-29 createBookmark', () => {
     expect(bm.dogName).toBe('초코');
     expect(bm.totalDistanceKm).toBe(2.8);
     expect(bm.estimatedMinutes).toBe(38);
-    expect(bm.tags).toContain('계단 0회');
+    expect(bm.tags).toContain('확인된 계단 0회');
     expect(bm.routeGeoJson.features).toHaveLength(SAMPLE_ROUTE.features.length);
     expect(bm.stepPins).toHaveLength(SAMPLE_STEP_PINS.length);
   });
@@ -47,6 +48,35 @@ describe('US-29 createBookmark', () => {
     const b = createBookmark(DEFAULT_RECOMMENDED_COURSES[1], PLAN, '초코');
     expect(a1.id).toBe(a2.id);
     expect(a1.id).not.toBe(b.id);
+  });
+
+  it('그늘 자료가 없으면 null 비율을 보관하고 정보 없음 태그를 만든다', () => {
+    const course = {
+      ...DEFAULT_RECOMMENDED_COURSES[0],
+      shadeLevel: null,
+      shadePercent: null,
+      stairsCount: '정보 없음',
+    };
+    const bm = createBookmark(course, PLAN, '초코');
+
+    expect(bm.shadePercent).toBeNull();
+    expect(bm.tags).toContain('그늘 정보 없음');
+    expect(bm.tags).toContain('계단 정보 없음');
+  });
+
+  it('WalkDogSummary 객체를 전달하면 dogName과 dogSummary 객체가 함께 보관된다', () => {
+    const summary: WalkDogSummary = {
+      id: 'dog_123',
+      name: '보리',
+      breed: '포메라니안',
+      ageYears: 2,
+      weightKg: 3.2,
+      jointCareLevel: 2,
+      photoUri: 'preset:pomeranian',
+    };
+    const bm = createBookmark(DEFAULT_RECOMMENDED_COURSES[0], PLAN, summary);
+    expect(bm.dogName).toBe('보리');
+    expect(bm.dogSummary).toEqual(summary);
   });
 });
 

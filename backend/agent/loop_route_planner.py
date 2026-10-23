@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from shapely.geometry import MultiPoint
+
 from agent.road_network_routes import (
     V1_ROAD_ALIGNED_COORDS,
     V2_ROAD_ALIGNED_COORDS,
@@ -22,6 +24,7 @@ from agent.road_network_routes import (
     fetch_osrm_foot_route,
 )
 from agent.offline_walk_network import plan_offline_network_loop
+from agent.pilot_park_routes import resolve_pilot_park_key
 from agent.route_geometry import (
     backtrack_ratio,
     collapse_backtracks,
@@ -31,6 +34,8 @@ from agent.route_geometry import (
     polyline_length_m,
 )
 from agent.route_steps import build_turn_steps
+from agent.park_walk_planner import plan_park_walk
+from agent.park_route_validation import RoutePlanningError, validate_park_route
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +46,28 @@ LOOP_WAYPOINT_COUNT = 6
 DISTANCE_TOLERANCE = 0.10  # 이 오차 이내이면 보정 종료 (인수 조건 ±15% 에 여유 확보)
 MAX_REFINEMENTS = 2
 SCALE_LIMITS = (0.4, 2.5)
-# [3번 서버] 지연 목표 ≤1.5초: OSRM 1회 상한 1.2초, 후보 생성 전체 예산 1.3초.
-#   첫 라운드는 반경 배율 3종을 '동시에' 질의해(투기적 병렬) 순차 보정 2~3회(≈1초×N)를 1회분으로 압축한다.
+# [3번 서버] 공개 OSRM 이용 규칙(1초 1회) 준수: 후보 1개당 첫 라운드는 반경 1종만 질의한다(요청 1번 = 3회).
+#   예전에는 반경 3종을 동시에 질의해(요청 1번 = 9회 동시) 운영에서 HTTP 429·연결 차단으로 직사각형 폴백이 났다.
+#   호출 간격은 road_network_routes 가 서버 전체에서 1초 이상으로 맞춘다.
 #   추가 보정은 남은 예산이 직전 라운드 소요 시간 이상일 때만 수행한다.
-OSRM_TIMEOUT_S = 1.2
-PLAN_TIME_BUDGET_S = 1.3
-SPECULATIVE_SCALES: Tuple[float, ...] = (0.8, 1.0, 1.25)
+OSRM_TIMEOUT_S = 3.0
+PLAN_TIME_BUDGET_S = 6.0
+SPECULATIVE_SCALES: Tuple[float, ...] = (1.0,)
 MAX_BACKTRACK_RATIO = 0.15
 MAX_CLOSURE_GAP_M = 15.0
+# 엄격 조건(거리 ±25%, 왕복 15%)을 맞추는 길이 없을 때만 쓰는 완화 기준. 직사각형(건물·철로 관통)보다는 실제 도로가 낫다.
+#   운영 QA(10/22, 대전역·송강 20분): 두 곳은 900m 에 맞는 되돌아가지 않는 순환로가 도로망에 거의 없어 후보가 모두 네모가 됐다.
+RELAXED_MAX_BACKTRACK = 0.30
+RELAXED_MAX_ERROR = 0.50  # 20분 요청에 30분까지. 실측에서 1.77배(34분)는 시간이 너무 어긋났다.
+RELAXED_MAX_TORTUOSITY = 1.8  # 길이 / 볼록껍질 둘레. 실제 순환 코스 62개는 1.02~1.69, 역 앞 광장을 헤매던 길은 1.97 이었다.
 STATIC_MATCH_RADIUS_M = 300.0
 FALLBACK_EDGE_SPACING_M = 25.0
 M_PER_DEG_LAT = 111_320.0
+# 처음 방향에서 탈락한 후보를 다른 방향으로 다시 시도한다 (현재 위치 모드, 시간 예산이 남을 때만, 방향당 OSRM 1회).
+#   애경연구원 근처 실측: 서쪽(270도)은 하천·큰 도로에 막혀 반경을 바꿔도 길이가 2282→842→2282m 로 널뛰며 수렴하지 않았다.
+#   반면 60·90·120·180·210도는 첫 시도부터 오차 16% 이내였다 -> 보정 반복보다 방향 교체가 효과적이다.
+RETRY_BEARING_OFFSETS: Tuple[float, ...] = (-60.0, 60.0, -90.0)
+RETRY_MIN_REMAINING_S = 2.0  # 재시도는 남은 예산이 이만큼 있을 때만 (OSRM 한 번이 보통 0.5~1.5초)
 
 STATIC_SEOUL_LOOPS: Dict[int, List[List[float]]] = {
     1: V1_ROAD_ALIGNED_COORDS,
@@ -103,56 +119,116 @@ def _is_valid_loop(coords: List[List[float]]) -> bool:
     return loop_closure_gap_m(coords) <= MAX_CLOSURE_GAP_M and backtrack_ratio(coords) <= MAX_BACKTRACK_RATIO
 
 
+def _evaluate_scale(
+    origin_lat: float,
+    origin_lon: float,
+    length_m: float,
+    variant: int,
+    target_distance_m: float,
+    bearing_offset: float = 0.0,
+) -> Optional[Tuple[List[List[float]], float, float]]:
+    """단일 순환 반경에 대해 OSRM 경로를 평가하고 (좌표열, 실측거리, 오차율)을 반환."""
+    bearing = (VARIANT_BEARINGS[variant] + bearing_offset) % 360.0
+    waypoints = build_loop_waypoints(origin_lat, origin_lon, length_m, bearing)
+    coords = _route_waypoints(waypoints)
+    if coords is None:
+        return None
+    measured = polyline_length_m(coords)
+    return coords, measured, abs(measured - target_distance_m) / target_distance_m
+
+
+def _update_round_best(
+    lengths: List[float],
+    results: List[Optional[Tuple[List[List[float]], float, float]]],
+    target_distance_m: float,
+    best: Optional[Tuple[List[List[float]], float]],
+) -> Tuple[Optional[Tuple[float, float]], Optional[Tuple[List[List[float]], float]]]:
+    """한 라운드의 결과 목록에서 다음 보정 기준 anchor와 최적 유효 루프 best를 갱신."""
+    anchor: Optional[Tuple[float, float]] = None
+    for length_m, res in zip(lengths, results):
+        if res is None:
+            continue
+        coords, measured, error = res
+        if anchor is None or error < abs(anchor[1] - target_distance_m) / target_distance_m:
+            anchor = (length_m, measured)
+        if _is_valid_loop(coords) and (best is None or error < best[1]):
+            best = (coords, error)
+    return anchor, best
+
+
+def route_tortuosity(coords: List[List[float]]) -> float:
+    """길이 / 볼록껍질 둘레. 1에 가까우면 시원하게 한 바퀴, 크면 좁은 곳을 빙빙 도는 길이다."""
+    kx = M_PER_DEG_LAT * math.cos(math.radians(coords[0][1]))
+    hull = MultiPoint([(lon * kx, lat * M_PER_DEG_LAT) for lon, lat in coords]).convex_hull
+    perimeter = hull.length if hull.geom_type == "Polygon" else 2.0 * hull.length
+    return polyline_length_m(coords) / perimeter if perimeter > 0 else float("inf")
+
+
+def _collect_relaxed(sink: Optional[List[Tuple[float, List[List[float]]]]], coords: List[List[float]], error: float) -> None:
+    """엄격 조건에는 못 미치지만 실제 도로 순환으로 쓸 만한 결과를 (나쁜 정도, 좌표) 로 모아 둔다."""
+    if sink is None or loop_closure_gap_m(coords) > MAX_CLOSURE_GAP_M:
+        return
+    retrace = backtrack_ratio(coords)
+    if retrace > RELAXED_MAX_BACKTRACK or error > RELAXED_MAX_ERROR or route_tortuosity(coords) > RELAXED_MAX_TORTUOSITY:
+        return
+    sink.append((error + 2.0 * max(0.0, retrace - MAX_BACKTRACK_RATIO), coords))
+
+
 def _plan_live(
     origin_lat: float,
     origin_lon: float,
     target_distance_m: float,
     variant: int,
     deadline: float,
+    bearing_offset: float = 0.0,
+    max_refinements: int = MAX_REFINEMENTS,
+    relaxed_sink: Optional[List[Tuple[float, List[List[float]]]]] = None,
 ) -> Optional[LoopPlan]:
     """OSRM 실시간 경로를 질의하고 목표 거리에 수렴하도록 반경을 보정한다.
 
-    1라운드: 반경 배율 SPECULATIVE_SCALES 를 병렬 질의 → 유효 루프 중 목표 거리 오차 최소를 채택.
-    2라운드~: 오차가 허용치보다 크고, 남은 예산이 직전 라운드 소요 시간 이상일 때만 단일 보정 질의.
+    bearing_offset 은 재시도 때 방향을 돌리고, max_refinements=0 이면 반경 보정 없이 한 번만 질의한다.
+    relaxed_sink 를 주면 엄격 조건에는 못 미쳐도 쓸 만한 실제 도로 순환을 모아 둔다 (호출자가 마지막에 고른다).
     """
     loop_length = target_distance_m / DETOUR_FACTOR
     best: Optional[Tuple[List[List[float]], float]] = None
-
-    def evaluate(length_m: float) -> Optional[Tuple[List[List[float]], float, float]]:
-        waypoints = build_loop_waypoints(origin_lat, origin_lon, length_m, VARIANT_BEARINGS[variant])
-        coords = _route_waypoints(waypoints)
-        if coords is None:
-            return None
-        measured = polyline_length_m(coords)
-        return coords, measured, abs(measured - target_distance_m) / target_distance_m
-
     scales: Tuple[float, ...] = SPECULATIVE_SCALES
-    for _ in range(MAX_REFINEMENTS + 1):
+
+    for _ in range(max_refinements + 1):
         round_started = time.monotonic()
         lengths = [loop_length * sc for sc in scales]
+
         if len(lengths) == 1:
-            results = [evaluate(lengths[0])]
+            results = [_evaluate_scale(origin_lat, origin_lon, lengths[0], variant, target_distance_m, bearing_offset)]
         else:
             with ThreadPoolExecutor(max_workers=len(lengths)) as pool:
-                results = list(pool.map(evaluate, lengths))
-        round_elapsed = time.monotonic() - round_started
+                futures = [
+                    pool.submit(_evaluate_scale, origin_lat, origin_lon, lm, variant, target_distance_m, bearing_offset)
+                    for lm in lengths
+                ]
+                results = [f.result() for f in futures]
 
-        anchor: Optional[Tuple[float, float]] = None  # (사용한 loop_length, 실측 길이) — 다음 보정 기준
-        for length_m, res in zip(lengths, results):
-            if res is None:
-                continue
-            coords, measured, error = res
-            if anchor is None or error < abs(anchor[1] - target_distance_m) / target_distance_m:
-                anchor = (length_m, measured)
-            if _is_valid_loop(coords) and (best is None or error < best[1]):
-                best = (coords, error)
+        round_elapsed = time.monotonic() - round_started
+        for res in results:
+            if res is not None:
+                _collect_relaxed(relaxed_sink, res[0], res[2])
+        anchor, best = _update_round_best(lengths, results, target_distance_m, best)
+
         if anchor is None:
+            break
+        if best is None:
+            # 순환 종결·왕복 기준을 못 맞춘 방향은 반경을 바꿔도 거의 나아지지 않는다 (서쪽 실측: 2282→842→2282m 널뜀).
+            # 예산을 쓰지 말고 호출자가 다른 방향으로 다시 시도하게 한다.
             break
         if (best is not None and best[1] <= DISTANCE_TOLERANCE) or time.monotonic() + round_elapsed > deadline:
             break
-        loop_length = anchor[0] * min(max(target_distance_m / anchor[1], SCALE_LIMITS[0]), SCALE_LIMITS[1])
+
+        ratio = target_distance_m / anchor[1]
+        loop_length = anchor[0] * min(max(ratio, SCALE_LIMITS[0]), SCALE_LIMITS[1])
         scales = (1.0,)
-    if best is None or best[1] > DISTANCE_TOLERANCE + 0.05:
+
+    # 실시간 OSRM 보행로가 유효 루프(건물/수면 관통 없음, 루프 종결성 충족)인 경우,
+    # 허공의 직사각형 폴백으로 추락하는 것을 방지하기 위해 최대 25% 오차까지는 실시간 보행로를 채택
+    if best is None or best[1] > DISTANCE_TOLERANCE + 0.15:
         return None
     return _to_plan(best[0], "osrm_live")
 
@@ -164,6 +240,23 @@ def _to_plan(coords: List[List[float]], source: str) -> LoopPlan:
         distance_m=round(polyline_length_m(coords), 1),
         source=source,
     )
+
+
+def _plan_static_pilot_park(
+    origin_lat: float,
+    origin_lon: float,
+    variant: int,
+    pilot_park_id: Optional[str] = None,
+    target_distance_m: Optional[float] = None,
+) -> Optional[LoopPlan]:
+    """Compatibility entry point: only verified, boundary-constrained graph routes."""
+    park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
+    if park_key is None:
+        raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
+    target = target_distance_m or 1400.0
+    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant)
+    validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
+    return _to_plan(coords, f"park_graph_{park_key}")
 
 
 def _plan_static_seoul(
@@ -234,7 +327,7 @@ def _plan_offline_network(
     res = plan_offline_network_loop(origin_lat, origin_lon, target_distance_m, variant)
     if res is None:
         return None
-    coords, dist_m, _ = res
+    coords, _, _ = res
     if not _is_valid_loop(coords):
         return None
     # The offline graph has discrete loop lengths. Keep its walkable route even
@@ -248,12 +341,25 @@ def _plan_variant(
     target_distance_m: float,
     variant: int,
     deadline: float,
-) -> LoopPlan:
-    """실시간 → 정적 도로망 → 오프라인 도로망 그래프 → 비상 폴백 순으로 후보 1개를 생성한다."""
-    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline)
+    origin_mode: str = "current_location",
+    pilot_park_id: Optional[str] = None,
+) -> Optional[LoopPlan]:
+    """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
+
+    현재 위치 모드에서 실제 길 기반 코스를 못 만들면 None 을 돌려준다 (직사각형은 호출자가 마지막 수단으로만 쓴다).
+    """
+    if origin_mode in ("park", "parking_pnr"):
+        return _plan_static_pilot_park(
+            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m
+        )
+
+    # 📍 현위치 기반 모드 (current_location)
+    relaxed: List[Tuple[float, List[List[float]]]] = []
+    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, relaxed_sink=relaxed)
     if plan is not None:
         return plan
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
+
     offline_target = target_distance_m * {1: 1.0, 2: 1.2, 3: 1.1}[variant]
     plan = _plan_static_seoul(origin_lat, origin_lon, variant, target_distance_m=offline_target)
     if plan is not None:
@@ -261,7 +367,29 @@ def _plan_variant(
     plan = _plan_offline_network(origin_lat, origin_lon, offline_target, variant)
     if plan is not None:
         return plan
-    return _plan_rectangle_fallback(origin_lat, origin_lon, offline_target, variant)
+    # 조건에서 탈락한 후보는 방향을 바꿔 다시 시도한다 (방향당 OSRM 1회, 시간 예산이 남을 때만).
+    for offset in RETRY_BEARING_OFFSETS:
+        if deadline - time.monotonic() < RETRY_MIN_REMAINING_S:
+            break
+        plan = _plan_live(
+            origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0, relaxed_sink=relaxed
+        )
+        if plan is not None:
+            return plan
+    if relaxed:
+        # 엄격 조건을 맞춘 길이 끝내 없으면, 지금까지 계산해 본 것 중 덜 나쁜 실제 도로 순환을 쓴다 (직사각형보다 낫다).
+        _, coords = min(relaxed, key=lambda item: item[0])
+        logger.info("엄격 조건을 맞춘 순환이 없어 완화 기준의 실제 도로 순환을 사용합니다(variant=%d).", variant)
+        return _to_plan(coords, "osrm_live")
+    return None
+
+
+def _rectangle_candidates(origin_lat: float, origin_lon: float, target_distance_m: float) -> Dict[int, LoopPlan]:
+    """실제 길 기반 후보가 하나도 없을 때만 쓰는 마지막 수단. 건물을 관통할 수 있다."""
+    return {
+        variant: _plan_rectangle_fallback(origin_lat, origin_lon, target_distance_m * factor, variant)
+        for variant, factor in {1: 1.0, 2: 1.2, 3: 1.1}.items()
+    }
 
 
 def plan_loop_candidates(
@@ -269,6 +397,8 @@ def plan_loop_candidates(
     origin_lon: float,
     target_distance_m: float,
     time_budget_s: float = PLAN_TIME_BUDGET_S,
+    origin_mode: str = "current_location",
+    pilot_park_id: Optional[str] = None,
 ) -> Dict[int, LoopPlan]:
     """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
     deadline = time.monotonic() + time_budget_s
@@ -281,10 +411,17 @@ def plan_loop_candidates(
                 target_distance_m,
                 variant,
                 deadline,
+                origin_mode,
+                pilot_park_id,
             )
             for variant in VARIANT_BEARINGS
         }
-        plans = {variant: future.result() for variant, future in futures.items()}
+        results = {variant: future.result() for variant, future in futures.items()}
+
+    # 실제 길 기반 코스를 못 만든 후보는 뺀다 (네모를 내보내지 않는다). 하나도 없을 때만 마지막 수단.
+    plans = {variant: plan for variant, plan in results.items() if plan is not None}
+    if not plans:
+        return _rectangle_candidates(origin_lat, origin_lon, target_distance_m)
 
     # Sparse offline graphs can resolve multiple bearings to the same cycle.
     # For the Seoul City Hall area, substitute a validated road-aligned loop
@@ -294,6 +431,8 @@ def plan_loop_candidates(
         for plan in plans.values()
     }
     for variant, plan in plans.items():
+        if origin_mode in ("park", "parking_pnr"):
+            continue
         signature = tuple((round(lon, 6), round(lat, 6)) for lon, lat in plan.coords)
         if sum(
             tuple((round(lon, 6), round(lat, 6)) for lon, lat in existing.coords) == signature
@@ -308,5 +447,15 @@ def plan_loop_candidates(
         if alternate_signature not in seen_routes:
             plans[variant] = alternate
             seen_routes.add(alternate_signature)
+
+    if origin_mode not in ("park", "parking_pnr"):
+        # 도로가 성긴 곳에서는 방향이 달라도 OSRM 이 같은 길을 줄 수 있다. 실제 길(osrm_live)끼리 같으면 하나만 남긴다 (후보 번호가 작은 쪽 유지).
+        unique: Dict[Tuple, int] = {}
+        for variant in sorted(plans):
+            if plans[variant].source != "osrm_live":
+                continue
+            unique.setdefault(tuple((round(lon, 6), round(lat, 6)) for lon, lat in plans[variant].coords), variant)
+        keep = set(unique.values())
+        plans = {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
 
     return plans

@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LocalStorageService } from './storage';
 import { FeedbackContextService } from './feedbackContext';
-import { WalkRecord, WalkFeedback, STORAGE_KEYS } from '../types/storage';
+import { WalkRecord, WalkFeedback } from '../types/storage';
 
 // In-Memory AsyncStorage Mocking
 const memoryStore = new Map<string, string>();

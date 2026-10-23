@@ -2,7 +2,7 @@
   "expo": {
     "name": "편안하개",
     "slug": "petwalk-production",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "petwalk",
@@ -14,6 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
       "url": "https://u.expo.dev/52ded2f2-d6e7-420f-9c9f-3d999f262454"
     },
     "runtimeVersion": {
@@ -28,6 +30,20 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "반려견 대표 사진을 등록하기 위해 사진 보관함 접근 권한이 필요합니다.",
+          "cameraPermission": "반려견 사진을 직접 촬영하기 위해 카메라 접근 권한이 필요합니다."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
       ]
     ],
     "ios": {
@@ -36,13 +52,21 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "location"
-        ]
+        ],
+        "NSPhotoLibraryUsageDescription": "반려견 대표 사진을 등록하기 위해 사진 보관함 접근 권한이 필요합니다.",
+        "NSCameraUsageDescription": "반려견 사진을 직접 촬영하기 위해 카메라 접근 권한이 필요합니다."
       }
     },
     "android": {
       "package": "com.petwalk.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#5A7361",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

@@ -1,32 +1,36 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 추천 산책 코스 화면 (Screen-04, US-B1, US-C1, US-29)
+ * 모바일 추천 산책 코스 화면 (Screen-04, docs/screenshots/04_course_recommendation.png 원형 복원 및 스크롤 방지 최적화)
  *
- * 지도 프리뷰, 3대 안심 지표(경사/노면/그늘), 추천 사유 카드, 대체 코스 선택, 즐겨찾기 저장
- * 세부 UI는 CourseInfoCard / AlternativeCourseList / PlanSourceBadge 로 분리되어 있다.
+ * 1. 상단: 뒤로가기 & '추천 산책 코스' 헤더 + 실시간 AI 맞춤 코스 뱃지
+ * 2. 상단 브리핑: "✨ {dog.name}에게 맞는 산책 코스를 찾았어요." & 안내문 & 조건 태그 칩들
+ * 3. 중앙: 실시간 보행로 지도 (flex: 1로 뷰포트에 유연 적응하여 스크롤 배제)
+ * 4. 하단 카드: 대체 코스 칩(추천 1/2/3) + 즐겨찾기 + 거리/시간/3대 안심 지표 + 추천 사유
+ * 5. 하단 Thumb Zone: [이 코스로 산책 시작하기] 버튼
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
-import {
-  buildAdaptiveConditionLabels,
-  generateAdaptiveCourses,
-} from '../../services/courseAdaptivePlanner';
-import { getCoursePlanById } from '../../services/sampleRoute';
-import { TOKENS } from '../../theme/tokens';
+import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
+import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
+import { useAppTheme } from '../../theme/themeManager';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
-import { DogProfile } from '../../types/dogProfile';
-import { RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
+import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
+import { formatShadePercentLabel, formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
-import { RouteReasonCard } from '../map/RouteReasonCard';
-import { AlternativeCourseList } from './AlternativeCourseList';
-import { CourseInfoCard } from './CourseInfoCard';
 import { PlanSourceBadge } from './PlanSourceBadge';
+import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
+import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
+import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
+import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
+import { getCurrentLocationCoords } from '../../services/locationService';
 
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
@@ -45,11 +49,23 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onStartWalk,
   onPinSelect,
 }) => {
+  const { colors } = useAppTheme();
+  const { courseRecommend, scale } = useAppResponsive();
+  const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
+  const [planError, setPlanError] = useState<string | null>(null);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
-    generateAdaptiveCourses(dog, preferences, feedback)
+    requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback)
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
+  const [requestInputs, setRequestInputs] = useState({ dog, preferences, feedback });
+  if (requestInputs.dog !== dog || requestInputs.preferences !== preferences || requestInputs.feedback !== feedback) {
+    setRequestInputs({ dog, preferences, feedback });
+    setPlanResult(null);
+    setPlanError(null);
+    setSelectedCourseIndex(0);
+    setCourses(requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -57,102 +73,279 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       if (!isMounted) return;
       setPlanResult(res);
       if (res.courses.length > 0) setCourses(res.courses);
+    }).catch((error: unknown) => {
+      if (!isMounted) return;
+      setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
+      setCourses([]);
     });
     return () => { isMounted = false; };
-  }, [dog, preferences, feedback]);
+  }, [dog, preferences, feedback, requiresValidatedPark]);
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
   const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
   const activePlan = useMemo(() => {
-    if (candidatePlan) {
-      return candidatePlan;
-    }
-    // 서버 버전이 per-course plan을 주지 않는 경우 첫 후보는 서버 응답
-    // GeoJSON을 사용한다. getCoursePlanById의 정적 ID 매핑이 이를 덮지 않게 한다.
+    if (candidatePlan) return candidatePlan;
     if (planResult?.isLiveServer && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
-    return getCoursePlanById(currentCourse?.id);
-  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex]);
+    if (requiresValidatedPark) return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
+    return getCoursePlanById(
+      currentCourse?.id,
+      getCoursePlanByParkId(preferences?.pilotParkId, selectedCourseIndex)
+    );
+  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark]);
+
+  const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
+  const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
+    if (preferences?.userCoordinates) {
+      return { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (isCurrentLocOrigin && !gpsCoords) {
+      let isMounted = true;
+      void getCurrentLocationCoords(4000).then((res) => {
+        if (isMounted && res.ok && res.coords) {
+          setGpsCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+        }
+      });
+      return () => { isMounted = false; };
+    }
+  }, [isCurrentLocOrigin, gpsCoords]);
 
   const activeRoute = activePlan.route;
-  const activePins = activePlan.stepPins;
+  const activePins = useMemo(() => {
+    const pins = activePlan.stepPins;
+    if (isCurrentLocOrigin && gpsCoords) {
+      return mergeCurrentLocationPin(pins, gpsCoords.lon, gpsCoords.lat);
+    }
+    return pins;
+  }, [activePlan.stepPins, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
   const activeSummary = useMemo(
     () => buildCourseSummary(activeRoute, dog.speedKmH),
     [activeRoute, dog.speedKmH],
   );
   const bookmarkCandidate = useMemo(
-    () => (currentCourse ? createBookmark(currentCourse, plan, dog.name) : null),
-    [currentCourse, plan, dog.name],
+    () => (currentCourse ? createBookmark(currentCourse, plan, toWalkDogSummary(dog)) : null),
+    [currentCourse, plan, dog],
   );
+
   const conditionLabels = useMemo(() => {
     const base = buildAdaptiveConditionLabels(dog, preferences);
     if (feedback && feedback.recommended_max_slope_offset < 0) {
-      base.push(`경사 완화 ${Math.abs(feedback.recommended_max_slope_offset)}% 적용`);
+      base.push(`경사 완화 ${Math.abs(feedback.recommended_max_slope_offset)}%`);
     }
     return base;
   }, [dog, preferences, feedback]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.7} onPress={onBack} style={styles.backButton}>
-          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
+  const briefingText = planResult?.briefingMessage ??
+    `반려견 ${dog.name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주로 구성된 안심 코스를 준비했어요.`;
+
+  if (!currentCourse || (requiresValidatedPark && !planResult)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, padding: 20, justifyContent: 'center', gap: 16 }]}>
+        <Text accessibilityRole="alert" style={{ color: colors.textMain }}>
+          {planError ?? '선택한 공원 내부의 보행 경로를 확인하고 있어요.'}
+        </Text>
+        <TouchableOpacity accessibilityRole="button" onPress={onBack} style={[styles.startButton, { backgroundColor: colors.primary }]}>
+          <Text style={styles.startButtonText}>산책 설정으로 돌아가기</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>추천 산책 코스</Text>
-        <View style={styles.headerPlaceholder} />
       </View>
+    );
+  }
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <PlanSourceBadge isLive={Boolean(planResult?.isLiveServer)} />
-
-        <View style={styles.titleSection}>
-          <View style={styles.sparkleBadge}>
-            <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader
+        title="추천 산책 코스"
+        onBack={onBack}
+        rightAction={
+          <View style={styles.headerRightGroup}>
+            <VoiceQuickControlBar compact style={styles.headerVoiceBar} />
+            <PlanSourceBadge isLive={Boolean(planResult?.isLiveServer)} />
           </View>
-          <Text style={styles.mainTitle}>
-            {dog.name}에게 맞는 산책 코스를{'\n'}찾았어요.
+        }
+      />
+
+      {/* 스크롤 가능한 본문 영역 (헤더와 하단 카드는 화면에 안정적으로 고정) */}
+      <ScrollView
+        style={styles.mainScroll}
+        contentContainerStyle={styles.mainScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 2. 상단 AI 맞춤 브리핑 & 조건 태그 (04_course_recommendation.png 원형 복원) */}
+        <View style={[styles.briefingSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <View style={styles.titleRow}>
+            <AppIcon name="sparkle" size={16} color={colors.primaryDark} />
+            <Text style={[styles.briefingTitle, { color: colors.textMain }]}>
+              {dog.name}에게 맞는 산책 코스를 찾았어요.
+            </Text>
+          </View>
+          <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85 }]} numberOfLines={2}>
+            {briefingText}
           </Text>
-          <Text style={styles.subTitle}>
-            {planResult?.briefingMessage ?? `${dog.name}의 ${preferences?.durationMinutes ?? 30}분 산책 조건에 맞춘 관절 안심 순환 코스예요.`}
-          </Text>
+          {/* 가로 태그 칩 */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
+            {conditionLabels.map((lbl) => (
+              <View
+                key={lbl}
+                style={[
+                  styles.tagChip,
+                  { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, borderWidth: 1 },
+                ]}
+              >
+                <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
-        <View style={styles.tagWrap}>
-          {conditionLabels.map((lbl) => (
-            <View key={lbl} style={styles.tagChip}>
-              <Text style={styles.tagText}>{lbl}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.mapWrapper}>
+        {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
+        <View style={[styles.mapSection, { minHeight: courseRecommend.mapHeight }]}>
           <RouteMapView
-            key={currentCourse.id}
             route={activeRoute}
             stepPins={activePins}
             speedKmH={dog.speedKmH}
+            stairsCount={currentCourse.stairsCount}
             onStart={() => onStartWalk(currentCourse, plan)}
             onPinSelect={onPinSelect}
           />
         </View>
 
-        <CourseInfoCard course={currentCourse} summary={activeSummary} rank={selectedCourseIndex + 1} bookmark={bookmarkCandidate} />
-
-        <RouteReasonCard
-          reasonText={currentCourse.reason}
-          maxSlopePercent={currentCourse.maxSlopePercent}
-          softSurfacePercent={currentCourse.softSurfacePercent}
-          shadePercent={currentCourse.shadePercent}
-        />
-
-        <AlternativeCourseList courses={courses} selectedIndex={selectedCourseIndex} onSelect={setSelectedCourseIndex} />
+        {/* 고도 자료 출처 (Copernicus DEM 라이선스 6조 (b), #76) */}
+        {planResult?.elevationAttribution ? (
+          <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+            고도·경사: {planResult.elevationAttribution}
+          </Text>
+        ) : null}
       </ScrollView>
 
-      <View style={styles.bottomBar}>
-        <TouchableOpacity activeOpacity={0.88} onPress={() => onStartWalk(currentCourse, plan)} style={styles.startButton}>
-          <Text style={styles.startButtonText}>이 코스로 산책 시작하기</Text>
+      {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
+      <View style={[styles.bottomCard, { paddingVertical: courseRecommend.cardPaddingV, paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        {/* 상단 핸들 바 & 대체 코스 퀵 칩 & 북마크 */}
+        <View style={styles.sheetHeaderRow}>
+          <View style={styles.courseChipRow}>
+            {courses.slice(0, 3).map((c, idx) => {
+              const isSelected = idx === selectedCourseIndex;
+              const score = extractCourseScore(c);
+              const scoreText = score != null ? ` · ${score}점` : '';
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedCourseIndex(idx)}
+                  style={[
+                    styles.courseChip,
+                    {
+                      paddingVertical: courseRecommend.altCourseChipPadV,
+                      backgroundColor: isSelected ? colors.primaryWash : colors.background,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.courseChipText,
+                      { color: isSelected ? colors.primaryDark : colors.textMain },
+                      isSelected && styles.courseChipTextActive,
+                    ]}
+                  >
+                    {idx === 0 ? `👑 추천 1${scoreText}` : `코스 ${idx + 1}${scoreText}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <BookmarkToggleButton bookmark={bookmarkCandidate} />
+        </View>
+
+        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
+        <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
+          {currentCourse.name}
+        </Text>
+        <View style={styles.courseMetricsRow}>
+          <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
+            {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
+          </Text>
+          {extractCourseScore(currentCourse) != null && (
+            <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
+                AI 맞춤 {extractCourseScore(currentCourse)}점
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
+        {currentCourse.reason ? (
+          <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Text style={[styles.reasonText, { color: colors.textMain }]} numberOfLines={2}>
+              💡 {currentCourse.reason}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
+        {(() => {
+          const surfaceInfo = formatCourseSurface(currentCourse);
+          const slopeInfo = formatCourseSlope(currentCourse);
+
+          let slopeContent: React.ReactNode;
+          if (slopeInfo.isUnknown) {
+            slopeContent = <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>;
+          } else if (slopeInfo.isApproximation) {
+            slopeContent = <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>;
+          } else {
+            slopeContent = <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>;
+          }
+
+          return (
+            <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
+                {surfaceInfo.isUnknown ? (
+                  <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
+                ) : (
+                  <>폭신 노면 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                )}
+              </Text>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
+                <Text style={{ color: colors.textMain, fontWeight: '700' }}>
+                  {formatStairsCountLabel(currentCourse.stairsCount)}
+                </Text>
+              </Text>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
+                {slopeContent}
+              </Text>
+              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.metricText, { color: colors.textMain }]}>
+                {currentCourse.shadePercent == null ? (
+                  <Text style={{ color: colors.textMuted }}>{formatShadePercentLabel(currentCourse.shadePercent)}</Text>
+                ) : (
+                  <>{'그늘 '}<Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text></>
+                )}
+              </Text>
+            </View>
+          );
+        })()}
+
+        {/* Thumb Zone 산책 시작 버튼 (04_course_recommendation.png 원형 복원) */}
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => onStartWalk(currentCourse, plan)}
+          style={[styles.startButton, { height: scale(46, 48, 54), backgroundColor: colors.primary }]}
+        >
+          <View style={styles.btnContent}>
+            <AppIcon name="paw" size={18} color={colors.textWhite} />
+            <Text style={[styles.startButtonText, { fontSize: courseRecommend.startButtonFontSize, color: colors.textWhite }]}>
+              이 코스로 산책 시작하기
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -160,64 +353,86 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: TOKENS.colors.background },
+  container: { flex: 1 },
   header: {
-    height: 52,
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: TOKENS.colors.border,
-    backgroundColor: TOKENS.colors.surface,
   },
-  backButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: TOKENS.colors.textMain, letterSpacing: -0.3 },
-  headerPlaceholder: { width: 36 },
-  scrollContent: { padding: 20, paddingBottom: 110 },
-  titleSection: { marginBottom: 12, marginTop: 6 },
-  sparkleBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: TOKENS.colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
+  headerRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerVoiceBar: { marginTop: 0, alignSelf: 'auto' },
+  briefingSection: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
   },
-  mainTitle: { fontSize: 22, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5, marginBottom: 6, lineHeight: 28 },
-  subTitle: { fontSize: 13, color: TOKENS.colors.textMuted, lineHeight: 18 },
-  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
-  tagChip: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14 },
-  tagText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.primaryDark },
-  mapWrapper: { marginBottom: 16, borderRadius: TOKENS.borderRadius.card, overflow: 'hidden' },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: TOKENS.colors.surface,
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  briefingTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
+  briefingDesc: { fontSize: 11, lineHeight: 15, marginBottom: 6 },
+  tagScrollRow: { flexDirection: 'row' },
+  tagChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 6 },
+  tagText: { fontSize: 10, fontWeight: '700' },
+  mainScroll: { flex: 1 },
+  mainScrollContent: { flexGrow: 1 },
+  mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+  elevationAttribution: { fontSize: 9, lineHeight: 12, marginTop: 6, paddingHorizontal: 4 },
+  bottomCard: {
     borderTopWidth: 1,
-    borderTopColor: TOKENS.colors.border,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 6,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 6,
   },
-  startButton: {
-    backgroundColor: TOKENS.colors.primary,
-    height: 52,
-    borderRadius: 16,
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  courseChipRow: { flexDirection: 'row', gap: 6, flex: 1, marginRight: 8 },
+  courseChip: { flex: 1, paddingVertical: 5, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
+  courseChipText: { fontSize: 11, fontWeight: '600' },
+  courseChipTextActive: { fontWeight: '800' },
+  courseMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  courseName: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  scoreBadgeText: { fontSize: 10, fontWeight: '800' },
+  reasonBox: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  reasonText: { fontSize: 10, lineHeight: 14 },
+  courseMetaText: { fontSize: 12, fontWeight: '700' },
+  metricsBar: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
   },
-  startButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+  metricText: { fontSize: 10 },
+  metricDot: { fontSize: 10 },
+  startButton: {
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  startButtonText: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
 });
+

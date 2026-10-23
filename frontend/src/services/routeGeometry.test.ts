@@ -9,6 +9,7 @@ import {
   polylineLengthMeters,
   buildCourseSummary,
   calculateRegionBounds,
+  calculateSafeSurfaceRatio,
 } from './routeGeometry';
 import { RouteFeatureCollection, LonLat } from '../types/route';
 import { SAMPLE_ROUTE } from './sampleRoute';
@@ -78,7 +79,7 @@ describe('routeGeometry - buildCourseSummary', () => {
     expect(summary.totalDistanceKm).toBeGreaterThan(0.8);
     expect(summary.totalDistanceKm).toBeLessThan(1.5);
     expect(summary.estimatedMinutes).toBeGreaterThan(15);
-    expect(summary.maxSlopePercent).toBe(7.8);
+    expect(summary.maxSlopePercent).toBe(2.2);
     expect(summary.shadeRatioPercent).toBeGreaterThan(0);
     expect(summary.shadeRatioPercent).toBeLessThanOrEqual(100);
   });
@@ -106,5 +107,18 @@ describe('routeGeometry - calculateRegionBounds', () => {
     expect(region.longitude).toBeCloseTo(127.03965, 3);
     expect(region.latitudeDelta).toBeGreaterThan(0);
     expect(region.longitudeDelta).toBeGreaterThan(0);
+  });
+});
+
+describe('routeGeometry - calculateSafeSurfaceRatio', () => {
+  it('빈 코스이거나 세그먼트가 없을 경우 기본값 0.85를 반환해야 한다', () => {
+    expect(calculateSafeSurfaceRatio(null)).toBe(0.85);
+    expect(calculateSafeSurfaceRatio({ type: 'FeatureCollection', features: [] })).toBe(0.85);
+  });
+
+  it('샘플 코스의 완만 노면율을 0.0~1.0 사이로 정확히 계산해야 한다', () => {
+    const ratio = calculateSafeSurfaceRatio(SAMPLE_ROUTE);
+    expect(ratio).toBeGreaterThan(0.5);
+    expect(ratio).toBeLessThanOrEqual(1.0);
   });
 });

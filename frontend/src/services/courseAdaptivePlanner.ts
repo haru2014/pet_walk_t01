@@ -12,8 +12,11 @@ import {
   RecommendedCourse,
   WALK_ENVIRONMENTS,
   WalkPreferences,
+  formatDurationLabel,
 } from '../types/walkSettings';
 import { FeedbackSummaryPayload } from './feedbackContext';
+
+import { getPilotParkById } from '../types/pilotParks';
 
 interface CourseBuilderContext {
   readonly dog: DogProfile;
@@ -22,6 +25,7 @@ interface CourseBuilderContext {
   readonly envs: readonly EnvironmentId[];
   readonly envSummary: string;
   readonly feedback?: FeedbackSummaryPayload | null;
+  readonly pilotParkId?: string;
 }
 
 /** 환경 ID 목록을 친근한 한국어 요약 문구로 결합한다. */
@@ -41,7 +45,7 @@ function calculateDistanceKm(speedKmH: number, minutes: number): string {
 
 /** 코스 1: 최우선 선호 조건을 정밀 반영한 최적 안심 코스 (목표 시간 100%) */
 function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { dog, targetMinutes, speed, envs, envSummary, feedback } = ctx;
+  const { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId } = ctx;
   const hasSoft = envs.includes('soft');
   const hasShade = envs.includes('shade');
   const hasStairs = envs.includes('stairs');
@@ -54,24 +58,48 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? ` · 최근 경사도 피드백(${slopeOffset}%) 반영 완화 코스`
     : '';
 
+  const park = getPilotParkById(pilotParkId);
+
+  let courseId = 'course_1';
+  let courseName = hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스';
+  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
+
+  if (pilotParkId === 'yurim') {
+    courseId = 'yurim_course_1';
+    courseName = '유림공원 갑천변 흙길 루프';
+    reason = `${park.defaultParkingName} 출발, 갑천 둔치 폭신한 흙길과 그늘을 우선 반영한 안심 순환로예요.${feedbackReason}`;
+  } else if (pilotParkId === 'sejong') {
+    courseId = 'sejong_course_1';
+    courseName = '세종호수공원 은빛해변 완만길';
+    reason = `${park.defaultParkingName} 출발, 수상무대섬과 광폭 보행데크 중심의 계단 0개 평지 코스예요.${feedbackReason}`;
+  } else if (pilotParkId === 'songgang') {
+    courseId = 'songgang_course_1';
+    courseName = '송강근린공원 솔밭 숲길 루프';
+    reason = `${park.defaultParkingName} 출발, 울창한 솔잎 그늘과 잔디마당을 잇는 평온한 흙길이에요.${feedbackReason}`;
+  } else if (pilotParkId === 'doan') {
+    courseId = 'doan_course_1';
+    courseName = '도안호수공원 갑천 생태데크길';
+    reason = `${park.defaultParkingName} 출발, 갑천 생태습지 수변 데크를 잇는 경사 1.1% 평탄길이에요.${feedbackReason}`;
+  }
+
   return {
-    id: 'course_1',
-    name: hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스',
+    id: courseId,
+    name: courseName,
     distanceKm: calculateDistanceKm(speed, targetMinutes),
     estimatedMinutes: targetMinutes,
     softRatio: hasSoft ? '78%' : '55%',
     shadeLevel: hasShade ? '많음' : '보통',
-    stairsCount: hasStairs ? '0회' : '1회',
+    stairsCount: (hasStairs || dog.jointCareLevel >= 1) ? '확인된 계단 0회' : '1회',
     maxSlopePercent,
     shadePercent: hasShade ? 68 : 45,
     softSurfacePercent: hasSoft ? 84 : 60,
-    reason: `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`,
+    reason,
   };
 }
 
 /** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 90%) */
 function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { targetMinutes, speed, envs, feedback } = ctx;
+  const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
   const minutes = Math.max(10, Math.round(targetMinutes * 0.9));
   const features: string[] = [];
   if (envs.includes('rest')) features.push('쉬어갈 벤치');
@@ -83,24 +111,28 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.2, +(2.8 + slopeOffset * 0.2).toFixed(1))
     : 2.8;
 
+  const park = getPilotParkById(pilotParkId);
+  const parkCourseName = pilotParkId ? `${park.shortName} 둘레 한바퀴` : '공원 한바퀴 코스';
+  const courseId = pilotParkId ? `${pilotParkId}_course_2` : 'course_2';
+
   return {
-    id: 'course_2',
-    name: '공원 한바퀴 코스',
+    id: courseId,
+    name: parkCourseName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,
     softRatio: '68%',
     shadeLevel: '많음',
-    stairsCount: '0회',
+    stairsCount: '확인된 계단 0회',
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
-    reason: `${detail}를 중심으로 호수 둘레를 여유롭게 산책할 수 있어요.`,
+    reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
   };
 }
 
 /** 코스 3: 조용한 주택가 및 골목 안심 코스 (목표 시간 약 110%) */
 function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
-  const { targetMinutes, speed, envs, feedback } = ctx;
+  const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
   const minutes = Math.round(targetMinutes * 1.1);
   const hasQuiet = envs.includes('quiet');
   const features: string[] = [];
@@ -112,14 +144,21 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.5, +(3.2 + slopeOffset * 0.2).toFixed(1))
     : 3.2;
 
+  const park = getPilotParkById(pilotParkId);
+  let residentialName = hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스';
+  if (pilotParkId) {
+    residentialName = `${park.shortName} 외곽 안심길`;
+  }
+  const courseId = pilotParkId ? `${pilotParkId}_course_3` : 'course_3';
+
   return {
-    id: 'course_3',
-    name: hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스',
+    id: courseId,
+    name: residentialName,
     distanceKm: calculateDistanceKm(speed, minutes),
     estimatedMinutes: minutes,
     softRatio: envs.includes('soft') ? '58%' : '48%',
     shadeLevel: '보통',
-    stairsCount: envs.includes('stairs') ? '0회' : '2회',
+    stairsCount: envs.includes('stairs') ? '확인된 계단 0회' : '2회',
     maxSlopePercent,
     shadePercent: 42,
     softSurfacePercent: 62,
@@ -128,7 +167,103 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
 }
 
 /**
+ * [US-B3, Issue #155, PR #154]
+ * 실측 지표·관절 단계·그늘/노면 선호 기반 100점 만점 맞춤 점수 계산기
+ * - 계단 25점: 계단 회피 설정 시 계단 0개면 25점, 계단 있으면 0점
+ * - 경사 25점: 관절 단계별 상한(0: 8%, 1: 6%, 2: 5%, 3·4: 4%). 상한 이하 25, 1.5배 이하 12, 초과 0
+ * - 지면온도/그늘 20점: 실측 그늘 비율 기반 (그늘 많을수록 지면열 완화)
+ * - 선호 적합도 15점: 그늘 우선 시 그늘 가중 70%, 흙길 우선 시 폭신 가중 70%
+ * - 거리/시간 적합도 15점: 목표 시간과의 일치율
+ */
+export function calculateAdaptiveCourseScore(
+  course: RecommendedCourse,
+  dog: DogProfile,
+  preferences?: WalkPreferences,
+  feedback?: FeedbackSummaryPayload | null
+): number {
+  const envs = preferences?.environments ?? [];
+  const avoidStairs = envs.includes('stairs');
+  const preferShade = envs.includes('shade');
+  const preferSoft = envs.includes('soft');
+  const targetMinutes = preferences?.durationMinutes ?? 30;
+
+  // 1. 계단 (25점)
+  const stairsMatch = course.stairsCount ? /\d+/.exec(course.stairsCount) : null;
+  let stairsNum = 0;
+  if (stairsMatch) {
+    stairsNum = Number.parseInt(stairsMatch[0], 10);
+  } else if (course.stairsCount === '계단 있음') {
+    stairsNum = 1;
+  }
+
+  let stairsScore: number;
+  if (stairsNum === 0) {
+    stairsScore = 25.0;
+  } else if (avoidStairs) {
+    stairsScore = 0.0;
+  } else {
+    stairsScore = 15.0;
+  }
+
+  // 2. 경사 (25점)
+  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
+  let slopeLimit = jointLimits[dog.jointCareLevel] ?? 5.0;
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
+    slopeLimit = Math.min(slopeLimit, feedbackLimit);
+  }
+  const courseSlope = course.maxSlopePercent ?? 3.0;
+  let slopeScore: number;
+  if (courseSlope <= slopeLimit) {
+    slopeScore = 25.0;
+  } else if (courseSlope <= slopeLimit * 1.5) {
+    slopeScore = 12.0;
+  } else {
+    slopeScore = 0.0;
+  }
+
+  // 3. 지면온도 / 그늘 (20점)
+  // 자료가 없을 때 중립값을 사용해 NaN 점수나 그늘 선호 편향을 만들지 않는다.
+  const shadeRatio = course.shadePercent == null
+    ? 0.5
+    : Math.max(0, Math.min(1.0, course.shadePercent / 100));
+  const thermalScore = Math.round(10.0 + shadeRatio * 10.0);
+
+  // 4. 선호 적합도 (15점)
+  const softRatio = (course.softSurfacePercent ?? 60) / 100;
+  let shadeWeight = 0.5;
+  let softWeight = 0.5;
+  if (preferShade && !preferSoft) {
+    shadeWeight = 0.7;
+    softWeight = 0.3;
+  } else if (preferSoft && !preferShade) {
+    shadeWeight = 0.3;
+    softWeight = 0.7;
+  }
+  const prefFit = shadeRatio * shadeWeight + softRatio * softWeight;
+  const preferenceScore = prefFit * 15.0;
+
+  // 5. 거리/시간 (15점)
+  const error = Math.abs(course.estimatedMinutes - targetMinutes) / Math.max(targetMinutes, 1);
+  const timeScore = Math.max(0, 15.0 * (1.0 - Math.min(1.0, error * 4)));
+
+  const total = Math.min(100, Math.max(0, Math.round(stairsScore + slopeScore + thermalScore + preferenceScore + timeScore)));
+  return total;
+}
+
+/**
+ * 코스 객체 또는 사유 문자열에서 AI 맞춤 점수를 안전하게 추출한다.
+ */
+export function extractCourseScore(course?: RecommendedCourse | null): number | null {
+  if (!course) return null;
+  if (typeof course.score === 'number' && !Number.isNaN(course.score)) return course.score;
+  const match = course.reason ? /맞춤 점수\s*(\d+)점/.exec(course.reason) : null;
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+/**
  * 사용자가 선택한 시간과 환경 조건 및 피드백에 적응하여 추천 코스 3종을 생성한다.
+ * [Issue #155] 실측 지표·관절 단계·선호 조건을 반영한 맞춤 점수 기반 정렬 적용.
  */
 export function generateAdaptiveCourses(
   dog: DogProfile,
@@ -139,14 +274,26 @@ export function generateAdaptiveCourses(
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const speed = dog.speedKmH > 0 ? dog.speedKmH : 2.8;
   const envSummary = buildEnvironmentSummaryText(envs);
+  const pilotParkId = preferences?.pilotParkId;
 
-  const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback };
+  const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId };
 
-  return [
+  const rawCourses = [
     buildForestCourse(ctx),
     buildParkCourse(ctx),
     buildResidentialCourse(ctx),
   ];
+
+  const scoredCourses = rawCourses.map((c) => {
+    const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
+    return {
+      ...c,
+      score,
+      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+    };
+  });
+
+  return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }
 
 /** 사용자 조건에 맞춤형 브리핑 문구를 반환한다. */
@@ -155,13 +302,22 @@ export function generateAdaptiveBriefing(
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
 ): string {
+  const isFree = preferences?.isFreeWalk;
   const targetMinutes = preferences?.durationMinutes ?? 30;
+  const timeDesc = isFree ? '자유 산책' : `${formatDurationLabel(targetMinutes)}`;
   const envs = preferences?.environments ?? [];
   const envSummary = buildEnvironmentSummaryText(envs);
-  const feedbackNote = feedback && feedback.recommended_max_slope_offset < 0
-    ? ` (최근 피드백: 경사도 ${Math.abs(feedback.recommended_max_slope_offset)}% 완화)`
-    : '';
-  return `${dog.name}를 위한 ${targetMinutes}분 맞춤 코스예요. (${envSummary} 반영${feedbackNote})`;
+  const isCurrent = preferences?.originMode === 'current_location';
+  const park = getPilotParkById(preferences?.pilotParkId);
+  let parkNote = '[현재 위치 기반] ';
+  if (!isCurrent && preferences?.pilotParkId) {
+    parkNote = `[${park.shortName}] `;
+  }
+  let feedbackNote = '';
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    feedbackNote = ` (최근 피드백: 경사도 ${Math.abs(feedback.recommended_max_slope_offset)}% 완화)`;
+  }
+  return `${parkNote}${dog.name}를 위한 ${timeDesc} 맞춤 코스예요. (${envSummary} 반영${feedbackNote})`;
 }
 
 /** 사용자 선택 조건을 상단 태그 칩 문구 배열로 동적 변환한다. */
@@ -169,14 +325,20 @@ export function buildAdaptiveConditionLabels(
   dog: DogProfile,
   preferences?: WalkPreferences,
 ): string[] {
+  const isFree = preferences?.isFreeWalk;
   const minutes = preferences?.durationMinutes ?? 30;
-  const durationLabel = minutes === 60 ? '1시간' : `${minutes}분`;
+  const durationLabel = formatDurationLabel(minutes, isFree);
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
 
   const labelMap = new Map(WALK_ENVIRONMENTS.map((e) => [e.id, e.label]));
   const envLabels = envs.map((id) => labelMap.get(id)).filter(Boolean) as string[];
 
+  const isCurrent = preferences?.originMode === 'current_location';
+  let parkLabel = ['📍 현위치 기반'];
+  if (!isCurrent && preferences?.pilotParkId) {
+    parkLabel = [getPilotParkById(preferences.pilotParkId).badgeLabel];
+  }
   const customTextLabel = preferences?.requestText?.trim() ? ['직접 요청 반영'] : [];
 
-  return [dog.name, durationLabel, ...envLabels, ...customTextLabel];
+  return [dog.name, ...parkLabel, durationLabel, ...envLabels, ...customTextLabel];
 }

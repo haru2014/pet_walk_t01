@@ -21,13 +21,14 @@ pydantic-settings>=2.2.0,<3.0.0
 langgraph>=0.2.0                         # 상태 머신(StateGraph) 기반 ReAct 에이전트
 langchain>=0.2.0                         # LLM 오케스트레이션 도구 추상화
 langchain-core>=0.2.0                    # 에이전트 메시지 및 툴 인터페이스
-google-genai>=2.0.0                      # 최신 Google GenAI Python SDK (Gemini 3.x)
+google-genai>=2.25.0                     # Gemini 3.8 TTS Interactions API 포함
 google-generativeai>=0.8.0               # Gemini Multimodal Vision API 체인
 
 # --- [4. GIS, Spatial Processing & Routing Engine] ---
 # OSM 보행망 계단 회피(highway=steps), DEM 15도 미만 완만경사, SunCalc 실시간 그늘길 분석
 shapely>=2.0.0                           # 지리 기하학 연산 (라인스트링, 폴리곤 공간 분석)
 pyproj>=3.6.0                            # 좌표계 변환 (WGS84 EPSG:4326 및 투영 좌표계)
+rasterio>=1.4                            # DEM 고도 래스터(GeoTIFF, ERDAS .img) 읽기 (CI 파이썬 3.11 은 1.4.x 설치)
 suncalc>=0.1.2                           # 태양 고도/방위각 기반 실시간 그늘길 계산
 networkx>=3.2                            # 보행 네트워크 그래프 분석 및 순환 루프 탐색
 openrouteservice>=2.3.0                  # OpenRouteService Routing API 어댑터

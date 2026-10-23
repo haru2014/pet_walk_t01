@@ -1,13 +1,13 @@
 /**
  * [편안하개 - PetWalk]
- * Web 환경 전용 OpenStreetMap(OSM) 대화형 실감 지도 뷰어 (US-C1, Phase 3)
+ * Web 브라우저 전용 OpenStreetMap(OSM) 대화형 실감 지도 뷰어 (US-C1, Phase 3)
  *
  * 브라우저 환경에서 실제 도로명, 공원 산책로, 건물, 지하철역 등을
  * 100% 완전한 실제 인터랙티브 지도로 확대/축소/탐색할 수 있게 지원합니다.
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { LonLat } from '../../types/route';
 
@@ -49,14 +49,6 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
     return { embedUrl: embed, osmLinkUrl: link };
   }, [coords]);
 
-  if (Platform.OS !== 'web') {
-    return (
-      <View style={[styles.canvas, { width, height }]}>
-        <Text style={styles.nativeNotice}>모바일 환경에서는 고해상도 안심 타일 뷰가 표시됩니다.</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.canvas, { width, height }]}>
       {/* OpenStreetMap 실시간 대화형 임베드 (iframe) */}
@@ -73,7 +65,7 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
       />
 
       {/* 실시간 실제 맵 뱃지 */}
-      <View style={styles.topBadge}>
+      <View style={styles.topBadge} pointerEvents="none">
         <Text style={styles.badgeText}>🗺️ OSM 실시간 실제 지도 (드래그/확대 가능)</Text>
       </View>
 
@@ -82,6 +74,8 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
         style={styles.openExternalBtn}
         activeOpacity={0.8}
         onPress={() => void Linking.openURL(osmLinkUrl)}
+        accessibilityRole="button"
+        accessibilityLabel="지도 크게보기"
       >
         <Text style={styles.openExternalText}>크게보기 ↗</Text>
       </TouchableOpacity>
@@ -98,12 +92,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F1EC',
     position: 'relative',
     alignSelf: 'center',
-  },
-  nativeNotice: {
-    color: TOKENS.colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 160,
   },
   topBadge: {
     position: 'absolute',

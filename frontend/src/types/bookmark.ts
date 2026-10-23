@@ -4,6 +4,7 @@
  */
 
 import { RouteFeatureCollection, RouteStepPin } from './route';
+import { WalkDogSummary } from './dogProfile';
 
 /** 코스 프리뷰/산책에 사용되는 경로 + 스텝 핀 묶음 */
 export interface CoursePlan {
@@ -15,10 +16,11 @@ export interface BookmarkedRoute {
   id: string;
   title: string;
   dogName: string;
+  dogSummary?: WalkDogSummary;
   totalDistanceKm: number;
   estimatedMinutes: number;
   maxSlopePercent: number;
-  shadePercent: number;
+  shadePercent: number | null;
   tags: string[];
   routeGeoJson: RouteFeatureCollection;
   stepPins: readonly RouteStepPin[];

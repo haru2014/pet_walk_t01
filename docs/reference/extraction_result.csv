@@ -1,0 +1,5 @@
+﻿공원,추출결과,API,OSM URL
+세종호수공원,추출 성공,https://overpass-api.de/api/interpreter,https://www.openstreetmap.org/relation/9734480
+갑천생태호수공원(도안호수공원),"API 호출 실패: API 모두 실패: https://overpass.kumi.systems/api/interpreter: 500 Server Error: Internal Server Error for url: https://overpass.kumi.systems/api/interpreter | https://overpass-api.de/api/interpreter: 502 Server Error: Bad Gateway for url: https://overpass-api.de/api/interpreter | https://overpass.nchc.org.tw/api/interpreter: HTTPSConnectionPool(host='overpass.nchc.org.tw', port=443): Max retries exceeded with url: /api/inte",,
+송강공원(송강동 근린공원),추출 성공,https://overpass-api.de/api/interpreter,https://www.openstreetmap.org/way/564388430
+대전 유림공원,추출 성공,https://overpass-api.de/api/interpreter,https://www.openstreetmap.org/way/49323607

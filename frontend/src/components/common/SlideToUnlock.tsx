@@ -5,7 +5,7 @@
  * 주머니 속 접촉으로 인한 오작동을 막기 위해 트랙 끝까지 밀어야만 해제된다.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Animated, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from './AppIcon';
@@ -23,26 +23,19 @@ export const SlideToUnlock: React.FC<SlideToUnlockProps> = ({
   onUnlock,
 }) => {
   const [trackWidth, setTrackWidth] = useState(0);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(0));
   const maxTravel = Math.max(trackWidth - HANDLE_SIZE - 8, 0);
-  const maxTravelRef = useRef(maxTravel);
-  maxTravelRef.current = maxTravel;
-  const onUnlockRef = useRef(onUnlock);
-  onUnlockRef.current = onUnlock;
-
-  const panResponder = useRef(
-    PanResponder.create({
+  const panResponder = useMemo(() => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gesture) => {
-        translateX.setValue(Math.max(0, Math.min(gesture.dx, maxTravelRef.current)));
+        translateX.setValue(Math.max(0, Math.min(gesture.dx, maxTravel)));
       },
       onPanResponderRelease: (_, gesture) => {
-        const unlocked = maxTravelRef.current > 0 && gesture.dx >= maxTravelRef.current * UNLOCK_RATIO;
+        const unlocked = maxTravel > 0 && gesture.dx >= maxTravel * UNLOCK_RATIO;
         Animated.spring(translateX, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start();
-        if (unlocked) onUnlockRef.current();
+        if (unlocked) onUnlock();
       },
-    }),
-  ).current;
+    }), [maxTravel, onUnlock, translateX]);
 
   return (
     <View style={styles.track} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
