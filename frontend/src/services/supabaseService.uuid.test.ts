@@ -20,7 +20,18 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 const USER_UUID = '11111111-2222-4333-8444-555555555555';
 const upsert = vi.fn();
 const insert = vi.fn();
-const from = vi.fn((table: string) => (table === 'dog_profiles' ? { upsert } : { insert }));
+const maybeSingle = vi.fn();
+const queryBuilder = {
+  select: vi.fn(() => queryBuilder),
+  eq: vi.fn(() => queryBuilder),
+  maybeSingle,
+};
+const from = vi.fn((table: string) => ({
+  ...(table === 'dog_profiles' ? { upsert } : { insert }),
+  select: queryBuilder.select,
+  eq: queryBuilder.eq,
+  maybeSingle,
+}));
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -50,6 +61,9 @@ describe('이슈 #55: DB 로 보내는 id 약속', () => {
     memoryStore.clear();
     upsert.mockReset().mockResolvedValue({ error: null });
     insert.mockReset().mockResolvedValue({ error: null });
+    maybeSingle.mockReset().mockResolvedValue({ data: null, error: null });
+    queryBuilder.select.mockClear();
+    queryBuilder.eq.mockClear();
     from.mockClear();
   });
   afterEach(() => {
@@ -136,5 +150,26 @@ describe('이슈 #55: DB 로 보내는 id 약속', () => {
     const dogId = '99999999-aaaa-4bbb-8ccc-dddddddddddd';
     await svc.createWalkRecord({ distance_m: 1, duration_min: 1, dog_id: dogId });
     expect(insert.mock.calls[0][0].dog_id).toBe(dogId);
+  });
+
+  it('공유용 동기화는 UUID 형태여도 클라우드에 없는 로컬 dog_id를 삽입하지 않는다', async () => {
+    const svc = await loadService();
+    await svc.signIn('a@example.com', 'pw');
+    const localDogId = '99999999-aaaa-4bbb-8ccc-dddddddddddd';
+    const record = {
+      id: 'walk_local_1',
+      dogId: localDogId,
+      startedAt: '2026-10-23T01:00:00.000Z',
+      completedAt: '2026-10-23T01:01:00.000Z',
+      durationMinutes: 1,
+      totalDistanceKm: 0,
+      averageSpeedKmH: 0,
+      safeSurfaceRatio: 1,
+      gpsTrack: [],
+    };
+
+    await svc.ensureWalkRecordSynced(record);
+
+    expect(insert.mock.calls[0][0]).not.toHaveProperty('dog_id');
   });
 });

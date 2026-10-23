@@ -330,6 +330,7 @@ class SupabaseServiceManager {
       .from('walk_records')
       .select('id')
       .eq('id', remoteId)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     const existing = await findRemoteRecord();
@@ -344,10 +345,25 @@ class SupabaseServiceManager {
       return existingId;
     }
 
+    // A local dog ID can be UUID-shaped without existing in this account's cloud
+    // dog_profiles table. Only attach the optional FK when the owned cloud row exists.
+    let cloudDogId: string | undefined;
+    if (isUuid(record.dogId)) {
+      const dogProfile = await this.client
+        .from('dog_profiles')
+        .select('id')
+        .eq('id', record.dogId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!dogProfile.error && dogProfile.data?.id) {
+        cloudDogId = String(dogProfile.data.id);
+      }
+    }
+
     const payload = {
       id: remoteId,
       user_id: user.id,
-      dog_id: isUuid(record.dogId) ? record.dogId : undefined,
+      ...(cloudDogId ? { dog_id: cloudDogId } : {}),
       started_at: record.startedAt,
       ended_at: record.completedAt,
       distance_m: Math.round(record.totalDistanceKm * 1000),
@@ -361,8 +377,16 @@ class SupabaseServiceManager {
       // A concurrent sync may have inserted this UUID after the initial lookup.
       const retry = await findRemoteRecord();
       if (retry.error || !retry.data?.id) {
-        console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', inserted.error.message);
-        throw new Error('산책 기록을 클라우드에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+        console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', {
+          code: inserted.error.code,
+          message: inserted.error.message,
+          details: inserted.error.details,
+          hint: inserted.error.hint,
+        });
+        if (inserted.error.code === '23503') {
+          throw new Error('산책 기록과 연결된 반려견 정보를 확인하지 못했어요. 다시 시도해 주세요.');
+        }
+        throw new Error(`산책 기록을 클라우드에 저장하지 못했어요 (${inserted.error.code ?? 'DB_ERROR'}). 잠시 후 다시 시도해 주세요.`);
       }
       const retryId = String(retry.data.id);
       if (!isUuid(retryId)) {
