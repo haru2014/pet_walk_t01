@@ -232,7 +232,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
-      expect(result.voiceAlert).toContain('재탐색');
+      expect(result.voiceAlert).toContain('현재 위치에서');
+      expect(result.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       expect(result.newRoute.features[0].geometry.coordinates[0]).toEqual([127.3825, 36.3745]);
       expect(result.stepPins.length).toBeGreaterThanOrEqual(2);
     });
@@ -256,7 +257,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
-      expect(result.voiceAlert).toContain('재탐색');
+      expect(result.voiceAlert).toContain('현재 위치에서');
+      expect(result.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       const coords = result.newRoute.features[0].geometry.coordinates;
       expect(coords[0]).toEqual([127.3825, 36.3745]);
       expect(coords[coords.length - 1]).toEqual([127.382, 36.378]);
@@ -277,7 +279,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(local.status).toBe('REROUTED');
       expect(local.needsReroute).toBe(true);
-      expect(local.voiceAlert).toContain('재탐색');
+      expect(local.voiceAlert).toContain('현재 위치에서');
+      expect(local.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       expect(local.newRoute.features[0].geometry.coordinates[0]).toEqual([127.383, 36.375]);
       expect(local.stepPins).toHaveLength(2);
     });

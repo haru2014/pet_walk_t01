@@ -29,6 +29,62 @@ export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
 
 const HAZARD_CLEARANCE_METERS = 60.0;
 const DETOUR_OFFSET_METERS = 80.0;
+const COMPASS_DIRECTIONS = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'] as const;
+
+function getRouteCoordinates(route: RouteFeatureCollection): [number, number][] {
+  return route.features[0]?.geometry?.coordinates.map(([lon, lat]) => [lon, lat]) ?? [];
+}
+
+function getDeviationGuidance(coords: readonly (readonly [number, number])[]): {
+  voiceAlert: string;
+  stepPins: RouteStepPin[];
+} {
+  const start = coords[0];
+  const targetIndex = start
+    ? coords.findIndex((coord, index) => index > 0 && haversineMeters(
+      [start[1], start[0]], [coord[1], coord[0]],
+    ) >= 5)
+    : -1;
+  const target = targetIndex > 0 ? coords[targetIndex] : coords.at(-1);
+  const targetDistance = start && target
+    ? haversineMeters([start[1], start[0]], [target[1], target[0]])
+    : 0;
+
+  let direction = '목적지';
+  if (start && target && targetDistance > 0) {
+    const lat1 = (start[1] * Math.PI) / 180;
+    const lat2 = (target[1] * Math.PI) / 180;
+    const deltaLon = ((target[0] - start[0]) * Math.PI) / 180;
+    const y = Math.sin(deltaLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+    const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    direction = COMPASS_DIRECTIONS[Math.round(bearing / 45) % COMPASS_DIRECTIONS.length];
+  }
+
+  const distance = Math.max(10, Math.round(targetDistance / 10) * 10);
+  const voiceAlert = `경로를 재탐색했습니다. 현재 위치에서 ${direction} 방향으로 약 ${distance}미터 이동해 기존 산책 경로에 다시 합류하세요.`;
+  const stepPins: RouteStepPin[] = [];
+
+  if (target) {
+    stepPins.push({
+      id: `deviation_reroute_join_${Date.now()}`,
+      kind: 'turn',
+      position: target,
+      instruction: '기존 산책 경로에 다시 합류하세요.',
+    });
+  }
+  const destination = coords.at(-1);
+  if (destination && destination !== target) {
+    stepPins.push({
+      id: `deviation_reroute_dest_${Date.now()}`,
+      kind: 'safe',
+      position: destination,
+      instruction: '기존 산책 경로를 따라 목적지까지 계속 이동하세요.',
+    });
+  }
+
+  return { voiceAlert, stepPins };
+}
 
 /**
  * 현장 위험 요소 서버 제보 (POST /api/v1/hazards)
@@ -279,25 +335,12 @@ export function generateLocalDeviationReroute(payload: DeviationReroutePayload):
     ],
   };
 
-  const stepPins: RouteStepPin[] = [
-    {
-      id: `local_dev_start_${Date.now()}`,
-      kind: 'turn',
-      position: start,
-      instruction: '새로운 경로를 따라 안전하게 이동해 주세요.',
-    },
-    {
-      id: `local_dev_dest_${Date.now()}`,
-      kind: 'safe',
-      position: detourCoords.at(-1) ?? end,
-      instruction: '목적지 방향으로 안전하게 안내합니다.',
-    },
-  ];
+  const { voiceAlert, stepPins } = getDeviationGuidance(detourCoords);
 
   return {
     status: 'REROUTED',
     needsReroute: true,
-    voiceAlert: '경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.',
+    voiceAlert,
     newRoute: localGeojson,
     stepPins,
     newDistanceM: Math.round(polylineLengthMeters(detourCoords)),
@@ -333,29 +376,13 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
       const data = await res.json();
       if (data.status === 'REROUTED' && data.geojson?.features?.length > 0) {
         const geojson: RouteFeatureCollection = data.geojson;
-        const coords: [number, number][] = (geojson.features[0]?.geometry?.coordinates ?? []).map(
-          (c: readonly [number, number]) => [c[0], c[1]]
-        );
-
-        const stepPins: RouteStepPin[] = [
-          {
-            id: `deviation_reroute_start_${Date.now()}`,
-            kind: 'turn',
-            position: [payload.currentLon, payload.currentLat],
-            instruction: '새로운 경로를 따라 이동해 주세요.',
-          },
-          {
-            id: `deviation_reroute_dest_${Date.now()}`,
-            kind: 'safe',
-            position: coords.at(-1) ?? [payload.destinationLon, payload.destinationLat],
-            instruction: '목적지 방향으로 안전하게 안내합니다.',
-          },
-        ];
+        const coords = getRouteCoordinates(geojson);
+        const { voiceAlert, stepPins } = getDeviationGuidance(coords);
 
         return {
           status: 'REROUTED',
           needsReroute: true,
-          voiceAlert: data.voice_alert ?? '경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.',
+          voiceAlert,
           newRoute: geojson,
           stepPins,
           newDistanceM: data.new_distance_m ?? Math.round(polylineLengthMeters(coords)),

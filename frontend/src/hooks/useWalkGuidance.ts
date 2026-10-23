@@ -125,7 +125,12 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       if (newPins && newPins.length > 0) {
         setActivePins(newPins);
       }
-      guidanceRef.current = resetGuidanceForNewRoute(guidanceRef.current);
+      const resetState = resetGuidanceForNewRoute(guidanceRef.current);
+      guidanceRef.current = {
+        ...resetState,
+        // 재탐색 음성에서 첫 합류 지점을 이미 안내했으므로 바로 반복 발화하지 않는다.
+        announcedPinIds: voiceAlert && newPins?.[0] ? [newPins[0].id] : resetState.announcedPinIds,
+      };
       TTSNavigationService.speak(voiceAlert ?? REROUTE_MESSAGE);
     },
     [],
