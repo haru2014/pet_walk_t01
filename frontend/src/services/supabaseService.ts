@@ -336,7 +336,13 @@ class SupabaseServiceManager {
     if (existing.error) {
       throw new Error('산책 기록을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
     }
-    if (existing.data?.id) return String(existing.data.id);
+    if (existing.data?.id) {
+      const existingId = String(existing.data.id);
+      if (!isUuid(existingId)) {
+        throw new Error('클라우드 산책 기록 번호가 올바르지 않아 공개할 수 없어요.');
+      }
+      return existingId;
+    }
 
     const payload = {
       id: remoteId,
@@ -358,7 +364,14 @@ class SupabaseServiceManager {
         console.warn('[SupabaseService] 산책 기록 공유용 동기화 실패:', inserted.error.message);
         throw new Error('산책 기록을 클라우드에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
       }
-      return String(retry.data.id);
+      const retryId = String(retry.data.id);
+      if (!isUuid(retryId)) {
+        throw new Error('클라우드 산책 기록 번호가 올바르지 않아 공개할 수 없어요.');
+      }
+      return retryId;
+    }
+    if (!isUuid(remoteId)) {
+      throw new Error('산책 기록 번호를 생성하지 못했어요. 다시 시도해 주세요.');
     }
     return remoteId;
   }
@@ -369,11 +382,13 @@ class SupabaseServiceManager {
    * 실패하면 성공으로 속이지 않고 이유를 돌려준다.
    */
   async setWalkRecordPublic(recordId: string, isPublic: boolean): Promise<WalkShareResult> {
+    if (!isUuid(recordId)) return walkShareFailure('INVALID_WALK_ID');
+    const walkId = recordId.toLowerCase();
     const token = this.currentSession?.accessToken;
     if (!token) return walkShareFailure('AUTH_REQUIRED');
     try {
       const response = await fetchWithServerFallback(
-        `/api/v1/walks/${recordId}/${isPublic ? 'share' : 'unshare'}`,
+        `/api/v1/walks/${walkId}/${isPublic ? 'share' : 'unshare'}`,
         { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
         WALK_SHARE_TIMEOUT_MS
       );
