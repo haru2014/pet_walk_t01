@@ -8,6 +8,9 @@
 
 import { ThemeId } from '../types/theme';
 
+export const ROUTE_CAUTION_COLOR = '#E87524';
+export const CORAL_ROUTE_CAUTION_COLOR = '#B45309';
+
 export interface ThemeColors {
   background: string;
   surface: string;
@@ -72,7 +75,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
     routeSafe: '#5A7361',  // 세이지 그린 안심길
     routeNormal: '#B59C5E',// 올리브 오커 일반길
-    routeCaution: '#CFA052',// 더스티 앰버 주의길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5EFE0',
     mapPark: '#E2ECE3',
@@ -113,7 +116,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
     routeSafe: '#10B981',
     routeNormal: '#3B82F6',
-    routeCaution: '#F97316',
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F2F5F0',
     mapPark: '#DAECD9',
@@ -154,7 +157,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
     routeSafe: '#8B5CF6',  // 바이올렛 안심길
     routeNormal: '#06B6D4',// 민트/시안 일반길
-    routeCaution: '#F59E0B',// 옐로우 주의길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5F3FF',
     mapPark: '#EDE9FE',
@@ -195,7 +198,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
     routeSafe: '#10B981',
     routeNormal: '#38BDF8',
-    routeCaution: '#FB923C',
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#0F172A',
     mapPark: '#1E293B',
@@ -268,7 +271,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     textMain: '#431407',
     textMuted: '#7C2D12',
     routeSafe: '#F97316',
-    routeCaution: '#EF4444',
+    routeCaution: CORAL_ROUTE_CAUTION_COLOR,
     mapGround: '#FFF7ED',
     mapPark: '#FFEDD5',
     mapRoadEdge: '#FED7AA',

@@ -6,6 +6,7 @@ import {
   getMapRouteColors,
 } from './mapStyles';
 import { ThemeId } from '../types/theme';
+import { THEME_PALETTES } from '../theme/tokens';
 
 describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
   it('OpenFreeMap 공식 3대 스타일 엔드포인트가 정의되어 있어야 한다', () => {
@@ -40,7 +41,7 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     const forestColors = getMapRouteColors('forest');
     expect(forestColors.safe).toBe('#10B981');
     expect(forestColors.normal).toBe('#3B82F6');
-    expect(forestColors.caution).toBe('#F59E0B');
+    expect(forestColors.caution).toBe('#E87524');
     expect(forestColors.maskCircle).toContain('rgba(');
 
     const vividColors = getMapRouteColors('vivid_violet');
@@ -53,5 +54,24 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     expect(getMapRouteColors('mint').safe).toBe('#10B981');
     expect(getMapRouteColors('ocean').normal).toBe('#2563EB');
     expect(getMapRouteColors('coral').normal).toBe('#F97316');
+  });
+
+  it('keeps caution route colors aligned with each theme palette and distinct from coral routes', () => {
+    const themes: ThemeId[] = [
+      'dusty_amber',
+      'forest',
+      'vivid_violet',
+      'dark',
+      'mint',
+      'ocean',
+      'coral',
+    ];
+
+    themes.forEach((theme) => {
+      expect(getMapRouteColors(theme).caution).toBe(THEME_PALETTES[theme].routeCaution);
+    });
+    expect(THEME_PALETTES.dusty_amber.routeCaution).toBe('#E87524');
+    expect(THEME_PALETTES.forest.routeCaution).toBe('#E87524');
+    expect(THEME_PALETTES.coral.routeCaution).toBe('#B45309');
   });
 });
