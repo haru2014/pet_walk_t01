@@ -9,6 +9,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthSession, AuthUser, DogProfileRemote, WalkRecordRemote } from '../types/auth';
 import { WalkRecord } from '../types/storage';
 import { LocalStorageService } from './storage';
@@ -48,7 +49,14 @@ class SupabaseServiceManager {
   constructor() {
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
-        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            storage: AsyncStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+          },
+        });
       } catch (e) {
         console.warn('[SupabaseService] 클라이언트 초기화 실패 (로컬 모드 유지):', e);
       }
@@ -79,9 +87,33 @@ class SupabaseServiceManager {
       this.hasCloudAuthSession = false;
     }
 
-    if (this.currentSession) return this.currentSession;
-    const saved = await LocalStorageService.getItem<AuthSession>(SESSION_KEY);
+    if (this.currentSession && !this.client) return this.currentSession;
+    const saved = await LocalStorageService.getItem<AuthSession>(SESSION_KEY) ?? this.currentSession;
     if (saved) {
+      if (this.client && saved.refreshToken) {
+        try {
+          const { data, error } = await this.client.auth.setSession({
+            access_token: saved.accessToken,
+            refresh_token: saved.refreshToken,
+          });
+          if (!error && data.session?.user) {
+            const restored: AuthSession = {
+              user: {
+                id: data.session.user.id,
+                email: data.session.user.email ?? saved.user.email,
+              },
+              accessToken: data.session.access_token,
+              refreshToken: data.session.refresh_token,
+            };
+            this.currentSession = restored;
+            this.hasCloudAuthSession = isUuid(restored.user.id);
+            await LocalStorageService.setItem(SESSION_KEY, restored);
+            return restored;
+          }
+        } catch (error) {
+          console.warn('[SupabaseService] 저장된 로그인 세션 갱신 실패:', error);
+        }
+      }
       this.currentSession = saved;
     }
     return this.currentSession;
@@ -149,7 +181,11 @@ class SupabaseServiceManager {
         if (error) return { user: null, error: error.message };
         if (data.user && data.session) {
           const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? email };
-          const session: AuthSession = { user: authUser, accessToken: data.session.access_token };
+          const session: AuthSession = {
+            user: authUser,
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+          };
           this.currentSession = session;
           this.hasCloudAuthSession = true;
           await LocalStorageService.setItem(SESSION_KEY, session);
@@ -166,6 +202,20 @@ class SupabaseServiceManager {
     this.hasCloudAuthSession = false;
     await LocalStorageService.setItem(SESSION_KEY, mockSession);
     return { user: mockUser };
+  }
+
+  async getDogProfiles(): Promise<DogProfileRemote[]> {
+    const user = this.getCurrentUser();
+    if (!this.client || !user || !isUuid(user.id)) return [];
+
+    const { data, error } = await this.client
+      .from('dog_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true });
+    if (error) throw new Error('계정의 반려견 프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+    return (data ?? []) as DogProfileRemote[];
   }
 
   async signOut(): Promise<void> {

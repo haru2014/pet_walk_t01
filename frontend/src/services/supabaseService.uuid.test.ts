@@ -21,6 +21,8 @@ const USER_UUID = '11111111-2222-4333-8444-555555555555';
 const upsert = vi.fn();
 const insert = vi.fn();
 const maybeSingle = vi.fn();
+const setSession = vi.fn();
+const getSession = vi.fn();
 const queryBuilder = {
   select: vi.fn(() => queryBuilder),
   eq: vi.fn(() => queryBuilder),
@@ -37,6 +39,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     from,
     auth: {
+      getSession,
+      setSession,
       signInWithPassword: vi.fn(async () => ({
         data: { user: { id: USER_UUID, email: 'a@example.com' }, session: { access_token: 'tok' } },
         error: null,
@@ -62,6 +66,17 @@ describe('이슈 #55: DB 로 보내는 id 약속', () => {
     upsert.mockReset().mockResolvedValue({ error: null });
     insert.mockReset().mockResolvedValue({ error: null });
     maybeSingle.mockReset().mockResolvedValue({ data: null, error: null });
+    getSession.mockReset().mockResolvedValue({ data: { session: null }, error: null });
+    setSession.mockReset().mockResolvedValue({
+      data: {
+        session: {
+          user: { id: USER_UUID, email: 'a@example.com' },
+          access_token: 'restored-token',
+          refresh_token: 'rotated-refresh-token',
+        },
+      },
+      error: null,
+    });
     queryBuilder.select.mockClear();
     queryBuilder.eq.mockClear();
     from.mockClear();
@@ -97,6 +112,23 @@ describe('이슈 #55: DB 로 보내는 id 약속', () => {
     const profile = await svc.saveDogProfile({ name: '코코' });
     expect(profile.user_id).toBe('guest_user');
     expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('저장된 refresh token으로 세션을 복원하면 공유 권한을 유지한다', async () => {
+    memoryStore.set('@편안하개:auth_session', JSON.stringify({
+      user: { id: USER_UUID, email: 'a@example.com' },
+      accessToken: 'expired-access-token',
+      refreshToken: 'saved-refresh-token',
+    }));
+    const svc = await loadService();
+
+    await svc.initSession();
+
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: 'expired-access-token',
+      refresh_token: 'saved-refresh-token',
+    });
+    expect(svc.getWalkShareAccess()).toEqual({ ok: true });
   });
 
   it('옛 형식 id(dog_123)는 DB 로 보내지 않는다 (400 방지)', async () => {

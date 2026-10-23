@@ -10,6 +10,9 @@ import { GradientButton } from '../common/GradientButton';
 import { AppIcon } from '../common/AppIcon';
 import { SupabaseService } from '../../services/supabaseService';
 import { DogProfile } from '../../types/dogProfile';
+import { STORAGE_KEYS } from '../../types/storage';
+import { LocalStorageService } from '../../services/storage';
+import { DogProfileRemote } from '../../types/auth';
 import { LegalTermsModal, LegalTabType } from '../common/LegalTermsModal';
 import { DogAvatar } from '../common/DogAvatar';
 import { PhotoPickerModal } from '../profile/PhotoPickerModal';
@@ -62,6 +65,46 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
 
     const uid = res.user?.id ?? 'user_' + Date.now();
     setUserId(uid);
+
+    if (!isSignUp) {
+      let cloudDogs: DogProfileRemote[];
+      try {
+        cloudDogs = await SupabaseService.getDogProfiles();
+      } catch (error) {
+        Alert.alert(
+          '프로필을 확인하지 못했어요',
+          error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+        );
+        return;
+      }
+
+      const localDogs = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
+      const localDog = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+      if (!localDogs?.length && !localDog && cloudDogs.length > 0) {
+        const existing = cloudDogs[0];
+        const now = new Date().toISOString();
+        const careLevel = Math.max(0, Math.min(3, existing.joint_care_level ?? 1)) as DogProfile['jointCareLevel'];
+        onFinish({
+          id: existing.id,
+          name: existing.name,
+          breed: existing.breed ?? '견종 미상',
+          ageYears: existing.age_years ?? 3,
+          weightKg: existing.weight_kg ?? 5.5,
+          jointCareLevel: careLevel,
+          speedKmH: existing.speed_kmh ?? 2.8,
+          photoUri: existing.photo_path,
+          createdAt: existing.created_at ?? now,
+          updatedAt: existing.updated_at ?? now,
+        });
+        handleClose();
+        return;
+      }
+      if (localDogs?.length || localDog || cloudDogs.length > 0) {
+        handleClose();
+        return;
+      }
+    }
+
     setStep('dog');
   };
 
