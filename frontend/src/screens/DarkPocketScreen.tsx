@@ -167,16 +167,6 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </View>
       )}
 
-      {!isFreeWalk && (
-        <View style={[styles.guidanceCard, isCompactLayout && styles.guidanceCardCompact]} accessibilityRole="text">
-          <View style={styles.guidanceIcon}><AppIcon name="location" size={22} color="#A7F3D0" /></View>
-          <View style={styles.guidanceTextWrap}>
-            <Text style={styles.guidanceLabel}>산책 안내</Text>
-            <Text style={styles.guidanceText}>{guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}</Text>
-          </View>
-        </View>
-      )}
-
       {/* US-C2, #37: 비상 상황 원터치 대형 퀵 음소거 제어 바 */}
       <VoiceQuickControlBar compact={isCompactLayout} variant="emergency" style={isCompactLayout ? styles.voiceBarCompact : undefined} />
 
@@ -224,10 +214,22 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </View>
       )}
 
-      {/* 중앙 HUD 수치 */}
+      {!isFreeWalk && (
+        <View style={[styles.guidanceCard, isCompactLayout && styles.guidanceCardCompact]} accessibilityRole="text">
+          <View style={styles.guidanceIcon}><AppIcon name="location" size={22} color="#A7F3D0" /></View>
+          <View style={styles.guidanceTextWrap}>
+            <Text style={[styles.guidanceLabel, isCompactLayout && styles.guidanceLabelCompact]}>산책 안내</Text>
+            <Text style={[styles.guidanceText, isCompactLayout && styles.guidanceTextCompact]}>{guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* 가로형 산책 통계 HUD */}
       <View style={[styles.hud, isCompactLayout && styles.hudCompact]}>
         <HudItem label="경과 시간" value={formatElapsed(stats.elapsedSec)} unit="" compact={isCompactLayout} />
+        <View style={styles.hudDivider} />
         <HudItem label="이동 거리" value={stats.distanceKm.toFixed(2)} unit="km" compact={isCompactLayout} />
+        <View style={styles.hudDivider} />
         <HudItem label="현재 속도" value={stats.speedKmH.toFixed(1)} unit="km/h" compact={isCompactLayout} />
       </View>
 
@@ -387,24 +389,27 @@ const styles = StyleSheet.create({
   safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
   safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
   safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  guidanceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 12 },
-  guidanceCardCompact: { padding: 8, gap: 8 },
+  guidanceCard: { flex: 1, minHeight: 120, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 16, marginVertical: 8 },
+  guidanceCardCompact: { minHeight: 86, padding: 10, gap: 6, marginVertical: 2 },
   guidanceIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#1D4432', alignItems: 'center', justifyContent: 'center' },
-  guidanceTextWrap: { flex: 1 },
+  guidanceTextWrap: { width: '100%', alignItems: 'center' },
   guidanceLabel: { color: '#6EE7B7', fontSize: 11, fontWeight: '700', marginBottom: 3 },
-  guidanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', lineHeight: 19 },
+  guidanceLabelCompact: { marginBottom: 1 },
+  guidanceText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', lineHeight: 22, textAlign: 'center' },
+  guidanceTextCompact: { fontSize: 13, lineHeight: 17 },
   voiceBarCompact: { marginVertical: 4 },
   smartMuteRowCompact: { marginVertical: 0 },
-  hud: { flex: 1, justifyContent: 'space-evenly', gap: 16, paddingVertical: 8 },
-  hudCompact: { minHeight: 0, gap: 0, paddingVertical: 0 },
-  hudItem: { alignItems: 'center' },
+  hud: { minHeight: 96, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.24)', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 4, marginVertical: 4 },
+  hudCompact: { minHeight: 76, paddingVertical: 6, marginVertical: 2 },
+  hudItem: { flex: 1, alignItems: 'center', justifyContent: 'center', minWidth: 0 },
   hudItemCompact: { flex: 1, justifyContent: 'center' },
-  hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2 },
+  hudDivider: { width: 1, height: '72%', backgroundColor: 'rgba(255,255,255,0.18)' },
+  hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2, textAlign: 'center' },
   hudLabelCompact: { fontSize: 10, marginBottom: 0 },
-  hudValue: { color: TOKENS.colors.pocketHud, fontSize: 50, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  hudValueCompact: { fontSize: 34, lineHeight: 40 },
-  hudUnit: { fontSize: 18, fontWeight: '600' },
-  hudUnitCompact: { fontSize: 14 },
+  hudValue: { color: TOKENS.colors.pocketHud, fontSize: 32, lineHeight: 38, fontWeight: '800', fontVariant: ['tabular-nums'], textAlign: 'center' },
+  hudValueCompact: { fontSize: 23, lineHeight: 29 },
+  hudUnit: { fontSize: 15, fontWeight: '600' },
+  hudUnitCompact: { fontSize: 11 },
 
   poopMarkingZone: { alignItems: 'center', marginBottom: 12 },
   poopMarkingZoneCompact: { marginBottom: 2 },
