@@ -2,7 +2,7 @@
  * [편안하개 - PetWalk]
  * 모바일 마이 프로필 탭 화면 (US-A2, US-E3, US-G2, US-THEME)
  *
- * 3대 테마 선택(숲길/비비드 바이올렛/다크), 컴팩트 세그먼트 탭(스크롤 배제), 산책 기록 및 프로필 관리
+ * 컬러 테마 선택, 컴팩트 세그먼트 탭(스크롤 배제), 산책 기록 및 프로필 관리
  */
 
 import React, { useState, useEffect } from 'react';
@@ -556,7 +556,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         </ScrollView>
       )}
 
-      {/* 서브탭 2: 3대 테마 선택 & 계정 상태 (단일 뷰포트 / 스크롤 완전 배제) */}
+      {/* 서브탭 2: 컬러 테마 선택 & 계정 상태 */}
       {subTab === 'theme_account' && (
         <View style={styles.tabScrollContainer}>
           <CardWrapper variant="flat" style={styles.accountCard}>
@@ -581,7 +581,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             </View>
           </CardWrapper>
 
-          {/* 🎨 3대 컬러 테마 선택기 */}
+          {/* 🎨 컬러 테마 선택기 */}
           <ThemeSelectorCard />
         </View>
       )}

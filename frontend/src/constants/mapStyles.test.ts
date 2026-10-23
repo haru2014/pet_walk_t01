@@ -14,18 +14,20 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     expect(OPENFREEMAP_STYLES.dark).toBe('https://tiles.openfreemap.org/styles/dark');
   });
 
-  it('편안하개 3대 테마가 각각 적절한 OpenFreeMap 스타일에 매핑되어야 한다', () => {
-    // 1. 숲길 그린 -> 녹지/자연 디테일이 강조된 liberty
+  it('앱 테마가 적절한 OpenFreeMap 스타일에 매핑되어야 한다', () => {
+    // Forest-like themes use liberty for its natural details.
     expect(getMapStyleKeyForTheme('forest')).toBe('liberty');
     expect(getMapStyleForTheme('forest')).toBe(OPENFREEMAP_STYLES.liberty);
 
-    // 2. 비비드 바이올렛 -> 밝고 고대비 도심 보행로 bright
+    // High-contrast palettes use bright urban walking styles.
     expect(getMapStyleKeyForTheme('vivid_violet')).toBe('bright');
     expect(getMapStyleForTheme('vivid_violet')).toBe(OPENFREEMAP_STYLES.bright);
 
-    // 3. 다크 포켓 -> 야간 OLED 저전력 다크 스타일 dark
     expect(getMapStyleKeyForTheme('dark')).toBe('dark');
     expect(getMapStyleForTheme('dark')).toBe(OPENFREEMAP_STYLES.dark);
+    expect(getMapStyleKeyForTheme('mint')).toBe('liberty');
+    expect(getMapStyleKeyForTheme('ocean')).toBe('bright');
+    expect(getMapStyleKeyForTheme('coral')).toBe('bright');
   });
 
   it('정의되지 않은 비정상 테마가 전달될 경우 기본값인 liberty로 안전하게 폴백되어야 한다', () => {
@@ -47,5 +49,9 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     const darkColors = getMapRouteColors('dark');
     expect(darkColors.safe).toBe('#34D399');   // 야간 고시인성 네온 민트
     expect(darkColors.casing).toBe('#0F172A'); // 다크 테두리
+
+    expect(getMapRouteColors('mint').safe).toBe('#10B981');
+    expect(getMapRouteColors('ocean').normal).toBe('#2563EB');
+    expect(getMapRouteColors('coral').normal).toBe('#F97316');
   });
 });

@@ -77,7 +77,7 @@ export default function App() {
 
   useEffect(() => {
     async function loadData() {
-      void themeManager.init();
+      await themeManager.init();
       await SupabaseService.initSession();
       const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
       if (savedProfiles !== null && Array.isArray(savedProfiles)) {
@@ -325,6 +325,7 @@ export default function App() {
 
   const handleResetAllData = async () => {
     await ConsentService.resetAllLocalData();
+    await themeManager.init();
     setDogs([...DEFAULT_DOGS]); setSelectedDogId(DEFAULT_DOGS[0].id);
     setFeedbackSummary(null); setCompletedRecord(null); setWalkBookmark(null);
   };

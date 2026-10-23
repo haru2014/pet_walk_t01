@@ -2,20 +2,35 @@
  * [편안하개 - PetWalk]
  * 마이페이지 컬러 테마 선택 카드 컴포넌트
  *
- * 1. 숲길 그린 (기본)
- * 2. 비비드 바이올렛
- * 3. 다크 포켓 (야간 다크 모드)
+ * Upstream and PR #202 palette choices
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { THEME_LIST } from '../../types/theme';
 import { useAppTheme } from '../../theme/themeManager';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
 
 export const ThemeSelectorCard: React.FC = () => {
-  const { theme, colors, setTheme } = useAppTheme();
+  const { theme, colors, isReady, setTheme } = useAppTheme();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const selectTheme = async (nextTheme: typeof theme) => {
+    if (isSaving || !isReady || nextTheme === theme) return;
+    setIsSaving(true);
+    try {
+      const saved = await setTheme(nextTheme);
+      if (!saved) {
+        Alert.alert('테마 저장 실패', '테마를 저장하지 못했어요. 기존 테마를 유지합니다.');
+      }
+    } catch (error) {
+      console.error('[ThemeSelectorCard] 테마 저장 중 오류:', error);
+      Alert.alert('테마 저장 실패', '테마를 저장하지 못했어요. 기존 테마를 유지합니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <CardWrapper variant="flat" style={styles.card}>
@@ -32,7 +47,7 @@ export const ThemeSelectorCard: React.FC = () => {
       </View>
 
       <Text style={[styles.subDesc, { color: colors.textMuted }]}>
-        취향과 상황에 맞는 3가지 비주얼 스타일을 선택하세요.
+        취향과 상황에 맞는 7가지 비주얼 스타일을 선택하세요.
       </Text>
 
       <View style={styles.themeGrid}>
@@ -43,14 +58,18 @@ export const ThemeSelectorCard: React.FC = () => {
             <TouchableOpacity
               key={item.id}
               activeOpacity={0.85}
-              onPress={() => setTheme(item.id)}
+              disabled={!isReady || isSaving}
+              onPress={() => { void selectTheme(item.id); }}
               style={[
                 styles.themeItem,
                 {
                   backgroundColor: isSelected ? colors.primaryLight : colors.surface,
                   borderColor: isSelected ? colors.primary : colors.border,
                 },
+                (!isReady || isSaving) && styles.themeItemDisabled,
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected, disabled: !isReady || isSaving }}
             >
               {/* 테마 컬러 프리뷰 스와치 */}
               <View style={[styles.swatchBox, { backgroundColor: item.previewBackground }]}>
@@ -94,6 +113,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     gap: 8,
   },
+  themeItemDisabled: { opacity: 0.6 },
   swatchBox: {
     width: 32,
     height: 32,
