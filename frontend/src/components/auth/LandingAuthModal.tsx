@@ -181,7 +181,7 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
             <View>
               <View style={styles.header}>
                 <Text style={styles.title}>🐕 우리 강아지 등록하기 (pet-photos)</Text>
-                <Text style={styles.subtitle}>Supabase 클라우드에 안전하게 보관됩니다.</Text>
+                <Text style={styles.subtitle}>클라우드에 안전하게 보관됩니다.</Text>
               </View>
 
               <Text style={styles.label}>반려견 이름</Text>
