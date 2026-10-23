@@ -123,7 +123,7 @@ export async function handleGuidancePoint(
     requestReroute?: typeof requestDeviationReroute;
   },
   isRerouting = false,
-): Promise<{ nextState: GuidanceState; triggeredReroute: boolean }> {
+): Promise<{ nextState: GuidanceState; triggeredReroute: boolean; guidanceMessage: string | null }> {
   const result = evaluateGuidance([point.longitude, point.latitude], currentRoute, activePins, guidanceState);
   const nextState = result.nextState;
   const speak = callbacks.speak ?? speakGuidanceEvent;
@@ -158,7 +158,7 @@ export async function handleGuidancePoint(
     }
   }
 
-  return { nextState, triggeredReroute };
+  return { nextState, triggeredReroute, guidanceMessage: result.events.at(-1)?.message ?? null };
 }
 
 export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: readonly RouteStepPin[]) {
@@ -168,6 +168,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const [stats, setStats] = useState<WalkStats>(EMPTY_STATS);
   const [mode, setMode] = useState<WalkSessionMode>('route');
   const [currentPoint, setCurrentPoint] = useState<GpsPoint | null>(null);
+  const [guidanceMessage, setGuidanceMessage] = useState('경로 안내를 준비하고 있어요.');
   const [freeWalkSafety, setFreeWalkSafety] = useState<FreeWalkSafetyInfo>(UNKNOWN_SAFETY_INFO);
   const modeRef = useRef<WalkSessionMode>('route');
   const guidanceRef = useRef<GuidanceState>(INITIAL_GUIDANCE_STATE);
@@ -187,8 +188,13 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
 
   /** 우회/재탐색 경로 수신 시 지도 경로를 교체하고 음성으로 안내한다 (US-D2). */
   const applyReroute = useCallback(
-    (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => {
+    (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string, activateRouteGuidance = false) => {
       setRoute(newRoute);
+      if (activateRouteGuidance) {
+        modeRef.current = 'route';
+        setMode('route');
+      }
+      if (voiceAlert) setGuidanceMessage(voiceAlert);
       if (newPins && newPins.length > 0) {
         setActivePins(newPins);
       }
@@ -321,6 +327,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       )
         .then((res) => {
           guidanceRef.current = res.nextState;
+          if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
           if (res.triggeredReroute) {
             isReroutingRef.current = true;
           }
@@ -373,6 +380,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       lastSafetyQueryRef.current = null;
       safetyQueryInFlightRef.current = false;
       setCurrentPoint(null);
+      setGuidanceMessage('경로 안내를 준비하고 있어요.');
       setFreeWalkSafety(UNKNOWN_SAFETY_INFO);
       guidanceRef.current = INITIAL_GUIDANCE_STATE;
       startedAtRef.current = Date.now();
@@ -424,10 +432,12 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
 
   return {
     route,
+    activePins,
     mode,
     status,
     stats,
     currentPoint,
+    guidanceMessage,
     freeWalkSafety,
     poopEvents,
     poopCount: poopEvents.length,

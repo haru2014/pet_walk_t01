@@ -444,6 +444,20 @@ export default function App() {
     }
   };
 
+  const walkTrack = walk.getTrackBuffer();
+  const recordedCoords = walkTrack.map((point) => [point.longitude, point.latitude] as const);
+  const trackingFeature = recordedCoords.length > 1
+    ? [{
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 0, shaded: false },
+        geometry: { type: 'LineString', coordinates: recordedCoords },
+      } as const]
+    : [];
+  const pocketMapRoute: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [...walk.route.features, ...trackingFeature],
+  };
+
   if (!startupReady || !splashAnimationComplete) {
     return (
       <SafeAreaProvider>
@@ -481,23 +495,27 @@ export default function App() {
             targetMinutes={preferences.durationMinutes}
             isFreeWalk={walk.mode === 'free'}
             freeWalkSafety={walk.freeWalkSafety}
-            onUnlock={handlePocketUnlock}
+            guidanceMessage={walk.guidanceMessage}
+            onFinishWalk={() => void handleStopWalkAndReport()}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
             currentCoords={walk.currentPoint ? {
               lat: walk.currentPoint.latitude,
               lon: walk.currentPoint.longitude,
             } : null}
-            startCoords={walk.route.features[0]?.geometry?.coordinates[0] ? {
+            startCoords={walkTrack[0] ? {
+              lat: walkTrack[0].latitude,
+              lon: walkTrack[0].longitude,
+            } : walk.route.features[0]?.geometry?.coordinates[0] ? {
               lat: walk.route.features[0].geometry.coordinates[0][1],
               lon: walk.route.features[0].geometry.coordinates[0][0],
             } : null}
             routeCoords={walk.route.features[0]?.geometry?.coordinates as any}
+            walkedCoords={recordedCoords}
+            mapRoute={pocketMapRoute}
+            mapPins={walk.activePins}
             onReroute={(res) => {
-              walk.applyReroute(res.newRoute);
-              if (res.voiceAlert) {
-                TTSNavigationService.speak(res.voiceAlert);
-              }
+              walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);
             }}
           />
         )}
