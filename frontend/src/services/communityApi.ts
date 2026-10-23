@@ -147,14 +147,14 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
       const data = await res.json();
       const rawFeeds: CommunityFeedItem[] = data.feeds || DEFAULT_FEEDS;
       const enrichedFeeds = rawFeeds.map((feed) => {
-        const meta = (!feed.landmark_code || !feed.region_name)
-          ? detectLandmarkCategory(feed.masked_polyline, feed.title)
-          : null;
+        // 분류된 메타데이터가 이미 있어도 오래된 앱/서버에서 저장된
+        // 기본 지역값일 수 있으므로 경로 좌표로 매번 다시 판별한다.
+        const meta = detectLandmarkCategory(feed.masked_polyline, feed.title);
         return {
           ...feed,
-          landmark_code: feed.landmark_code || meta?.landmarkCode,
-          landmark_name: feed.landmark_name || meta?.landmarkName,
-          region_name: feed.region_name || meta?.regionName,
+          landmark_code: meta.landmarkCode,
+          landmark_name: meta.landmarkName,
+          region_name: meta.regionName,
           created_at: feed.created_at || new Date().toISOString(),
           tags: feed.tags && feed.tags.length > 0 ? feed.tags : ['안심산책', '이웃추천'],
         };
