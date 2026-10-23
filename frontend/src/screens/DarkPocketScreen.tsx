@@ -45,7 +45,7 @@ export interface DarkPocketScreenProps {
 }
 
 const HudItem: React.FC<{ value: string; unit: string; label: string; compact?: boolean }> = ({ value, unit, label, compact }) => (
-  <View style={styles.hudItem}>
+  <View style={[styles.hudItem, compact && styles.hudItemCompact]}>
     <Text style={[styles.hudLabel, compact && styles.hudLabelCompact]}>{label}</Text>
     <Text style={[styles.hudValue, compact && styles.hudValueCompact]}>
       {value}
@@ -75,7 +75,9 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   onReroute,
 }) => {
   const { height } = useWindowDimensions();
-  const isCompactLayout = height < 820;
+  // This screen intentionally does not scroll; use the dense layout before
+  // route guidance and fixed action rows exceed shorter screens.
+  const isCompactLayout = height < 900;
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showHazardModal, setShowHazardModal] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
@@ -176,7 +178,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       )}
 
       {/* US-C2, #37: 비상 상황 원터치 대형 퀵 음소거 제어 바 */}
-      <VoiceQuickControlBar variant="emergency" style={isCompactLayout ? styles.voiceBarCompact : undefined} />
+      <VoiceQuickControlBar compact={isCompactLayout} variant="emergency" style={isCompactLayout ? styles.voiceBarCompact : undefined} />
 
       {/* 스마트 돌발 짖음 감지 상태 배너 & 토글 컨트롤 */}
       {barkState.isAutoMuted ? (
@@ -394,8 +396,9 @@ const styles = StyleSheet.create({
   voiceBarCompact: { marginVertical: 4 },
   smartMuteRowCompact: { marginVertical: 0 },
   hud: { flex: 1, justifyContent: 'space-evenly', gap: 16, paddingVertical: 8 },
-  hudCompact: { minHeight: 190, gap: 2, paddingVertical: 2 },
+  hudCompact: { minHeight: 0, gap: 0, paddingVertical: 0 },
   hudItem: { alignItems: 'center' },
+  hudItemCompact: { flex: 1, justifyContent: 'center' },
   hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2 },
   hudLabelCompact: { fontSize: 10, marginBottom: 0 },
   hudValue: { color: TOKENS.colors.pocketHud, fontSize: 50, fontWeight: '800', fontVariant: ['tabular-nums'] },
