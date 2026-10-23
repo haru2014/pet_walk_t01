@@ -238,7 +238,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
 
       {/* 6. 관절 안심 케어 한줄 브리핑 */}
       <View style={[styles.jointNoticeBox, { backgroundColor: colors.primaryLight }]}>
-        <Text style={[styles.jointNoticeText, { color: colors.primaryDark }]} numberOfLines={1}>
+        <Text style={[styles.jointNoticeText, { color: colors.primaryDark }]}>
           💡 {stats.jointCareMessage}
         </Text>
       </View>
@@ -432,6 +432,8 @@ const styles = StyleSheet.create({
   jointNoticeText: {
     fontSize: 10.5,
     fontWeight: '700',
+    width: '100%',
+    textAlign: 'center',
   },
   recentWalkRow: {
     flexDirection: 'row',

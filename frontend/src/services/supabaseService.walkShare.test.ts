@@ -30,6 +30,15 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
     expect(auth).toContain(SupabaseService.getSession()!.accessToken);
   });
 
+  it('UUID가 아닌 로컬 기록 ID는 서버에 보내지 않는다', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    const result = await SupabaseService.setWalkRecordPublic('walk_1729000000', true);
+
+    expect(result).toMatchObject({ ok: false, code: 'INVALID_WALK_ID' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('해제: /unshare 를 호출한다', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(200, { walk_id: WALK_ID, is_public: false }));
     expect(await SupabaseService.setWalkRecordPublic(WALK_ID, false)).toEqual({ ok: true });
