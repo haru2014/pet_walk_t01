@@ -118,3 +118,24 @@ if (error) { /* 사용자에게 알림 + 로컬 유지 */ }
 ## 7. 검증하는 법 (DB 담당)
 
 서버 `.env` 의 service key 로 표를 직접 읽어 앱이 실제로 저장했는지 확인합니다 (`dog_profiles`, `walk_records` 줄 수와 `user_id` 일치 여부).
+
+## 8. 운영 DB 적용 기록
+
+### 2026-10-23 `supabase_walk_public_migration.sql` 적용 (이슈 #139, #116)
+
+운영 DB 에 이 파일이 적용되어 있지 않아 산책 기록 공유가 저장 단계에서 실패하던 상태였고, 같은 날 SQL Editor 에서 전체를 한 번 실행했습니다. 아래는 적용 전후에 읽기 조회로 직접 확인한 결과입니다.
+
+| 확인 항목 | 적용 전 | 적용 후 |
+|---|---|---|
+| `walk_records.public_route_coords` 칼럼 | 없음 | 있음 |
+| `public_walk_reviews_v` 뷰 | 없음 | 있음 |
+| `public_walk_reviews` 정책 (원본 행 공개) | 있음 | 없음 (`own_walk_records` 만 남음) |
+| 제약 `walk_records_public_requires_masked` | 없음 | 있음 |
+| 앱 계정(`authenticated`) 쓰기 권한 | — | INSERT 12칸, UPDATE 9칸, `is_public`·`public_route_coords` 미포함 |
+| `walk_records` 전체 / 공개 줄 수 | 2 / 0 | 2 / 0 (비공개로 바뀐 기록 없음) |
+
+서버(`/health`): `status ok`, `supabase_connected true`, `walk_share_service_role_configured true`. 로그인 없이 `POST /api/v1/walks/{id}/share`, `/unshare` 를 호출하면 401 `AUTH_REQUIRED` 가 돌아옵니다.
+
+**아직 확인하지 못한 것**: 앱에서 실제로 공유를 눌러 서버가 `public_route_coords` 를 채우는 마지막 단계. 현재 저장된 2건은 모두 비공개이고 마스킹 좌표가 없습니다(공유를 눌러야 채워짐). 그중 30m 짜리 기록은 출발·도착 200m 를 가리면 남는 경로가 없어 공유가 거절될 수 있습니다.
+
+되돌리기가 필요하면 `supabase_walk_public_migration.sql` 맨 아래 ROLLBACK 블록을 참고하되, 개인정보 보호가 약해지므로 꼭 필요할 때만 실행합니다.
