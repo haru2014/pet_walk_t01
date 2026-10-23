@@ -2,9 +2,8 @@
  * [편안하개 - PetWalk]
  * 멀티 테마 상태 및 영속성 관리 매니저 (US-THEME)
  *
- * 1. 숲길 그린 (기본)
- * 2. 비비드 바이올렛 (error/app_design1.jpg 지지(zlzl) 디자인 언어)
- * 3. 다크 포켓 (모던 다크 모드)
+ * 1. Upstream palette themes: amber, forest, violet, dark
+ * 2. PR #202 palette themes: mint, ocean, coral
  */
 
 import { useState, useEffect } from 'react';
@@ -17,18 +16,20 @@ type ThemeChangeListener = (theme: ThemeId) => void;
 
 class ThemeManager {
   private currentTheme: ThemeId = 'dusty_amber';
+  private initialized = false;
   private readonly listeners = new Set<ThemeChangeListener>();
 
   async init(): Promise<ThemeId> {
-    const saved = await LocalStorageService.getItem<ThemeId>(STORAGE_KEYS.APP_THEME);
-    if (saved && (saved === 'dusty_amber' || saved === 'forest' || saved === 'vivid_violet' || saved === 'dark')) {
-      this.currentTheme = saved;
-      applyThemeTokens(saved);
-    } else {
-      this.currentTheme = 'dusty_amber';
-      applyThemeTokens('dusty_amber');
-    }
+    const saved = await LocalStorageService.getItem<unknown>(STORAGE_KEYS.APP_THEME);
+    this.currentTheme = isThemeId(saved) ? saved : 'dusty_amber';
+    applyThemeTokens(this.currentTheme);
+    this.initialized = true;
+    this.listeners.forEach((listener) => listener(this.currentTheme));
     return this.currentTheme;
+  }
+
+  isInitialized(): boolean {
+    return this.initialized;
   }
 
   getTheme(): ThemeId {
@@ -39,11 +40,15 @@ class ThemeManager {
     return THEME_PALETTES[this.currentTheme] ?? THEME_PALETTES.forest;
   }
 
-  async setTheme(next: ThemeId): Promise<void> {
+  async setTheme(next: ThemeId): Promise<boolean> {
+    const saved = await LocalStorageService.setItem(STORAGE_KEYS.APP_THEME, next);
+    if (!saved) return false;
+
     this.currentTheme = next;
     applyThemeTokens(next);
-    await LocalStorageService.setItem(STORAGE_KEYS.APP_THEME, next);
+    this.initialized = true;
     this.listeners.forEach((listener) => listener(next));
+    return true;
   }
 
   subscribe(listener: ThemeChangeListener): () => void {
@@ -61,16 +66,23 @@ export const themeManager = new ThemeManager();
  */
 export function useAppTheme() {
   const [theme, setTheme] = useState<ThemeId>(() => themeManager.getTheme());
+  const [isReady, setIsReady] = useState(() => themeManager.isInitialized());
 
   useEffect(() => {
     return themeManager.subscribe((next) => {
       setTheme(next);
+      setIsReady(themeManager.isInitialized());
     });
   }, []);
 
   return {
     theme,
     colors: themeManager.getColors(),
-    setTheme: (next: ThemeId) => void themeManager.setTheme(next),
+    isReady,
+    setTheme: (next: ThemeId) => themeManager.setTheme(next),
   };
+}
+
+function isThemeId(value: unknown): value is ThemeId {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(THEME_PALETTES, value);
 }

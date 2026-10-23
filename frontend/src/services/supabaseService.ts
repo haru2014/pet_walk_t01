@@ -453,6 +453,14 @@ class SupabaseServiceManager {
     }
     if (!isUuid(remoteId)) {
       throw new Error('산책 기록 번호를 생성하지 못했어요. 다시 시도해 주세요.');
+      const retryId = String(retry.data.id);
+      if (!isUuid(retryId)) {
+        throw new Error('클라우드 산책 기록 번호가 올바르지 않아 공개할 수 없어요.');
+      }
+      return retryId;
+    }
+    if (!isUuid(remoteId)) {
+      throw new Error('산책 기록 번호를 생성하지 못했어요. 다시 시도해 주세요.');
     }
     return remoteId;
   }
@@ -465,10 +473,13 @@ class SupabaseServiceManager {
   async setWalkRecordPublic(recordId: string, isPublic: boolean): Promise<WalkShareResult> {
     if (!isUuid(recordId)) return walkShareFailure('INVALID_WALK_ID');
     const walkId = recordId.toLowerCase();
+    if (!isUuid(recordId)) return walkShareFailure('INVALID_WALK_ID');
+    const walkId = recordId.toLowerCase();
     const token = this.currentSession?.accessToken;
     if (!token) return walkShareFailure('AUTH_REQUIRED');
     try {
       const response = await fetchWithServerFallback(
+        `/api/v1/walks/${walkId}/${isPublic ? 'share' : 'unshare'}`,
         `/api/v1/walks/${walkId}/${isPublic ? 'share' : 'unshare'}`,
         { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
         WALK_SHARE_TIMEOUT_MS

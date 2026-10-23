@@ -2,12 +2,14 @@
  * [편안하개 - PetWalk]
  * React Native 모바일 디자인 토큰 (Design Tokens)
  *
- * 1. 숲길 그린 (기본 에메랄드 & 민트)
- * 2. 비비드 바이올렛 (error/app_design1.jpg 디자인 언어: 보라, 네온 옐로우, 파스텔 라일락)
- * 3. 다크 포켓 (야간 OLED 다크 테마)
+ * Upstream: dusty amber, forest, violet, and dark palettes
+ * PR #202: mint, ocean, and coral palettes
  */
 
 import { ThemeId } from '../types/theme';
+
+export const ROUTE_CAUTION_COLOR = '#E87524';
+export const CORAL_ROUTE_CAUTION_COLOR = '#B45309';
 
 export interface ThemeColors {
   background: string;
@@ -49,7 +51,9 @@ export interface ThemeColors {
   accentLight: string;
 }
 
-export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
+type LegacyThemeId = Exclude<ThemeId, 'mint' | 'ocean' | 'coral'>;
+
+const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
   // 🐶 0. 더스티 앰버 & 세이지 그린 (02번 디자인 시안 - docs/reference/UI개선/app_design_n2-1.png)
   dusty_amber: {
     background: '#F5EFE0', // Soft Cream
@@ -71,7 +75,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
 
     routeSafe: '#5A7361',  // 세이지 그린 안심길
     routeNormal: '#B59C5E',// 올리브 오커 일반길
-    routeCaution: '#CFA052',// 더스티 앰버 주의길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5EFE0',
     mapPark: '#E2ECE3',
@@ -112,7 +116,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
 
     routeSafe: '#10B981',
     routeNormal: '#3B82F6',
-    routeCaution: '#F97316',
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F2F5F0',
     mapPark: '#DAECD9',
@@ -153,7 +157,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
 
     routeSafe: '#8B5CF6',  // 바이올렛 안심길
     routeNormal: '#06B6D4',// 민트/시안 일반길
-    routeCaution: '#F59E0B',// 옐로우 주의길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5F3FF',
     mapPark: '#EDE9FE',
@@ -194,7 +198,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
 
     routeSafe: '#10B981',
     routeNormal: '#38BDF8',
-    routeCaution: '#FB923C',
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#0F172A',
     mapPark: '#1E293B',
@@ -212,6 +216,70 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     error: '#F87171',
     accent: '#38BDF8',    // 네온 블루
     accentLight: '#0369A1',
+  },
+};
+
+export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
+  ...BASE_THEME_PALETTES,
+  mint: {
+    ...BASE_THEME_PALETTES.forest,
+    primary: '#10B981',
+    primaryDark: '#087F5B',
+    primaryLight: '#D1FAE5',
+    primaryWash: 'rgba(16, 185, 129, 0.14)',
+    primaryMint: '#A7F3D0',
+    primarySubtle: '#D1FAE5',
+  },
+  ocean: {
+    ...BASE_THEME_PALETTES.forest,
+    background: '#EFF6FF',
+    surface: '#FFFFFF',
+    border: '#DBEAFE',
+    borderSoft: '#EFF6FF',
+    borderSubtle: '#BFDBFE',
+    primary: '#2563EB',
+    primaryDark: '#1D4ED8',
+    primaryLight: '#DBEAFE',
+    primaryWash: 'rgba(37, 99, 235, 0.14)',
+    primaryMint: '#93C5FD',
+    primarySubtle: '#DBEAFE',
+    textMain: '#1E3A8A',
+    textMuted: '#475569',
+    routeSafe: '#2563EB',
+    routeNormal: '#06B6D4',
+    mapGround: '#EFF6FF',
+    mapPark: '#DBEAFE',
+    mapWater: '#E0F2FE',
+    mapRoadEdge: '#BFDBFE',
+    mapLabel: '#1D4ED8',
+    accent: '#0EA5E9',
+    accentLight: '#DBEAFE',
+  },
+  coral: {
+    ...BASE_THEME_PALETTES.forest,
+    background: '#FFF7ED',
+    surface: '#FFFCF8',
+    border: '#FED7AA',
+    borderSoft: '#FFF7ED',
+    borderSubtle: '#FDBA74',
+    primary: '#F97316',
+    primaryDark: '#C2410C',
+    primaryLight: '#FFEDD5',
+    primaryWash: 'rgba(249, 115, 22, 0.14)',
+    primaryMint: '#FDBA74',
+    primarySubtle: '#FFEDD5',
+    textMain: '#431407',
+    textMuted: '#7C2D12',
+    routeSafe: '#F97316',
+    routeCaution: CORAL_ROUTE_CAUTION_COLOR,
+    mapGround: '#FFF7ED',
+    mapPark: '#FFEDD5',
+    mapRoadEdge: '#FED7AA',
+    mapLabel: '#C2410C',
+    success: '#16A34A',
+    warning: '#F97316',
+    accent: '#FB923C',
+    accentLight: '#FFEDD5',
   },
 };
 

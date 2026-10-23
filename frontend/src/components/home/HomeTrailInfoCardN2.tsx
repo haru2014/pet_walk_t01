@@ -5,6 +5,7 @@ import { DogProfile } from '../../types/dogProfile';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
+import { WeeklyWalkAchievementCard } from './WeeklyWalkAchievementCard';
 import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
 
@@ -27,6 +28,7 @@ export interface HomeTrailInfoCardN2Props {
   dog: DogProfile;
   feedbackSummary: FeedbackSummaryPayload | null;
   weeklyStats: WeeklyWalkStats | null;
+  weeklyWalkCount: number;
   onOpenStats?: () => void;
   onOpenPlanner?: () => void;
   onOpenWeatherModal?: () => void;
@@ -38,6 +40,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   dog,
   feedbackSummary,
   weeklyStats,
+  weeklyWalkCount,
   onOpenStats,
   onOpenPlanner,
   onOpenWeatherModal,
@@ -111,6 +114,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
 
       {/* 3. 이번 주 산책 달성도 위젯 (7일 발자국 스탬프 도장 형식) */}
       <WeeklyWalkStampCard weeklyStats={weeklyStats} onPress={onOpenStats} />
+      <WeeklyWalkAchievementCard walkCount={weeklyWalkCount} colors={colors} />
     </View>
   );
 };
@@ -162,4 +166,3 @@ const styles = StyleSheet.create({
   treeImageWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center', opacity: 0.9 },
   tree01Image: { width: 52, height: 52 },
 });
-

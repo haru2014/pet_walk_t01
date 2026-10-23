@@ -50,6 +50,7 @@ import { CourseRecommendationView } from './src/components/walk/CourseRecommenda
 import { AppScreenHeader } from './src/components/common/AppScreenHeader';
 import { AppIcon } from './src/components/common/AppIcon';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
+import { SplashScreen } from './src/components/common/SplashScreen';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
@@ -57,6 +58,10 @@ export default function App() {
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
+  const [startupReady, setStartupReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [startupAttempt, setStartupAttempt] = useState(0);
+  const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
   const [dogs, setDogs] = useState<DogProfile[]>([...DEFAULT_DOGS]);
   const [selectedDogId, setSelectedDogId] = useState<string>('dog_choco');
   const activeDog = dogs.find((d) => d.id === selectedDogId) ?? dogs[0] ?? DEFAULT_DOGS[0];
@@ -76,38 +81,52 @@ export default function App() {
   const consent = useLocationConsent();
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
-      void themeManager.init();
-      await SupabaseService.initSession();
-      const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
-      if (savedProfiles !== null && Array.isArray(savedProfiles)) {
-        setDogs(savedProfiles);
-        const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        const initialDog = savedProfiles.find((dog) => dog.id === savedProfile?.id) ?? savedProfiles[0];
-        setSelectedDogId(initialDog?.id ?? '');
-        if (!initialDog) setSubScreen('dog_selection');
-      } else {
-        // Migrate the previous single-profile key while retaining the app's sample profiles.
-        const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        let migratedDogs: DogProfile[];
-        if (savedProfile) {
-          const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
-          migratedDogs = exists
-            ? DEFAULT_DOGS.map((dog) => dog.id === savedProfile.id ? savedProfile : dog)
-            : [savedProfile, ...DEFAULT_DOGS];
+      setStartupError(null);
+      try {
+        await themeManager.init();
+        await SupabaseService.initSession();
+        const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
+        if (savedProfiles !== null && Array.isArray(savedProfiles)) {
+          setDogs(savedProfiles);
+          const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+          const initialDog = savedProfiles.find((dog) => dog.id === savedProfile?.id) ?? savedProfiles[0];
+          setSelectedDogId(initialDog?.id ?? '');
+          if (!initialDog) setSubScreen('dog_selection');
         } else {
-          migratedDogs = [...DEFAULT_DOGS];
+          // Migrate the previous single-profile key while retaining the app's sample profiles.
+          const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+          let migratedDogs: DogProfile[];
+          if (savedProfile) {
+            const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
+            migratedDogs = exists
+              ? DEFAULT_DOGS.map((dog) => dog.id === savedProfile.id ? savedProfile : dog)
+              : [savedProfile, ...DEFAULT_DOGS];
+          } else {
+            migratedDogs = [...DEFAULT_DOGS];
+          }
+          setDogs(migratedDogs);
+          setSelectedDogId(savedProfile?.id ?? migratedDogs[0].id);
+          await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
+          if (!savedProfile) await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, migratedDogs[0]);
         }
-        setDogs(migratedDogs);
-        setSelectedDogId(savedProfile?.id ?? migratedDogs[0].id);
-        await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
-        if (!savedProfile) await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, migratedDogs[0]);
+        setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
+        if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
+        if (isMounted) setStartupReady(true);
+      } catch (error) {
+        console.error('[App] 시작 데이터 초기화 실패:', error);
+        if (isMounted) {
+          setStartupError('앱을 시작하는 데 필요한 정보를 불러오지 못했어요. 다시 시도해 주세요.');
+        }
       }
-      setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
-      if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
     }
     void loadData();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [startupAttempt]);
 
   const handleSaveActiveDog = async (fields: Partial<DogProfile>) => {
     const updated = { ...activeDog, ...fields, updatedAt: new Date().toISOString() };
@@ -175,6 +194,10 @@ export default function App() {
     setAuthModalMode(mode);
     setAuthModalVisible(true);
   };
+
+  const handleSplashAnimationComplete = useCallback(() => {
+    setSplashAnimationComplete(true);
+  }, []);
 
   const beginWalk = async (title: string, plan: CoursePlan | undefined, bookmark: BookmarkedRoute | null) => {
     try {
@@ -328,6 +351,7 @@ export default function App() {
 
   const handleResetAllData = async () => {
     await ConsentService.resetAllLocalData();
+    await themeManager.init();
     setDogs([...DEFAULT_DOGS]); setSelectedDogId(DEFAULT_DOGS[0].id);
     setFeedbackSummary(null); setCompletedRecord(null); setWalkBookmark(null);
   };
@@ -414,6 +438,21 @@ export default function App() {
       Alert.alert('알림', msg);
     }
   };
+
+  if (!startupReady || !splashAnimationComplete) {
+    return (
+      <SafeAreaProvider>
+        <SplashScreen
+          onAnimationComplete={handleSplashAnimationComplete}
+          initializationError={startupError}
+          onRetry={() => {
+            setStartupReady(false);
+            setStartupAttempt((attempt) => attempt + 1);
+          }}
+        />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>

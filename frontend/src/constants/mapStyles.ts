@@ -1,15 +1,16 @@
 /**
  * [편안하개 - PetWalk]
- * OpenFreeMap & MapLibre 벡터 지도 스타일 정의 및 3대 테마 실시간 동기화 모듈
+ * OpenFreeMap & MapLibre 벡터 지도 스타일 정의 및 앱 테마 실시간 동기화 모듈
  * (T-OFM-2, docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md)
  *
  * 1. OpenFreeMap 공식 3대 벡터 타일 스타일 엔드포인트 정의 (Liberty, Bright, Dark)
- * 2. 편안하개 3대 앱 테마(숲길 그린, 비비드 바이올렛, 다크 포켓)와의 1:1 매핑
+ * 2. 앱 테마별 OpenFreeMap 스타일과 경로 팔레트 매핑
  * 3. MapLibre 벡터 레이어용 경로 세그먼트(3색 안심 보행로), 마스킹 원, 마커 컬러 팔레트 제공
  */
 
 import { ThemeId } from '../types/theme';
 import { useAppTheme } from '../theme/themeManager';
+import { THEME_PALETTES } from '../theme/tokens';
 
 export type OpenFreeMapStyleKey = 'liberty' | 'bright' | 'dark';
 
@@ -33,6 +34,9 @@ export const THEME_TO_MAP_STYLE: Record<ThemeId, OpenFreeMapStyleKey> = {
   forest: 'liberty',
   vivid_violet: 'bright',
   dark: 'dark',
+  mint: 'liberty',
+  ocean: 'bright',
+  coral: 'bright',
 } as const;
 
 /**
@@ -52,7 +56,7 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   dusty_amber: {
     safe: '#5A7361',       // 세이지 그린
     normal: '#B59C5E',     // 올리브 오커
-    caution: '#CFA052',    // 더스티 앰버
+    caution: THEME_PALETTES.dusty_amber.routeCaution,
     casing: '#FDFAF4',
     maskCircle: 'rgba(90, 115, 97, 0.18)',
     maskBorder: '#3E5244',
@@ -61,7 +65,7 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   forest: {
     safe: '#10B981',       // 에메랄드 그린
     normal: '#3B82F6',     // 소프트 블루
-    caution: '#F59E0B',    // 앰버 오렌지
+    caution: THEME_PALETTES.forest.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(16, 185, 129, 0.18)',
     maskBorder: '#059669',
@@ -70,7 +74,7 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   vivid_violet: {
     safe: '#10B981',       // 산뜻한 그린
     normal: '#7C3AED',     // 비비드 바이올렛
-    caution: '#F59E0B',    // 앰버 오렌지
+    caution: THEME_PALETTES.vivid_violet.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(124, 58, 237, 0.18)',
     maskBorder: '#6D28D9',
@@ -79,11 +83,38 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   dark: {
     safe: '#34D399',       // 네온 민트 (야간 고시인성)
     normal: '#60A5FA',     // 스카이 블루
-    caution: '#FBBF24',    // 네온 옐로우
+    caution: THEME_PALETTES.dark.routeCaution,
     casing: '#0F172A',     // 다크 배경 대비선
     maskCircle: 'rgba(52, 211, 153, 0.22)',
     maskBorder: '#34D399',
     startMarker: '#34D399',
+  },
+  mint: {
+    safe: '#10B981',
+    normal: '#3B82F6',
+    caution: THEME_PALETTES.mint.routeCaution,
+    casing: '#FFFFFF',
+    maskCircle: 'rgba(16, 185, 129, 0.18)',
+    maskBorder: '#059669',
+    startMarker: '#10B981',
+  },
+  ocean: {
+    safe: '#10B981',
+    normal: '#2563EB',
+    caution: THEME_PALETTES.ocean.routeCaution,
+    casing: '#FFFFFF',
+    maskCircle: 'rgba(37, 99, 235, 0.18)',
+    maskBorder: '#1D4ED8',
+    startMarker: '#2563EB',
+  },
+  coral: {
+    safe: '#10B981',
+    normal: '#F97316',
+    caution: THEME_PALETTES.coral.routeCaution,
+    casing: '#FFFFFF',
+    maskCircle: 'rgba(249, 115, 22, 0.18)',
+    maskBorder: '#C2410C',
+    startMarker: '#F97316',
   },
 } as const;
 
