@@ -103,12 +103,12 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   const overtimeMinutes = isOvertime ? Math.floor((stats.elapsedSec - targetMinutes! * 60) / 60) : 0;
   const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => currentCoords
     ? [...mapPins, {
-        id: 'current-location-pin',
-        kind: 'safe',
-        position: [currentCoords.lon, currentCoords.lat],
-        instruction: '현재 위치',
-        icon: '📍',
-      }]
+      id: 'current-location-pin',
+      kind: 'safe',
+      position: [currentCoords.lon, currentCoords.lat],
+      instruction: '현재 위치',
+      icon: '📍',
+    }]
     : mapPins, [currentCoords, mapPins]);
 
   const handlePressMark = (type: 'poop' | 'pee') => {
@@ -162,7 +162,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           freeWalkSafety?.status === 'unavailable' ? styles.safetyInfoUnavailable : null,
         ]} accessibilityRole="alert">
           <Text style={styles.safetyInfoText}>
-            {freeWalkSafety?.message ?? '전방 위험 제보와 계단·경사 정보가 확인되지 않았어요. 정보가 없다고 안전한 것은 아닙니다.'}
+            {freeWalkSafety?.message ?? '위험 제보나 경사 정보가 아직 없어요. 발밑을 가볍게 살피며 여유롭게 이동해 볼까요?'}
           </Text>
         </View>
       )}
