@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { AppIcon } from '../common/AppIcon';
-import { HazardType, RerouteResult } from '../../types/hazard';
+import { HazardReportPayload, HazardType, RerouteResult } from '../../types/hazard';
 import {
   HAZARD_TYPE_LABELS,
   reportHazard,
@@ -41,6 +41,27 @@ const HAZARD_OPTIONS: readonly { type: HazardType; iconName: string; desc: strin
   { type: 'dog_danger', iconName: 'paw', desc: '공격적인 들개 또는 맹견 출몰' },
 ];
 
+/**
+ * 긴급 복귀 때 서버에 올릴 위험 제보. 사용자가 위험 종류를 직접 고르지 않았으면 올리지 않는다(null).
+ * 예전에는 기본값(공사 구역)으로, 현재 위치에서 0.0002도 옮긴 곳에 danger 제보를 자동으로 올려
+ * 긴급 복귀만 눌러도 가짜 공사 구역이 쌓였다 (10/22 신성동). 위치는 실제 현재 위치를 쓴다.
+ */
+export function buildEmergencyReturnReport(
+  typeChosen: boolean,
+  hazardType: HazardType,
+  currentLat: number,
+  currentLon: number,
+): HazardReportPayload | null {
+  if (!typeChosen) return null;
+  return {
+    lat: currentLat,
+    lon: currentLon,
+    hazardType,
+    severity: 'danger',
+    description: `긴급 복귀 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[hazardType]}]`,
+  };
+}
+
 export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   visible,
   onClose,
@@ -54,7 +75,15 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   onRerouteApplied,
 }) => {
   const [selectedType, setSelectedType] = useState<HazardType>('construction');
+  // 사용자가 이번에 위험 종류를 직접 눌러 골랐는지 (긴급 복귀 때 제보 여부를 정한다)
+  const [typeChosen, setTypeChosen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 닫을 때 '직접 고름' 표시를 지워, 다음에 열었을 때 이전 선택으로 제보되지 않게 한다
+  const close = () => {
+    setTypeChosen(false);
+    onClose();
+  };
 
   const handleReroute = async () => {
     setIsLoading(true);
@@ -89,7 +118,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       });
 
       onRerouteApplied(result);
-      onClose();
+      close();
     } finally {
       setIsLoading(false);
     }
@@ -100,17 +129,13 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
     try {
       const sLat = startLat ?? currentLat;
       const sLon = startLon ?? currentLon;
+      // 복귀 경로 계산에만 쓰는 전방 가상 지점 (서버에 저장하지 않는다)
       const hazardLat = currentLat + 0.0002;
       const hazardLon = currentLon + 0.0002;
 
-      // 1. 위험 제보 적재
-      void reportHazard({
-        lat: hazardLat,
-        lon: hazardLon,
-        hazardType: selectedType,
-        severity: 'danger',
-        description: `긴급 복귀 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[selectedType]}]`,
-      });
+      // 1. 위험 종류를 직접 고른 경우에만 실제 현재 위치로 제보
+      const report = buildEmergencyReturnReport(typeChosen, selectedType, currentLat, currentLon);
+      if (report) void reportHazard(report);
 
       // 2. 출발지 긴급 복귀 경로 생성
       const result = createEmergencyReturnRoute(
@@ -123,7 +148,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       );
 
       onRerouteApplied(result);
-      onClose();
+      close();
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +159,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
       <View style={styles.overlay}>
         <View style={styles.card}>
@@ -144,7 +169,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
               <Text style={styles.warningIcon}>⚠️</Text>
               <Text style={styles.title}>현장 위험 제보 & 안전 우회</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="닫기">
+            <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityLabel="닫기">
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -160,7 +185,10 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
                 <TouchableOpacity
                   key={item.type}
                   activeOpacity={0.7}
-                  onPress={() => setSelectedType(item.type)}
+                  onPress={() => {
+                    setSelectedType(item.type);
+                    setTypeChosen(true);
+                  }}
                   style={[styles.optionItem, isSelected && styles.optionItemSelected]}
                 >
                   <View style={styles.optionLeft}>
