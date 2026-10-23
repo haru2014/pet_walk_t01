@@ -4,14 +4,13 @@
  *
  * 1. True Black(#000000) OLED 배경 + 고대비 네온 그린 HUD(시간·거리·속도)
  * 2. 한 손 원터치 배변/소변 마킹 FAB 및 햅틱 로깅 (US-18)
- * 3. 슬라이드 언락 산책 종료 제스처
+ * 3. 실시간 경로 보기, 확인 후 산책 종료, 출발지 긴급 복귀
  */
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Modal, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../theme/tokens';
-import { WalkStats } from '../hooks/useWalkGuidance';
-import { SlideToUnlock } from '../components/common/SlideToUnlock';
+import { FreeWalkSafetyInfo, WalkStats } from '../hooks/useWalkGuidance';
 import { formatElapsed } from '../services/walkFormat';
 import { AppIcon } from '../components/common/AppIcon';
 import { VoiceQuickControlBar } from '../components/voice/VoiceQuickControlBar';
@@ -19,19 +18,27 @@ import { AmbientNoiseMonitorService } from '../services/ambientNoiseMonitor';
 import { BarkMuteState, SoundSettings } from '../types/voiceSettings';
 import { TTSNavigationService } from '../services/ttsNavigation';
 import { HazardReportModal } from '../components/walk/HazardReportModal';
+import { createEmergencyReturnRoute } from '../services/hazardApi';
 import { RerouteResult } from '../types/hazard';
+import { RouteFeatureCollection, RouteStepPin } from '../types/route';
+import { MapLibreMapView } from '../components/map/MapLibreMapView';
 
 export interface DarkPocketScreenProps {
   readonly dogName: string;
   readonly stats: WalkStats;
-  readonly onUnlock: () => void;
+  readonly onFinishWalk: () => void;
   readonly targetMinutes?: number | null;
   readonly isFreeWalk?: boolean;
+  readonly freeWalkSafety?: FreeWalkSafetyInfo;
+  readonly guidanceMessage?: string;
   readonly onMarkPoop?: (type: 'poop' | 'pee') => void;
   readonly poopCount?: number;
   readonly currentCoords?: { lat: number; lon: number } | null;
   readonly startCoords?: { lat: number; lon: number } | null;
   readonly routeCoords?: readonly (readonly [number, number])[];
+  readonly walkedCoords?: readonly (readonly [number, number])[];
+  readonly mapRoute: RouteFeatureCollection;
+  readonly mapPins: readonly RouteStepPin[];
   readonly onReroute?: (result: RerouteResult) => void;
 }
 
@@ -48,18 +55,26 @@ const HudItem: React.FC<{ value: string; unit: string; label: string }> = ({ val
 export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   dogName,
   stats,
-  onUnlock,
+  onFinishWalk,
   targetMinutes,
   isFreeWalk,
+  freeWalkSafety,
+  guidanceMessage,
   onMarkPoop,
   poopCount = 0,
   currentCoords,
   startCoords,
   routeCoords,
+  walkedCoords,
+  mapRoute,
+  mapPins,
   onReroute,
 }) => {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showHazardModal, setShowHazardModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [barkState, setBarkState] = useState<BarkMuteState>(() => AmbientNoiseMonitorService.getState());
   const [soundSettings, setSoundSettings] = useState<SoundSettings>(() => TTSNavigationService.getSettings());
 
@@ -87,6 +102,27 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
     setTimeout(() => setToastMsg(null), 2500);
   };
 
+  const handleEmergencyReturn = () => {
+    if (!currentCoords || !startCoords || !onReroute) {
+      setShowEmergencyModal(false);
+      setToastMsg('GPS 출발 위치를 확인할 수 없어 긴급 복귀 경로를 만들지 못했어요.');
+      setTimeout(() => setToastMsg(null), 3500);
+      return;
+    }
+    const path = walkedCoords && walkedCoords.length > 1 ? walkedCoords : routeCoords;
+    const result = createEmergencyReturnRoute(
+      currentCoords.lat,
+      currentCoords.lon,
+      startCoords.lat,
+      startCoords.lon,
+      path,
+    );
+    onReroute(result);
+    setShowEmergencyModal(false);
+    setToastMsg('출발지로 복귀하는 긴급 경로 안내를 시작했어요.');
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
   const getSubtitle = () => {
     if (isFreeWalk) return '자유 산책 모드 · 시간 제한 없이 안심 기록 중';
     if (isOvertime) return `목표 ${targetMinutes}분 달성 (+${overtimeMinutes}분) · 자유 산책 기록 지속 중`;
@@ -103,6 +139,27 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <Text style={[styles.subtitle, isOvertime && styles.subtitleOvertime]}>
         {getSubtitle()}
       </Text>
+      {isFreeWalk && (
+        <View style={[
+          styles.safetyInfoBanner,
+          freeWalkSafety?.status === 'alert' ? styles.safetyInfoAlert : null,
+          freeWalkSafety?.status === 'unavailable' ? styles.safetyInfoUnavailable : null,
+        ]} accessibilityRole="alert">
+          <Text style={styles.safetyInfoText}>
+            {freeWalkSafety?.message ?? '전방 위험 제보와 계단·경사 정보가 확인되지 않았어요. 정보가 없다고 안전한 것은 아닙니다.'}
+          </Text>
+        </View>
+      )}
+
+      {!isFreeWalk && (
+        <View style={styles.guidanceCard} accessibilityRole="text">
+          <View style={styles.guidanceIcon}><AppIcon name="location" size={22} color="#A7F3D0" /></View>
+          <View style={styles.guidanceTextWrap}>
+            <Text style={styles.guidanceLabel}>산책 안내</Text>
+            <Text style={styles.guidanceText}>{guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}</Text>
+          </View>
+        </View>
+      )}
 
       {/* US-C2, #37: 비상 상황 원터치 대형 퀵 음소거 제어 바 */}
       <VoiceQuickControlBar variant="emergency" />
@@ -206,8 +263,19 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.unlockArea}>
-        <SlideToUnlock onUnlock={onUnlock} />
+      <View style={styles.primaryActions}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="산책 지도 보기" onPress={() => setShowMapModal(true)} style={[styles.primaryAction, styles.mapAction]}>
+          <AppIcon name="map" size={20} color="#6EE7B7" />
+          <Text style={[styles.primaryActionText, { color: '#A7F3D0' }]}>지도 보기</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="산책 종료" onPress={() => setShowFinishModal(true)} style={[styles.primaryAction, styles.finishAction]}>
+          <Text style={styles.stopActionIcon}>■</Text>
+          <Text style={[styles.primaryActionText, { color: '#FCA5A5' }]}>산책 종료</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="긴급 복귀" onPress={() => setShowEmergencyModal(true)} style={[styles.primaryAction, styles.emergencyAction]}>
+          <AppIcon name="shield" size={20} color="#7DD3FC" />
+          <Text style={[styles.primaryActionText, { color: '#7DD3FC' }]}>긴급 복귀</Text>
+        </TouchableOpacity>
       </View>
 
       <HazardReportModal
@@ -224,6 +292,63 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           setTimeout(() => setToastMsg(null), 3500);
         }}
       />
+
+      <Modal visible={showMapModal} animationType="slide" onRequestClose={() => setShowMapModal(false)}>
+        <View style={styles.mapModal}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>실시간 산책 경로</Text>
+            <TouchableOpacity onPress={() => setShowMapModal(false)} accessibilityLabel="지도 닫기" style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+          {currentCoords ? (
+            <MapLibreMapView
+              route={mapRoute}
+              stepPins={mapPins}
+              maskingCenter={[currentCoords.lon, currentCoords.lat]}
+              width="100%"
+              height="100%"
+              style={styles.mapView}
+            />
+          ) : (
+            <View style={styles.mapEmpty}><Text style={styles.modalBody}>현재 GPS 위치를 확인하고 있어요.</Text></View>
+          )}
+        </View>
+      </Modal>
+
+      <Modal visible={showFinishModal} transparent animationType="fade" onRequestClose={() => setShowFinishModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.actionModal}>
+            <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
+            <Text style={styles.modalBody}>현재까지 {formatElapsed(stats.elapsedSec)} · {stats.distanceKm.toFixed(2)}km를 기록했어요.</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setShowFinishModal(false)} style={styles.secondaryModalButton}>
+                <Text style={styles.secondaryModalButtonText}>계속 산책</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setShowFinishModal(false); onFinishWalk(); }} style={styles.confirmFinishButton}>
+                <Text style={styles.confirmFinishText}>기록 저장 및 종료</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showEmergencyModal} transparent animationType="fade" onRequestClose={() => setShowEmergencyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.actionModal}>
+            <Text style={styles.modalTitle}>출발지로 긴급 복귀할까요?</Text>
+            <Text style={styles.modalBody}>현재 위치와 기록한 산책 경로를 이용해 출발지 복귀 안내를 시작합니다.</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setShowEmergencyModal(false)} style={styles.secondaryModalButton}>
+                <Text style={styles.secondaryModalButtonText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleEmergencyReturn} style={styles.confirmEmergencyButton}>
+                <Text style={styles.confirmFinishText}>긴급 복귀 시작</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -234,6 +359,22 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   subtitle: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, textAlign: 'center', marginTop: 4 },
   subtitleOvertime: { color: '#FBBF24', opacity: 0.95, fontWeight: '700' },
+  safetyInfoBanner: {
+    borderColor: 'rgba(245, 158, 11, 0.75)',
+    borderWidth: 1,
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
+  safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
+  safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  guidanceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 12 },
+  guidanceIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#1D4432', alignItems: 'center', justifyContent: 'center' },
+  guidanceTextWrap: { flex: 1 },
+  guidanceLabel: { color: '#6EE7B7', fontSize: 11, fontWeight: '700', marginBottom: 3 },
+  guidanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', lineHeight: 19 },
   hud: { flex: 1, justifyContent: 'center', gap: 20 },
   hudItem: { alignItems: 'center' },
   hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2 },
@@ -270,7 +411,29 @@ const styles = StyleSheet.create({
   },
   poopFabIcon: { fontSize: 16 },
   poopFabText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
-  unlockArea: { paddingBottom: 4 },
+  primaryActions: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  primaryAction: { flex: 1, minHeight: 70, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 16, borderWidth: 1.5 },
+  mapAction: { backgroundColor: '#14231B', borderColor: '#2F7D54' },
+  finishAction: { backgroundColor: '#2C1D1D', borderColor: '#9B3A3A' },
+  emergencyAction: { backgroundColor: '#17202B', borderColor: '#376899' },
+  primaryActionText: { fontSize: 12, fontWeight: '800' },
+  stopActionIcon: { color: '#FCA5A5', fontSize: 20, fontWeight: '900' },
+  mapModal: { flex: 1, backgroundColor: TOKENS.colors.pocketBg },
+  modalHeader: { minHeight: 60, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: TOKENS.colors.border },
+  modalTitle: { color: TOKENS.colors.textWhite, fontSize: 17, fontWeight: '800' },
+  modalClose: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: '#26342C' },
+  modalCloseText: { color: '#D1FAE5', fontSize: 13, fontWeight: '700' },
+  mapView: { flex: 1 },
+  mapEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', justifyContent: 'center', padding: 22 },
+  actionModal: { backgroundColor: '#19211C', borderColor: '#3B4C41', borderWidth: 1, borderRadius: 22, padding: 20 },
+  modalBody: { color: TOKENS.colors.pocketHudSubtle, fontSize: 14, lineHeight: 21, marginTop: 10, marginBottom: 18 },
+  modalButtons: { flexDirection: 'row', gap: 10 },
+  secondaryModalButton: { flex: 1, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2B332E' },
+  secondaryModalButtonText: { color: '#E5E7EB', fontSize: 13, fontWeight: '700' },
+  confirmFinishButton: { flex: 1.3, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#9B3A3A' },
+  confirmEmergencyButton: { flex: 1.3, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#236846' },
+  confirmFinishText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   barkAlertBanner: {
     flexDirection: 'row',
     alignItems: 'center',

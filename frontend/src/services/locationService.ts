@@ -18,6 +18,8 @@ export interface GpsPoint {
   readonly longitude: number;
   readonly timestamp: number;
   readonly speedMps: number | null;
+  readonly headingDeg?: number | null;
+  readonly accuracyM?: number | null;
 }
 
 export type TrackingMode = 'background' | 'foreground';
@@ -81,6 +83,10 @@ function toGpsPoint(location: Location.LocationObject): GpsPoint {
     longitude: location.coords.longitude,
     timestamp: location.timestamp,
     speedMps: location.coords.speed ?? null,
+    headingDeg: location.coords.heading != null && location.coords.heading >= 0
+      ? location.coords.heading
+      : null,
+    accuracyM: location.coords.accuracy ?? null,
   };
 }
 

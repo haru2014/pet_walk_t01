@@ -115,7 +115,11 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
       onIntentParsed?.(result);
       if (result.intent.briefing_message) TTSNavigationService.speak(result.intent.briefing_message);
     } catch (error) {
-      setRecordingError(error instanceof Error ? error.message : '음성 인식에 실패했어요. 다시 말씀해 주세요.');
+      const message = error instanceof Error ? error.message : '';
+      console.warn('[WalkVoiceInputSection] 음성 인식 요청 실패:', error);
+      setRecordingError(message.startsWith('[apiClient]')
+        ? '음성 인식 서버에 연결하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
+        : message || '음성 인식에 실패했어요. 다시 말씀해 주세요.');
     } finally {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
       setIsAnalyzing(false);
