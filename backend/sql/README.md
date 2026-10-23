@@ -136,6 +136,6 @@ if (error) { /* 사용자에게 알림 + 로컬 유지 */ }
 
 서버(`/health`): `status ok`, `supabase_connected true`, `walk_share_service_role_configured true`. 로그인 없이 `POST /api/v1/walks/{id}/share`, `/unshare` 를 호출하면 401 `AUTH_REQUIRED` 가 돌아옵니다.
 
-**아직 확인하지 못한 것**: 앱에서 실제로 공유를 눌러 서버가 `public_route_coords` 를 채우는 마지막 단계. 현재 저장된 2건은 모두 비공개이고 마스킹 좌표가 없습니다(공유를 눌러야 채워짐). 그중 30m 짜리 기록은 출발·도착 200m 를 가리면 남는 경로가 없어 공유가 거절될 수 있습니다.
+**공유 성공 확인 (적용 후)**: 폰 앱에서 6,580m 기록으로 공유를 눌러 "후기 공개 설정 — 커뮤니티 공개 후기로 전환되었어요" 안내가 나왔고(김승현 님 폰 캡처), DB 를 다시 조회하니 그 기록이 `is_public = true`, `public_route_coords` 채워짐으로 바뀌어 있었습니다. 서로 다른 두 곳에서 일치합니다. 나머지 30m 짜리 기록은 비공개이며 마스킹 좌표가 없습니다(출발·도착 200m 를 가리면 남는 경로가 없어 공유가 거절될 수 있음, 이 기록으로는 시험하지 않음).
 
 되돌리기가 필요하면 `supabase_walk_public_migration.sql` 맨 아래 ROLLBACK 블록을 참고하되, 개인정보 보호가 약해지므로 꼭 필요할 때만 실행합니다.
