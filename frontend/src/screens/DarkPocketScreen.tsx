@@ -7,7 +7,7 @@
  * 3. 실시간 경로 보기, 확인 후 산책 종료, 출발지 긴급 복귀
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, StyleSheet, Text, View, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { FreeWalkSafetyInfo, WalkStats } from '../hooks/useWalkGuidance';
@@ -99,6 +99,15 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   }, []);
   const isOvertime = !isFreeWalk && !!targetMinutes && stats.elapsedSec >= targetMinutes * 60;
   const overtimeMinutes = isOvertime ? Math.floor((stats.elapsedSec - targetMinutes! * 60) / 60) : 0;
+  const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => currentCoords
+    ? [...mapPins, {
+        id: 'current-location-pin',
+        kind: 'safe',
+        position: [currentCoords.lon, currentCoords.lat],
+        instruction: '현재 위치',
+        icon: '📍',
+      }]
+    : mapPins, [currentCoords, mapPins]);
 
   const handlePressMark = (type: 'poop' | 'pee') => {
     if (onMarkPoop) onMarkPoop(type);
@@ -309,7 +318,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           {currentCoords ? (
             <MapLibreMapView
               route={mapRoute}
-              stepPins={mapPins}
+              stepPins={mapDisplayPins}
               maskingCenter={[currentCoords.lon, currentCoords.lat]}
               width="100%"
               height="100%"

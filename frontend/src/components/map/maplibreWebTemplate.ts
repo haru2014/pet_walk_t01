@@ -158,6 +158,7 @@ export function buildMapLibreHtml({
       let currentPins = payload.stepPins;
       let currentStyleKey = JSON.stringify(payload.styleUrl);
       let mapLoaded = false;
+      let userInteractedWithMap = false;
       let failureReported = false;
       let watchdogId = null;
 
@@ -168,6 +169,9 @@ export function buildMapLibreHtml({
         zoom: 15,
         attributionControl: false,
         interactive: payload.interactive !== false,
+      });
+      map.on('move', function(event) {
+        if (event && event.originalEvent) userInteractedWithMap = true;
       });
 
       // 출처 표기를 접지 않고 표시
@@ -313,8 +317,23 @@ export function buildMapLibreHtml({
         if (pins && pins.length > 0) {
           pins.forEach(function(pin) {
             const el = document.createElement('div');
-            el.className = 'step-pin pin-' + pin.kind;
-            el.innerText = pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤'));
+            const isCurrentLocation = pin.id === 'current-location-pin' || pin.title === '현재 위치';
+            el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
+            el.innerText = isCurrentLocation ? '●' : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
+            if (isCurrentLocation) {
+              el.style.width = '30px';
+              el.style.height = '30px';
+              el.style.borderRadius = '50% 50% 50% 0';
+              el.style.transform = 'rotate(-45deg)';
+              el.style.backgroundColor = '#2563EB';
+              el.style.border = '2px solid #fff';
+              el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';
+              el.style.display = 'flex';
+              el.style.alignItems = 'center';
+              el.style.justifyContent = 'center';
+              el.style.fontSize = '16px';
+              el.style.color = '#fff';
+            }
             if (pin.title) {
               el.innerText = '';
               el.style.width = 'auto';
@@ -375,7 +394,7 @@ export function buildMapLibreHtml({
             }
             initMarkers(msg.stepPins || [], msg.route);
             const b = computeBounds(msg.route);
-            if (b) map.fitBounds(b, { padding: 40, duration: 600 });
+            if (b && !userInteractedWithMap) map.fitBounds(b, { padding: 40, duration: 600 });
           }
         } catch(e) {}
       }
