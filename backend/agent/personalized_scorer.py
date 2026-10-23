@@ -24,6 +24,8 @@ from services.weather_context import CAUTION_MAX_C, SAFE_MAX_C
 JOINT_SLOPE_LIMIT = {0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0}
 SHADE_COOLING = 0.75  # 그늘 비율 1.0 일 때 지면-기온 차이를 75% 줄인다 (기존 _variant_profile 과 같은 계수)
 UNKNOWN = 0.5
+STAIRS_FULL = 25.0   # 계단이 확인되지 않은 코스(0곳)의 계단 점수
+STAIRS_DECAY = 0.75  # 계단 1곳마다 곱해지는 값 (1곳 18.8, 2곳 14.1, 4곳 7.9, 10곳 1.4)
 
 
 @dataclass
@@ -70,9 +72,10 @@ def score_personalized(profile: Dict[str, Any], *, distance_m: float, target_dis
     if stairs_count is None:
         stairs = 15.0
     elif stairs_count == 0:
-        stairs = 25.0
+        stairs = STAIRS_FULL
     else:
-        stairs = 0.0 if avoid_stairs else 15.0
+        # 계단이 많을수록 점수가 줄어든다 (예전에는 1곳이든 10곳이든 0점이라 계단 적은 코스를 고를 수 없었다)
+        stairs = round(STAIRS_FULL * STAIRS_DECAY ** stairs_count, 1) if avoid_stairs else 15.0
 
     # 2. 경사 (25): 관절 단계 상한
     limit = slope_limit_for(joint_care_level, calibrated_max_slope)
