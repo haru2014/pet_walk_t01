@@ -162,12 +162,14 @@ export async function analyzeVoiceIntent(
     if (response.ok) {
       const data = await response.json();
       if (data?.status === 'success' && data.intent) {
-        const landmark = data.intent.destination_landmark;
-        const parkId = normalizeToFrontendParkId(landmark || data.landmark_park_id);
+        // 서버 모델이 공원 별칭을 잘못 추출해도 원문에 없는 장소는 사용하지 않는다.
+        const landmark = extractVoiceLandmark(cleaned);
+        const parkId = normalizeToFrontendParkId(landmark);
         return {
           status: 'success',
           intent: {
             ...data.intent,
+            destination_landmark: landmark,
             briefing_message: sanitizeVoiceBriefing(landmark && !parkId
               ? unsupportedParkMessage(landmark) : data.intent.briefing_message),
           },

@@ -393,7 +393,8 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
 
     origin_mode = req.get("origin_mode")
     if not origin_mode:
-        origin_mode = "park" if pilot_park_id else "current_location"
+        # 공원 명칭 언급만으로 출발점을 공원으로 간주하지 않는다.
+        origin_mode = "current_location"
     if origin_mode not in ("park", "parking_pnr", "current_location"):
         raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
 
