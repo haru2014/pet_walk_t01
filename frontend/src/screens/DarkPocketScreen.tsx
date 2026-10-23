@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Modal, StyleSheet, Text, View, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { TOKENS } from '../theme/tokens';
 import { FreeWalkSafetyInfo, WalkStats } from '../hooks/useWalkGuidance';
 import { formatElapsed } from '../services/walkFormat';
@@ -42,12 +42,12 @@ export interface DarkPocketScreenProps {
   readonly onReroute?: (result: RerouteResult) => void;
 }
 
-const HudItem: React.FC<{ value: string; unit: string; label: string }> = ({ value, unit, label }) => (
+const HudItem: React.FC<{ value: string; unit: string; label: string; compact?: boolean }> = ({ value, unit, label, compact }) => (
   <View style={styles.hudItem}>
-    <Text style={styles.hudLabel}>{label}</Text>
-    <Text style={styles.hudValue}>
+    <Text style={[styles.hudLabel, compact && styles.hudLabelCompact]}>{label}</Text>
+    <Text style={[styles.hudValue, compact && styles.hudValueCompact]}>
       {value}
-      <Text style={styles.hudUnit}> {unit}</Text>
+      <Text style={[styles.hudUnit, compact && styles.hudUnitCompact]}> {unit}</Text>
     </Text>
   </View>
 );
@@ -70,6 +70,8 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   mapPins,
   onReroute,
 }) => {
+  const { height } = useWindowDimensions();
+  const isCompactLayout = height < 820;
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showHazardModal, setShowHazardModal] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -131,7 +133,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isCompactLayout && styles.containerCompact]}>
       <View style={styles.titleRow}>
         <AppIcon name="paw" size={20} color={TOKENS.colors.pocketHud} />
         <Text style={styles.title}>{dogName}와 안심 산책 중</Text>
@@ -152,7 +154,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       )}
 
       {!isFreeWalk && (
-        <View style={styles.guidanceCard} accessibilityRole="text">
+        <View style={[styles.guidanceCard, isCompactLayout && styles.guidanceCardCompact]} accessibilityRole="text">
           <View style={styles.guidanceIcon}><AppIcon name="location" size={22} color="#A7F3D0" /></View>
           <View style={styles.guidanceTextWrap}>
             <Text style={styles.guidanceLabel}>산책 안내</Text>
@@ -162,7 +164,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       )}
 
       {/* US-C2, #37: 비상 상황 원터치 대형 퀵 음소거 제어 바 */}
-      <VoiceQuickControlBar variant="emergency" />
+      <VoiceQuickControlBar variant="emergency" style={isCompactLayout ? styles.voiceBarCompact : undefined} />
 
       {/* 스마트 돌발 짖음 감지 상태 배너 & 토글 컨트롤 */}
       {barkState.isAutoMuted ? (
@@ -173,7 +175,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           </Text>
         </View>
       ) : (
-        <View style={styles.smartMuteRow}>
+        <View style={[styles.smartMuteRow, isCompactLayout && styles.smartMuteRowCompact]}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
@@ -209,14 +211,14 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       )}
 
       {/* 중앙 HUD 수치 */}
-      <View style={styles.hud}>
-        <HudItem label="경과 시간" value={formatElapsed(stats.elapsedSec)} unit="" />
-        <HudItem label="이동 거리" value={stats.distanceKm.toFixed(2)} unit="km" />
-        <HudItem label="현재 속도" value={stats.speedKmH.toFixed(1)} unit="km/h" />
+      <View style={[styles.hud, isCompactLayout && styles.hudCompact]}>
+        <HudItem label="경과 시간" value={formatElapsed(stats.elapsedSec)} unit="" compact={isCompactLayout} />
+        <HudItem label="이동 거리" value={stats.distanceKm.toFixed(2)} unit="km" compact={isCompactLayout} />
+        <HudItem label="현재 속도" value={stats.speedKmH.toFixed(1)} unit="km/h" compact={isCompactLayout} />
       </View>
 
       {/* US-18: 한 손 원터치 배변 마킹 FAB 영역 (Thumb Zone) */}
-      <View style={styles.poopMarkingZone}>
+      <View style={[styles.poopMarkingZone, isCompactLayout && styles.poopMarkingZoneCompact]}>
         {toastMsg ? (
           <View style={styles.toastBadge}>
             <Text style={styles.toastText}>{toastMsg}</Text>
@@ -251,7 +253,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       </View>
 
       {/* 4. 현장 위험 제보 & 안전 우회 버튼 */}
-      <View style={styles.hazardActionRow}>
+      <View style={[styles.hazardActionRow, isCompactLayout && styles.hazardActionRowCompact]}>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => setShowHazardModal(true)}
@@ -263,7 +265,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.primaryActions}>
+      <View style={[styles.primaryActions, isCompactLayout && styles.primaryActionsCompact]}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="산책 지도 보기" onPress={() => setShowMapModal(true)} style={[styles.primaryAction, styles.mapAction]}>
           <AppIcon name="map" size={20} color="#6EE7B7" />
           <Text style={[styles.primaryActionText, { color: '#A7F3D0' }]}>지도 보기</Text>
@@ -355,6 +357,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: TOKENS.colors.pocketBg, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 28, justifyContent: 'space-between' },
+  containerCompact: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
   title: { color: TOKENS.colors.pocketHud, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   subtitle: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, textAlign: 'center', marginTop: 4 },
@@ -371,17 +374,25 @@ const styles = StyleSheet.create({
   safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
   safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   guidanceCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 12 },
+  guidanceCardCompact: { padding: 8, gap: 8 },
   guidanceIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#1D4432', alignItems: 'center', justifyContent: 'center' },
   guidanceTextWrap: { flex: 1 },
   guidanceLabel: { color: '#6EE7B7', fontSize: 11, fontWeight: '700', marginBottom: 3 },
   guidanceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', lineHeight: 19 },
-  hud: { flex: 1, justifyContent: 'center', gap: 20 },
+  voiceBarCompact: { marginVertical: 4 },
+  smartMuteRowCompact: { marginVertical: 0 },
+  hud: { flex: 1, justifyContent: 'space-evenly', gap: 16, paddingVertical: 8 },
+  hudCompact: { minHeight: 190, gap: 2, paddingVertical: 2 },
   hudItem: { alignItems: 'center' },
   hudLabel: { color: TOKENS.colors.pocketHudSubtle, opacity: 0.7, fontSize: 12, marginBottom: 2 },
+  hudLabelCompact: { fontSize: 10, marginBottom: 0 },
   hudValue: { color: TOKENS.colors.pocketHud, fontSize: 50, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  hudValueCompact: { fontSize: 34, lineHeight: 40 },
   hudUnit: { fontSize: 18, fontWeight: '600' },
+  hudUnitCompact: { fontSize: 14 },
 
   poopMarkingZone: { alignItems: 'center', marginBottom: 12 },
+  poopMarkingZoneCompact: { marginBottom: 2 },
   toastBadge: { backgroundColor: 'rgba(16, 185, 129, 0.25)', borderWidth: 1, borderColor: TOKENS.colors.pocketHud, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 14, marginBottom: 8 },
   toastText: { color: TOKENS.colors.pocketHud, fontSize: 11, fontWeight: '700' },
   poopStatusRow: { marginBottom: 6 },
@@ -412,6 +423,7 @@ const styles = StyleSheet.create({
   poopFabIcon: { fontSize: 16 },
   poopFabText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
   primaryActions: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  primaryActionsCompact: { gap: 6, paddingBottom: 0 },
   primaryAction: { flex: 1, minHeight: 70, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 16, borderWidth: 1.5 },
   mapAction: { backgroundColor: '#14231B', borderColor: '#2F7D54' },
   finishAction: { backgroundColor: '#2C1D1D', borderColor: '#9B3A3A' },
@@ -503,6 +515,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  hazardActionRowCompact: { marginBottom: 0 },
   hazardBtn: {
     flexDirection: 'row',
     alignItems: 'center',
