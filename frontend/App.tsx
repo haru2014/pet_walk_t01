@@ -60,6 +60,7 @@ export default function App() {
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
+  const [pocketMapVisible, setPocketMapVisible] = useState(false);
   const [startupReady, setStartupReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
@@ -381,10 +382,7 @@ export default function App() {
     Alert.alert('산책을 종료할까요?', '지도를 확인하거나 산책을 마칠 수 있어요.', [
       {
         text: '지도 보기',
-        onPress: () => {
-          setSubScreen('main');
-          setActiveTab('산책');
-        },
+        onPress: () => setPocketMapVisible(true),
       },
       { text: '산책 종료', onPress: () => void handleStopWalkAndReport() },
     ]);
@@ -497,6 +495,8 @@ export default function App() {
             freeWalkSafety={walk.freeWalkSafety}
             guidanceMessage={walk.guidanceMessage}
             onFinishWalk={() => void handleStopWalkAndReport()}
+            mapVisible={pocketMapVisible}
+            onMapVisibleChange={setPocketMapVisible}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
             currentCoords={walk.currentPoint ? {

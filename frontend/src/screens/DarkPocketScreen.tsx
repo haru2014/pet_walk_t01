@@ -27,6 +27,8 @@ export interface DarkPocketScreenProps {
   readonly dogName: string;
   readonly stats: WalkStats;
   readonly onFinishWalk: () => void;
+  readonly mapVisible: boolean;
+  readonly onMapVisibleChange: (visible: boolean) => void;
   readonly targetMinutes?: number | null;
   readonly isFreeWalk?: boolean;
   readonly freeWalkSafety?: FreeWalkSafetyInfo;
@@ -56,6 +58,8 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   dogName,
   stats,
   onFinishWalk,
+  mapVisible,
+  onMapVisibleChange,
   targetMinutes,
   isFreeWalk,
   freeWalkSafety,
@@ -74,7 +78,6 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   const isCompactLayout = height < 820;
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showHazardModal, setShowHazardModal] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [barkState, setBarkState] = useState<BarkMuteState>(() => AmbientNoiseMonitorService.getState());
@@ -266,7 +269,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       </View>
 
       <View style={[styles.primaryActions, isCompactLayout && styles.primaryActionsCompact]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="산책 지도 보기" onPress={() => setShowMapModal(true)} style={[styles.primaryAction, styles.mapAction]}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="산책 지도 보기" onPress={() => onMapVisibleChange(true)} style={[styles.primaryAction, styles.mapAction]}>
           <AppIcon name="map" size={20} color="#6EE7B7" />
           <Text style={[styles.primaryActionText, { color: '#A7F3D0' }]}>지도 보기</Text>
         </TouchableOpacity>
@@ -295,11 +298,11 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         }}
       />
 
-      <Modal visible={showMapModal} animationType="slide" onRequestClose={() => setShowMapModal(false)}>
+      <Modal visible={mapVisible} animationType="slide" onRequestClose={() => onMapVisibleChange(false)}>
         <View style={styles.mapModal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>실시간 산책 경로</Text>
-            <TouchableOpacity onPress={() => setShowMapModal(false)} accessibilityLabel="지도 닫기" style={styles.modalClose}>
+            <TouchableOpacity onPress={() => onMapVisibleChange(false)} accessibilityLabel="지도 닫기" style={styles.modalClose}>
               <Text style={styles.modalCloseText}>닫기</Text>
             </TouchableOpacity>
           </View>
