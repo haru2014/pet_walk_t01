@@ -370,7 +370,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   {feed.landmark_name && (
                     <View style={[styles.landmarkChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
                       <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont, color: colors.primaryDark }]}>
-                        📍 {feed.landmark_name} · {feed.region_name}
+                        📍 {feed.landmark_name}{feed.region_name ? ` · ${feed.region_name}` : ''}
                       </Text>
                     </View>
                   )}
