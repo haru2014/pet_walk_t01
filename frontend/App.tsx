@@ -39,6 +39,7 @@ import { SupabaseService } from './src/services/supabaseService';
 import { LandingAuthModal } from './src/components/auth/LandingAuthModal';
 import { useAppBackHandler } from './src/hooks/useAppBackHandler';
 import { generateUuid } from './src/utils/uuid';
+import { calculateAverageSpeedKmH } from './src/services/walkFormat';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { WalkTabScreen } from './src/screens/WalkTabScreen';
@@ -346,7 +347,11 @@ export default function App() {
       completedAt: new Date().toISOString(),
       durationMinutes: Math.max(1, Math.round(walk.stats.elapsedSec / 60)),
       totalDistanceKm: finalDistanceKm,
-      averageSpeedKmH: walk.stats.speedKmH > 0 ? walk.stats.speedKmH : activeDog.speedKmH,
+      averageSpeedKmH: calculateAverageSpeedKmH(
+        finalDistanceKm,
+        walk.stats.elapsedSec,
+        activeDog.speedKmH,
+      ),
       safeSurfaceRatio: calculatedSafeRatio,
       gpsTrack,
       poopCount: walk.poopCount,

@@ -28,6 +28,7 @@ import {
 } from '../services/guidanceEngine';
 import { haversineMeters, polylineLengthMeters } from '../services/routeGeometry';
 import { TTSNavigationService } from '../services/ttsNavigation';
+import { calculateAverageSpeedKmH } from '../services/walkFormat';
 import {
   getForwardHazardReports,
   getForwardSafetyAnalysis,
@@ -51,9 +52,10 @@ export interface WalkStats {
   readonly distanceKm: number;
   readonly elapsedSec: number;
   readonly speedKmH: number;
+  readonly averageSpeedKmH?: number;
 }
 
-const EMPTY_STATS: WalkStats = { distanceKm: 0, elapsedSec: 0, speedKmH: 0 };
+const EMPTY_STATS: WalkStats = { distanceKm: 0, elapsedSec: 0, speedKmH: 0, averageSpeedKmH: 0 };
 const MPS_TO_KMH = 3.6;
 
 function computeDistanceKm(track: readonly GpsPoint[]): number {
@@ -352,11 +354,17 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
           isReroutingRef.current = false;
         });
 
-      setStats((prev) => ({
-        ...prev,
-        distanceKm: computeDistanceKm(getTrackBuffer()),
-        speedKmH: Math.round((point.speedMps ?? 0) * MPS_TO_KMH * 10) / 10,
-      }));
+      setStats((prev) => {
+        const nextDist = computeDistanceKm(getTrackBuffer());
+        const currentSpeed = Math.round((point.speedMps ?? 0) * MPS_TO_KMH * 10) / 10;
+        const avgSpeed = calculateAverageSpeedKmH(nextDist, prev.elapsedSec, currentSpeed);
+        return {
+          ...prev,
+          distanceKm: nextDist,
+          speedKmH: currentSpeed,
+          averageSpeedKmH: avgSpeed,
+        };
+      });
     },
     [activePins, applyReroute],
   );
@@ -375,7 +383,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
           lastNotifSecRef.current = elapsed;
           void updateTrackingNotification(prev.distanceKm, Math.floor(elapsed / 60));
         }
-        return { ...prev, elapsedSec: elapsed };
+        const avgSpeed = calculateAverageSpeedKmH(prev.distanceKm, elapsed, prev.speedKmH);
+        return { ...prev, elapsedSec: elapsed, averageSpeedKmH: avgSpeed };
       });
     }, 1000);
     return () => {
