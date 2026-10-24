@@ -49,11 +49,12 @@ export function formatCourseDisplayName(name: string): string {
 }
 
 /**
- * 코스 추천 사유 문구 정제 (중복 거리 및 불필요한 "1안" 제거)
+ * 코스 추천 사유 문구 정제 (중복 점수 접두어, 거리 및 불필요한 "1안" 제거)
  */
 export function formatCourseReasonText(reason: string): string {
   if (!reason) return '';
   return reason
+    .replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '')
     .replace(/(?:^|\s)\d+안/g, '')
     .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b(?![/hH])/gi, '')
     .replace(/·\s*·+/g, '·')
@@ -304,16 +305,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               let chipBorderColor = colors.border;
               let chipBorderWidth = 1;
               let chipTextColor = colors.textMain;
+              let chipScoreColor = colors.primary;
 
               if (isRecommended) {
                 // 추천 코스는 테마 주 색상에 대비되는 굵은 강조 박스 테두리 적용
                 chipBorderColor = recommendedContrastColor;
                 chipBorderWidth = 2.5;
                 chipTextColor = recommendedContrastColor;
+                chipScoreColor = recommendedContrastColor;
               } else if (isSelected) {
                 chipBorderColor = colors.primaryDark;
                 chipBorderWidth = 1.5;
                 chipTextColor = colors.primaryDark;
+                chipScoreColor = colors.primaryDark;
               }
 
               return (
@@ -340,7 +344,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                       (isSelected || isRecommended) && styles.courseChipTextActive,
                     ]}
                   >
-                    {isRecommended ? `추천 1${scoreText}` : `코스 ${idx + 1}${scoreText}`}
+                    {isRecommended ? '추천 1' : `코스 ${idx + 1}`}
+                    {score != null && (
+                      <Text style={[styles.courseChipScore, { color: chipScoreColor }]}>
+                        {` · ${score}점`}
+                      </Text>
+                    )}
                   </Text>
                 </TouchableOpacity>
               );
@@ -349,7 +358,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
         </View>
 
-        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
+        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간) */}
         <Text
           style={[styles.courseName, { color: colors.textMain, fontSize: courseRecommend.courseTitleSize }]}
           numberOfLines={1}
@@ -360,13 +369,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <Text style={[styles.courseMetaText, { color: colors.primaryDark, fontSize: courseRecommend.metricNumberSize }]}>
             {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
           </Text>
-          {extractCourseScore(currentCourse) != null && (
-            <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize }]}>
-                AI 맞춤 {extractCourseScore(currentCourse)}점
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
@@ -516,6 +518,7 @@ const styles = StyleSheet.create({
   },
   courseChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
   courseChipTextActive: { fontWeight: '800' },
+  courseChipScore: { fontWeight: '800' },
   bookmarkButton: { height: 32 },
   courseMetricsRow: {
     flexDirection: 'row',

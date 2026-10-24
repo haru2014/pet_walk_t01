@@ -173,12 +173,12 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(formatCourseDisplayName('안심 기본 코스')).toBe('안심 기본 코스');
   });
 
-  it('formatCourseReasonText는 추천 사유에서 중복 거리와 안 번호를 제거한다', () => {
+  it('formatCourseReasonText는 추천 사유에서 중복 점수, 거리와 안 번호를 제거한다', () => {
     expect(
       formatCourseReasonText(
         'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)'
       )
-    ).toBe('AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 반시계 방향 (실측 최대 경사 2.7%)');
+    ).toBe('🏞️ 세종호수공원 내부 보행로 · 반시계 방향 (실측 최대 경사 2.7%)');
   });
 
   it('getThemeContrastingAccentColor는 테마별 주 색상에 대비되는 강조 색상을 반환한다', () => {
