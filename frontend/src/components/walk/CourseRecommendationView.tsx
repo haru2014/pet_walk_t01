@@ -272,9 +272,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
     if (requiresValidatedPark) return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
+    const fallbackIndex = selectedCourseIndex === 0
+      ? 0
+      : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
     return getCoursePlanById(
       currentCourse?.id,
-      getCoursePlanByParkId(preferences?.pilotParkId, (selectedCourseIndex + regenerateNonce) % 3)
+      getCoursePlanByParkId(preferences?.pilotParkId, fallbackIndex)
     );
   }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark, regenerateNonce]);
 

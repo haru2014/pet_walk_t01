@@ -693,10 +693,6 @@ def _validate_and_finalize_park_candidates(
         raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
 
     if valid_scored:
-        if regenerate_nonce > 0:
-            shift = regenerate_nonce % len(valid_scored)
-            if shift > 0:
-                valid_scored = valid_scored[shift:] + valid_scored[:shift]
         best = valid_scored[0].candidate
         agent_result.best_score = valid_scored[0].total_score
     else:
@@ -875,16 +871,8 @@ def _resolve_walk_user_query(req: Dict[str, Any], dog_name: str, target_duration
 
 
 def _rotate_scored_candidates(agent_result: Any, regenerate_nonce: int) -> None:
-    """재생성 요청(nonce > 0) 시 스코어링된 후보 경로 순환."""
-    if not agent_result.all_scored_candidates or regenerate_nonce <= 0:
-        return
-    shift = regenerate_nonce % len(agent_result.all_scored_candidates)
-    if shift > 0:
-        agent_result.all_scored_candidates = (
-            agent_result.all_scored_candidates[shift:] + agent_result.all_scored_candidates[:shift]
-        )
-        agent_result.best_route = agent_result.all_scored_candidates[0].candidate
-        agent_result.best_score = agent_result.all_scored_candidates[0].total_score
+    """재생성 요청 시 추천 코스는 유지하고 대안 코스는 이미 비유사 후보로 생성되므로 추가 순환을 하지 않는다."""
+    return
 
 
 @app.post(
@@ -967,6 +955,7 @@ def plan_walk_route(req: Dict[str, Any]):
             # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
             pilot_park_id=selected_park or params["pilot_park_id"],
             intent_overrides=intent_overrides,
+            regenerate_nonce=params["regenerate_nonce"],
         )
 
         validations = {}

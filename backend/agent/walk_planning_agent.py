@@ -347,6 +347,7 @@ class LoopCandidateRequest(BaseModel):
     pilot_park_id: Optional[str] = None
     estimated_surface_temp: Optional[float] = None
     air_temp_celsius: Optional[float] = None
+    regenerate_nonce: int = 0
 
 
 # 후보별 표시 정보 및 보행 환경 지표 (기상청 실시간 지면열 모델 연동)
@@ -401,6 +402,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         req.target_distance_m,
         origin_mode=req.origin_mode,
         pilot_park_id=req.pilot_park_id,
+        regenerate_nonce=req.regenerate_nonce,
     )
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
@@ -449,6 +451,7 @@ class WalkPlanningState(TypedDict):
     origin_mode: str
     parking_lot_id: Optional[str]
     pilot_park_id: Optional[str]
+    regenerate_nonce: int
     # 앱 산책 설정에서 고른 조건 (avoid_stairs / shade_priority / prefer_soft). 문장 분석 결과보다 앞선다
     intent_overrides: Optional[Dict[str, Any]]
     # 분석 & 보정 산출물
@@ -583,6 +586,7 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         pilot_park_id=pilot_park_id,
         estimated_surface_temp=surf_temp,
         air_temp_celsius=air_temp,
+        regenerate_nonce=state.get("regenerate_nonce", 0),
     )
     candidates = generate_loop_candidates(request)
 
@@ -868,6 +872,7 @@ def run_walk_planning_agent(
     parking_lot_id: Optional[str] = None,
     pilot_park_id: Optional[str] = None,
     intent_overrides: Optional[Dict[str, Any]] = None,
+    regenerate_nonce: int = 0,
 ) -> WalkPlanningResult:
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
     agent = get_agent()
@@ -900,6 +905,7 @@ def run_walk_planning_agent(
         "parking_lot_id": parking_lot_id,
         "pilot_park_id": pilot_park_id,
         "intent_overrides": intent_overrides,
+        "regenerate_nonce": regenerate_nonce,
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

@@ -295,31 +295,34 @@ export function generateAdaptiveCourses(
     buildResidentialCourse(ctx),
   ];
 
-  const shift = (regenerateNonce ?? 0) % rawCourses.length;
-  if (shift === 0) {
-    const scoredCourses = rawCourses.map((c) => {
-      const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
-      return {
-        ...c,
-        score,
-        reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
-      };
-    });
-    return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  }
-
-  // 재생성 시: 기존과 다른 대안 코스를 1순위 추천으로 전진 배치
-  const rotatedCourses = [...rawCourses.slice(shift), ...rawCourses.slice(0, shift)];
-  const maxBaseScore = Math.max(...rawCourses.map((c) => calculateAdaptiveCourseScore(c, dog, preferences, feedback)), 90);
-  return rotatedCourses.map((c, idx) => {
-    const score = maxBaseScore - idx * 3;
-    const cleanReason = c.reason.replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '');
+  const scoredCourses = rawCourses.map((c) => {
+    const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
     return {
       ...c,
       score,
-      reason: `AI 맞춤 점수 ${score}점: ${cleanReason}`,
+      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
     };
-  });
+  }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+  if (!regenerateNonce || regenerateNonce <= 0) {
+    return scoredCourses;
+  }
+
+  // 재생성 시: 1번 추천 코스는 유지하고, 2번과 3번 대안 코스를 기존 2·3번과 중복/유사하지 않은 새로운 대안으로 제공
+  const bestCourse = scoredCourses[0];
+  const alt1 = {
+    ...scoredCourses[1],
+    id: `${scoredCourses[1].id}-alt-${regenerateNonce}-a`,
+    name: `🌿 ${dog.name}를 위한 대안 안심 순환로 ${regenerateNonce}안`,
+    reason: `기존 경로와 다른 새로운 보행 환경 코스입니다.\n${scoredCourses[1].reason}`,
+  };
+  const alt2 = {
+    ...scoredCourses[2],
+    id: `${scoredCourses[2].id}-alt-${regenerateNonce}-b`,
+    name: `🚶 ${dog.name}와 걷는 새로운 순환 코스 ${regenerateNonce}안`,
+    reason: `기존 경로와 다른 완만한 대체 산책로입니다.\n${scoredCourses[2].reason}`,
+  };
+  return [bestCourse, alt1, alt2];
 }
 
 /** 사용자 조건에 맞춤형 브리핑 문구를 반환한다. */

@@ -243,20 +243,20 @@ def _is_candidate_distinct(
     return (coords, edges, shape)
 
 
-def _collect_distinct_routes(candidates: list, chosen: list, max_overlap: float) -> None:
-    """주어진 중복도 상한 이하의 고유 경로를 최대 CANDIDATE_COUNT개까지 수집."""
+def _collect_distinct_routes(candidates: list, chosen: list, max_overlap: float, target_count: int = CANDIDATE_COUNT) -> None:
+    """주어진 중복도 상한 이하의 고유 경로를 최대 target_count개까지 수집."""
     for _, edges, build in candidates:
-        if len(chosen) == CANDIDATE_COUNT:
+        if len(chosen) >= target_count:
             return
         match = _is_candidate_distinct(edges, build, chosen, max_overlap)
         if match is not None:
             chosen.append(match)
 
 
-def _fill_with_reversed_routes(chosen: list, base: list) -> None:
+def _fill_with_reversed_routes(chosen: list, base: list, target_count: int = CANDIDATE_COUNT) -> None:
     """부족한 후보를 기존 경로의 반대 방향으로 보충."""
     for coords, edges, shape in base:
-        if len(chosen) == CANDIDATE_COUNT:
+        if len(chosen) >= target_count:
             break
         reverse = ParkRoute(
             reversed(coords),
@@ -267,25 +267,31 @@ def _fill_with_reversed_routes(chosen: list, base: list) -> None:
             chosen.append((reverse, edges, shape))
 
 
-def _select_distinct(candidates: list) -> list:
-    """서로 다른 길 3개를 고른다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
+def _select_distinct(candidates: list, pool_size: int = 10) -> list:
+    """서로 다른 길을 모은다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
     chosen: list = []  # [(coords, edge_set, shape)]
 
-    _collect_distinct_routes(candidates, chosen, SAME_ROUTE_OVERLAP)
-    if len(chosen) < CANDIDATE_COUNT:
-        _collect_distinct_routes(candidates, chosen, RELAXED_OVERLAP)
+    _collect_distinct_routes(candidates, chosen, SAME_ROUTE_OVERLAP, target_count=pool_size)
+    if len(chosen) < pool_size:
+        _collect_distinct_routes(candidates, chosen, RELAXED_OVERLAP, target_count=pool_size)
 
     base = list(chosen)
-    _fill_with_reversed_routes(chosen, base)
+    _fill_with_reversed_routes(chosen, base, target_count=pool_size)
 
-    while len(chosen) < CANDIDATE_COUNT:  # 최후 수단: 가장 가까운 후보를 다시 쓴다
+    while len(chosen) < max(CANDIDATE_COUNT, min(pool_size, len(base))):  # 최후 수단: 가장 가까운 후보를 다시 쓴다
         item = chosen[len(chosen) % len(base)] if base else chosen[0]
         chosen.append(item)
     return [coords for coords, _, _ in chosen]
 
 
-def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float) -> list:
-    """서로 다른 순환 코스 후보 3개 (1안이 목표 거리에 가장 가깝다). 같은 그래프·요청이면 다시 계산하지 않는다."""
+def plan_park_walk_candidates(
+    park_id: str,
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    regenerate_nonce: int = 0,
+) -> list:
+    """순환 코스 후보 3개 생성. 재생성 시(nonce > 0) 1번 추천 코스는 유지하고 2·3번 대안 코스를 새로운 비유사 경로로 제공."""
     graph = build_park_graph(park_id)
     # 경계 밖 주차장은 저장된 진입로 끝에서 공원 코스를 만들고, 진입로를 앞뒤로 붙인다 (#160).
     # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
@@ -293,12 +299,28 @@ def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float
     key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1))
     cached = _CANDIDATE_CACHE.get(key)
     if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
-        routes = cached[1]
+        pool = cached[1]
     else:
-        routes = _select_distinct(_compute_candidates(graph, start, target_distance_m))
+        pool = _select_distinct(_compute_candidates(graph, start, target_distance_m), pool_size=10)
         if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
             _CANDIDATE_CACHE.clear()
-        _CANDIDATE_CACHE[key] = (graph, routes)
+        _CANDIDATE_CACHE[key] = (graph, pool)
+
+    while len(pool) < CANDIDATE_COUNT:
+        pool.append(pool[0])
+
+    if regenerate_nonce <= 0 or len(pool) <= CANDIDATE_COUNT:
+        routes = [pool[0], pool[1], pool[2]]
+    else:
+        # 1번 추천 경로는 유지하고, 2번과 3번 대안 경로는 기존 2·3번과 중복/유사하지 않은 후보로 선택
+        alternatives = pool[1:]
+        m = len(alternatives)
+        idx1 = (2 * regenerate_nonce) % m
+        idx2 = (2 * regenerate_nonce + 1) % m
+        if idx1 == idx2:
+            idx2 = (idx1 + 1) % m
+        routes = [pool[0], alternatives[idx1], alternatives[idx2]]
+
     if approach is not None:
         routes = [
             ParkRoute(
@@ -318,6 +340,15 @@ def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float
     ]
 
 
-def plan_park_walk(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float, variant: int) -> list:
-    routes = plan_park_walk_candidates(park_id, origin_lat, origin_lon, target_distance_m)
+def plan_park_walk(
+    park_id: str,
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    variant: int,
+    regenerate_nonce: int = 0,
+) -> list:
+    routes = plan_park_walk_candidates(
+        park_id, origin_lat, origin_lon, target_distance_m, regenerate_nonce=regenerate_nonce
+    )
     return routes[max(1, min(int(variant), CANDIDATE_COUNT)) - 1]

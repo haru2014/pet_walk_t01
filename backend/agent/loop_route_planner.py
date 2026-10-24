@@ -262,13 +262,14 @@ def _plan_static_pilot_park(
     variant: int,
     pilot_park_id: Optional[str] = None,
     target_distance_m: Optional[float] = None,
+    regenerate_nonce: int = 0,
 ) -> Optional[LoopPlan]:
     """Compatibility entry point: only verified, boundary-constrained graph routes."""
     park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
     if park_key is None:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
     target = target_distance_m or 1400.0
-    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant)
+    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant, regenerate_nonce=regenerate_nonce)
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
     lap_count = getattr(coords, "lap_count", 1) or 1
     lap_cycle_m = getattr(coords, "lap_cycle_m", None)
@@ -359,6 +360,7 @@ def _plan_variant(
     deadline: float,
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
+    regenerate_nonce: int = 0,
 ) -> Optional[LoopPlan]:
     """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
 
@@ -366,12 +368,20 @@ def _plan_variant(
     """
     if origin_mode in ("park", "parking_pnr"):
         return _plan_static_pilot_park(
-            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m
+            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m,
+            regenerate_nonce=regenerate_nonce,
         )
 
-    # 📍 현위치 기반 모드 (current_location)
+    # 📍 현위치 기반 모드 (current_location): 1안(추천)은 유지하고 2·3안은 회전 오프셋 적용
+    bearing_offset = 0.0
+    if regenerate_nonce > 0 and variant in (2, 3):
+        bearing_offset = ((regenerate_nonce * 60.0) % 360.0)
+
     relaxed: List[Tuple[float, List[List[float]]]] = []
-    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, relaxed_sink=relaxed)
+    plan = _plan_live(
+        origin_lat, origin_lon, target_distance_m, variant, deadline,
+        bearing_offset=bearing_offset, relaxed_sink=relaxed
+    )
     if plan is not None:
         return plan
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
@@ -455,6 +465,7 @@ def plan_loop_candidates(
     time_budget_s: float = PLAN_TIME_BUDGET_S,
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
+    regenerate_nonce: int = 0,
 ) -> Dict[int, LoopPlan]:
     """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
     deadline = time.monotonic() + time_budget_s
@@ -469,6 +480,7 @@ def plan_loop_candidates(
                 deadline,
                 origin_mode,
                 pilot_park_id,
+                regenerate_nonce,
             )
             for variant in VARIANT_BEARINGS
         }

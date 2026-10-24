@@ -221,7 +221,7 @@ describe('courseAdaptivePlanner', () => {
       expect(Number.isFinite(score)).toBe(true);
     });
 
-    it('재생성 시(regenerateNonce > 0) 기존 추천 코스와 다른 대안 코스를 1위 추천으로 제공해야 한다', () => {
+    it('재생성 시(regenerateNonce > 0) 1위 추천 코스는 유지하고 2·3위 대안 코스는 기존과 다른 코스로 제공해야 한다', () => {
       const prefs: WalkPreferences = {
         durationMinutes: 30,
         environments: ['soft', 'shade'],
@@ -232,9 +232,15 @@ describe('courseAdaptivePlanner', () => {
       const regeneratedCourses1 = generateAdaptiveCourses(TEST_DOG, prefs, null, 1);
       const regeneratedCourses2 = generateAdaptiveCourses(TEST_DOG, prefs, null, 2);
 
-      expect(initialCourses[0].id).not.toBe(regeneratedCourses1[0].id);
-      expect(regeneratedCourses1[0].id).not.toBe(regeneratedCourses2[0].id);
-      expect(regeneratedCourses2[0].id).not.toBe(initialCourses[0].id);
+      // 1위 추천 코스는 동일하게 유지
+      expect(regeneratedCourses1[0].id).toBe(initialCourses[0].id);
+      expect(regeneratedCourses2[0].id).toBe(initialCourses[0].id);
+
+      // 2번, 3번 대안 코스는 기존 2·3번과 중복/유사하지 않은 새로운 경로
+      expect(regeneratedCourses1[1].id).not.toBe(initialCourses[1].id);
+      expect(regeneratedCourses1[2].id).not.toBe(initialCourses[2].id);
+      expect(regeneratedCourses2[1].id).not.toBe(regeneratedCourses1[1].id);
+      expect(regeneratedCourses2[2].id).not.toBe(regeneratedCourses1[2].id);
     });
   });
 });
