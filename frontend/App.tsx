@@ -218,7 +218,7 @@ export default function App() {
       setPreferences((prev) => ({ ...prev, isFreeWalk: mode === 'free', ...(mode === 'free' ? { durationMinutes: null } : {}) }));
       const status = await walk.start(mode);
       if (status === 'permission_denied') {
-        const msg = '안심 산책을 위해 위치 권한을 허용해 주세요.';
+        const msg = '화면이 꺼진 상태에서도 경로를 기록하고 음성 안내를 하려면 위치 권한을 “항상 허용”으로 설정해 주세요.';
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert(`[위치 권한 필요] ${msg}`);
         } else {
@@ -317,7 +317,7 @@ export default function App() {
     }
 
     const distKm = walk.stats.distanceKm;
-    const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const gpsTrack = (await walk.getPersistedTrackBuffer()).map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;

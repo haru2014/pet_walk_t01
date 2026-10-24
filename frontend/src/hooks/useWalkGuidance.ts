@@ -10,11 +10,13 @@ import { PoopEvent } from '../types/storage';
 import {
   GpsPoint,
   getTrackBuffer,
+  getPersistedTrackBuffer,
   startWalkTracking,
   stopWalkTracking,
   subscribeToGps,
   updateTrackingNotification,
 } from '../services/locationService';
+import { clearBackgroundGuidanceSession, saveBackgroundGuidanceSession } from '../services/backgroundWalkGuidance';
 import {
   GuidanceEvent,
   GuidanceState,
@@ -178,9 +180,13 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const guidanceRef = useRef<GuidanceState>(INITIAL_GUIDANCE_STATE);
   const startedAtRef = useRef<number | null>(null);
   const routeRef = useRef(route);
+  const activePinsRef = useRef(activePins);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
+  useEffect(() => {
+    activePinsRef.current = activePins;
+  }, [activePins]);
 
   const [poopEvents, setPoopEvents] = useState<PoopEvent[]>([]);
   const lastPointRef = useRef<GpsPoint | null>(null);
@@ -194,6 +200,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const applyReroute = useCallback(
     (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string, activateRouteGuidance = false) => {
       setRoute(newRoute);
+      routeRef.current = newRoute;
       if (activateRouteGuidance) {
         modeRef.current = 'route';
         setMode('route');
@@ -201,6 +208,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       if (voiceAlert) setGuidanceMessage(voiceAlert);
       if (newPins && newPins.length > 0) {
         setActivePins(newPins);
+        activePinsRef.current = newPins;
       }
       const resetState = resetGuidanceForNewRoute(guidanceRef.current);
       guidanceRef.current = {
@@ -208,6 +216,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
         // 재탐색 음성에서 첫 합류 지점을 이미 안내했으므로 바로 반복 발화하지 않는다.
         announcedPinIds: voiceAlert && newPins?.[0] ? [newPins[0].id] : resetState.announcedPinIds,
       };
+      void saveBackgroundGuidanceSession(newRoute, newPins ?? activePinsRef.current, guidanceRef.current);
       TTSNavigationService.speak(voiceAlert ?? REROUTE_MESSAGE);
     },
     [],
@@ -333,6 +342,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       )
         .then((res) => {
           guidanceRef.current = res.nextState;
+          void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
           if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
           if (res.triggeredReroute) {
             isReroutingRef.current = true;
@@ -375,6 +385,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   }, [status, handlePoint]);
 
   const start = useCallback(async (nextMode: WalkSessionMode = 'route'): Promise<WalkSessionStatus> => {
+    guidanceRef.current = INITIAL_GUIDANCE_STATE;
+    await saveBackgroundGuidanceSession(routeRef.current, activePinsRef.current, guidanceRef.current);
     const result = await startWalkTracking();
     const next: WalkSessionStatus = result.ok ? 'running' : result.reason;
     if (result.ok) {
@@ -393,12 +405,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       setStats(EMPTY_STATS);
       setPoopEvents([]);
     }
+    if (!result.ok) await clearBackgroundGuidanceSession();
     setStatus(next);
     return next;
   }, []);
 
   const stop = useCallback(async () => {
     await stopWalkTracking();
+    await clearBackgroundGuidanceSession();
     modeRef.current = 'route';
     setMode('route');
     setStatus('idle');
@@ -430,11 +444,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   /** 저장된(즐겨찾기) 경로와 스텝 핀을 서버 재탐색 없이 그대로 주입한다 (US-29). */
   const loadCourse = useCallback((newRoute: RouteFeatureCollection, newPins: readonly RouteStepPin[]) => {
     setRoute(newRoute);
+    routeRef.current = newRoute;
     setActivePins(newPins);
+    activePinsRef.current = newPins;
     modeRef.current = 'route';
     setMode('route');
     guidanceRef.current = INITIAL_GUIDANCE_STATE;
-  }, []);
+    if (status === 'running') void saveBackgroundGuidanceSession(newRoute, newPins, guidanceRef.current);
+  }, [status]);
 
   return {
     route,
@@ -453,6 +470,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     applyReroute,
     loadCourse,
     getTrackBuffer,
+    getPersistedTrackBuffer,
   };
 }
 

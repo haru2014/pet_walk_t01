@@ -7,6 +7,7 @@
 
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
+import { setAudioModeAsync } from 'expo-audio';
 import {
   DEFAULT_SOUND_SETTINGS,
   SoundSettings,
@@ -40,6 +41,21 @@ export class TTSNavigationService {
   private static isBusy = false;
   private static utteranceId = 0;
   private static watchdog: ReturnType<typeof setTimeout> | null = null;
+
+  /** 잠금 화면에서 expo-speech가 앱 오디오 세션을 사용하도록 준비한다. */
+  static async prepareForBackgroundSpeech(): Promise<void> {
+    try {
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        allowsRecording: false,
+        shouldPlayInBackground: true,
+        shouldRouteThroughEarpiece: false,
+      });
+    } catch (error) {
+      console.warn('[TTSNavigationService] 백그라운드 오디오 설정 실패:', error);
+    }
+  }
 
   /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
   static async loadAvailableVoices(): Promise<Speech.Voice[]> {
@@ -308,6 +324,8 @@ export class TTSNavigationService {
       pitch: profile.pitch,
       rate: profile.rate,
       volume: self.settings.volume,
+      // iOS AVSpeechSynthesizer가 expo-audio에서 활성화한 앱 오디오 세션을 사용한다.
+      useApplicationAudioSession: true,
       ...(matchedVoice ? { voice: matchedVoice } : {}),
       onStart: () => {
         self.isSpeaking = true;
