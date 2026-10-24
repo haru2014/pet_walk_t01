@@ -56,7 +56,7 @@ export function formatCourseReasonText(reason: string): string {
   return reason
     .replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '')
     .replace(/(?:^|\s)\d+안/g, '')
-    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b(?![/hH])/gi, '')
+    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b(?![/h])/gi, '')
     .replace(/·\s*·+/g, '·')
     .replace(/\s{2,}/g, ' ')
     .replace(/·\s*(?=[)\];,]|$)/g, '')
@@ -298,7 +298,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               const isSelected = idx === selectedCourseIndex;
               const isRecommended = idx === 0;
               const score = extractCourseScore(c);
-              const scoreText = score != null ? ` · ${score}점` : '';
 
               const recommendedContrastColor = getThemeContrastingAccentColor(theme, colors);
 

@@ -59,10 +59,12 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           </View>
           <View style={styles.titleContent}>
             <View style={styles.titleWithArrow}>
-              <Text style={[styles.cardTitle, styles.headerTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
+              <Text style={[styles.cardTitle, styles.headerTitle, { color: colors.textMain }]} numberOfLines={1}>
+                이번 주 산책 달성도
+              </Text>
               <AppIcon name="chevronRight" size={14} color={colors.textMuted} />
             </View>
-            <Text style={[styles.rangeSubtitle, { color: colors.textMuted }]}>
+            <Text style={[styles.rangeSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
               {stats.weekRangeLabel}
             </Text>
           </View>
@@ -81,6 +83,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           ]}
         >
           <Text
+            numberOfLines={1}
             style={[
               styles.badgeText,
               {
@@ -257,15 +260,18 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   headerRow: {
-    alignItems: 'flex-start',
-    gap: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    width: '100%',
+    flex: 1,
+    minWidth: 0,
   },
   titleContent: {
     flex: 1,
@@ -277,12 +283,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   titleWithArrow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   headerTitle: {
     flexShrink: 1,
@@ -301,8 +308,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
+    alignSelf: 'center',
+    flexShrink: 0,
   },
   badgeText: {
     fontSize: TYPOGRAPHY.label,
