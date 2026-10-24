@@ -87,9 +87,9 @@ def _elevations_from_one_source(p1: Sequence[float], p2: Sequence[float]) -> Tup
     return _approximate_elevation_m(p1[0], p1[1]), _approximate_elevation_m(p2[0], p2[1])
 
 
-def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float],
-                                    min_baseline_m: float = MIN_SLOPE_BASELINE_M) -> float:
-    """두 좌표 구간의 경사도(%)를 계산한다. 구간이 min_baseline_m 보다 짧으면 중심에서 양쪽으로 늘려 구한다."""
+def calculate_segment_signed_slope_percent(p1: Sequence[float], p2: Sequence[float],
+                                           min_baseline_m: float = MIN_SLOPE_BASELINE_M) -> float:
+    """p1 → p2 진행 방향 경사(%). 오르막 +, 내리막 −. 구간이 min_baseline_m 보다 짧으면 중심에서 양쪽으로 늘려 구한다."""
     dist_m = haversine_m(p1, p2)
     if dist_m < 1.0:
         return 0.0
@@ -98,8 +98,13 @@ def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float],
     start = (mid_lon + (p1[0] - mid_lon) * scale, mid_lat + (p1[1] - mid_lat) * scale)
     end = (mid_lon + (p2[0] - mid_lon) * scale, mid_lat + (p2[1] - mid_lat) * scale)
     ele1, ele2 = _elevations_from_one_source(start, end)
-    slope = (abs(ele2 - ele1) / (dist_m * scale)) * 100.0
-    return round(slope, 1)
+    return round((ele2 - ele1) / (dist_m * scale) * 100.0, 1)
+
+
+def calculate_segment_slope_percent(p1: Sequence[float], p2: Sequence[float],
+                                    min_baseline_m: float = MIN_SLOPE_BASELINE_M) -> float:
+    """두 좌표 구간의 경사도(%)를 계산한다. 구간이 min_baseline_m 보다 짧으면 중심에서 양쪽으로 늘려 구한다."""
+    return abs(calculate_segment_signed_slope_percent(p1, p2, min_baseline_m))
 
 
 # ==============================================================================
@@ -271,114 +276,118 @@ def evaluate_route_metrics(coords: Sequence[Sequence[float]]) -> Dict[str, Any]:
 # 3. 실데이터 기반 세그먼트 GeoJSON 분할 (3색 안심 등급 Polyline)
 # ==============================================================================
 
+# 앱 지도(PR #233)와 같은 구간 경계: 경사 ±3% 이하 평지, 8% 이상 급경사 / 지면온도 33·39·45℃
+SLOPE_FLAT_MAX_PERCENT = 3.0
+SLOPE_STEEP_MIN_PERCENT = 8.0
+
+
+def _slope_grade(signed: Optional[float]) -> str:
+    if signed is None:
+        return "unknown"
+    magnitude = abs(signed)
+    if magnitude <= SLOPE_FLAT_MAX_PERCENT:
+        return "flat"
+    direction = "up" if signed > 0 else "down"
+    return ("steep_" if magnitude >= SLOPE_STEEP_MIN_PERCENT else "gentle_") + direction
+
+
+def _temp_band(temp: Optional[float]) -> str:
+    from services.weather_context import CAUTION_MAX_C, SAFE_MAX_C
+    if temp is None:
+        return "unknown"
+    if temp <= SAFE_MAX_C:
+        return "safe"
+    if temp <= (SAFE_MAX_C + CAUTION_MAX_C) / 2:
+        return "caution_low"
+    return "caution_high" if temp <= CAUTION_MAX_C else "danger"
+
+
+def _feature_properties(segment_type: str, links: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """한 구간(이웃한 링크 묶음)의 지도 속성. 모르는 값은 None (앱은 '미확인')."""
+    slopes = [link["slope"] for link in links]
+    total = sum(link["length"] for link in links) or 1.0
+
+    def weighted(key: str) -> Optional[float]:
+        if any(link[key] is None for link in links):
+            return None
+        return sum(link[key] * link["length"] for link in links) / total
+
+    signed = weighted("slope_signed")
+    shade = weighted("shade")
+    temps = [link["temp"] for link in links if link["temp"] is not None]
+    surface_lengths: Dict[str, float] = {}
+    for link in links:
+        if link["surface"]:
+            surface_lengths[link["surface"]] = surface_lengths.get(link["surface"], 0.0) + link["length"]
+    return {
+        "segmentType": segment_type,
+        "maxSlopePercent": round(max(slopes), 1),
+        "avgSlopePercent": round(sum(slopes) / len(slopes), 1),
+        # 진행 방향 경사(오르막 +, 내리막 −). DEM 이 꺼져 있으면 None
+        "slopeSignedPercent": round(signed, 1) if signed is not None else None,
+        # 추정 지면온도(가장 뜨거운 링크). 노면을 모르면 None. 예측값이다
+        "surfaceTempC": max(temps) if temps and len(temps) == len(links) else None,
+        # 실측 노면(가장 긴 것)·그늘(나무 10m 안 비율 50% 이상). 모르면 None (예전에는 경사로 지어낸 값)
+        "surface": max(surface_lengths, key=surface_lengths.get) if surface_lengths else None,
+        "shaded": (shade >= 0.5) if shade is not None else None,
+    }
+
+
 def build_segmented_geojson(
     coords: Sequence[Sequence[float]],
     max_slope_hint: Optional[float] = None,
+    link_conditions: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """경로 좌표열을 실제 지형 경사도와 노면 지표 기반 3대 안심 등급으로 분할한다.
-    
-    인접한 동일 segmentType 구간을 결합(Coalesce)하되,
-    모든 LineString 세그먼트가 연속적으로 연결되도록 끝점과 시작점을 공유한다.
+    """경로 좌표열을 안심 등급(safe/normal/caution)과 경사 방향·지면온도 단계가 같은 구간으로 나눈다.
+
+    link_conditions: 이웃한 두 점마다 {slope_signed, surface, shade, temp}
+    (services.segment_conditions.link_conditions). 없으면 해당 값은 모두 None 이다.
+    인접한 같은 구간을 하나로 묶되, 모든 LineString 이 끝점과 시작점을 공유해 끊기지 않게 한다.
     """
     coords_list = [list(c) for c in coords]
     if len(coords_list) < 2:
         return {
             "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "segmentType": "safe",
-                        "maxSlopePercent": max_slope_hint or 1.5,
-                        "avgSlopePercent": 1.2,
-                        "shaded": True,
-                        "surface": "paved",
-                    },
-                    "geometry": {"type": "LineString", "coordinates": coords_list},
-                }
-            ],
-        }
-
-    # 각 기본 링크 단위의 경사도 계산
-    link_info: List[Dict[str, Any]] = []
-    for i in range(len(coords_list) - 1):
-        p1, p2 = coords_list[i], coords_list[i + 1]
-        slope = calculate_segment_slope_percent(p1, p2)
-        # 힌트가 주어지면 상한 제어
-        if max_slope_hint is not None and slope > max_slope_hint:
-            slope = max_slope_hint
-
-        # 그늘 여부: 완만 구간 또는 수목 친화 구역
-        shaded = slope <= 3.2
-        surface = "dirt" if shaded and i % 3 == 0 else "paved"
-        stype = classify_segment_risk(slope, has_stairs=False, surface=surface, shaded=shaded)
-
-        link_info.append({
-            "slope": slope,
-            "segmentType": stype,
-            "shaded": shaded,
-            "surface": surface,
-        })
-
-    # 인접한 동일 segmentType 엣지를 연속된 LineString Feature로 묶음
-    features: List[Dict[str, Any]] = []
-    curr_type = link_info[0]["segmentType"]
-    curr_coords: List[List[float]] = [coords_list[0], coords_list[1]]
-    curr_slopes: List[float] = [link_info[0]["slope"]]
-    curr_shaded: List[bool] = [link_info[0]["shaded"]]
-
-    for i in range(1, len(link_info)):
-        info = link_info[i]
-        next_coord = coords_list[i + 1]
-
-        if info["segmentType"] == curr_type:
-            curr_coords.append(next_coord)
-            curr_slopes.append(info["slope"])
-            curr_shaded.append(info["shaded"])
-        else:
-            # 이전 피처 마감
-            max_s = round(max(curr_slopes), 1)
-            avg_s = round(sum(curr_slopes) / len(curr_slopes), 1)
-            features.append({
+            "features": [{
                 "type": "Feature",
                 "properties": {
-                    "segmentType": curr_type,
-                    "maxSlopePercent": max_s,
-                    "avgSlopePercent": avg_s,
-                    "shaded": sum(curr_shaded) >= (len(curr_shaded) / 2),
-                    "surface": "dirt" if curr_type == "safe" else "paved",
+                    "segmentType": "safe", "maxSlopePercent": max_slope_hint or 0.0, "avgSlopePercent": 0.0,
+                    "slopeSignedPercent": None, "surfaceTempC": None, "surface": None, "shaded": None,
                 },
-                "geometry": {
-                    "type": "LineString",
-                    "coordinates": curr_coords,
-                },
-            })
-            # 신규 피처 시작 (연속성 유지를 위해 이전의 마지막 좌표를 첫 좌표로 포함)
-            curr_type = info["segmentType"]
-            curr_coords = [coords_list[i], next_coord]
-            curr_slopes = [info["slope"]]
-            curr_shaded = [info["shaded"]]
+                "geometry": {"type": "LineString", "coordinates": coords_list},
+            }],
+        }
 
-    # 마지막 피처 추가
-    if curr_coords:
-        max_s = round(max(curr_slopes), 1)
-        avg_s = round(sum(curr_slopes) / len(curr_slopes), 1)
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "segmentType": curr_type,
-                "maxSlopePercent": max_s,
-                "avgSlopePercent": avg_s,
-                "shaded": sum(curr_shaded) >= (len(curr_shaded) / 2),
-                "surface": "dirt" if curr_type == "safe" else "paved",
-            },
-            "geometry": {
-                "type": "LineString",
-                "coordinates": curr_coords,
-            },
+    conditions = list(link_conditions or [])
+    links: List[Dict[str, Any]] = []
+    for i in range(len(coords_list) - 1):
+        p1, p2 = coords_list[i], coords_list[i + 1]
+        cond = conditions[i] if i < len(conditions) else {}
+        slope = calculate_segment_slope_percent(p1, p2)
+        if max_slope_hint is not None and slope > max_slope_hint:
+            slope = max_slope_hint
+        surface, shade = cond.get("surface"), cond.get("shade")
+        segment_type = classify_segment_risk(slope, has_stairs=False, surface=surface or "paved",
+                                             shaded=bool(shade is not None and shade >= 0.5))
+        links.append({
+            "slope": slope, "segmentType": segment_type, "length": haversine_m(p1, p2),
+            "slope_signed": cond.get("slope_signed"), "surface": surface, "shade": shade, "temp": cond.get("temp"),
         })
 
-    return {
-        "type": "FeatureCollection",
-        "features": features,
-    }
+    def group_key(link: Dict[str, Any]) -> Tuple[str, str, str]:
+        return link["segmentType"], _slope_grade(link["slope_signed"]), _temp_band(link["temp"])
+
+    features: List[Dict[str, Any]] = []
+    group: List[Dict[str, Any]] = [links[0]]
+    group_coords: List[List[float]] = [coords_list[0], coords_list[1]]
+    for i in range(1, len(links)):
+        if group_key(links[i]) == group_key(group[0]):
+            group.append(links[i])
+            group_coords.append(coords_list[i + 1])
+            continue
+        features.append({"type": "Feature", "properties": _feature_properties(group[0]["segmentType"], group),
+                         "geometry": {"type": "LineString", "coordinates": group_coords}})
+        group, group_coords = [links[i]], [coords_list[i], coords_list[i + 1]]
+    features.append({"type": "Feature", "properties": _feature_properties(group[0]["segmentType"], group),
+                     "geometry": {"type": "LineString", "coordinates": group_coords}})
+    return {"type": "FeatureCollection", "features": features}
