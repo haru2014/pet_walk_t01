@@ -76,9 +76,10 @@ class TestSpatialMaskingWithIntersectionSnap:
         p_210m = [127.1000, 37.4019]  # ~210m (직선 상의 200m 초과점)
         p_corner = [127.1000, 37.4025] # ~277m (90도 꺾이는 삼거리/코너)
         p_turned = [127.1015, 37.4025] # 우회전 후 진행
-        dest = [127.1030, 37.4025]
+        p_far = [127.1040, 37.4025]
+        dest = [127.1100, 37.4025]  # 코너 뒤로 경로가 충분히 이어진다 (코너 1개 뿐인 경로는 아래 #237 테스트)
 
-        coords = [origin, p_100m, p_210m, p_corner, p_turned, dest]
+        coords = [origin, p_100m, p_210m, p_corner, p_turned, p_far, dest]
 
         res = apply_spatial_masking_to_course(coords, masking_radius_m=200.0, snap_to_intersection=True)
         assert res["is_masked"] is True
@@ -144,3 +145,35 @@ def test_walk_plan_log_does_not_keep_the_exact_origin(caplog):
     logged = [r.getMessage() for r in caplog.records if "walk_plan_requested" in r.getMessage()]
     assert logged and "127.378456" not in logged[0] and "36.351234" not in logged[0]
     assert '"origin_approx": [127.38, 36.35]' in logged[0]
+
+
+class TestSnapDoesNotCollapseRoute:
+    """[#237] 코너가 하나뿐인 긴 경로에서 시작·끝 스냅이 같은 코너로 모여 점 1개가 되던 문제."""
+
+    LAT0 = 36.3600  # 대전, 도로망 교차로 자료 밖
+    LON0 = 127.3500
+    M_LAT = 111_000.0
+    M_LON = 111_000.0 * math.cos(math.radians(36.36))
+
+    def _pt(self, north_m, east_m):
+        return [self.LON0 + east_m / self.M_LON, self.LAT0 + north_m / self.M_LAT]
+
+    def _one_corner_route(self, leg2_m):
+        """북쪽으로 300m 간 뒤 한 번 꺾어 동쪽으로 leg2_m 가는 경로(20m 간격)."""
+        route = [self._pt(n, 0) for n in range(0, 301, 20)]
+        route += [self._pt(300, e) for e in range(20, int(leg2_m) + 1, 20)]
+        return route
+
+    @pytest.mark.parametrize("leg2_m", [500, 2000, 6000])
+    def test_one_corner_route_keeps_a_shareable_route(self, leg2_m):
+        masked = apply_spatial_masking_to_course(self._one_corner_route(leg2_m), masking_radius_m=200.0)
+        assert len(masked["masked_coordinates"]) >= 2
+
+    def test_masked_route_never_includes_first_or_last_200m(self):
+        route = self._one_corner_route(2000)
+        masked = apply_spatial_masking_to_course(route, masking_radius_m=200.0)
+        origin = (route[0][1], route[0][0])
+        destination = (route[-1][1], route[-1][0])
+        for lon, lat in masked["masked_coordinates"]:
+            assert calculate_haversine_distance_m(origin, (lat, lon)) > 200.0
+            assert calculate_haversine_distance_m(destination, (lat, lon)) > 200.0
