@@ -5,6 +5,7 @@ import {
   CourseRecommendationView,
   formatCourseDisplayName,
   formatCourseReasonText,
+  getThemeContrastingAccentColor,
 } from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkPreferences } from '../../types/walkSettings';
@@ -178,5 +179,16 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)'
       )
     ).toBe('AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 반시계 방향 (실측 최대 경사 2.7%)');
+  });
+
+  it('getThemeContrastingAccentColor는 테마별 주 색상에 대비되는 강조 색상을 반환한다', () => {
+    expect(getThemeContrastingAccentColor('dusty_amber')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('forest')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('mint')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('vivid_violet')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('ocean')).toBe('#EA580C');
+    expect(getThemeContrastingAccentColor('coral')).toBe('#0284C7');
+    expect(getThemeContrastingAccentColor('dark')).toBe('#FBBF24');
+    expect(getThemeContrastingAccentColor('unknown', { accent: '#AABBCC' })).toBe('#AABBCC');
   });
 });

@@ -24,7 +24,7 @@ import { AppScreenHeader } from '../common/AppScreenHeader';
 import { CoursePlan } from '../../types/bookmark';
 import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
-import { formatShadePercentLabel, formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
+import { formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
@@ -40,11 +40,12 @@ import { getCurrentLocationCoords } from '../../services/locationService';
 export function formatCourseDisplayName(name: string): string {
   if (!name) return '';
   return name
-    .replace(/\s*·?\s*\d+안\s*/g, ' · ')
-    .replace(/\s*\d+(?:\.\d+)?\s*km\b/gi, '')
-    .replace(/\s*·\s*·\s*/g, ' · ')
-    .replace(/^\s*·\s*|\s*·\s*$/g, '')
-    .trim();
+    .replace(/(?:^|\s)\d+안/g, '')
+    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b/gi, '')
+    .split('·')
+    .map((part) => part.trim().replace(/\s{2,}/g, ' '))
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /**
@@ -53,10 +54,44 @@ export function formatCourseDisplayName(name: string): string {
 export function formatCourseReasonText(reason: string): string {
   if (!reason) return '';
   return reason
-    .replace(/\s*·?\s*\d+안\s*/g, ' · ')
-    .replace(/\s*\d+(?:\.\d+)?\s*km\b(?!\s*\/|\s*h)/gi, '')
-    .replace(/\s*·\s*·\s*/g, ' · ')
+    .replace(/(?:^|\s)\d+안/g, '')
+    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b(?![/hH])/gi, '')
+    .replace(/·\s*·+/g, '·')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/·\s*(?=[)\];,]|$)/g, '')
     .trim();
+}
+
+/**
+ * 테마의 주 색상(Primary)과 뚜렷하게 대비되는 추천 코스 강조 색상
+ */
+export function getThemeContrastingAccentColor(
+  theme: string,
+  colors?: { accent?: string; primary?: string }
+): string {
+  switch (theme) {
+    case 'dusty_amber':
+      // 주 색상: 세이지 그린(#5A7361) / 대비 색상: 딥 웜 앰버 골드
+      return '#D97706';
+    case 'forest':
+    case 'mint':
+      // 주 색상: 포레스트/민트 그린(#10B981) / 대비 색상: 딥 앰버 오렌지
+      return '#D97706';
+    case 'vivid_violet':
+      // 주 색상: 비비드 바이올렛(#7C3AED) / 대비 색상: 골드 앰버
+      return '#D97706';
+    case 'ocean':
+      // 주 색상: 오션 블루(#2563EB) / 대비 색상: 비비드 텐저린 오렌지
+      return '#EA580C';
+    case 'coral':
+      // 주 색상: 코랄 오렌지(#F97316) / 대비 색상: 딥 오션 스카이 블루
+      return '#0284C7';
+    case 'dark':
+      // 주 색상: 네온 에메랄드(#10B981) / 대비 색상: 네온 앰버 골드
+      return '#FBBF24';
+    default:
+      return colors?.accent || '#D97706';
+  }
 }
 
 export interface CourseRecommendationViewProps {
@@ -76,7 +111,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onStartWalk,
   onPinSelect,
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
   const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
@@ -263,6 +298,24 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               const isRecommended = idx === 0;
               const score = extractCourseScore(c);
               const scoreText = score != null ? ` · ${score}점` : '';
+
+              const recommendedContrastColor = getThemeContrastingAccentColor(theme, colors);
+
+              let chipBorderColor = colors.border;
+              let chipBorderWidth = 1;
+              let chipTextColor = colors.textMain;
+
+              if (isRecommended) {
+                // 추천 코스는 테마 주 색상에 대비되는 굵은 강조 박스 테두리 적용
+                chipBorderColor = recommendedContrastColor;
+                chipBorderWidth = 2.5;
+                chipTextColor = recommendedContrastColor;
+              } else if (isSelected) {
+                chipBorderColor = colors.primaryDark;
+                chipBorderWidth = 1.5;
+                chipTextColor = colors.primaryDark;
+              }
+
               return (
                 <TouchableOpacity
                   key={c.id}
@@ -272,12 +325,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                     styles.courseChip,
                     {
                       backgroundColor: isSelected ? colors.primaryWash : colors.background,
-                      borderColor: isSelected
-                        ? colors.primaryDark
-                        : isRecommended
-                        ? colors.primary
-                        : colors.border,
-                      borderWidth: isSelected || isRecommended ? 1.5 : 1,
+                      borderColor: chipBorderColor,
+                      borderWidth: chipBorderWidth,
                     },
                   ]}
                 >
@@ -285,11 +334,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                     numberOfLines={1}
                     style={[
                       {
-                        color: isSelected
-                          ? colors.primaryDark
-                          : isRecommended
-                          ? colors.primaryDark
-                          : colors.textMain,
+                        color: chipTextColor,
                         fontSize: courseRecommend.altCourseChipFont,
                       },
                       (isSelected || isRecommended) && styles.courseChipTextActive,
@@ -355,11 +400,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             currentCourse.stairsCount === '확인된 계단 0회'
               ? '0회'
               : formatStairsCountLabel(currentCourse.stairsCount);
-          const slopeValue = slopeInfo.isUnknown
-            ? '미확인'
-            : slopeInfo.numericValue != null
-            ? `${slopeInfo.numericValue}%`
-            : slopeInfo.valueText;
+          let slopeValue = slopeInfo.valueText;
+          if (slopeInfo.isUnknown) {
+            slopeValue = '미확인';
+          } else if (slopeInfo.numericValue != null) {
+            slopeValue = `${slopeInfo.numericValue}%`;
+          }
           const shadeValue =
             currentCourse.shadePercent == null ? '미확인' : `${currentCourse.shadePercent}%`;
 
