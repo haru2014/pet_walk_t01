@@ -85,6 +85,8 @@ class LoopPlan:
     steps: List[Dict[str, Any]]
     distance_m: float
     source: str
+    lap_count: int = 1
+    lap_cycle_m: Optional[float] = None
 
 
 def build_loop_waypoints(
@@ -238,12 +240,19 @@ def _plan_live(
     return _to_plan(best[0], "osrm_live")
 
 
-def _to_plan(coords: List[List[float]], source: str) -> LoopPlan:
+def _to_plan(
+    coords: List[List[float]],
+    source: str,
+    lap_count: int = 1,
+    lap_cycle_m: Optional[float] = None,
+) -> LoopPlan:
     return LoopPlan(
         coords=coords,
         steps=build_turn_steps(coords),
         distance_m=round(polyline_length_m(coords), 1),
         source=source,
+        lap_count=lap_count,
+        lap_cycle_m=lap_cycle_m,
     )
 
 
@@ -261,7 +270,9 @@ def _plan_static_pilot_park(
     target = target_distance_m or 1400.0
     coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant)
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
-    return _to_plan(coords, f"park_graph_{park_key}")
+    lap_count = getattr(coords, "lap_count", 1) or 1
+    lap_cycle_m = getattr(coords, "lap_cycle_m", None)
+    return _to_plan(coords, f"park_graph_{park_key}", lap_count=lap_count, lap_cycle_m=lap_cycle_m)
 
 
 def _plan_static_seoul(

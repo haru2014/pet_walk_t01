@@ -74,6 +74,8 @@ class RouteCandidate(BaseModel):
     geojson_coordinates: List[List[float]] = Field(default_factory=list)
     turn_by_turn_steps: List[Dict[str, Any]] = Field(default_factory=list)
     route_source: str = "unknown"
+    lap_count: int = 1
+    lap_cycle_m: Optional[float] = None
     slope_source: Optional[str] = "approximation"
     stairs_source: Optional[str] = None
     shade_source: Optional[str] = None
@@ -424,6 +426,8 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
             geojson_coordinates=plan.coords,
             turn_by_turn_steps=plan.steps,
             route_source=plan.source,
+            lap_count=getattr(plan, "lap_count", 1) or 1,
+            lap_cycle_m=getattr(plan, "lap_cycle_m", None),
             **_variant_profile(variant, req),
         ))
     return candidates

@@ -58,6 +58,10 @@ export function getCourseFeatureBadge(
   course: Partial<RecommendedCourse>,
   index: number
 ): { label: string; icon: string; color: string; bgColor: string } {
+  if (course.lapCount && course.lapCount > 1) {
+    return { label: `${course.lapCount}바퀴 순환`, icon: '🔄', color: '#D97706', bgColor: '#FEF3C7' };
+  }
+
   if (index === 0) {
     return { label: '최적 맞춤', icon: '🏆', color: '#D97706', bgColor: '#FEF3C7' };
   }
@@ -86,9 +90,24 @@ export function getCourseFeatureBadge(
 
 /**
  * 코스 추천 사유 문구 정제 (중복 점수 접두어, 거리, 불필요한 "1안" 및 타이틀 중복 제거)
+ * 동일 경로 반복 산책 시 2줄 이내로 안내 문구 지원
  */
-export function formatCourseReasonText(reason: string, courseName?: string): string {
+export function formatCourseReasonText(
+  reason: string,
+  courseName?: string,
+  lapCount?: number,
+  lapCycleMeters?: number | null
+): string {
+  if (lapCount && lapCount > 1 && lapCycleMeters && lapCycleMeters > 0) {
+    return `순환로(약 ${Math.round(lapCycleMeters)}m)를 ${lapCount}바퀴 반복하는 코스입니다.\n실측 지표 기반의 안전하고 쾌적한 산책로예요.`;
+  }
+
   if (!reason) return '';
+
+  if (reason.includes('반복하는 코스')) {
+    return reason.trim();
+  }
+
   let cleaned = reason
     .replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '')
     .trim();
@@ -524,7 +543,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               ]}
               numberOfLines={2}
             >
-              💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name)}
+              💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name, currentCourse.lapCount, currentCourse.lapCycleMeters)}
             </Text>
           </View>
         ) : null}
@@ -764,8 +783,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
+    minHeight: 32,
+    justifyContent: 'center',
   },
-  reasonText: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
+  reasonText: {
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
+    letterSpacing: -0.1,
+  },
   courseMetaText: { fontSize: TYPOGRAPHY.caption, fontWeight: '800', letterSpacing: -0.2 },
   metricsBar: {
     flexDirection: 'row',

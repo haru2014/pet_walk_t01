@@ -216,6 +216,8 @@ export async function requestWalkPlan(
         }
         return {
           ...c,
+          lapCount: c.lapCount ?? (c as any).lap_count,
+          lapCycleMeters: c.lapCycleMeters ?? (c as any).lap_cycle_meters,
           score,
           profile,
           slopeSource: profile?.slope_source ?? c.slopeSource,

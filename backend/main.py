@@ -315,16 +315,26 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
     is_soft = "grass" in surface_types or "dirt" in surface_types
     slope_for_reason = profile.get("max_slope_percent") if profile else cand.max_slope_percent
     slope_label = "실측 최대 경사" if profile else "경사"
-    reason = (
-        f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
-        if score is not None
-        else fallback_reason
-    )
+
+    lap_count = getattr(cand, "lap_count", 1) or 1
+    lap_cycle_m = getattr(cand, "lap_cycle_m", None)
+
+    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
+        repeat_desc = f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
+        reason = f"{repeat_desc}\n{slope_label} {slope_for_reason}%의 완만하고 쾌적한 산책로입니다."
+    else:
+        reason = (
+            f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
+            if score is not None
+            else fallback_reason
+        )
     course = {
         "id": cand.route_id,
         "name": cand.name,
         "distanceKm": f"{cand.total_distance_m / 1000.0:.1f} km",
         "estimatedMinutes": int(cand.estimated_duration_minutes),
+        "lapCount": lap_count,
+        "lapCycleMeters": round(lap_cycle_m, 1) if lap_cycle_m else None,
         "softRatio": "85%" if is_soft else "60%",
         "shadeLevel": "많음" if cand.average_shade_ratio > 0.5 else "보통",
         "stairsCount": "확인된 계단 0회" if not cand.has_stairs else "계단 있음",

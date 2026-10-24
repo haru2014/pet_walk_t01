@@ -124,6 +124,8 @@ export interface RecommendedCourse {
   score?: number | null;
   profile?: CourseProfile | null;
   slopeSource?: 'dem' | 'approximation' | 'unknown';
+  lapCount?: number;
+  lapCycleMeters?: number | null;
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [
