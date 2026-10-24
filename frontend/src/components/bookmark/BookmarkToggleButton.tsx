@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 안심 코스 즐겨찾기 토글 버튼 (US-29)
@@ -6,7 +7,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
@@ -85,6 +87,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  text: { fontSize: 11, fontWeight: '700' },
+  text: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   content: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

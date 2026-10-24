@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 이번 주 산책 달성도 7일 발자국 스탬프 위젯 (WeeklyWalkStampCard.tsx)
@@ -10,7 +11,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { WeeklyWalkStats, DailyWalkStat } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   cardTitle: {
-    fontSize: 15.5,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   badgeText: {
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dayText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     marginBottom: 2,
   },
   todayDot: {

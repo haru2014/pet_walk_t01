@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import {
   SoundSettings,
@@ -209,9 +210,9 @@ const styles = StyleSheet.create({
     borderBottomColor: TOKENS.colors.border,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 16, fontWeight: '700', color: TOKENS.colors.textMain },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   closeButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  closeText: { fontSize: 18, color: TOKENS.colors.textMuted },
+  closeText: { fontSize: TYPOGRAPHY.cardTitle, color: TOKENS.colors.textMuted },
   scrollArea: { marginVertical: 14 },
   muteBanner: {
     flexDirection: 'row',
@@ -229,33 +230,33 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.warning,
   },
   muteBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 },
-  muteBannerTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  muteBannerTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.primaryDark },
   muteBannerTitleActive: { color: '#B45309' },
-  muteBannerDesc: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2 },
+  muteBannerDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2 },
   toggleBadge: { backgroundColor: TOKENS.colors.primaryDark, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   toggleBadgeActive: { backgroundColor: TOKENS.colors.warning },
-  toggleBadgeText: { color: TOKENS.colors.textWhite, fontSize: 12, fontWeight: '700' },
+  toggleBadgeText: { color: TOKENS.colors.textWhite, fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   toggleBadgeTextActive: { color: '#78350F' },
-  sectionLabel: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 8, marginTop: 4 },
+  sectionLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 8, marginTop: 4 },
   volumeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   volumeChip: { flex: 1, marginHorizontal: 3, paddingVertical: 10, alignItems: 'center', borderRadius: 8, backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border },
   volumeChipSelected: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
-  volumeText: { fontSize: 13, fontWeight: '600', color: TOKENS.colors.textMuted },
+  volumeText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.textMuted },
   volumeTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '800' },
   profileList: { gap: 10, marginBottom: 10 },
   profileCard: { padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: TOKENS.colors.border, backgroundColor: TOKENS.colors.background },
   profileCardSelected: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
   profileHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   profileTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  profileLabel: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  profileLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   profileLabelSelected: { color: TOKENS.colors.primaryDark },
   toneBadge: { backgroundColor: TOKENS.colors.surface, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: TOKENS.colors.border },
-  toneBadgeText: { fontSize: 10, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  toneBadgeText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, fontWeight: '600' },
   previewButton: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: TOKENS.colors.surface, borderWidth: 1, borderColor: TOKENS.colors.border },
-  previewButtonText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  profileDesc: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16 },
+  previewButtonText: { fontSize: TYPOGRAPHY.button, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  profileDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   confirmButton: { backgroundColor: TOKENS.colors.primaryDark, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  confirmButtonText: { color: TOKENS.colors.textWhite, fontSize: 15, fontWeight: '700' },
+  confirmButtonText: { color: TOKENS.colors.textWhite, fontSize: TYPOGRAPHY.button, fontWeight: '700' },
   smartBarkCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,8 +269,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   smartBarkLeft: { flex: 1, marginRight: 10 },
-  smartBarkTitle: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
-  smartBarkDesc: { fontSize: 11, color: TOKENS.colors.textMuted, lineHeight: 15 },
+  smartBarkTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
+  smartBarkDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   smartBarkBadge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -279,6 +280,6 @@ const styles = StyleSheet.create({
   smartBarkBadgeActive: {
     backgroundColor: TOKENS.colors.primaryDark,
   },
-  smartBarkBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
+  smartBarkBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#6B7280' },
   smartBarkBadgeTextActive: { color: TOKENS.colors.textWhite },
 });

@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { SegmentType } from '../../types/route';
 import { useAppTheme } from '../../theme/themeManager';
 
@@ -56,6 +57,6 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendBar: { width: 14, height: 4, borderRadius: 2 },
-  legendLabel: { fontSize: 10, fontWeight: '600' },
+  legendLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
 });
 

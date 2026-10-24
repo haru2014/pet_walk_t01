@@ -416,7 +416,7 @@ graph LR
 |---|---|---|
 | 앱 화면 | 홈, 산책/코스 탐색, 다크 포켓 산책 진행, 완주 리포트, 커뮤니티, 마이페이지 | `frontend/src/screens/`, `frontend/App.tsx` |
 | 개인화·저장 | 다견 프로필, 온보딩·동의, 로컬 산책 이력, 피드백·통계, JSON 백업, 코스 북마크 | `frontend/src/services/`, `frontend/src/components/profile/` |
-| 산책 진행·안전 | 백그라운드 GPS, TTS 안내, 음성 설정·소음 감지, 배변/소변 마킹, 지도 보기, 위험 제보·우회·긴급 복귀 | `frontend/src/screens/DarkPocketScreen.tsx`, `frontend/src/services/locationService.ts`, `frontend/src/services/hazardApi.ts` |
+| 산책 진행·안전 | 백그라운드 GPS, TTS 안내, 음성 설정·소음 감지, 배변/소변 마킹, 지도 보기, 위험 제보·우회·돌아가기 | `frontend/src/screens/DarkPocketScreen.tsx`, `frontend/src/services/locationService.ts`, `frontend/src/services/hazardApi.ts` |
 | 경로·외부 정보 | 자연어/음성 조건 입력, 현 위치/지정 공원 경로 계획, 지면온도·기상, 공영주차장 검색 | `backend/agent/`, `backend/services/`, `backend/main.py` |
 | 커뮤니티 | 코스 피드·공유, 인증 연계, 공유 위치 마스킹 | `frontend/src/services/communityApi.ts`, `backend/agent/spatial_masking.py`, `backend/main.py` |
 

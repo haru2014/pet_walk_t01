@@ -7,8 +7,9 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { DogProfile } from '../../types/dogProfile';
@@ -211,17 +212,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   headerTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   headerSubtitle: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     marginTop: 1,
   },
   toggleArrow: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMuted,
     paddingLeft: 8,
@@ -234,9 +235,9 @@ const styles = StyleSheet.create({
     borderTopColor: '#E2E8F0',
   },
   bodyNotice: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 10,
   },
   actionBtnRow: {
@@ -259,11 +260,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   btnTitle: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   btnSub: {
-    fontSize: 9.5,
+    fontSize: TYPOGRAPHY.button,
     color: TOKENS.colors.textMuted,
     marginTop: 1,
   },
@@ -278,14 +279,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   restoreSectionTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   restoreNotice: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 15,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 8,
   },
   restoreBtn: {
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   restoreBtnText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#065F46',
   },

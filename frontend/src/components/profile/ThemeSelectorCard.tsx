@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 마이페이지 컬러 테마 선택 카드 컴포넌트
@@ -6,7 +7,8 @@
  */
 
 import React, { useState } from 'react';
-import { Alert, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { THEME_LIST } from '../../types/theme';
 import { useAppTheme } from '../../theme/themeManager';
 import { CardWrapper } from '../common/CardWrapper';
@@ -100,10 +102,10 @@ const styles = StyleSheet.create({
   card: { marginBottom: 10 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardTitle: { fontSize: 13.5, fontWeight: '700' },
+  cardTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
   activeBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-  activeBadgeText: { fontSize: 10, fontWeight: '700' },
-  subDesc: { fontSize: 10.5, marginTop: 2, marginBottom: 6 },
+  activeBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
+  subDesc: { fontSize: TYPOGRAPHY.support, marginTop: 2, marginBottom: 6 },
   themeGrid: { gap: 5 },
   themeItem: {
     flexDirection: 'row',
@@ -129,7 +131,7 @@ const styles = StyleSheet.create({
   colorDotSmall: { width: 9, height: 9, borderRadius: 4.5 },
   themeInfo: { flex: 1 },
   itemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  themeName: { fontSize: 11.5, fontWeight: '700' },
-  checkMark: { fontSize: 12, fontWeight: '800' },
-  themeDesc: { fontSize: 9.5, marginTop: 1 },
+  themeName: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
+  checkMark: { fontSize: TYPOGRAPHY.label, fontWeight: '800' },
+  themeDesc: { fontSize: TYPOGRAPHY.support, marginTop: 1 },
 });

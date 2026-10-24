@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 모바일 마이 프로필 탭 화면 (US-A2, US-E3, US-G2, US-THEME)
@@ -6,7 +7,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { AppText as Text } from '../components/common/AppText';
 import * as Updates from 'expo-updates';
 import { DogProfile } from '../types/dogProfile';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -201,20 +203,20 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
           onPress={() => onInjectFeedback(true)}
           style={[styles.simButton, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5', flex: 1 }]}
         >
-          <Text style={{ color: '#991B1B', fontSize: 11, fontWeight: '600' }}>+ &quot;경사 부담&quot;</Text>
+          <Text style={{ color: '#991B1B', fontSize: TYPOGRAPHY.caption, fontWeight: '600' }}>+ &quot;경사 부담&quot;</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onInjectFeedback(false)}
           style={[styles.simButton, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, flex: 1 }]}
         >
-          <Text style={{ color: colors.primaryDark, fontSize: 11, fontWeight: '600' }}>+ &quot;완만한 길&quot;</Text>
+          <Text style={{ color: colors.primaryDark, fontSize: TYPOGRAPHY.caption, fontWeight: '600' }}>+ &quot;완만한 길&quot;</Text>
         </TouchableOpacity>
         {onResetFeedback && (
           <TouchableOpacity
             onPress={onResetFeedback}
             style={[styles.simButton, { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB', flex: 1 }]}
           >
-            <Text style={{ color: '#4B5563', fontSize: 11, fontWeight: '600' }}>↺ 리셋</Text>
+            <Text style={{ color: '#4B5563', fontSize: TYPOGRAPHY.caption, fontWeight: '600' }}>↺ 리셋</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -232,14 +234,14 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
           onPress={() => onOpenLegal('terms')}
           style={[styles.simButton, { backgroundColor: colors.surface, borderColor: colors.border, flex: 1 }]}
         >
-          <Text style={{ color: colors.textMain, fontSize: 12, fontWeight: '700' }}>📄 회원가입 약관</Text>
+          <Text style={{ color: colors.textMain, fontSize: TYPOGRAPHY.label, fontWeight: '700' }}>📄 회원가입 약관</Text>
         </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => onOpenLegal('privacy')}
           style={[styles.simButton, { backgroundColor: colors.surface, borderColor: colors.border, flex: 1 }]}
         >
-          <Text style={{ color: colors.textMain, fontSize: 12, fontWeight: '700' }}>🔒 개인정보보호정책</Text>
+          <Text style={{ color: colors.textMain, fontSize: TYPOGRAPHY.label, fontWeight: '700' }}>🔒 개인정보보호정책</Text>
         </TouchableOpacity>
       </View>
     </CardWrapper>
@@ -251,7 +253,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
           onPress={onOpenOnboarding}
           style={[styles.simButton, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
         >
-          <Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '700' }}>
+          <Text style={{ color: colors.primaryDark, fontSize: TYPOGRAPHY.label, fontWeight: '700' }}>
             📖 4단계 온보딩 플로우 다시 보기 (가입·등록·위치·지도)
           </Text>
         </TouchableOpacity>
@@ -294,7 +296,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
           accessibilityRole="button"
           accessibilityLabel="OTA 업데이트 확인 및 다운로드"
         >
-          <Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+          <Text style={{ color: colors.primaryDark, fontSize: TYPOGRAPHY.label, fontWeight: '700', textAlign: 'center' }}>
             {isCheckingUpdate ? '확인 중…' : '업데이트 확인 및 다운로드'}
           </Text>
         </TouchableOpacity>
@@ -306,7 +308,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
             accessibilityRole="button"
             accessibilityLabel="다운로드한 업데이트 적용"
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>업데이트 적용</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: TYPOGRAPHY.label, fontWeight: '700', textAlign: 'center' }}>업데이트 적용</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -558,7 +560,12 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
 
       {/* 서브탭 2: 컬러 테마 선택 & 계정 상태 */}
       {subTab === 'theme_account' && (
-        <View style={styles.tabScrollContainer}>
+        <ScrollView
+          style={styles.tabScrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+        >
           <CardWrapper variant="flat" style={styles.accountCard}>
             <View style={styles.accountRow}>
               <View style={{ flex: 1, marginRight: 8 }}>
@@ -583,7 +590,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
 
           {/* 🎨 컬러 테마 선택기 */}
           <ThemeSelectorCard />
-        </View>
+        </ScrollView>
       )}
 
       {/* 서브탭 3: 산책 활동 (이번 주 산책 달성도 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
@@ -599,7 +606,6 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             stats={weeklyStats}
             recentWalk={recentStats}
             onPress={() => setWalkSubFilter('history')}
-            onPressRecent={() => setWalkSubFilter('history')}
             style={{ marginBottom: 10 }}
           />
 
@@ -698,8 +704,8 @@ const styles = StyleSheet.create({
   tabScrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 64 },
   sectionHeader: { marginBottom: 10 },
-  sectionSubtitle: { fontSize: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.4 },
+  sectionSubtitle: { fontSize: TYPOGRAPHY.support },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.4 },
   segmentContainer: {
     flexDirection: 'row',
     borderRadius: 14,
@@ -717,7 +723,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  segmentText: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
+  segmentText: { fontSize: TYPOGRAPHY.caption, fontWeight: '600', color: '#6B7280' },
   filterChipContainer: {
     flexDirection: 'row',
     borderRadius: 12,
@@ -735,23 +741,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  filterChipText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  filterChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: '#6B7280' },
   accountCard: { marginBottom: 10, paddingVertical: 10 },
   accountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  accountTitle: { fontSize: 12, fontWeight: '700' },
-  accountSubtitle: { fontSize: 10, marginTop: 2 },
-  guestNotice: { fontSize: 9.5, marginTop: 4, fontWeight: '600' },
+  accountTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
+  accountSubtitle: { fontSize: TYPOGRAPHY.support, marginTop: 2 },
+  guestNotice: { fontSize: TYPOGRAPHY.support, marginTop: 4, fontWeight: '600' },
   authBtnGroup: { flexDirection: 'row', gap: 6 },
   accountBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10 },
-  accountBtnText: { fontSize: 10, fontWeight: '700' },
-  updateInfoText: { fontSize: 11, lineHeight: 16 },
+  accountBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '700' },
+  updateInfoText: { fontSize: TYPOGRAPHY.caption, lineHeight: 16 },
   logoutBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,
   },
-  cardHeaderTitle: { fontSize: 13, fontWeight: '700' },
-  backupDesc: { fontSize: 11, marginTop: 2, lineHeight: 16 },
+  cardHeaderTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
+  backupDesc: { fontSize: TYPOGRAPHY.support, marginTop: 2, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   simButton: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
   simStatusBadge: { backgroundColor: '#F3F4F6', padding: 6, borderRadius: 6, marginTop: 6 },
-  simStatusText: { fontSize: 10, color: '#6B7280', fontWeight: '600' },
+  simStatusText: { fontSize: TYPOGRAPHY.label, color: '#6B7280', fontWeight: '600' },
 });

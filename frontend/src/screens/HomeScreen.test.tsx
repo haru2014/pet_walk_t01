@@ -99,7 +99,8 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
       />
     );
 
-    expect(html).toContain(`${mockDog.name} ▾`);
+    expect(html).toContain(mockDog.name);
+    expect(html).toContain('▾');
   });
 
   it('갈색 카드 헤더에 알림 버튼이 정상 포함된다', () => {

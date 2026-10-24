@@ -9,16 +9,9 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  ScrollView,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, Modal, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { PhotoPickerService, DOG_AVATAR_PRESETS } from '../../services/photoPickerService';
 
 export interface PhotoPickerModalProps {
@@ -210,13 +203,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
     marginTop: 4,
@@ -242,17 +235,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   actionText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   actionSub: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
   },
   presetSectionTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMuted,
     marginBottom: 8,
@@ -280,7 +273,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   presetName: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '600',
     color: TOKENS.colors.textMain,
   },
@@ -292,7 +285,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   removeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: '#EF4444',
     fontWeight: '600',
   },
@@ -304,7 +297,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   closeText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },

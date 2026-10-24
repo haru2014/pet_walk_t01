@@ -487,7 +487,7 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
 }
 
 /**
- * 돌발 비상/위험 발생 시 출발점(주차장/시작지점)으로 즉시 안전 복귀하는 긴급 복귀 경로 생성
+ * 돌발 비상/위험 발생 시 출발점(주차장/시작지점)으로 즉시 안전 복귀하는 돌아가기 경로 생성
  */
 export function createEmergencyReturnRoute(
   currentLat: number,

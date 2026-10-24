@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { CourseSummary } from '../../types/route';
 import { GradientButton } from '../common/GradientButton';
@@ -100,12 +101,12 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   statNumber: {
-    fontSize: 26,
+    fontSize: TYPOGRAPHY.metricValue,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
   statUnit: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginLeft: 3,
   },
@@ -116,8 +117,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   badgeContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  badgeText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.primaryDark },
+  badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.primaryDark },
   badgeWarningText: { color: TOKENS.colors.routeCaution },
   startButtonContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  startButtonText: { color: TOKENS.colors.textWhite, fontSize: 15, fontWeight: '700' },
+  startButtonText: { color: TOKENS.colors.textWhite, fontSize: TYPOGRAPHY.button, fontWeight: '700' },
 });

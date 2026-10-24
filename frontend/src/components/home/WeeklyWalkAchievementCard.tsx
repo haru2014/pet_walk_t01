@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { CardWrapper } from '../common/CardWrapper';
-import { ThemeColors } from '../../theme/tokens';
+import { ThemeColors, TYPOGRAPHY } from '../../theme/tokens';
 
 export interface WeeklyWalkAchievementCardProps {
   walkCount: number;
@@ -62,10 +63,10 @@ export const WeeklyWalkAchievementCard: React.FC<WeeklyWalkAchievementCardProps>
 const styles = StyleSheet.create({
   card: { marginBottom: 0, padding: 10 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 14, fontWeight: '700' },
-  progress: { marginTop: 4, fontSize: 12 },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
+  progress: { marginTop: 4, fontSize: TYPOGRAPHY.label },
   badge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
+  badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   track: { height: 6, marginTop: 12, overflow: 'hidden', borderRadius: 3 },
   progressBar: { height: '100%', borderRadius: 3 },
 });

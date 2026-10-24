@@ -8,8 +8,9 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 
@@ -193,31 +194,31 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: TOKENS.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28, gap: 11 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: TOKENS.colors.textMain },
-  closeBtn: { fontSize: 18, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  headerTitle: { fontSize: TYPOGRAPHY.screenTitle, fontWeight: '800', color: TOKENS.colors.textMain },
+  closeBtn: { fontSize: TYPOGRAPHY.button, color: TOKENS.colors.textMuted, fontWeight: '600' },
   privacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: TOKENS.colors.primaryWash, borderWidth: 1, borderColor: TOKENS.colors.primaryMint, borderRadius: 14, padding: 12 },
-  privacyTitle: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.primaryDark, marginBottom: 2 },
-  privacyDesc: { fontSize: 11, color: TOKENS.colors.textMuted, lineHeight: 15 },
+  privacyTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.primaryDark, marginBottom: 2 },
+  privacyDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   courseSummaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: TOKENS.colors.background, borderRadius: 12, paddingVertical: 10 },
   summaryItem: { alignItems: 'center' },
-  summaryLabel: { fontSize: 10, color: TOKENS.colors.textMuted, fontWeight: '600', marginBottom: 2 },
-  summaryVal: { fontSize: 15, fontWeight: '800', color: TOKENS.colors.textMain },
+  summaryLabel: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, fontWeight: '600', marginBottom: 2 },
+  summaryVal: { fontSize: TYPOGRAPHY.support, fontWeight: '800', color: TOKENS.colors.textMain },
   summaryDivider: { width: 1, height: 22, backgroundColor: TOKENS.colors.border },
   inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain },
-  textInput: { borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: TOKENS.colors.textMain, backgroundColor: '#FFFFFF' },
+  inputLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
+  textInput: { borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMain, backgroundColor: '#FFFFFF' },
   ratingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   starsWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingValueText: { fontSize: 13, fontWeight: '800', color: TOKENS.colors.primaryDark, marginLeft: 4 },
+  ratingValueText: { fontSize: TYPOGRAPHY.label, fontWeight: '800', color: TOKENS.colors.primaryDark, marginLeft: 4 },
   chipsSection: { gap: 6 },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border },
   chipActive: { backgroundColor: TOKENS.colors.primaryLight, borderColor: TOKENS.colors.primary },
-  chipText: { fontSize: 11, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  chipText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, fontWeight: '600' },
   chipTextActive: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: TOKENS.colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: TOKENS.colors.background },
-  cancelBtnText: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMuted },
+  cancelBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '700', color: TOKENS.colors.textMuted },
   submitBtn: { flex: 2, height: 48, borderRadius: 14, backgroundColor: TOKENS.colors.primary, alignItems: 'center', justifyContent: 'center' },
-  submitBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+  submitBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '800', color: '#FFFFFF' },
 });

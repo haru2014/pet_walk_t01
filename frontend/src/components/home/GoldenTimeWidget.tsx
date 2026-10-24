@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 모바일 홈 골든타임 위젯 (Screen-01, US-B2, US-F1)
@@ -8,7 +9,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { AirQualityDTO, HeatRiskLevel, HeatRiskResponse, SurfaceTempsDTO } from '../../types/weather';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
@@ -1086,12 +1088,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainHeading: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   mainSubHeading: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '500',
     marginTop: 1,
   },
@@ -1124,13 +1126,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   scoreNumber: {
-    fontSize: 20,
+    fontSize: TYPOGRAPHY.metricValue,
     fontWeight: '900',
     letterSpacing: -0.5,
-    lineHeight: 24,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.metricValue,
   },
   scoreUnit: {
-    fontSize: 9.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     marginTop: -2,
   },
@@ -1154,7 +1156,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
   },
   virtualIndicatorBadge: {
@@ -1166,7 +1168,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   virtualIndicatorText: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: '#4B5563',
   },
@@ -1192,10 +1194,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statusTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     letterSpacing: -0.3,
-    lineHeight: 18,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.label,
     marginBottom: 3,
   },
   bottomHintRow: {
@@ -1204,11 +1206,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   recommendTimeInline: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
   },
   detailHintText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: '#6366F1',
   },
@@ -1252,10 +1254,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   modalHeaderPaw: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.screenTitle,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -1263,7 +1265,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalCloseText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.body,
     fontWeight: '700',
   },
   modalScrollBody: {
@@ -1278,10 +1280,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalVirtualNoticeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: '#92400E',
-    lineHeight: 15,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   modalScoreBanner: {
     flexDirection: 'row',
@@ -1292,18 +1294,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalScoreNumber: {
-    fontSize: 24,
+    fontSize: TYPOGRAPHY.metricValue,
     fontWeight: '900',
   },
   modalScoreBannerTextWrap: {
     flex: 1,
   },
   modalScoreLabel: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
   },
   modalScoreTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     marginTop: 1,
   },
@@ -1314,12 +1316,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalGuideText: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     lineHeight: 17,
     fontWeight: '500',
   },
   modalSectionTitle: {
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     marginBottom: 6,
   },
@@ -1341,17 +1343,17 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   modalMetricTitle: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     marginBottom: 2,
   },
   modalMetricValue: {
-    fontSize: 14.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     marginBottom: 1,
   },
   modalMetricSub: {
-    fontSize: 9.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '500',
   },
   modalSurfaceBox: {
@@ -1370,7 +1372,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   modalSurfaceTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   modalSurfaceGrid: {
@@ -1387,17 +1389,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
   modalSurfaceItemLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     marginBottom: 2,
   },
   modalSurfaceItemVal: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     marginBottom: 2,
   },
   modalSurfaceItemStatus: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -1408,7 +1410,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0, 0, 0, 0.06)',
   },
   modalSurfaceTipText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: '#059669',
     textAlign: 'center',
@@ -1429,11 +1431,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalGoldenTitle: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '600',
   },
   modalGoldenTime: {
-    fontSize: 13.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     marginTop: 1,
   },
@@ -1442,10 +1444,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalAttributionText: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 13,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.caption,
   },
   modalConfirmBtn: {
     backgroundColor: '#6366F1',
@@ -1456,7 +1458,7 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtnText: {
     color: '#FFFFFF',
-    fontSize: 13.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   hiddenMetaArea: {
@@ -1465,7 +1467,7 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   hiddenMetaText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
   },
   hiddenTrack: {
     height: 0,
@@ -1481,7 +1483,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   attributionText: {
-    fontSize: 8.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '400',
     textAlign: 'center',
   },

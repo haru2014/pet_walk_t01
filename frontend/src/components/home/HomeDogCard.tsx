@@ -8,17 +8,9 @@
  */
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-  Dimensions,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { DogProfile } from '../../types/dogProfile';
 import { AppIcon } from '../common/AppIcon';
 import { DogAvatar } from '../common/DogAvatar';
@@ -438,7 +430,7 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   dogName: {
-    fontSize: 15.5,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
@@ -449,7 +441,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   readyBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primary,
   },
@@ -463,7 +455,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.primaryMint,
   },
   slideNoticeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -475,18 +467,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addBtnSmallText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breedText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginTop: 1,
   },
@@ -512,7 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   chipText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
@@ -530,7 +522,7 @@ const styles = StyleSheet.create({
   },
   startButtonText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -567,13 +559,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   addCardTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 3,
   },
   addCardSubtitle: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
   },
@@ -615,7 +607,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   addDotText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: TOKENS.colors.textMuted,
     lineHeight: 12,
