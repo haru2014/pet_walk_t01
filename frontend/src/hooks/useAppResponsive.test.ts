@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as ReactNative from 'react-native';
 import { useAppResponsive } from './useAppResponsive';
+import { TYPOGRAPHY } from '../theme/tokens';
 
 describe('useAppResponsive Hook', () => {
   beforeEach(() => {
@@ -36,10 +37,10 @@ describe('useAppResponsive Hook', () => {
 
     // 산책 설정
     expect(tokens.walkSettings.envCardHeight).toBe(44);
-    expect(tokens.walkSettings.findButtonFontSize).toBe(13.5);
+    expect(tokens.walkSettings.findButtonFontSize).toBe(TYPOGRAPHY.button);
 
     // 추천 코스
-    expect(tokens.courseRecommend.startButtonFontSize).toBe(13.5);
+    expect(tokens.courseRecommend.startButtonFontSize).toBe(TYPOGRAPHY.button);
 
     // 커뮤니티
     expect(tokens.community.inlineMapHeight).toBe(160);
