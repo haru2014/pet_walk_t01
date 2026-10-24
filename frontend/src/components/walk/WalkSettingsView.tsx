@@ -384,7 +384,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
-        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
+        <View
+          style={[
+            styles.sectionBlock,
+            { marginTop: walkSettings.sectionGap, marginBottom: walkSettings.sectionGap },
+          ]}
+        >
           <View style={styles.sectionHeaderRow}>
             <View style={styles.durationTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
