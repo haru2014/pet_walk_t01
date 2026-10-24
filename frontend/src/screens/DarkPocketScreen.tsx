@@ -158,6 +158,42 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
     return '화면이 꺼져도 음성으로 안내해요';
   };
 
+  const finishDialogContent = (
+    <View style={styles.actionModal}>
+      <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
+      <View style={styles.finishModalButtons}>
+        <View style={styles.finishSummary}>
+          <Text style={styles.finishSummaryLabel}>산책 요약</Text>
+          <Text style={styles.finishSummaryText}>
+            경과 시간 {formatElapsed(stats.elapsedSec)} · 이동 거리 {stats.distanceKm.toFixed(2)}km
+          </Text>
+          <Text style={styles.finishSummaryHint}>저장하지 않으면 산책 기록과 경로가 남지 않습니다.</Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => { setShowFinishModal(false); onFinishWalk(true); }}
+          style={styles.finishSaveButton}
+        >
+          <Text style={styles.finishSaveButtonText}>기록 저장 후 종료</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => { setShowFinishModal(false); onFinishWalk(false); }}
+          style={styles.finishDiscardButton}
+        >
+          <Text style={styles.finishDiscardButtonText}>저장 없이 종료</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => setShowFinishModal(false)}
+          style={styles.finishContinueButton}
+        >
+          <Text style={styles.finishContinueButtonText}>계속 산책</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, isCompactLayout && styles.containerCompact]}>
       <View style={styles.titleRow}>
@@ -364,41 +400,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       </Modal>
 
       <Modal visible={showFinishModal} transparent animationType="fade" onRequestClose={() => setShowFinishModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.actionModal}>
-            <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
-            <View style={styles.finishModalButtons}>
-              <View style={styles.finishSummary}>
-                <Text style={styles.finishSummaryLabel}>산책 요약</Text>
-                <Text style={styles.finishSummaryText}>
-                  경과 시간 {formatElapsed(stats.elapsedSec)} · 이동 거리 {stats.distanceKm.toFixed(2)}km
-                </Text>
-                <Text style={styles.finishSummaryHint}>저장하지 않으면 산책 기록과 경로가 남지 않습니다.</Text>
-              </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => { setShowFinishModal(false); onFinishWalk(true); }}
-                style={styles.finishSaveButton}
-              >
-                <Text style={styles.finishSaveButtonText}>기록 저장 후 종료</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => { setShowFinishModal(false); onFinishWalk(false); }}
-                style={styles.finishDiscardButton}
-              >
-                <Text style={styles.finishDiscardButtonText}>저장 없이 종료</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => setShowFinishModal(false)}
-                style={styles.finishContinueButton}
-              >
-                <Text style={styles.finishContinueButtonText}>계속 산책</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <View style={styles.modalOverlay}>{finishDialogContent}</View>
       </Modal>
 
       <Modal visible={showEmergencyModal} transparent animationType="fade" onRequestClose={() => setShowEmergencyModal(false)}>

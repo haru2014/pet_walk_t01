@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import type { GpsPoint } from './locationService';
 import { evaluateGuidance, GuidanceState, INITIAL_GUIDANCE_STATE } from './guidanceEngine';
-import { TTSNavigationService } from './ttsNavigation';
 
 const SESSION_KEY = '@편안하개:active_background_guidance';
 
@@ -24,6 +23,11 @@ export async function clearBackgroundGuidanceSession(): Promise<void> {
   await AsyncStorage.removeItem(SESSION_KEY);
 }
 
+export async function prepareBackgroundSpeech(): Promise<void> {
+  const { TTSNavigationService } = await import('./ttsNavigation');
+  await TTSNavigationService.prepareForBackgroundSpeech();
+}
+
 /** TaskManager가 화면 컴포넌트 없이 실행될 때 경로 회전 안내를 처리한다. */
 export async function processBackgroundGuidancePoint(point: GpsPoint): Promise<void> {
   try {
@@ -41,6 +45,7 @@ export async function processBackgroundGuidancePoint(point: GpsPoint): Promise<v
     // 마지막 좌표를 저장해 다음 headless 실행에서도 직전 점 기준 판정을 이어간다.
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, state: result.nextState }));
     if (result.events.length === 0) return;
+    const { TTSNavigationService } = await import('./ttsNavigation');
     await TTSNavigationService.init();
     await TTSNavigationService.prepareForBackgroundSpeech();
     for (const event of result.events) {

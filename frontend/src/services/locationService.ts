@@ -11,8 +11,7 @@ import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { processBackgroundGuidancePoint } from './backgroundWalkGuidance';
-import { TTSNavigationService } from './ttsNavigation';
+import { prepareBackgroundSpeech, processBackgroundGuidancePoint } from './backgroundWalkGuidance';
 
 export const WALK_LOCATION_TASK = 'PETWALK_BACKGROUND_LOCATION';
 const WALK_TRACK_KEY = '@편안하개:active_walk_track';
@@ -224,7 +223,7 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
 
     const background = await Location.requestBackgroundPermissionsAsync();
     if (background.status === 'granted') {
-      await TTSNavigationService.prepareForBackgroundSpeech();
+      await prepareBackgroundSpeech();
       await startBackground();
       return { ok: true, mode: 'background' };
     }
@@ -255,6 +254,14 @@ export async function stopWalkTracking(): Promise<void> {
   } catch (error) {
     console.warn('[locationService] 추적 종료 실패:', error);
   }
+  if (Platform.OS !== 'web') {
+    try {
+      await AsyncStorage.removeItem(WALK_TRACK_KEY);
+    } catch (error) {
+      console.warn('[locationService] 임시 GPS 궤적 정리 실패:', error);
+    }
+  }
+  buffer.length = 0;
 }
 
 /**
