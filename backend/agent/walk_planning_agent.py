@@ -598,6 +598,36 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     }
 
 
+def _apply_profile_to_candidate(c: RouteCandidate, profile: Dict[str, Any], surface_temp_c: Optional[float]) -> None:
+    """실측 프로필 지표(경사, 계단, 그늘, 노면, 지면온도)를 후보 객체에 동기화."""
+    c.max_slope_percent = profile.get("max_slope_percent", c.max_slope_percent)
+    c.average_slope_percent = profile.get("avg_slope_percent", c.average_slope_percent)
+    c.slope_source = profile.get("slope_source", "approximation")
+
+    stairs_count = profile.get("stairs_count")
+    if stairs_count is not None:
+        c.has_stairs = stairs_count > 0
+        c.stairs_source = profile.get("stairs_source")
+
+    shade_ratio = profile.get("shade_ratio")
+    if shade_ratio is not None:
+        c.average_shade_ratio = shade_ratio
+        c.shade_source = profile.get("shade_source")
+
+    surface_known_ratio = profile.get("surface_known_ratio")
+    if surface_known_ratio is not None:
+        c.surface_known_ratio = surface_known_ratio
+        if surface_known_ratio > 0:
+            c.surface_source = "osm_surface_tags"
+
+    if surface_temp_c is not None:
+        c.surface_temp_c = surface_temp_c
+
+    is_measured = (profile.get("slope_source") == "dem" or
+                   profile.get("stairs_source") == "park_network_osm_tags")
+    c.data_reliability = "measured" if is_measured else "estimated"
+
+
 def _score_candidates_personalized(state: WalkPlanningState, candidates: List[RouteCandidate],
                                    target_dist: float) -> List[ScoredRoute]:
     """[제안] 실측 지표(course_profiles 와 같은 계산) + 반려견 관절 단계 + 그늘·노면 선호로 채점한다.
@@ -629,25 +659,7 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
             air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
         )
         if profile:
-            c.max_slope_percent = profile.get("max_slope_percent", c.max_slope_percent)
-            c.average_slope_percent = profile.get("avg_slope_percent", c.average_slope_percent)
-            c.slope_source = profile.get("slope_source", "approximation")
-            if profile.get("stairs_count") is not None:
-                c.has_stairs = profile["stairs_count"] > 0
-                c.stairs_source = profile.get("stairs_source")
-            if profile.get("shade_ratio") is not None:
-                c.average_shade_ratio = profile["shade_ratio"]
-                c.shade_source = profile.get("shade_source")
-            if profile.get("surface_known_ratio") is not None:
-                c.surface_known_ratio = profile["surface_known_ratio"]
-                if profile["surface_known_ratio"] > 0:
-                    c.surface_source = "osm_surface_tags"
-            if result.surface_temp_c is not None:
-                c.surface_temp_c = result.surface_temp_c
-            if profile.get("slope_source") == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
-                c.data_reliability = "measured"
-            else:
-                c.data_reliability = "estimated"
+            _apply_profile_to_candidate(c, profile, result.surface_temp_c)
         scored_list.append(ScoredRoute(
             candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
             thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
@@ -708,6 +720,38 @@ def _measured_route_phrase(profile: Dict[str, Any]) -> str:
     return " · ".join(parts)
 
 
+def _build_wellness_heat_notice(
+    surface_temp: float,
+    is_golden: bool,
+    is_hot_query: bool,
+    raining_now: bool,
+    golden_window: str,
+    breed: str,
+    dog_name: str,
+    route_text: str,
+    duration: int,
+    dist_m: float,
+) -> Tuple[str, str, str]:
+    """지면 온도와 기상 조건에 따른 웰니스 안내 문구(열 안내, 경로 안내, 마무리)를 생성."""
+    from services.weather_context import SAFE_MAX_C
+
+    if not is_golden or (is_hot_query and surface_temp > SAFE_MAX_C):
+        heat = (f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
+                f"{golden_window} 산책을 권장하며, 지금 나가신다면 그늘을 따라 짧게 걸어 주세요.")
+        route_sentence = f"{breed} {dog_name}를 위해 {route_text}로 안내할게요."
+        closing = f"약 {duration}분({int(dist_m)}m) 코스예요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
+        return heat, route_sentence, closing
+
+    if raining_now:
+        heat = f"현재 지면온도는 {surface_temp:.1f}℃로 발바닥에 뜨겁지 않아요."
+    else:
+        heat = f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요."
+    route_sentence = f"{breed} {dog_name}와의 소중한 산책을 위해 {route_text}를 준비했어요."
+    closing = (f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. "
+               "스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾")
+    return heat, route_sentence, closing
+
+
 def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     """[Node 5] 시선 해방(Eyes-Free) 핸즈프리 음성 안내 및 화면 브리핑 메시지 합성.
 
@@ -748,19 +792,18 @@ def node_synthesize_briefing(state: WalkPlanningState) -> Dict[str, Any]:
     phrase = _measured_route_phrase(measure_route_profile(coords, park_id)) if coords else ""
     route_text = f"'{route_name}'({phrase})" if phrase else f"'{route_name}'"
 
-    # 1. 지면온도가 33℃를 초과하거나, 사용자가 더위/햇빛을 우려한 질의를 한 경우
-    if not is_golden or (is_hot_query and surface_temp > SAFE_MAX_C):
-        heat = (f"현재 기상청 예보 기준 지면온도가 {surface_temp:.0f}℃로 뜨거워요. "
-                f"{golden_window} 산책을 권장하며, 지금 나가신다면 그늘을 따라 짧게 걸어 주세요.")
-        route_sentence = f"{breed} {dog_name}를 위해 {route_text}로 안내할게요."
-        closing = f"약 {duration}분({int(dist_m)}m) 코스예요. 스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾"
-    # 2. 지면온도 33℃ 이하: 비가 오지 않으면 안전 골든타임
-    else:
-        heat = (f"현재 지면온도는 {surface_temp:.1f}℃로 발바닥에 뜨겁지 않아요." if raining_now
-                else f"현재 지면온도가 {surface_temp:.1f}℃로 발바닥에 안전한 골든타임이에요.")
-        route_sentence = f"{breed} {dog_name}와의 소중한 산책을 위해 {route_text}를 준비했어요."
-        closing = (f"약 {duration}분({int(dist_m)}m) 동안 편안하게 걸으실 수 있어요. "
-                   "스마트폰은 주머니에 넣으시고 안전하게 출발하세요! 🐾")
+    heat, route_sentence, closing = _build_wellness_heat_notice(
+        surface_temp=surface_temp,
+        is_golden=is_golden,
+        is_hot_query=is_hot_query,
+        raining_now=raining_now,
+        golden_window=golden_window,
+        breed=breed,
+        dog_name=dog_name,
+        route_text=route_text,
+        duration=duration,
+        dist_m=dist_m,
+    )
     rain = rain_notice(precipitation)
     briefing = " ".join(part for part in (heat, rain, route_sentence, closing) if part)
 

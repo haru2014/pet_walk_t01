@@ -309,6 +309,36 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _format_course_reason(
+    cand: Any,
+    score: Optional[float],
+    fallback_reason: str,
+    slope_label: str,
+    slope_for_reason: Any,
+    lap_count: int,
+    lap_cycle_m: Optional[float],
+) -> str:
+    """반복 순환 안내 또는 AI 맞춤 점수 기반의 추천 사유 문구 구성."""
+    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
+        repeat_desc = f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
+        if score is not None:
+            return f"{repeat_desc}\nAI 맞춤 점수 {score:.0f}점: {slope_label} {slope_for_reason}%"
+        return f"{repeat_desc}\n{slope_label} {slope_for_reason}%의 완만하고 쾌적한 산책로입니다."
+    if score is not None:
+        return f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
+    return fallback_reason
+
+
+def _apply_profile_to_course(course: Dict[str, Any], profile: Dict[str, Any]) -> None:
+    """실측 프로필(경사, 폭신 노면, 계단)을 카드 필드에 반영 (#114)."""
+    course.update(_measured_card_fields(profile))
+    slope_source = profile.get("slope_source")
+    if slope_source:
+        course["slopeSource"] = slope_source
+    if slope_source == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
+        course["dataReliability"] = "measured"
+
+
 def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_reason: str = "",
                             profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     surface_types = cand.surface_types or []
@@ -318,16 +348,8 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
 
     lap_count = getattr(cand, "lap_count", 1) or 1
     lap_cycle_m = getattr(cand, "lap_cycle_m", None)
+    reason = _format_course_reason(cand, score, fallback_reason, slope_label, slope_for_reason, lap_count, lap_cycle_m)
 
-    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
-        repeat_desc = f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
-        reason = f"{repeat_desc}\n{slope_label} {slope_for_reason}%의 완만하고 쾌적한 산책로입니다."
-    else:
-        reason = (
-            f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
-            if score is not None
-            else fallback_reason
-        )
     course = {
         "id": cand.route_id,
         "name": cand.name,
@@ -346,12 +368,7 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "slopeSource": getattr(cand, "slope_source", "approximation"),
     }
     if profile:
-        # 경사·폭신 노면·계단은 실측값으로 바꾼다 (#114). 그늘은 자료가 없어 앱이 '정보 없음'을 처리한 뒤 바꾼다.
-        course.update(_measured_card_fields(profile))
-        if profile.get("slope_source"):
-            course["slopeSource"] = profile["slope_source"]
-        if profile.get("slope_source") == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
-            course["dataReliability"] = "measured"
+        _apply_profile_to_course(course, profile)
     return course
 
 
