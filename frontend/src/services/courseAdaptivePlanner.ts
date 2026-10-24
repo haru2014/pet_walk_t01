@@ -175,6 +175,45 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
  * - 선호 적합도 15점: 그늘 우선 시 그늘 가중 70%, 흙길 우선 시 폭신 가중 70%
  * - 거리/시간 적합도 15점: 목표 시간과의 일치율
  */
+function computeStairsScore(stairsCount?: string, avoidStairs = false): number {
+  const stairsMatch = stairsCount ? /\d+/.exec(stairsCount) : null;
+  let stairsNum = 0;
+  if (stairsMatch) {
+    stairsNum = Number.parseInt(stairsMatch[0], 10);
+  } else if (stairsCount === '계단 있음') {
+    stairsNum = 1;
+  }
+
+  if (stairsNum === 0) {
+    return 25.0;
+  }
+  if (avoidStairs) {
+    return 0.0;
+  }
+  return 15.0;
+}
+
+function computeSlopeScore(
+  courseSlope?: number | null,
+  jointCareLevel = 1,
+  feedback?: FeedbackSummaryPayload | null
+): number {
+  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
+  let slopeLimit = jointLimits[jointCareLevel] ?? 5.0;
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
+    slopeLimit = Math.min(slopeLimit, feedbackLimit);
+  }
+  const slope = courseSlope ?? 3.0;
+  if (slope <= slopeLimit) {
+    return 25.0;
+  }
+  if (slope <= slopeLimit * 1.5) {
+    return 12.0;
+  }
+  return 0.0;
+}
+
 export function calculateAdaptiveCourseScore(
   course: RecommendedCourse,
   dog: DogProfile,
@@ -188,39 +227,10 @@ export function calculateAdaptiveCourseScore(
   const targetMinutes = preferences?.durationMinutes ?? 30;
 
   // 1. 계단 (25점)
-  const stairsMatch = course.stairsCount ? /\d+/.exec(course.stairsCount) : null;
-  let stairsNum = 0;
-  if (stairsMatch) {
-    stairsNum = Number.parseInt(stairsMatch[0], 10);
-  } else if (course.stairsCount === '계단 있음') {
-    stairsNum = 1;
-  }
-
-  let stairsScore: number;
-  if (stairsNum === 0) {
-    stairsScore = 25.0;
-  } else if (avoidStairs) {
-    stairsScore = 0.0;
-  } else {
-    stairsScore = 15.0;
-  }
+  const stairsScore = computeStairsScore(course.stairsCount, avoidStairs);
 
   // 2. 경사 (25점)
-  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
-  let slopeLimit = jointLimits[dog.jointCareLevel] ?? 5.0;
-  if (feedback && feedback.recommended_max_slope_offset < 0) {
-    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
-    slopeLimit = Math.min(slopeLimit, feedbackLimit);
-  }
-  const courseSlope = course.maxSlopePercent ?? 3.0;
-  let slopeScore: number;
-  if (courseSlope <= slopeLimit) {
-    slopeScore = 25.0;
-  } else if (courseSlope <= slopeLimit * 1.5) {
-    slopeScore = 12.0;
-  } else {
-    slopeScore = 0.0;
-  }
+  const slopeScore = computeSlopeScore(course.maxSlopePercent, dog.jointCareLevel, feedback);
 
   // 3. 지면온도 / 그늘 (20점)
   // 자료가 없을 때 중립값을 사용해 NaN 점수나 그늘 선호 편향을 만들지 않는다.

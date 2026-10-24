@@ -208,8 +208,8 @@ export async function requestWalkPlan(
         const profile = profiles?.[c.id] ?? null;
         let score = c.score;
         if (score == null && c.reason) {
-          const match = c.reason.match(/맞춤 점수\s*(\d+)점/);
-          if (match) score = parseInt(match[1], 10);
+          const match = /맞춤 점수\s*(\d+)점/.exec(c.reason);
+          if (match) score = Number.parseInt(match[1], 10);
         }
         if (score == null && idx === 0 && typeof data.score === 'number') {
           score = Math.round(data.score);
