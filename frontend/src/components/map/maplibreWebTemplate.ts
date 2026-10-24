@@ -99,14 +99,14 @@ export function buildMapLibreHtml({
     .step-pin {
       width: 26px; height: 26px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; color: ${routeColors.startMarker}; font-weight: bold; font-size: 11px;
+      background-color: transparent; border: transparent; color: ${routeColors.startMarker}; font-weight: bold; font-size: 11px;
       cursor: pointer; transition: transform 0.15s ease;
       text-shadow: 0 0 3px rgba(255, 255, 255, 0.85);
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; color: ${routeColors.startMarker}; font-weight: 800; font-size: 11px;
+      background-color: transparent; border: transparent; color: ${routeColors.startMarker}; font-weight: 800; font-size: 11px;
       text-align: center; white-space: nowrap;
       text-shadow: 0 0 3px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.7);
     }
@@ -319,9 +319,10 @@ export function buildMapLibreHtml({
           pins.forEach(function(pin) {
             const el = document.createElement('div');
             const isCurrentLocation = pin.id === 'current-location-pin' || pin.title === '현재 위치';
+            const hasTitle = Boolean(pin.title);
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
             el.innerText = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
-            if (isCurrentLocation) {
+            if (isCurrentLocation && !hasTitle) {
               el.style.width = '30px';
               el.style.height = '30px';
               el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
@@ -336,12 +337,19 @@ export function buildMapLibreHtml({
               el.style.color = '#fff';
             } else {
               el.style.color = mainColor;
+              el.style.backgroundColor = 'transparent';
+              el.style.border = 'transparent';
+              el.style.boxShadow = 'none';
             }
-            if (pin.title) {
+            if (hasTitle) {
               el.innerText = '';
               el.style.width = 'auto';
               el.style.height = 'auto';
               el.style.backgroundColor = 'transparent';
+              el.style.border = 'transparent';
+              el.style.boxShadow = 'none';
+              el.style.borderRadius = '0';
+              el.style.transform = 'none';
               el.style.color = mainColor;
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';

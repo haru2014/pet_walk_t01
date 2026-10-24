@@ -26,6 +26,7 @@ function createStartElement(mainColor: string): HTMLElement {
   element.textContent = '출발/도착 🐾';
   Object.assign(element.style, {
     background: 'transparent',
+    border: 'transparent',
     color: mainColor,
     fontSize: '11px',
     fontWeight: '800',
@@ -64,12 +65,14 @@ function createPinElement(pin: RouteStepPin, mainColor: string): HTMLElement {
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
     background: 'transparent',
+    border: 'transparent',
+    boxShadow: 'none',
     color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : mainColor) : (isCurrentLoc ? '#fff' : mainColor),
     fontWeight: '700', cursor: 'pointer',
     fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
-    textShadow: isCurrentLoc ? undefined : '0 0 3px rgba(255, 255, 255, 0.85)',
+    textShadow: isCurrentLoc && !hasTitle ? undefined : '0 0 3px rgba(255, 255, 255, 0.85)',
   });
-  if (isCurrentLoc && pin.bearingDeg != null) {
+  if (isCurrentLoc && !hasTitle && pin.bearingDeg != null) {
     element.style.borderRadius = '50%';
     element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
   }
