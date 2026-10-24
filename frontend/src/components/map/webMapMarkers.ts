@@ -53,24 +53,44 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, guidanceColor:
   element.appendChild(detail);
 }
 
+function getPinLabel(pin: RouteStepPin, isCurrentLoc: boolean): string {
+  if (!isCurrentLoc) {
+    return getRouteStepPinIcon(pin);
+  }
+  return pin.bearingDeg == null ? '●' : '➤';
+}
+
+function getPinTextColor(hasTitle: boolean, isCurrentLoc: boolean, guidanceColor: string): string {
+  if (isCurrentLoc) {
+    return hasTitle ? '#1D4ED8' : '#fff';
+  }
+  return guidanceColor;
+}
+
 function createPinElement(pin: RouteStepPin, guidanceColor: string): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
-  element.textContent = isCurrentLoc
-    ? (pin.bearingDeg == null ? '●' : '➤')
-    : getRouteStepPinIcon(pin);
+  element.textContent = getPinLabel(pin, isCurrentLoc);
+
+  const textColor = getPinTextColor(hasTitle, isCurrentLoc, guidanceColor);
+  const textShadow = isCurrentLoc && !hasTitle ? undefined : '0 0 3px rgba(255, 255, 255, 0.85)';
+
   Object.assign(element.style, {
-    width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
+    width: hasTitle ? 'auto' : '28px',
+    height: hasTitle ? 'auto' : '28px',
     background: 'transparent',
     border: 'transparent',
     boxShadow: 'none',
-    color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : guidanceColor) : (isCurrentLoc ? '#fff' : guidanceColor),
-    fontWeight: '700', cursor: 'pointer',
-    fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
-    textShadow: isCurrentLoc && !hasTitle ? undefined : '0 0 3px rgba(255, 255, 255, 0.85)',
+    color: textColor,
+    fontWeight: '700',
+    cursor: 'pointer',
+    fontSize: hasTitle ? '10px' : '13px',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
+    textShadow,
   });
   if (isCurrentLoc && !hasTitle && pin.bearingDeg != null) {
     element.style.borderRadius = '50%';
