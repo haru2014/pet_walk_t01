@@ -203,7 +203,11 @@ def _apply_intersection_snaps(
     start_cut_idx: int,
     end_cut_idx: int,
 ) -> Tuple[int, int, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """교차로 노드 스냅을 적용하여 시작/종료 컷 인덱스를 보정한다."""
+    """교차로 노드 스냅을 적용하여 시작/종료 컷 인덱스를 보정한다.
+
+    시작·끝 스냅이 같은 점으로 모이면 경로가 점 1개가 되어 공유할 수 없다(#237). 코너가 하나뿐인 경로에서
+    생기므로, 끝 스냅은 시작 컷보다 뒤에 있을 때만 적용한다. 스냅하지 않아도 200m 는 항상 가려진다.
+    """
     start_info: Optional[Dict[str, Any]] = None
     end_info: Optional[Dict[str, Any]] = None
 
@@ -217,7 +221,7 @@ def _apply_intersection_snaps(
     snap_end = find_first_intersection_index(
         coordinates, start_search_idx=end_cut_idx, forward=False
     )
-    if snap_end is not None and snap_end[0] >= start_cut_idx:
+    if snap_end is not None and snap_end[0] > start_cut_idx:
         end_cut_idx = snap_end[0]
         end_info = snap_end[1]
 
