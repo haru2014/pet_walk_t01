@@ -4,7 +4,7 @@
  *
  * 1. True Black(#000000) OLED 배경 + 고대비 네온 그린 HUD(시간·거리·속도)
  * 2. 한 손 원터치 배변/소변 마킹 FAB 및 햅틱 로깅 (US-18)
- * 3. 실시간 경로 보기, 확인 후 산책 종료, 출발지 긴급 복귀
+ * 3. 실시간 경로 보기, 확인 후 산책 종료, 출발지 돌아가기
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -133,7 +133,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   const handleEmergencyReturn = () => {
     if (!currentCoords || !startCoords || !onReroute) {
       setShowEmergencyModal(false);
-      setToastMsg('GPS 출발 위치를 확인할 수 없어 긴급 복귀 경로를 만들지 못했어요.');
+      setToastMsg('GPS 출발 위치를 확인할 수 없어 돌아가기 경로를 만들지 못했어요.');
       setTimeout(() => setToastMsg(null), 3500);
       return;
     }
@@ -355,9 +355,9 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           <Text style={styles.stopActionIcon}>■</Text>
           <Text style={[styles.primaryActionText, { color: '#FCA5A5' }]}>산책 종료</Text>
         </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="긴급 복귀" onPress={() => setShowEmergencyModal(true)} style={[styles.primaryAction, styles.emergencyAction]}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="돌아가기" onPress={() => setShowEmergencyModal(true)} style={[styles.primaryAction, styles.emergencyAction]}>
           <AppIcon name="shield" size={20} color="#7DD3FC" />
-          <Text style={[styles.primaryActionText, { color: '#7DD3FC' }]}>긴급 복귀</Text>
+          <Text style={[styles.primaryActionText, { color: '#7DD3FC' }]}>돌아가기</Text>
         </TouchableOpacity>
       </View>
 
@@ -406,14 +406,14 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <Modal visible={showEmergencyModal} transparent animationType="fade" onRequestClose={() => setShowEmergencyModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.actionModal}>
-            <Text style={styles.modalTitle}>출발지로 긴급 복귀할까요?</Text>
+            <Text style={styles.modalTitle}>출발지로 돌아가기할까요?</Text>
             <Text style={styles.modalBody}>현재 위치와 기록한 산책 경로를 이용해 출발지 복귀 안내를 시작합니다.</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setShowEmergencyModal(false)} style={styles.secondaryModalButton}>
                 <Text style={styles.secondaryModalButtonText}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleEmergencyReturn} style={styles.confirmEmergencyButton}>
-                <Text style={styles.confirmFinishText}>긴급 복귀 시작</Text>
+                <Text style={styles.confirmFinishText}>돌아가기 시작</Text>
               </TouchableOpacity>
             </View>
           </View>

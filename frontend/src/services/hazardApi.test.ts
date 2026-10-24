@@ -12,7 +12,7 @@ import {
 } from './hazardApi';
 import * as apiClient from './apiClient';
 
-describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테스트', () => {
+describe('hazardApi - 현장 위험 제보 및 안전 우회 / 돌아가기 테스트', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -21,11 +21,13 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
     it('위치 기반 제보를 조회하고 이동 방향 앞에 있는 제보만 가까운 순으로 반환한다', async () => {
       vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ reports: [
-          { report_id: 'ahead', lat: 0, lon: 0.001, hazard_type: 'stairs', severity: 'danger', distance_m: 111 },
-          { report_id: 'behind', lat: 0, lon: -0.001, hazard_type: 'construction', severity: 'warning', distance_m: 111 },
-          { report_id: 'side', lat: 0.001, lon: 0, hazard_type: 'high_curb', severity: 'warning', distance_m: 111 },
-        ] }),
+        json: async () => ({
+          reports: [
+            { report_id: 'ahead', lat: 0, lon: 0.001, hazard_type: 'stairs', severity: 'danger', distance_m: 111 },
+            { report_id: 'behind', lat: 0, lon: -0.001, hazard_type: 'construction', severity: 'warning', distance_m: 111 },
+            { report_id: 'side', lat: 0.001, lon: 0, hazard_type: 'high_curb', severity: 'warning', distance_m: 111 },
+          ]
+        }),
       } as any);
 
       const reports = await getNearbyHazardReports(0, 0);
@@ -190,7 +192,7 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
   });
 
   describe('createEmergencyReturnRoute', () => {
-    it('출발지로의 긴급 복귀 경로와 음성 안내를 생성한다', () => {
+    it('출발지로의 돌아가기 경로와 음성 안내를 생성한다', () => {
       const currentLat = 36.376;
       const currentLon = 127.385;
       const startLat = 36.370;
