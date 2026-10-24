@@ -1,17 +1,12 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 현장 위험 제보 및 보행망 안전 우회 / 돌아가기 모달 컴포넌트 (US-D2, US-C2)
  */
 
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { AppIcon } from '../common/AppIcon';
 import { HazardReportPayload, HazardType, RerouteResult } from '../../types/hazard';
 import {
@@ -270,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   title: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: '#F8FAFC',
   },
@@ -279,13 +274,13 @@ const styles = StyleSheet.create({
   },
   closeBtnText: {
     color: '#94A3B8',
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
   subtitle: {
     color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 16,
   },
   optionsList: {
@@ -311,7 +306,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionLabel: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#E2E8F0',
     marginBottom: 2,
@@ -320,7 +315,7 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   optionDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: '#64748B',
   },
   radioCircle: {
@@ -355,7 +350,7 @@ const styles = StyleSheet.create({
   },
   rerouteBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '800',
   },
   emergencyReturnBtn: {
@@ -371,7 +366,7 @@ const styles = StyleSheet.create({
   },
   emergencyReturnBtnText: {
     color: '#F87171',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   loadingBox: {
@@ -383,7 +378,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: '#10B981',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
 });

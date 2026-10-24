@@ -8,18 +8,9 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  Modal,
-  Platform,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, Platform } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import {
   DogProfile,
@@ -444,7 +435,7 @@ const styles = StyleSheet.create({
   },
   deleteDogButtonText: {
     color: '#B42318',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   chipHeaderRow: {
@@ -454,12 +445,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dogChipSectionTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   dogChipCountText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
   },
   dogChipScrollRow: {
@@ -485,7 +476,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.border,
   },
   dogChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   dogChipTextActive: {
@@ -496,7 +487,7 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMuted,
   },
   checkMark: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '900',
     color: TOKENS.colors.primary,
   },
@@ -512,7 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
   },
   addDogChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -550,12 +541,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   photoTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   photoSub: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
     marginBottom: 4,
@@ -568,11 +559,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   changePhotoText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
-  fieldLabel: { fontSize: 11.5, fontWeight: '600', color: TOKENS.colors.textMain, marginBottom: 2 },
+  fieldLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.textMain, marginBottom: 2 },
   input: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
@@ -580,7 +571,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    fontSize: 13.5,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
   },
   levelChip: {
@@ -593,7 +584,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.background,
   },
   levelChipSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  levelChipText: { fontSize: 11.5, fontWeight: '500', color: TOKENS.colors.textMuted },
+  levelChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '500', color: TOKENS.colors.textMuted },
   levelChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
 
   // 모달 스타일
@@ -626,7 +617,7 @@ const styles = StyleSheet.create({
     borderBottomColor: TOKENS.colors.border,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -634,7 +625,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalCloseText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMuted,
     fontWeight: '700',
   },

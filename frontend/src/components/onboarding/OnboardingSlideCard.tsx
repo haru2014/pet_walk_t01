@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 
 export interface SlideItem {
   badge: string;
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
   },
   title: {
-    fontSize: 19,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     textAlign: 'center',
@@ -123,14 +124,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   headline: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
     marginBottom: 12,
   },
   desc: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
     marginBottom: 18,
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   featureText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: TOKENS.colors.textMain,
   },

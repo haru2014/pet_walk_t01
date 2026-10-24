@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { GradientButton } from '../common/GradientButton';
 import { AppIcon } from '../common/AppIcon';
 import { SupabaseService } from '../../services/supabaseService';
@@ -296,9 +297,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   container: { backgroundColor: TOKENS.colors.surface, borderRadius: 20, padding: 22 },
   header: { marginBottom: 14 },
-  title: { fontSize: 17, fontWeight: '800', color: TOKENS.colors.textMain },
-  subtitle: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 2 },
-  label: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: TOKENS.colors.textMain },
+  subtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2 },
+  label: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
   input: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
@@ -306,11 +307,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMain,
   },
   switchRow: { alignItems: 'center', marginTop: 12 },
-  switchText: { fontSize: 12, color: TOKENS.colors.primaryDark, fontWeight: '600' },
+  switchText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, fontWeight: '600' },
   legalNoticeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -319,10 +320,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 10,
   },
-  legalNoticeText: { fontSize: 11, color: TOKENS.colors.textMuted },
-  legalLink: { fontSize: 11, color: TOKENS.colors.primaryDark, fontWeight: '700' },
+  legalNoticeText: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
+  legalLink: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.primaryDark, fontWeight: '700' },
   guestBtn: { alignItems: 'center', marginTop: 10, paddingVertical: 6 },
-  guestBtnText: { fontSize: 12, color: TOKENS.colors.textMuted, textDecorationLine: 'underline' },
+  guestBtnText: { fontSize: TYPOGRAPHY.button, color: TOKENS.colors.textMuted, textDecorationLine: 'underline' },
   photoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   photoCardSelected: { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-  photoTitle: { fontSize: 13, color: TOKENS.colors.textMain, fontWeight: '700' },
+  photoTitle: { fontSize: TYPOGRAPHY.cardTitle, color: TOKENS.colors.textMain, fontWeight: '700' },
   photoTitleSelected: { color: '#065F46', fontWeight: '800' },
-  photoSubtitle: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2 },
+  photoSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2 },
 });

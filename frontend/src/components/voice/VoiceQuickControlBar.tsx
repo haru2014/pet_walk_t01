@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { SoundSettings } from '../../types/voiceSettings';
 import { TTSNavigationService } from '../../services/ttsNavigation';
@@ -254,9 +255,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxActive: { backgroundColor: '#FDE68A' },
-  statusTitle: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
+  statusTitle: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   statusTitleActive: { color: '#B45309' },
-  statusDesc: { fontSize: 10, color: TOKENS.colors.textMuted, marginTop: 1 },
+  statusDesc: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginTop: 1 },
   actionTag: {
     backgroundColor: TOKENS.colors.background,
     paddingHorizontal: 8,
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.border,
   },
   actionTagActive: { backgroundColor: '#F59E0B', borderColor: '#D97706' },
-  actionTagText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMain },
+  actionTagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   actionTagTextActive: { color: TOKENS.colors.textWhite },
   settingTriggerBtn: {
     paddingHorizontal: 10,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  settingTriggerText: { fontSize: 10, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  settingTriggerText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', color: TOKENS.colors.primaryDark },
   compactContainer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: 0 },
   compactMuteBtn: {
     flexDirection: 'row',
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 12,
   },
-  compactMuteText: { fontSize: 11, fontWeight: '700' },
+  compactMuteText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   emergencyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emergencyMainText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     color: TOKENS.colors.pocketHud,
     letterSpacing: -0.3,
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
   },
   emergencySubHint: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.pocketHudSubtle,
     marginTop: 1,
     opacity: 0.85,
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   },
   emergencySettingBtnCompact: { width: 48, height: 48, borderRadius: 24 },
   emergencySettingLabel: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.pocketHud,
   },

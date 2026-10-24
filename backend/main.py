@@ -654,6 +654,34 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
     return profiles
 
 
+def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
+    """상단 화면용 날씨·안전 안내만 구성한다. 코스 정보는 하단 카드에서 표시한다."""
+    if not isinstance(weather_context, dict):
+        return ""
+
+    current_weather = weather_context.get("current", weather_context)
+    if not isinstance(current_weather, dict):
+        current_weather = {}
+
+    messages = []
+    rain = rain_notice(weather_context.get("precipitation"))
+    if rain:
+        messages.append(rain)
+
+    surface_temp = current_weather.get("estimated_surface_temp")
+    if isinstance(surface_temp, (int, float)) and not isinstance(surface_temp, bool):
+        if surface_temp > SAFE_MAX_C:
+            golden_window = weather_context.get("golden_time_window", "서늘한 시간대")
+            messages.append(
+                f"현재 지면온도는 {surface_temp:.1f}℃입니다. {golden_window} 산책을 권장하며, "
+                "지금 나가신다면 그늘을 따라 짧게 걸어 주세요."
+            )
+        else:
+            messages.append(f"현재 지면온도는 {surface_temp:.1f}℃입니다.")
+
+    return " ".join(messages)
+
+
 # 코스가 목표 거리의 이 비율보다 짧으면 카드에 안내 문구를 넣는다 (#229, 임시값)
 SHORT_COURSE_RATIO = 0.8
 
@@ -692,6 +720,7 @@ def _build_walk_plan_response(
         "course_plans": _build_course_plans_map(agent_result, coords),
         "briefing": agent_result.briefing_message,
         "summary": agent_result.briefing_message,
+        "safety_briefing": _build_safety_briefing(agent_result.weather_context),
         "score": agent_result.best_score,
         "is_live_server": True,
         "weather": agent_result.weather_context,

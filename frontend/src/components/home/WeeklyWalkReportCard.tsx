@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 마이페이지 활동 탭 주간 산책 달성도 & 관절 케어 리포트 카드
@@ -9,7 +10,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
@@ -282,12 +284,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   rangeSubtitle: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.support,
     marginTop: 1,
   },
   badge: {
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   progressBarSection: {
@@ -326,16 +328,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metricLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '500',
     marginBottom: 1,
   },
   metricValue: {
-    fontSize: 14.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
   },
   metricUnit: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
   },
   divider: {
@@ -353,11 +355,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   chartHeaderTitle: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '600',
   },
   chartHeaderGoal: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '700',
   },
   barsRow: {
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   barTopLabel: {
-    fontSize: 9.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     minHeight: 12,
   },
@@ -415,7 +417,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   dayLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   todayIndicatorDot: {
@@ -430,7 +432,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   jointNoticeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     width: '100%',
     textAlign: 'center',
@@ -455,11 +457,11 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
   },
   recentWalkTitle: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   recentWalkMeta: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '500',
   },
   recentWalkRight: {
@@ -469,7 +471,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   recentWalkLinkText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
   },
 });

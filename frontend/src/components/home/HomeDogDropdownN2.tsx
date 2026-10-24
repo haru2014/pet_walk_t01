@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 메인 카드 강아지 선택 드롭다운 (HomeDogDropdownN2.tsx)
@@ -5,7 +6,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { DogProfile } from '../../types/dogProfile';
 
 export interface HomeDogDropdownN2Props {
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(90, 115, 97, 0.08)',
   },
   dropdownItemText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     fontWeight: '600',
     color: '#2D3A31',
   },
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
     color: '#5A7361',
   },
   dropdownCheck: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     fontWeight: '800',
     color: '#5A7361',
   },

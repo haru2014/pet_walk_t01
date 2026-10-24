@@ -11,6 +11,35 @@ import { ThemeId } from '../types/theme';
 export const ROUTE_CAUTION_COLOR = '#E87524';
 export const CORAL_ROUTE_CAUTION_COLOR = '#B45309';
 
+/** 앱 전역 텍스트 역할별 크기. 화면 크기와 무관하게 같은 역할은 같은 크기를 사용한다. */
+export const TYPOGRAPHY = {
+  screenTitle: 22,
+  sectionTitle: 20,
+  cardTitle: 18,
+  body: 16,
+  support: 14,
+  label: 14,
+  button: 16,
+  caption: 12,
+  micro: 11,
+  metricValue: 20,
+  displayValue: 32,
+} as const;
+
+export const TYPOGRAPHY_LINE_HEIGHT = {
+  screenTitle: 28,
+  sectionTitle: 26,
+  cardTitle: 24,
+  body: 24,
+  support: 21,
+  label: 20,
+  button: 20,
+  caption: 18,
+  micro: 16,
+  metricValue: 24,
+  displayValue: 38,
+} as const;
+
 export interface ThemeColors {
   background: string;
   surface: string;
@@ -296,13 +325,13 @@ export const TOKENS = {
   },
 
   fontSize: {
-    xs: 11,
-    sm: 12,
-    base: 13,
-    md: 14,
-    lg: 16,
-    xl: 18,
-    title: 22,
+    xs: TYPOGRAPHY.caption,
+    sm: TYPOGRAPHY.caption,
+    base: TYPOGRAPHY.label,
+    md: TYPOGRAPHY.support,
+    lg: TYPOGRAPHY.body,
+    xl: TYPOGRAPHY.cardTitle,
+    title: TYPOGRAPHY.screenTitle,
   },
 };
 
