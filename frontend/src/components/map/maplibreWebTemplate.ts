@@ -98,19 +98,14 @@ export function buildMapLibreHtml({
     .step-pin {
       width: 26px; height: 26px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      color: #FFFFFF; font-weight: bold; font-size: 11px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid #FFFFFF;
+      background-color: transparent; color: #FFFFFF; font-weight: bold; font-size: 11px;
       cursor: pointer; transition: transform 0.15s ease;
     }
     .step-pin:active { transform: scale(1.2); }
-    .pin-turn { background-color: ${routeColors.normal}; }
-    .pin-caution { background-color: ${routeColors.caution}; }
-    .pin-safe { background-color: ${routeColors.safe}; }
     
     .start-marker {
-      padding: 3px 8px; border-radius: 10px; background-color: ${routeColors.startMarker};
-      color: #FFFFFF; font-weight: 800; font-size: 10px; border: 1.5px solid #FFFFFF;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.25); text-align: center;
+      background-color: transparent; color: #FFFFFF; font-weight: 800; font-size: 10px;
+      text-align: center;
     }
   </style>
 </head>
@@ -319,9 +314,7 @@ export function buildMapLibreHtml({
               el.innerText = '';
               el.style.width = 'auto';
               el.style.height = 'auto';
-              el.style.padding = '4px 6px';
-              el.style.borderRadius = '10px';
-              el.style.backgroundColor = '#ffffffed';
+              el.style.backgroundColor = 'transparent';
               el.style.color = '#1f2937';
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';
