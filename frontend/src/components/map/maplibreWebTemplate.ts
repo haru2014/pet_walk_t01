@@ -319,12 +319,12 @@ export function buildMapLibreHtml({
             const el = document.createElement('div');
             const isCurrentLocation = pin.id === 'current-location-pin' || pin.title === '현재 위치';
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
-            el.innerText = isCurrentLocation ? '●' : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
+            el.innerText = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
             if (isCurrentLocation) {
               el.style.width = '30px';
               el.style.height = '30px';
-              el.style.borderRadius = '50% 50% 50% 0';
-              el.style.transform = 'rotate(-45deg)';
+              el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
+              el.style.transform = pin.bearingDeg == null ? 'rotate(-45deg)' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
               el.style.backgroundColor = '#2563EB';
               el.style.border = '2px solid #fff';
               el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';

@@ -36,6 +36,8 @@ export interface RouteStepPin {
   readonly instruction: string;
   /** Optional glyph override for map markers such as onboarding demo pins. */
   readonly icon?: string;
+  /** Heading clockwise from north, used by the live position marker. */
+  readonly bearingDeg?: number;
   readonly title?: string;
   readonly detail?: string;
 }

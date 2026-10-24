@@ -101,15 +101,27 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   }, []);
   const isOvertime = !isFreeWalk && !!targetMinutes && stats.elapsedSec >= targetMinutes * 60;
   const overtimeMinutes = isOvertime ? Math.floor((stats.elapsedSec - targetMinutes! * 60) / 60) : 0;
+  const currentBearing = useMemo(() => {
+    if (!walkedCoords || walkedCoords.length < 2) return undefined;
+    const [previous, current] = walkedCoords.slice(-2);
+    const [lon1, lat1] = previous;
+    const [lon2, lat2] = current;
+    const toRadians = Math.PI / 180;
+    const y = Math.sin((lon2 - lon1) * toRadians) * Math.cos(lat2 * toRadians);
+    const x = Math.cos(lat1 * toRadians) * Math.sin(lat2 * toRadians)
+      - Math.sin(lat1 * toRadians) * Math.cos(lat2 * toRadians) * Math.cos((lon2 - lon1) * toRadians);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }, [walkedCoords]);
   const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => currentCoords
     ? [...mapPins, {
       id: 'current-location-pin',
       kind: 'safe',
       position: [currentCoords.lon, currentCoords.lat],
       instruction: '현재 위치',
-      icon: '📍',
+      icon: '➤',
+      bearingDeg: currentBearing,
     }]
-    : mapPins, [currentCoords, mapPins]);
+    : mapPins, [currentCoords, currentBearing, mapPins]);
 
   const handlePressMark = (type: 'poop' | 'pee') => {
     if (onMarkPoop) onMarkPoop(type);
@@ -215,8 +227,25 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       )}
 
       {!isFreeWalk && (
-        <View style={[styles.guidanceCard, isCompactLayout && styles.guidanceCardCompact]} accessibilityRole="text">
-          <View style={styles.guidanceIcon}><AppIcon name="location" size={22} color="#A7F3D0" /></View>
+        <View style={[styles.guidanceRegion, isCompactLayout && styles.guidanceRegionCompact]}>
+          <View style={styles.guidanceMap} accessibilityLabel="현재 위치와 진행 경로 지도">
+            {currentCoords ? (
+              <MapLibreMapView
+                route={mapRoute}
+                stepPins={mapDisplayPins}
+                maskingCenter={[currentCoords.lon, currentCoords.lat]}
+                width="100%"
+                height="100%"
+                style={styles.guidanceMapView}
+                interactive={false}
+              />
+            ) : (
+              <View style={styles.guidanceMapEmpty}>
+                <AppIcon name="location" size={30} color="#A7F3D0" />
+                <Text style={styles.guidanceMapLoading}>현재 위치를 확인하고 있어요.</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.guidanceTextWrap}>
             <Text style={[styles.guidanceLabel, isCompactLayout && styles.guidanceLabelCompact]}>산책 안내</Text>
             <Text style={[styles.guidanceText, isCompactLayout && styles.guidanceTextCompact]}>{guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}</Text>
@@ -389,10 +418,13 @@ const styles = StyleSheet.create({
   safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
   safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
   safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  guidanceCard: { flex: 1, minHeight: 120, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 16, marginVertical: 8 },
-  guidanceCardCompact: { minHeight: 86, padding: 10, gap: 6, marginVertical: 2 },
-  guidanceIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#1D4432', alignItems: 'center', justifyContent: 'center' },
-  guidanceTextWrap: { width: '100%', alignItems: 'center' },
+  guidanceRegion: { flex: 1, minHeight: 180, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 8, marginVertical: 8, gap: 8 },
+  guidanceRegionCompact: { minHeight: 140, padding: 6, gap: 5, marginVertical: 2 },
+  guidanceMap: { flex: 1, minHeight: 100, overflow: 'hidden', borderRadius: 12, backgroundColor: '#1D4432' },
+  guidanceMapView: { flex: 1 },
+  guidanceMapEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  guidanceMapLoading: { color: '#A7F3D0', fontSize: 12, fontWeight: '700' },
+  guidanceTextWrap: { width: '100%', alignItems: 'center', paddingVertical: 4 },
   guidanceLabel: { color: '#6EE7B7', fontSize: 11, fontWeight: '700', marginBottom: 3 },
   guidanceLabelCompact: { marginBottom: 1 },
   guidanceText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', lineHeight: 22, textAlign: 'center' },
