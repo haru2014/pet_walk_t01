@@ -16,6 +16,7 @@ export interface HomeDogDropdownN2Props {
   dogs: readonly DogProfile[];
   onSelectDog: (dogId: string) => void;
   onClose: () => void;
+  top?: number;
 }
 
 export const HomeDogDropdownN2: React.FC<HomeDogDropdownN2Props> = ({
@@ -24,11 +25,12 @@ export const HomeDogDropdownN2: React.FC<HomeDogDropdownN2Props> = ({
   dogs,
   onSelectDog,
   onClose,
+  top = 56,
 }) => {
   if (!visible || dogs.length <= 1) return null;
 
   return (
-    <View style={styles.dropdownMenu}>
+    <View style={[styles.dropdownMenu, { top }]}>
       {dogs.map((d) => {
         const isSelected = d.id === activeDogId;
         return (
@@ -71,12 +73,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   dropdownItem: {
-    height: 48,
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.08)',
   },
@@ -87,6 +89,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.body,
     fontWeight: '600',
     color: '#2D3A31',
+    flex: 1,
   },
   dropdownItemTextActive: {
     fontWeight: '800',

@@ -11,7 +11,7 @@ import { TYPOGRAPHY } from '../../theme/tokens';
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, useWindowDimensions } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { DogProfile } from '../../types/dogProfile';
 import { RouteFeatureCollection } from '../../types/route';
@@ -53,8 +53,10 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   userCoords,
 }) => {
   const { theme, colors } = useAppTheme();
+  const { width: windowWidth } = useWindowDimensions();
   const [showDropdown, setShowDropdown] = useState(false);
   const isMultiDog = Boolean(dogs && dogs.length > 1);
+  const compactHeader = windowWidth < 420;
 
   const hasGps = Boolean(userCoords && typeof userCoords.lon === 'number' && typeof userCoords.lat === 'number');
 
@@ -91,20 +93,21 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
       {/* 2. 메인 카드 본체 */}
       <View style={[styles.cardBody, { backgroundColor: cardBgColor, borderColor: colors.border, borderWidth: 1 }]}>
         {/* 카드 헤더 (타이틀, 강아지 드롭다운, 알림 버튼) */}
-        <View style={styles.cardHeader}>
-          <View style={styles.headerTitleRow}>
+        <View style={[styles.cardHeader, compactHeader && styles.cardHeaderCompact]}>
+          <View style={[styles.headerTitleRow, compactHeader && styles.headerTitleRowCompact]}>
             <Text style={[styles.cardTitle, { color: cardTextColor }]}>{courseName}</Text>
             <View style={[styles.freeWalkBadge, { backgroundColor: isDark ? colors.surface : 'rgba(255, 255, 255, 0.45)', borderColor: colors.border }]}>
               <Text style={[styles.freeWalkBadgeText, { color: cardTextColor }]}>자유 산책</Text>
             </View>
           </View>
 
-          <View style={styles.headerRightActions}>
+          <View style={[styles.headerRightActions, compactHeader && styles.headerRightActionsCompact]}>
             {isMultiDog && (
               <TouchableOpacity
                 onPress={() => setShowDropdown((prev) => !prev)}
                 style={[
                   styles.dogSwitchButton,
+                  compactHeader && styles.dogSwitchButtonCompact,
                   {
                     backgroundColor: isDark ? colors.primaryLight : 'rgba(255, 255, 255, 0.45)',
                     borderColor: colors.border,
@@ -114,7 +117,11 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
                 activeOpacity={0.7}
                 accessibilityLabel={`${dog.name} 반려견 선택 드롭다운`}
               >
-                <Text style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}
+                >
                   {dog.name} ▾
                 </Text>
               </TouchableOpacity>
@@ -140,6 +147,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
             dogs={dogs}
             onSelectDog={onSelectDog}
             onClose={() => setShowDropdown(false)}
+            top={compactHeader ? 128 : 56}
           />
         )}
 
@@ -236,17 +244,21 @@ const styles = StyleSheet.create({
     paddingTop: 24, paddingHorizontal: 12, paddingBottom: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, minHeight: 48 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, minHeight: 48 },
+  cardHeaderCompact: { flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 },
+  headerTitleRowCompact: { flex: 0, minHeight: 48 },
   cardTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', letterSpacing: -0.2 },
-  freeWalkBadge: { paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 10, borderWidth: 1 },
+  freeWalkBadge: { minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   freeWalkBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800', letterSpacing: -0.2 },
-  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  headerRightActionsCompact: { alignSelf: 'flex-end', maxWidth: '100%' },
   dogSwitchButton: {
-    minHeight: 48, minWidth: 48, paddingHorizontal: 12, backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    borderRadius: 24, alignItems: 'center', justifyContent: 'center',
+    minHeight: 48, minWidth: 48, maxWidth: 180, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexShrink: 1,
   },
-  dogSwitchText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#2D3A31' },
+  dogSwitchButtonCompact: { maxWidth: '72%' },
+  dogSwitchText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#2D3A31', flexShrink: 1, textAlign: 'center' },
   bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { width: 42, height: 42 },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
