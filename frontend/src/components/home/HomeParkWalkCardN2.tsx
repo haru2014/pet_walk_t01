@@ -127,7 +127,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
                 >
                   {dog.name}
                 </Text>
-                {isMultiDog && (
+{isMultiDog && (
                   <Text style={[styles.dogSwitchChevron, { color: isDark ? colors.primaryDark : cardTextColor }]}>▾</Text>
                 )}
               </TouchableOpacity>
