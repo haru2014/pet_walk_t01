@@ -127,6 +127,19 @@ export function formatCourseReasonText(reason: string, courseName?: string): str
 }
 
 /**
+ * 실시간 날씨 및 안전 브리핑 내용에 알맞은 대표 날씨 아이콘 반환
+ */
+export function getWeatherEmoji(text?: string): string {
+  if (!text) return '🌤️';
+  if (/비|우비|우천|소나기|젖은/i.test(text)) return '🌧️';
+  if (/눈|빙판|결빙|한파/i.test(text)) return '❄️';
+  if (/폭염|더위|지면열|뜨거/i.test(text)) return '☀️';
+  if (/바람|강풍|돌풍/i.test(text)) return '💨';
+  if (/흐림|구름|흐려/i.test(text)) return '☁️';
+  return '🐾';
+}
+
+/**
  * 테마의 주 색상(Primary)과 뚜렷하게 대비되는 추천 코스 강조 색상
  */
 export function getThemeContrastingAccentColor(
@@ -333,9 +346,21 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             </Text>
           </View>
           {safetyBriefingText ? (
-            <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85, fontSize: courseRecommend.briefingSubSize, lineHeight: courseRecommend.briefingSubSize * 1.35 }]}>
-              {safetyBriefingText}
-            </Text>
+            <View style={[styles.safetyCardBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={styles.safetyCardIcon}>{getWeatherEmoji(safetyBriefingText)}</Text>
+              <Text
+                style={[
+                  styles.safetyCardText,
+                  {
+                    color: colors.textMain,
+                    fontSize: courseRecommend.briefingSubSize,
+                    lineHeight: courseRecommend.briefingSubSize * 1.38,
+                  },
+                ]}
+              >
+                {safetyBriefingText}
+              </Text>
+            </View>
           ) : null}
           {/* 가로 태그 칩 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
@@ -628,7 +653,28 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
   briefingTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.3 },
-  briefingDesc: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginBottom: 4 },
+  safetyCardBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 3,
+    marginBottom: 6,
+    gap: 6,
+  },
+  safetyCardIcon: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
+  },
+  safetyCardText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
+    letterSpacing: -0.1,
+  },
   tagScrollRow: { flexDirection: 'row' },
   tagChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 6 },
   tagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },

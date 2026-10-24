@@ -7,6 +7,7 @@ import {
   formatCourseReasonText,
   getCourseFeatureBadge,
   getThemeContrastingAccentColor,
+  getWeatherEmoji,
 } from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkPreferences } from '../../types/walkSettings';
@@ -243,5 +244,15 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(getThemeContrastingAccentColor('coral')).toBe('#0284C7');
     expect(getThemeContrastingAccentColor('dark')).toBe('#FBBF24');
     expect(getThemeContrastingAccentColor('unknown', { accent: '#AABBCC' })).toBe('#AABBCC');
+  });
+
+  it('getWeatherEmoji는 브리핑 문구의 날씨 및 안전 상태에 맞는 이모지를 반환한다', () => {
+    expect(getWeatherEmoji('지금 비가 오고 있어요. 우비를 챙겨주세요.')).toBe('🌧️');
+    expect(getWeatherEmoji('눈이 내려 빙판길에 주의하세요.')).toBe('❄️');
+    expect(getWeatherEmoji('한낮 폭염과 높은 지면열에 주의하세요.')).toBe('☀️');
+    expect(getWeatherEmoji('바람이 강하니 낙하물에 주의하세요.')).toBe('💨');
+    expect(getWeatherEmoji('구름이 많고 흐린 날씨입니다.')).toBe('☁️');
+    expect(getWeatherEmoji('안전하고 쾌적한 산책 되세요.')).toBe('🐾');
+    expect(getWeatherEmoji('')).toBe('🌤️');
   });
 });
