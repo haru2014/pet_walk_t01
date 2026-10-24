@@ -54,7 +54,9 @@ function createPinElement(pin: RouteStepPin): HTMLElement {
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
-  element.textContent = getRouteStepPinIcon(pin);
+  element.textContent = isCurrentLoc
+    ? (pin.bearingDeg == null ? '●' : '➤')
+    : getRouteStepPinIcon(pin);
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
     background: 'transparent',
@@ -62,6 +64,10 @@ function createPinElement(pin: RouteStepPin): HTMLElement {
     fontWeight: '700', cursor: 'pointer',
     fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
   });
+  if (isCurrentLoc && pin.bearingDeg != null) {
+    element.style.borderRadius = '50%';
+    element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
+  }
   if (hasTitle) fillTitleLayout(element, pin);
   return element;
 }

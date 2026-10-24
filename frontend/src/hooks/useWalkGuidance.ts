@@ -10,11 +10,13 @@ import { PoopEvent } from '../types/storage';
 import {
   GpsPoint,
   getTrackBuffer,
+  getPersistedTrackBuffer,
   startWalkTracking,
   stopWalkTracking,
   subscribeToGps,
   updateTrackingNotification,
 } from '../services/locationService';
+import { clearBackgroundGuidanceSession, saveBackgroundGuidanceSession } from '../services/backgroundWalkGuidance';
 import {
   GuidanceEvent,
   GuidanceState,
@@ -61,13 +63,17 @@ function computeDistanceKm(track: readonly GpsPoint[]): number {
 
 /** 이탈·출발지 이동 안내는 진행 중인 발화 뒤 맨 앞 순번으로 올린다. */
 export function speakGuidanceEvent(event: GuidanceEvent): void {
+  if (event.category === 'turn') {
+    TTSNavigationService.speakTurn(event.message);
+    return;
+  }
   const urgent = event.kind === 'off_route' || event.kind === 'to_start';
   TTSNavigationService.speak(event.message, undefined, false, urgent ? 'high' : 'normal');
 }
 
 const UNKNOWN_SAFETY_INFO: FreeWalkSafetyInfo = {
   status: 'unknown',
-  message: '전방 위험 제보와 계단·경사 정보가 확인되지 않았어요. 정보가 없다고 안전한 것은 아닙니다.',
+  message: '위험 제보나 경사 정보가 아직 없어요. 발밑을 가볍게 살피며 여유롭게 이동해 볼까요?',
 };
 
 function deriveHeading(point: GpsPoint, previous: GpsPoint | null): number | null {
@@ -174,9 +180,13 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const guidanceRef = useRef<GuidanceState>(INITIAL_GUIDANCE_STATE);
   const startedAtRef = useRef<number | null>(null);
   const routeRef = useRef(route);
+  const activePinsRef = useRef(activePins);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
+  useEffect(() => {
+    activePinsRef.current = activePins;
+  }, [activePins]);
 
   const [poopEvents, setPoopEvents] = useState<PoopEvent[]>([]);
   const lastPointRef = useRef<GpsPoint | null>(null);
@@ -190,6 +200,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   const applyReroute = useCallback(
     (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string, activateRouteGuidance = false) => {
       setRoute(newRoute);
+      routeRef.current = newRoute;
       if (activateRouteGuidance) {
         modeRef.current = 'route';
         setMode('route');
@@ -197,6 +208,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       if (voiceAlert) setGuidanceMessage(voiceAlert);
       if (newPins && newPins.length > 0) {
         setActivePins(newPins);
+        activePinsRef.current = newPins;
       }
       const resetState = resetGuidanceForNewRoute(guidanceRef.current);
       guidanceRef.current = {
@@ -204,6 +216,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
         // 재탐색 음성에서 첫 합류 지점을 이미 안내했으므로 바로 반복 발화하지 않는다.
         announcedPinIds: voiceAlert && newPins?.[0] ? [newPins[0].id] : resetState.announcedPinIds,
       };
+      void saveBackgroundGuidanceSession(newRoute, newPins ?? activePinsRef.current, guidanceRef.current);
       TTSNavigationService.speak(voiceAlert ?? REROUTE_MESSAGE);
     },
     [],
@@ -256,48 +269,50 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
               getNearbyHazardReports(point.latitude, point.longitude),
               getForwardSafetyAnalysis(point.latitude, point.longitude, heading),
             ]).then((results) => {
-                if (modeRef.current !== 'free') return;
-                const [hazardResult, safetyResult] = results;
-                const reports = hazardResult.status === 'fulfilled' ? hazardResult.value : [];
-                if (hazardResult.status === 'fulfilled') nearbyHazardsRef.current = reports;
-                const latestPoint = lastPointRef.current ?? point;
-                const currentHeading = deriveHeading(latestPoint, point);
-                const ahead = currentHeading == null ? [] : getForwardHazardReports(
-                  reports,
-                  latestPoint.latitude,
-                  latestPoint.longitude,
-                  currentHeading,
-                ).filter((report) => report.severity !== 'info');
-                const nearestHazard = ahead[0];
-                const safetyAlert = safetyResult.status === 'fulfilled'
-                  ? formatForwardSafetyMessage(safetyResult.value) : null;
-                if (nearestHazard) {
-                  const shouldAnnounce = !announcedHazardIdsRef.current.has(nearestHazard.report_id);
-                  announcedHazardIdsRef.current.add(nearestHazard.report_id);
-                  const distance = haversineMeters(
-                    [latestPoint.latitude, latestPoint.longitude],
-                    [nearestHazard.lat, nearestHazard.lon],
-                  );
-                  const message = [formatHazardAlert(nearestHazard, distance), safetyAlert].filter(Boolean).join(' ');
-                  setFreeWalkSafety({ status: 'alert', message });
-                  if (shouldAnnounce) TTSNavigationService.speak(message, undefined, false, 'high');
-                } else if (safetyAlert) {
-                  const key = safetyAlert;
-                  const shouldAnnounce = !announcedHazardIdsRef.current.has(key);
-                  announcedHazardIdsRef.current.add(key);
-                  setFreeWalkSafety({ status: 'alert', message: safetyAlert });
-                  if (shouldAnnounce) TTSNavigationService.speak(safetyAlert, undefined, false, 'high');
-                } else {
-                  const checks: string[] = [];
-                  if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('경사 DEM 자료 미확인');
-                  if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 OSM 자료 미확인');
-                  if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('전방 보행로 분석 불가');
-                  if (hazardResult.status === 'rejected') checks.push('위험 제보 서버 미응답');
-                  setFreeWalkSafety({ status: 'unknown', message: checks.length
+              if (modeRef.current !== 'free') return;
+              const [hazardResult, safetyResult] = results;
+              const reports = hazardResult.status === 'fulfilled' ? hazardResult.value : [];
+              if (hazardResult.status === 'fulfilled') nearbyHazardsRef.current = reports;
+              const latestPoint = lastPointRef.current ?? point;
+              const currentHeading = deriveHeading(latestPoint, point);
+              const ahead = currentHeading == null ? [] : getForwardHazardReports(
+                reports,
+                latestPoint.latitude,
+                latestPoint.longitude,
+                currentHeading,
+              ).filter((report) => report.severity !== 'info');
+              const nearestHazard = ahead[0];
+              const safetyAlert = safetyResult.status === 'fulfilled'
+                ? formatForwardSafetyMessage(safetyResult.value) : null;
+              if (nearestHazard) {
+                const shouldAnnounce = !announcedHazardIdsRef.current.has(nearestHazard.report_id);
+                announcedHazardIdsRef.current.add(nearestHazard.report_id);
+                const distance = haversineMeters(
+                  [latestPoint.latitude, latestPoint.longitude],
+                  [nearestHazard.lat, nearestHazard.lon],
+                );
+                const message = [formatHazardAlert(nearestHazard, distance), safetyAlert].filter(Boolean).join(' ');
+                setFreeWalkSafety({ status: 'alert', message });
+                if (shouldAnnounce) TTSNavigationService.speak(message, undefined, false, 'high');
+              } else if (safetyAlert) {
+                const key = safetyAlert;
+                const shouldAnnounce = !announcedHazardIdsRef.current.has(key);
+                announcedHazardIdsRef.current.add(key);
+                setFreeWalkSafety({ status: 'alert', message: safetyAlert });
+                if (shouldAnnounce) TTSNavigationService.speak(safetyAlert, undefined, false, 'high');
+              } else {
+                const checks: string[] = [];
+                if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('경사 DEM 자료 미확인');
+                if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 OSM 자료 미확인');
+                if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('전방 보행로 분석 불가');
+                if (hazardResult.status === 'rejected') checks.push('위험 제보 서버 미응답');
+                setFreeWalkSafety({
+                  status: 'unknown', message: checks.length
                     ? `${checks.join(' · ')}. 자료가 없다고 안전한 것은 아닙니다.`
-                    : UNKNOWN_SAFETY_INFO.message });
-                }
-              })
+                    : UNKNOWN_SAFETY_INFO.message
+                });
+              }
+            })
               .catch((error) => {
                 console.warn('[useWalkGuidance] 자유 산책 안전정보 조회 실패:', error);
                 setFreeWalkSafety({
@@ -327,6 +342,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       )
         .then((res) => {
           guidanceRef.current = res.nextState;
+          void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
           if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
           if (res.triggeredReroute) {
             isReroutingRef.current = true;
@@ -369,6 +385,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   }, [status, handlePoint]);
 
   const start = useCallback(async (nextMode: WalkSessionMode = 'route'): Promise<WalkSessionStatus> => {
+    guidanceRef.current = INITIAL_GUIDANCE_STATE;
+    await saveBackgroundGuidanceSession(routeRef.current, activePinsRef.current, guidanceRef.current);
     const result = await startWalkTracking();
     const next: WalkSessionStatus = result.ok ? 'running' : result.reason;
     if (result.ok) {
@@ -387,12 +405,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       setStats(EMPTY_STATS);
       setPoopEvents([]);
     }
+    if (!result.ok) await clearBackgroundGuidanceSession();
     setStatus(next);
     return next;
   }, []);
 
   const stop = useCallback(async () => {
     await stopWalkTracking();
+    await clearBackgroundGuidanceSession();
     modeRef.current = 'route';
     setMode('route');
     setStatus('idle');
@@ -424,11 +444,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
   /** 저장된(즐겨찾기) 경로와 스텝 핀을 서버 재탐색 없이 그대로 주입한다 (US-29). */
   const loadCourse = useCallback((newRoute: RouteFeatureCollection, newPins: readonly RouteStepPin[]) => {
     setRoute(newRoute);
+    routeRef.current = newRoute;
     setActivePins(newPins);
+    activePinsRef.current = newPins;
     modeRef.current = 'route';
     setMode('route');
     guidanceRef.current = INITIAL_GUIDANCE_STATE;
-  }, []);
+    if (status === 'running') void saveBackgroundGuidanceSession(newRoute, newPins, guidanceRef.current);
+  }, [status]);
 
   return {
     route,
@@ -447,6 +470,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     applyReroute,
     loadCourse,
     getTrackBuffer,
+    getPersistedTrackBuffer,
   };
 }
 

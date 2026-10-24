@@ -60,6 +60,7 @@ export default function App() {
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
+  const [pocketMapVisible, setPocketMapVisible] = useState(false);
   const [startupReady, setStartupReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
@@ -217,7 +218,7 @@ export default function App() {
       setPreferences((prev) => ({ ...prev, isFreeWalk: mode === 'free', ...(mode === 'free' ? { durationMinutes: null } : {}) }));
       const status = await walk.start(mode);
       if (status === 'permission_denied') {
-        const msg = '안심 산책을 위해 위치 권한을 허용해 주세요.';
+        const msg = '화면이 꺼진 상태에서도 경로를 기록하고 음성 안내를 하려면 위치 권한을 “항상 허용”으로 설정해 주세요.';
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert(`[위치 권한 필요] ${msg}`);
         } else {
@@ -306,9 +307,17 @@ export default function App() {
     void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
-  const handleStopWalkAndReport = useCallback(async () => {
+  const handleStopWalkAndReport = useCallback(async (saveRecord = true) => {
+    if (!saveRecord) {
+      await walk.stop();
+      setCompletedRecord(null);
+      setSubScreen('main');
+      setActiveTab('산책');
+      return;
+    }
+
     const distKm = walk.stats.distanceKm;
-    const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const gpsTrack = (await walk.getPersistedTrackBuffer()).map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
@@ -381,10 +390,7 @@ export default function App() {
     Alert.alert('산책을 종료할까요?', '지도를 확인하거나 산책을 마칠 수 있어요.', [
       {
         text: '지도 보기',
-        onPress: () => {
-          setSubScreen('main');
-          setActiveTab('산책');
-        },
+        onPress: () => setPocketMapVisible(true),
       },
       { text: '산책 종료', onPress: () => void handleStopWalkAndReport() },
     ]);
@@ -496,7 +502,9 @@ export default function App() {
             isFreeWalk={walk.mode === 'free'}
             freeWalkSafety={walk.freeWalkSafety}
             guidanceMessage={walk.guidanceMessage}
-            onFinishWalk={() => void handleStopWalkAndReport()}
+            onFinishWalk={(saveRecord) => void handleStopWalkAndReport(saveRecord)}
+            mapVisible={pocketMapVisible}
+            onMapVisibleChange={setPocketMapVisible}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
             currentCoords={walk.currentPoint ? {

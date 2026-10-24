@@ -408,6 +408,27 @@ graph LR
 15. **다견 가정 맞춤형 강아지 프로필 관리 및 직관적 추가 플로우 (Issue #127, US-A2)**:
     - 상단 등록된 다견 선택 칩 바(`[🐾 초코] [🐾 콩이 ✓] [+ 새 강아지 추가]`), 강아지별 대표 사진 및 맞춤 체중/나이/관절 케어 레벨 독립 관리 모달 지원.
 
+### 6.4 2026-10-23 저장소 코드 기준 현황 보완
+
+아래 내용은 기존 구현 현황과 테스트 기록을 삭제하지 않고, 저장소에서 확인되는 화면·서비스·API 연결을 덧붙인 갱신이다. 기능 코드의 존재는 모든 인수 조건의 통과나 실기기·운영 환경 검증을 의미하지 않는다.
+
+| 영역 | 저장소에서 확인되는 구현 | 주요 코드 위치 |
+|---|---|---|
+| 앱 화면 | 홈, 산책/코스 탐색, 다크 포켓 산책 진행, 완주 리포트, 커뮤니티, 마이페이지 | `frontend/src/screens/`, `frontend/App.tsx` |
+| 개인화·저장 | 다견 프로필, 온보딩·동의, 로컬 산책 이력, 피드백·통계, JSON 백업, 코스 북마크 | `frontend/src/services/`, `frontend/src/components/profile/` |
+| 산책 진행·안전 | 백그라운드 GPS, TTS 안내, 음성 설정·소음 감지, 배변/소변 마킹, 지도 보기, 위험 제보·우회·긴급 복귀 | `frontend/src/screens/DarkPocketScreen.tsx`, `frontend/src/services/locationService.ts`, `frontend/src/services/hazardApi.ts` |
+| 경로·외부 정보 | 자연어/음성 조건 입력, 현 위치/지정 공원 경로 계획, 지면온도·기상, 공영주차장 검색 | `backend/agent/`, `backend/services/`, `backend/main.py` |
+| 커뮤니티 | 코스 피드·공유, 인증 연계, 공유 위치 마스킹 | `frontend/src/services/communityApi.ts`, `backend/agent/spatial_masking.py`, `backend/main.py` |
+
+백엔드 라우트 코드에서 산책 계획(`/api/v1/walk/plan`), 경로 재탐색(`/api/v1/walk/reroute`), 현장 안전(`/api/v1/surface/inspect`, `/api/v1/hazards`, `/api/v1/walk/forward-safety`), 커뮤니티(`/api/v1/community/feed`, `/api/v1/community/share`), 기상(`/api/v1/weather/heat-risk`), 주차장(`/api/v1/parking/nearby`) 엔드포인트를 확인했다.
+
+#### 검증 범위 및 변경 이력
+
+- 화면·서비스·백엔드 라우트의 구현 연결을 소스 코드로 확인했다. 이번 갱신에서 전체 Vitest/Pytest를 실행하지 않았으므로 기존 테스트 통과 수는 이전 기록으로 유지한다.
+- `cd frontend && npm run check`의 TypeScript 검사(`tsc --noEmit`)는 통과했다.
+- 기존 문서에는 MVP 15개와 README 일부의 18개 핵심 스토리 등 서로 다른 집계가 남아 있다. 원래 내용을 유지하며 숫자를 임의로 통일하지 않았고, 범위별 집계 및 완료 판정은 정합성 확인 대상으로 남겼다. 상세 매핑은 [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)의 5절을 참조한다.
+- 변경 이력: 2026-10-23자 보완 절을 추가했으며, 기존 README 내용의 삭제·축약·대체는 없고 삭제된 항목도 없다.
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)

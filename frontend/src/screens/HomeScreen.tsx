@@ -59,7 +59,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
-  const [weeklyWalkCount, setWeeklyWalkCount] = useState(0);
   const [weatherModalVisible, setWeatherModalVisible] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
 
@@ -95,8 +94,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     void LocalStorageService.getWalkHistory().then((history) => {
       if (!isMounted) return;
       setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
-      const dogHistory = history.filter((record) => record.dogId === dog.id);
-      setWeeklyWalkCount(WalkStatisticsService.getWeeklyStats(dogHistory).totalWalks);
     });
     return () => {
       isMounted = false;
@@ -126,7 +123,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         dog={dog}
         feedbackSummary={feedbackSummary}
         weeklyStats={weeklyStats}
-        weeklyWalkCount={weeklyWalkCount}
         onOpenStats={onOpenStats}
         onOpenPlanner={onOpenPlanner}
         onOpenWeatherModal={() => setWeatherModalVisible(true)}
