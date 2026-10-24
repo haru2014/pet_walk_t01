@@ -15,10 +15,12 @@ vi.mock('react-native-svg', () => ({
   Circle: (props: any) => React.createElement('circle', props),
   G: (props: any) => React.createElement('g', props),
   Text: (props: any) => React.createElement('text', props),
+  Polygon: (props: any) => React.createElement('polygon', props),
 }));
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { RouteMapView } from './RouteMapView';
+import { RouteMapLegend } from './RouteMapLegend';
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 
 describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
@@ -89,5 +91,67 @@ describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
     expect(html).not.toContain('accessible=');
     // z-index: 2 및 position: absolute 스타일이 정상 반영됨
     expect(html).toContain('z-index:2');
+  });
+
+  it('사용자 조작 최소화: 토글 버튼(switch) 없이 지면온도와 경사도 범례가 항상 렌더링된다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView
+        route={mockRoute}
+        stepPins={mockPins}
+        speedKmH={2.8}
+      />
+    );
+    // 토글 스위치 칩이 제거되어 switch role이 존재하지 않음
+    expect(html).not.toContain('role="switch"');
+    // 지도 하단 범례에 코스 보행로, 지면온도, 경사도가 모두 항상 표시됨
+    expect(html).toContain('코스 보행로');
+    expect(html).toContain('지면온도');
+    expect(html).toContain('경사도');
+    expect(html).toContain('출발/도착');
+  });
+
+  it('온도 및 경사도 실제 데이터 부재 시 가짜 마커나 온도 색상으로 오인되지 않도록 처리된다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView
+        route={mockRoute}
+        stepPins={mockPins}
+        speedKmH={2.8}
+      />
+    );
+    // 실측 데이터가 없으므로 지면온도 및 경사도에 '확인 불가' 상태가 안내됨
+    expect(html).toContain('데이터 없음 (확인 불가)');
+    // 코스 보행로(안심 구간, 주의 구간) 색상 설명이 함께 제공되어 온도 색상과 오인되지 않음
+    expect(html).toContain('경로 선 색상');
+    expect(html).toContain('안심 구간');
+    // 실제 경사 데이터가 없으므로 지도 경로 위에 화살표 마커(strokeWidth 0.8)가 렌더링되지 않음
+    expect(html).not.toContain('stroke-width="0.8"');
+  });
+
+  describe('RouteMapLegend - 상시 표시 및 실측치 유무에 따른 안내 검증', () => {
+    it('1. 데이터 부재 시: 지면온도와 경사도에 데이터 없음(확인 불가) 배지와 항목이 안내된다', () => {
+      const html = renderToStaticMarkup(
+        <RouteMapLegend mode="course" hasTempData={false} hasSlopeData={false} />
+      );
+      expect(html).toContain('코스 보행로');
+      expect(html).toContain('안심 구간');
+      expect(html).toContain('지면온도');
+      expect(html).toContain('경사도');
+      expect(html).toContain('데이터 없음 (확인 불가)');
+      expect(html).toContain('확인 불가');
+    });
+
+    it('2. 실측 데이터 존재 시: 데이터 없음 배지 없이 상세 단계 범례가 정상 표시된다', () => {
+      const html = renderToStaticMarkup(
+        <RouteMapLegend mode="course" hasTempData={true} hasSlopeData={true} />
+      );
+      expect(html).toContain('지면온도');
+      expect(html).toContain('안전');
+      expect(html).toContain('주의(낮음)');
+      expect(html).toContain('위험');
+      expect(html).toContain('경사도');
+      expect(html).toContain('평지');
+      expect(html).toContain('완만한 오르막');
+      expect(html).not.toContain('데이터 없음 (확인 불가)');
+    });
   });
 });
