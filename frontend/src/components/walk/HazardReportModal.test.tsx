@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { HazardReportModal } from './HazardReportModal';
+import { HazardReportModal, buildEmergencyReturnReport } from './HazardReportModal';
 
 vi.mock('react-native', async (importOriginal) => {
   const actual: any = await importOriginal();
@@ -63,5 +63,20 @@ describe('HazardReportModal - 현장 위험 제보 및 안전 우회 모달 검�
     );
 
     expect(html).toBe('');
+  });
+
+  it('긴급 복귀: 위험 종류를 직접 고르지 않으면 제보를 올리지 않는다 (기본값 공사 구역이 쌓이던 문제)', () => {
+    expect(buildEmergencyReturnReport(false, 'construction', 36.3906, 127.351)).toBeNull();
+  });
+
+  it('긴급 복귀: 위험 종류를 고르면 실제 현재 위치로 그 종류를 제보한다', () => {
+    const report = buildEmergencyReturnReport(true, 'broken_glass', 36.3906, 127.351);
+    expect(report).toEqual({
+      lat: 36.3906,
+      lon: 127.351,
+      hazardType: 'broken_glass',
+      severity: 'danger',
+      description: '긴급 복귀 요청 - 현장 위험 [유리 파편]',
+    });
   });
 });

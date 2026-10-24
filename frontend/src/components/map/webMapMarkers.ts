@@ -21,12 +21,12 @@ export type MarkerConstructor = new (options: {
   offset?: [number, number];
 }) => MarkerLike;
 
-function createStartElement(colors: MapRouteColors): HTMLElement {
+function createStartElement(): HTMLElement {
   const element = document.createElement('div');
   element.textContent = '출발/도착 🐾';
   Object.assign(element.style, {
-    padding: '3px 8px', borderRadius: '10px', background: colors.startMarker,
-    color: '#fff', fontSize: '10px', fontWeight: '800', border: '1.5px solid #fff',
+    background: 'transparent',
+    color: '#fff', fontSize: '10px', fontWeight: '800',
     whiteSpace: 'nowrap',
   });
   return element;
@@ -48,12 +48,9 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin): void {
   element.appendChild(detail);
 }
 
-function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElement {
+function createPinElement(pin: RouteStepPin): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
-  const kindColors: Record<RouteStepPin['kind'], string> = {
-    caution: colors.caution, safe: colors.safe, turn: colors.normal,
-  };
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
@@ -62,13 +59,9 @@ function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElemen
     : getRouteStepPinIcon(pin);
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
-    borderRadius: hasTitle ? '10px' : '50%',
-    border: isCurrentLoc ? '2px solid #2563EB' : '2px solid #fff',
-    padding: hasTitle ? '4px 6px' : '0',
-    background: hasTitle ? '#ffffffed' : (isCurrentLoc ? '#2563EB' : kindColors[pin.kind]),
+    background: 'transparent',
     color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : '#1f2937') : '#fff',
     fontWeight: '700', cursor: 'pointer',
-    boxShadow: isCurrentLoc ? '0 2px 8px rgba(37, 99, 235, 0.45)' : '0 2px 5px #0005',
     fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
   });
   if (isCurrentLoc && pin.bearingDeg != null) {
@@ -87,7 +80,7 @@ export function renderWebMarkers(
   MarkerClass: MarkerConstructor,
   route: RouteFeatureCollection,
   pins: readonly RouteStepPin[],
-  colors: MapRouteColors,
+  _colors: MapRouteColors,
   onPinSelect: (instruction: string) => void,
 ): MarkerLike[] {
   const markers: MarkerLike[] = [];
@@ -96,14 +89,14 @@ export function renderWebMarkers(
   if (firstCoord) {
     // 안내 핀이 출발점에 겹쳐도 배지 아래에서 가려지지 않도록 위쪽으로 분리합니다.
     markers.push(new MarkerClass({
-      element: createStartElement(colors),
+      element: createStartElement(),
       anchor: 'bottom',
       offset: [0, -20],
     }).setLngLat([...firstCoord]).addTo(map));
   }
 
   pins.forEach((pin) => {
-    const element = createPinElement(pin, colors);
+    const element = createPinElement(pin);
     element.addEventListener('click', () => onPinSelect(pin.instruction));
     const anchor = pin.title ? 'bottom' : 'center';
     markers.push(new MarkerClass({ element, anchor }).setLngLat([...pin.position]).addTo(map));
