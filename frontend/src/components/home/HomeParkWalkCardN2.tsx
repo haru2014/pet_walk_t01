@@ -100,9 +100,15 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
           </View>
 
           <View style={styles.headerRightActions}>
-            {isMultiDog && (
+            {Boolean(dog) && (
               <TouchableOpacity
-                onPress={() => setShowDropdown((prev) => !prev)}
+                onPress={() => {
+                  if (isMultiDog) {
+                    setShowDropdown((prev) => !prev);
+                  } else {
+                    onPressProfile?.();
+                  }
+                }}
                 style={[
                   styles.dogSwitchButton,
                   {
@@ -121,7 +127,9 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
                 >
                   {dog.name}
                 </Text>
-                <Text style={[styles.dogSwitchChevron, { color: isDark ? colors.primaryDark : cardTextColor }]}>▾</Text>
+{isMultiDog && (
+                  <Text style={[styles.dogSwitchChevron, { color: isDark ? colors.primaryDark : cardTextColor }]}>▾</Text>
+                )}
               </TouchableOpacity>
             )}
 
