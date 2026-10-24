@@ -6,6 +6,9 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
+import { RouteMapView } from './RouteMapView';
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
@@ -30,10 +33,6 @@ vi.mock('maplibre-gl', () => ({
     })),
   },
 }));
-
-import { renderToStaticMarkup } from 'react-dom/server';
-import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
-import { RouteMapView } from './RouteMapView';
 
 describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
   const mockRoute: RouteFeatureCollection = {

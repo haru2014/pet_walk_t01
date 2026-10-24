@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFonts } from 'expo-font';
-import { View, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform, Linking } from 'react-native';
 import { AppText as Text } from './src/components/common/AppText';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
@@ -234,7 +234,19 @@ export default function App() {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert(`[위치 권한 필요] ${msg}`);
         } else {
-          Alert.alert('위치 권한 필요', msg);
+          Alert.alert(
+            '위치 권한 필요',
+            `${msg}\n\n지금 설정 화면으로 이동하여 권한을 변경하시겠습니까?`,
+            [
+              { text: '취소', style: 'cancel' },
+              {
+                text: '설정으로 이동',
+                onPress: () => {
+                  void Linking.openSettings();
+                },
+              },
+            ],
+          );
         }
         return;
       }

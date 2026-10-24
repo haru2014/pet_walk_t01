@@ -354,7 +354,6 @@ export class TTSNavigationService {
   }
 
   private static async stopCurrentOutput(): Promise<void> {
-    const self = TTSNavigationService;
     let speechStop: Promise<void>;
     try {
       speechStop = Speech.stop();

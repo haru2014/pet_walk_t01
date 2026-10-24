@@ -5,6 +5,10 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { BookmarkListView } from './BookmarkListView';
+import { BookmarkService } from '../../services/bookmarkService';
+import { BookmarkedRoute } from '../../types/bookmark';
+import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
 
 vi.mock('react-native-webview', () => ({
   WebView: 'WebView',
@@ -13,11 +17,6 @@ vi.mock('react-native-webview', () => ({
 vi.mock('../map/RouteMapView', () => ({
   RouteMapView: () => React.createElement('div', { 'data-route-map': 'true' }),
 }));
-
-import { BookmarkListView } from './BookmarkListView';
-import { BookmarkService } from '../../services/bookmarkService';
-import { BookmarkedRoute } from '../../types/bookmark';
-import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
