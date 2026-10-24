@@ -21,13 +21,13 @@ export type MarkerConstructor = new (options: {
   offset?: [number, number];
 }) => MarkerLike;
 
-function createStartElement(mainColor: string): HTMLElement {
+function createStartElement(guidanceColor: string): HTMLElement {
   const element = document.createElement('div');
   element.textContent = '출발/도착 🐾';
   Object.assign(element.style, {
     background: 'transparent',
     border: 'transparent',
-    color: mainColor,
+    color: guidanceColor,
     fontSize: '11px',
     fontWeight: '800',
     whiteSpace: 'nowrap',
@@ -36,7 +36,7 @@ function createStartElement(mainColor: string): HTMLElement {
   return element;
 }
 
-function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, mainColor: string): void {
+function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, guidanceColor: string): void {
   element.replaceChildren();
   element.style.display = 'grid';
   element.style.justifyItems = 'center';
@@ -45,7 +45,7 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, mainColor: str
   icon.textContent = pin.icon ?? '';
   const title = document.createElement('strong');
   title.textContent = pin.title ?? '';
-  title.style.color = mainColor;
+  title.style.color = guidanceColor;
   element.append(icon, title);
   if (!pin.detail) return;
   const detail = document.createElement('small');
@@ -53,7 +53,7 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, mainColor: str
   element.appendChild(detail);
 }
 
-function createPinElement(pin: RouteStepPin, mainColor: string): HTMLElement {
+function createPinElement(pin: RouteStepPin, guidanceColor: string): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
   const element = document.createElement(hasTitle ? 'div' : 'button');
@@ -67,7 +67,7 @@ function createPinElement(pin: RouteStepPin, mainColor: string): HTMLElement {
     background: 'transparent',
     border: 'transparent',
     boxShadow: 'none',
-    color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : mainColor) : (isCurrentLoc ? '#fff' : mainColor),
+    color: hasTitle ? (isCurrentLoc ? '#1D4ED8' : guidanceColor) : (isCurrentLoc ? '#fff' : guidanceColor),
     fontWeight: '700', cursor: 'pointer',
     fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
     textShadow: isCurrentLoc && !hasTitle ? undefined : '0 0 3px rgba(255, 255, 255, 0.85)',
@@ -76,7 +76,7 @@ function createPinElement(pin: RouteStepPin, mainColor: string): HTMLElement {
     element.style.borderRadius = '50%';
     element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
   }
-  if (hasTitle) fillTitleLayout(element, pin, mainColor);
+  if (hasTitle) fillTitleLayout(element, pin, guidanceColor);
   return element;
 }
 
@@ -92,20 +92,20 @@ export function renderWebMarkers(
   onPinSelect: (instruction: string) => void,
 ): MarkerLike[] {
   const markers: MarkerLike[] = [];
-  const mainColor = colors.startMarker;
+  const guidanceColor = colors.mapGuidance || colors.startMarker;
 
   const firstCoord = route.features[0]?.geometry.coordinates[0];
   if (firstCoord) {
     // 안내 핀이 출발점에 겹쳐도 배지 아래에서 가려지지 않도록 위쪽으로 분리합니다.
     markers.push(new MarkerClass({
-      element: createStartElement(mainColor),
+      element: createStartElement(guidanceColor),
       anchor: 'bottom',
       offset: [0, -20],
     }).setLngLat([...firstCoord]).addTo(map));
   }
 
   pins.forEach((pin) => {
-    const element = createPinElement(pin, mainColor);
+    const element = createPinElement(pin, guidanceColor);
     element.addEventListener('click', () => onPinSelect(pin.instruction));
     const anchor = pin.title ? 'bottom' : 'center';
     markers.push(new MarkerClass({ element, anchor }).setLngLat([...pin.position]).addTo(map));

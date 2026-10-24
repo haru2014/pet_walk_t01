@@ -68,6 +68,7 @@ export interface ThemeColors {
   mapRoad: string;
   mapRoadEdge: string;
   mapLabel: string;
+  mapGuidance: string; // 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 대비 색상
 
   pocketBg: string;
   pocketHud: string;
@@ -112,6 +113,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E3DBC7',
     mapLabel: '#5A7361',
+    mapGuidance: '#B45309', // 웜 앰버 (세이지 그린 보행로 대비 색상)
 
     pocketBg: '#1E2520',
     pocketHud: '#CFA052',
@@ -153,6 +155,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E7EBE7',
     mapLabel: '#799084',
+    mapGuidance: '#D97706', // 비비드 앰버 (에메랄드 그린 보행로 대비 색상)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -194,6 +197,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#DDD6FE',
     mapLabel: '#6D28D9',
+    mapGuidance: '#D97706', // 앰버 골드 (비비드 바이올렛 보행로 보색 대비)
 
     pocketBg: '#1E1B4B',   // 딥 인디고 포켓 배경
     pocketHud: '#A78BFA',  // 네온 바이올렛 HUD
@@ -235,6 +239,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#334155',
     mapRoadEdge: '#475569',
     mapLabel: '#94A3B8',
+    mapGuidance: '#FBBF24', // 루미너스 골드 (네온 민트 보행로 고시인성 대비)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -258,6 +263,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primaryWash: 'rgba(16, 185, 129, 0.14)',
     primaryMint: '#A7F3D0',
     primarySubtle: '#D1FAE5',
+    mapGuidance: '#7C3AED', // 딥 바이올렛 (민트 그린 보행로 보색 대비)
   },
   ocean: {
     ...BASE_THEME_PALETTES.forest,
@@ -281,6 +287,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapWater: '#E0F2FE',
     mapRoadEdge: '#BFDBFE',
     mapLabel: '#1D4ED8',
+    mapGuidance: '#EA580C', // 코랄 오렌지 (오션 블루 보행로 보색 대비)
     accent: '#0EA5E9',
     accentLight: '#DBEAFE',
   },
@@ -305,6 +312,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapPark: '#FFEDD5',
     mapRoadEdge: '#FED7AA',
     mapLabel: '#C2410C',
+    mapGuidance: '#1D4ED8', // 딥 오션 블루 (코랄 오렌지 보행로 보색 대비)
     success: '#16A34A',
     warning: '#F97316',
     accent: '#FB923C',

@@ -42,6 +42,7 @@ class FakeMarker {
 const colors: MapRouteColors = {
   safe: '#10B981', normal: '#3B82F6', caution: '#F59E0B', casing: '#FFFFFF',
   maskCircle: 'rgba(16, 185, 129, 0.18)', maskBorder: '#059669', startMarker: '#059669',
+  mapGuidance: '#D97706',
 };
 
 const route: RouteFeatureCollection = {
@@ -88,10 +89,10 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
 
     expect(start.options.element.style.background).toBe('transparent');
     expect(start.options.element.style.border).toBe('transparent');
-    expect(start.options.element.style.color).toBe(colors.startMarker);
+    expect(start.options.element.style.color).toBe(colors.mapGuidance);
     expect(turn.options.element.style.background).toBe('transparent');
     expect(turn.options.element.style.border).toBe('transparent');
-    expect(turn.options.element.style.color).toBe(colors.startMarker);
+    expect(turn.options.element.style.color).toBe(colors.mapGuidance);
     expect(turn.options.element.textContent).toBe('↱');
     expect(turn.options.anchor).toBe('center');
     expect(turn.options.element.tagName).toBe('button');

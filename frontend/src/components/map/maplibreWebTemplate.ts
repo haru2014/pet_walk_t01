@@ -99,14 +99,14 @@ export function buildMapLibreHtml({
     .step-pin {
       width: 26px; height: 26px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; border: transparent; color: ${routeColors.startMarker}; font-weight: bold; font-size: 11px;
+      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: bold; font-size: 11px;
       cursor: pointer; transition: transform 0.15s ease;
       text-shadow: 0 0 3px rgba(255, 255, 255, 0.85);
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; border: transparent; color: ${routeColors.startMarker}; font-weight: 800; font-size: 11px;
+      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 800; font-size: 11px;
       text-align: center; white-space: nowrap;
       text-shadow: 0 0 3px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.7);
     }
@@ -296,7 +296,7 @@ export function buildMapLibreHtml({
         markers.forEach(function(m) { m.remove(); });
         markers = [];
         const colors = payload.routeColors || {};
-        const mainColor = colors.startMarker || '${routeColors.startMarker}';
+        const guidanceColor = colors.mapGuidance || colors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
 
         // 출발/도착 마커
         if (routeData && routeData.features && routeData.features.length > 0) {
@@ -305,7 +305,7 @@ export function buildMapLibreHtml({
             const startEl = document.createElement('div');
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
-            startEl.style.color = mainColor;
+            startEl.style.color = guidanceColor;
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
               .setLngLat(firstCoord)
@@ -336,7 +336,7 @@ export function buildMapLibreHtml({
               el.style.fontSize = '16px';
               el.style.color = '#fff';
             } else {
-              el.style.color = mainColor;
+              el.style.color = guidanceColor;
               el.style.backgroundColor = 'transparent';
               el.style.border = 'transparent';
               el.style.boxShadow = 'none';
@@ -350,7 +350,7 @@ export function buildMapLibreHtml({
               el.style.boxShadow = 'none';
               el.style.borderRadius = '0';
               el.style.transform = 'none';
-              el.style.color = mainColor;
+              el.style.color = guidanceColor;
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';
               el.style.gap = '2px';
@@ -358,7 +358,7 @@ export function buildMapLibreHtml({
               iconEl.innerText = pin.icon || '';
               const titleEl = document.createElement('strong');
               titleEl.innerText = pin.title;
-              titleEl.style.color = mainColor;
+              titleEl.style.color = guidanceColor;
               el.appendChild(iconEl);
               el.appendChild(titleEl);
               if (pin.detail) {

@@ -49,7 +49,8 @@ export interface MapRouteColors {
   readonly casing: string;     // 도로 라인 외곽 테두리 (가독성용 흰색/다크 외곽선)
   readonly maskCircle: string; // 200m 안심 마스킹 원 색상
   readonly maskBorder: string; // 200m 안심 마스킹 테두리 색상
-  readonly startMarker: string;// 출발점 마커 색상
+  readonly startMarker: string;// 출발점 마커 색상 (레거시 호환)
+  readonly mapGuidance: string;// 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 고대비 색상
 }
 
 export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
@@ -60,7 +61,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FDFAF4',
     maskCircle: 'rgba(90, 115, 97, 0.18)',
     maskBorder: '#3E5244',
-    startMarker: '#5A7361',
+    startMarker: THEME_PALETTES.dusty_amber.mapGuidance,
+    mapGuidance: THEME_PALETTES.dusty_amber.mapGuidance,
   },
   forest: {
     safe: '#10B981',       // 에메랄드 그린
@@ -69,7 +71,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FFFFFF',
     maskCircle: 'rgba(16, 185, 129, 0.18)',
     maskBorder: '#059669',
-    startMarker: '#059669',
+    startMarker: THEME_PALETTES.forest.mapGuidance,
+    mapGuidance: THEME_PALETTES.forest.mapGuidance,
   },
   vivid_violet: {
     safe: '#10B981',       // 산뜻한 그린
@@ -78,7 +81,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FFFFFF',
     maskCircle: 'rgba(124, 58, 237, 0.18)',
     maskBorder: '#6D28D9',
-    startMarker: '#7C3AED',
+    startMarker: THEME_PALETTES.vivid_violet.mapGuidance,
+    mapGuidance: THEME_PALETTES.vivid_violet.mapGuidance,
   },
   dark: {
     safe: '#34D399',       // 네온 민트 (야간 고시인성)
@@ -87,7 +91,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#0F172A',     // 다크 배경 대비선
     maskCircle: 'rgba(52, 211, 153, 0.22)',
     maskBorder: '#34D399',
-    startMarker: '#34D399',
+    startMarker: THEME_PALETTES.dark.mapGuidance,
+    mapGuidance: THEME_PALETTES.dark.mapGuidance,
   },
   mint: {
     safe: '#10B981',
@@ -96,7 +101,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FFFFFF',
     maskCircle: 'rgba(16, 185, 129, 0.18)',
     maskBorder: '#059669',
-    startMarker: '#10B981',
+    startMarker: THEME_PALETTES.mint.mapGuidance,
+    mapGuidance: THEME_PALETTES.mint.mapGuidance,
   },
   ocean: {
     safe: '#10B981',
@@ -105,7 +111,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FFFFFF',
     maskCircle: 'rgba(37, 99, 235, 0.18)',
     maskBorder: '#1D4ED8',
-    startMarker: '#2563EB',
+    startMarker: THEME_PALETTES.ocean.mapGuidance,
+    mapGuidance: THEME_PALETTES.ocean.mapGuidance,
   },
   coral: {
     safe: '#10B981',
@@ -114,7 +121,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     casing: '#FFFFFF',
     maskCircle: 'rgba(249, 115, 22, 0.18)',
     maskBorder: '#C2410C',
-    startMarker: '#F97316',
+    startMarker: THEME_PALETTES.coral.mapGuidance,
+    mapGuidance: THEME_PALETTES.coral.mapGuidance,
   },
 } as const;
 
