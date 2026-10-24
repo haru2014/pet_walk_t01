@@ -35,13 +35,16 @@ import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
 
 /**
- * 코스 표시 명칭 정제 (불필요한 "1안", "2안" 및 중복 거리 제거)
+ * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
  */
 export function formatCourseDisplayName(name: string): string {
   if (!name) return '';
   return name
     .replace(/(?:^|\s)\d+안/g, '')
     .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b/gi, '')
+    .replace(/갑천생태호수공원\s*\(도안호수공원\)/g, '도안호수공원')
+    .replace(/(^|[\p{Emoji}\u2000-\u3300]\s*)(?:대전|세종)\s+/gu, '$1')
+    .replace(/내부\s*보행로/g, '순환로')
     .split('·')
     .map((part) => part.trim().replace(/\s{2,}/g, ' '))
     .filter(Boolean)
@@ -49,18 +52,78 @@ export function formatCourseDisplayName(name: string): string {
 }
 
 /**
- * 코스 추천 사유 문구 정제 (중복 점수 접두어, 거리 및 불필요한 "1안" 제거)
+ * 코스별 고유 특징 뱃지 (동일 코스명 또는 후보 간 차별화 요소)
  */
-export function formatCourseReasonText(reason: string): string {
+export function getCourseFeatureBadge(
+  course: Partial<RecommendedCourse>,
+  index: number
+): { label: string; icon: string; color: string; bgColor: string } {
+  if (index === 0) {
+    return { label: '최적 맞춤', icon: '🏆', color: '#D97706', bgColor: '#FEF3C7' };
+  }
+
+  const soft = course.softSurfacePercent ?? 0;
+  const shade = course.shadePercent ?? 0;
+  const slope = course.maxSlopePercent ?? 10;
+  const stairs = course.stairsCount;
+  const noStairs = stairs === '0' || stairs === '0회' || stairs === '확인된 계단 0회';
+
+  if (soft >= 60) {
+    return { label: '폭신 흙길', icon: '🌿', color: '#16A34A', bgColor: '#DCFCE7' };
+  }
+  if (shade >= 60) {
+    return { label: '그늘 우선', icon: '🌳', color: '#0D9488', bgColor: '#CCFBF1' };
+  }
+  if (slope <= 3.0 && noStairs) {
+    return { label: '완만 평지', icon: '🐾', color: '#2563EB', bgColor: '#DBEAFE' };
+  }
+
+  if (index === 1) {
+    return { label: '추천 2안', icon: '🚶', color: '#4B5563', bgColor: '#F3F4F6' };
+  }
+  return { label: '추천 3안', icon: '🍃', color: '#4B5563', bgColor: '#F3F4F6' };
+}
+
+/**
+ * 코스 추천 사유 문구 정제 (중복 점수 접두어, 거리, 불필요한 "1안" 및 타이틀 중복 제거)
+ */
+export function formatCourseReasonText(reason: string, courseName?: string): string {
   if (!reason) return '';
-  return reason
+  let cleaned = reason
     .replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '')
-    .replace(/(?:^|\s)\d+안/g, '')
-    .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b(?![/h])/gi, '')
+    .trim();
+
+  cleaned = formatCourseDisplayName(cleaned);
+
+  if (courseName) {
+    const targetName = formatCourseDisplayName(courseName).trim();
+    const targetNoIcon = targetName.replace(/^[\p{Emoji}\u2000-\u3300]\s*/u, '').trim();
+
+    for (const cand of [targetName, targetNoIcon]) {
+      if (cand && cleaned.startsWith(cand)) {
+        cleaned = cleaned.slice(cand.length).trim();
+        break;
+      }
+    }
+  }
+
+  cleaned = cleaned
+    .replace(/^[·\-\s]+/, '')
     .replace(/·\s*·+/g, '·')
     .replace(/\s{2,}/g, ' ')
-    .replace(/·\s*(?=[)\];,]|$)/g, '')
     .trim();
+
+  // (실측 최대 경사 X%) 형태만 남았을 경우 친절한 안내 문장으로 보완
+  const slopeMatch = /^\(?(실측\s*최대\s*경사\s*\d+(?:\.\d+)?%)\)?$/.exec(cleaned);
+  if (slopeMatch) {
+    return `${slopeMatch[1]}의 완만하고 쾌적한 산책 코스입니다.`;
+  }
+
+  if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+
+  return cleaned || reason;
 }
 
 /**
@@ -382,18 +445,45 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
         </View>
 
-        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간) */}
-        <Text
-          style={[styles.courseName, { color: colors.textMain, fontSize: courseRecommend.courseTitleSize }]}
-          numberOfLines={1}
-        >
-          {formatCourseDisplayName(currentCourse.name)}
-        </Text>
-        <View style={styles.courseMetricsRow}>
-          <Text style={[styles.courseMetaText, { color: colors.primaryDark, fontSize: courseRecommend.metricNumberSize }]}>
-            {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
-          </Text>
-        </View>
+        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간) 한 줄 통합 헤더 */}
+        {(() => {
+          const featureBadge = getCourseFeatureBadge(currentCourse, selectedCourseIndex);
+          return (
+            <View style={styles.courseHeaderRow}>
+              <View style={styles.courseTitleWrapper}>
+                <Text
+                  style={[styles.courseName, { color: colors.textMain, fontSize: courseRecommend.courseTitleSize }]}
+                  numberOfLines={1}
+                >
+                  {formatCourseDisplayName(currentCourse.name)}
+                </Text>
+                {featureBadge ? (
+                  <View style={[styles.featureBadge, { backgroundColor: featureBadge.bgColor }]}>
+                    <Text style={styles.featureBadgeIcon}>{featureBadge.icon}</Text>
+                    <Text style={[styles.featureBadgeText, { color: featureBadge.color }]}>
+                      {featureBadge.label}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <View
+                style={[
+                  styles.courseMetricBadge,
+                  { backgroundColor: colors.primaryWash, borderColor: colors.border },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.courseMetaText,
+                    { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize },
+                  ]}
+                >
+                  {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
         {currentCourse.reason ? (
@@ -409,7 +499,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
               ]}
               numberOfLines={2}
             >
-              💡 {formatCourseReasonText(currentCourse.reason)}
+              💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name)}
             </Text>
           </View>
         ) : null}
@@ -578,12 +668,49 @@ const styles = StyleSheet.create({
   courseChipTextActive: { fontWeight: '800' },
   courseChipScore: { fontWeight: '800' },
   bookmarkButton: { height: 32 },
-  courseMetricsRow: {
+  courseHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 2,
+    marginBottom: 2,
   },
-  courseName: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', marginBottom: 2 },
+  courseTitleWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+  },
+  courseName: {
+    fontSize: TYPOGRAPHY.cardTitle,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  featureBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+    flexShrink: 0,
+  },
+  featureBadgeIcon: {
+    fontSize: 10,
+  },
+  featureBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  courseMetricBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
   scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   scoreBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800' },
   reasonBox: {
@@ -593,7 +720,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   reasonText: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
-  courseMetaText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
+  courseMetaText: { fontSize: TYPOGRAPHY.caption, fontWeight: '800', letterSpacing: -0.2 },
   metricsBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',

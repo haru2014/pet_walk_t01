@@ -5,6 +5,7 @@ import {
   CourseRecommendationView,
   formatCourseDisplayName,
   formatCourseReasonText,
+  getCourseFeatureBadge,
   getThemeContrastingAccentColor,
 } from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
@@ -189,13 +190,16 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
   });
 
-  it('formatCourseDisplayName은 중복 거리와 불필요한 안 번호를 제거한다', () => {
+  it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
     expect(formatCourseDisplayName('🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km')).toBe(
-      '🏞️ 세종호수공원 내부 보행로 · 반시계 방향'
+      '🏞️ 세종호수공원 순환로 · 반시계 방향'
     );
     expect(formatCourseDisplayName('대전 유림공원 내부 보행로 · 2안 시계 방향 2.3km')).toBe(
-      '대전 유림공원 내부 보행로 · 시계 방향'
+      '유림공원 순환로 · 시계 방향'
     );
+    expect(
+      formatCourseDisplayName('대전 갑천생태호수공원(도안호수공원) 내부 보행로 · 1안 시계 방향 2.2km')
+    ).toBe('도안호수공원 순환로 · 시계 방향');
     expect(formatCourseDisplayName('안심 기본 코스')).toBe('안심 기본 코스');
   });
 
@@ -204,7 +208,30 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       formatCourseReasonText(
         'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)'
       )
-    ).toBe('🏞️ 세종호수공원 내부 보행로 · 반시계 방향 (실측 최대 경사 2.7%)');
+    ).toBe('🏞️ 세종호수공원 순환로 · 반시계 방향 (실측 최대 경사 2.7%)');
+
+    expect(
+      formatCourseReasonText(
+        'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)',
+        '🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km'
+      )
+    ).toBe('실측 최대 경사 2.7%의 완만하고 쾌적한 산책 코스입니다.');
+  });
+
+  it('getCourseFeatureBadge는 코스별 고유 특징 뱃지 정보를 반환한다', () => {
+    const badge0 = getCourseFeatureBadge(
+      { id: 'c1', name: '코스1', estimatedMinutes: 30, distanceKm: '1.5' },
+      0
+    );
+    expect(badge0.label).toBe('최적 맞춤');
+    expect(badge0.icon).toBe('🏆');
+
+    const badgeSoft = getCourseFeatureBadge(
+      { id: 'c2', name: '코스2', estimatedMinutes: 30, distanceKm: '1.5', softSurfacePercent: 70 },
+      1
+    );
+    expect(badgeSoft.label).toBe('폭신 흙길');
+    expect(badgeSoft.icon).toBe('🌿');
   });
 
   it('getThemeContrastingAccentColor는 테마별 주 색상에 대비되는 강조 색상을 반환한다', () => {
