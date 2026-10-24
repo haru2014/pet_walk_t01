@@ -16,7 +16,6 @@ export interface HomeDogDropdownN2Props {
   dogs: readonly DogProfile[];
   onSelectDog: (dogId: string) => void;
   onClose: () => void;
-  top?: number;
 }
 
 export const HomeDogDropdownN2: React.FC<HomeDogDropdownN2Props> = ({
@@ -25,12 +24,11 @@ export const HomeDogDropdownN2: React.FC<HomeDogDropdownN2Props> = ({
   dogs,
   onSelectDog,
   onClose,
-  top = 56,
 }) => {
   if (!visible || dogs.length <= 1) return null;
 
   return (
-    <View style={[styles.dropdownMenu, { top }]}>
+    <View style={styles.dropdownMenu}>
       {dogs.map((d) => {
         const isSelected = d.id === activeDogId;
         return (

@@ -560,7 +560,12 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
 
       {/* 서브탭 2: 컬러 테마 선택 & 계정 상태 */}
       {subTab === 'theme_account' && (
-        <View style={styles.tabScrollContainer}>
+        <ScrollView
+          style={styles.tabScrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+        >
           <CardWrapper variant="flat" style={styles.accountCard}>
             <View style={styles.accountRow}>
               <View style={{ flex: 1, marginRight: 8 }}>
@@ -585,7 +590,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
 
           {/* 🎨 컬러 테마 선택기 */}
           <ThemeSelectorCard />
-        </View>
+        </ScrollView>
       )}
 
       {/* 서브탭 3: 산책 활동 (이번 주 산책 달성도 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
