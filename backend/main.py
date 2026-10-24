@@ -654,6 +654,23 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
     return profiles
 
 
+# 코스가 목표 거리의 이 비율보다 짧으면 카드에 안내 문구를 넣는다 (#229, 임시값)
+SHORT_COURSE_RATIO = 0.8
+
+
+def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any], target_distance_m: float) -> None:
+    """공원 보행로가 짧아 목표보다 짧은 코스가 나오면 카드의 안내 줄(reason)에 이유를 알린다 (#229)."""
+    if not candidates or not target_distance_m:
+        return
+    if all(c.total_distance_m >= target_distance_m * SHORT_COURSE_RATIO for c in candidates):
+        return
+    longest = max(int(c.estimated_duration_minutes) for c in candidates)
+    notice = f"이 공원은 산책로가 짧아 최대 약 {longest}분 코스예요. 더 걷고 싶다면 같은 길을 한 바퀴 더 돌아보세요."
+    for course, cand in zip(courses, candidates):
+        if cand.total_distance_m < target_distance_m * SHORT_COURSE_RATIO:
+            course["reason"] = notice
+
+
 def _build_walk_plan_response(
     agent_result: Any,
     request_id: str,
@@ -661,6 +678,7 @@ def _build_walk_plan_response(
     selected_park: Optional[str],
     matched_parking: Optional[Dict[str, Any]],
     validations: Dict[str, Any],
+    target_distance_m: float = 0.0,
 ) -> Dict[str, Any]:
     """산책 경로 계획 API 최종 응답 딕셔너리 생성."""
     best = agent_result.best_route
@@ -685,6 +703,8 @@ def _build_walk_plan_response(
         "route_sources": {s.candidate.route_id: s.candidate.route_source for s in agent_result.all_scored_candidates or []},
     }
     if park_mode:
+        scored = agent_result.all_scored_candidates or []
+        _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(
@@ -815,6 +835,7 @@ def plan_walk_route(req: Dict[str, Any]):
             selected_park=selected_park,
             matched_parking=matched_parking,
             validations=validations,
+            target_distance_m=speed_kmh * 1000.0 / 60.0 * target_duration,
         )
     except RoutePlanningError as exc:
         logger.warning(
