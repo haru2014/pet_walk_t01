@@ -307,7 +307,15 @@ export default function App() {
     void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
-  const handleStopWalkAndReport = useCallback(async () => {
+  const handleStopWalkAndReport = useCallback(async (saveRecord = true) => {
+    if (!saveRecord) {
+      await walk.stop();
+      setCompletedRecord(null);
+      setSubScreen('main');
+      setActiveTab('산책');
+      return;
+    }
+
     const distKm = walk.stats.distanceKm;
     const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
@@ -494,7 +502,7 @@ export default function App() {
             isFreeWalk={walk.mode === 'free'}
             freeWalkSafety={walk.freeWalkSafety}
             guidanceMessage={walk.guidanceMessage}
-            onFinishWalk={() => void handleStopWalkAndReport()}
+            onFinishWalk={(saveRecord) => void handleStopWalkAndReport(saveRecord)}
             mapVisible={pocketMapVisible}
             onMapVisibleChange={setPocketMapVisible}
             onMarkPoop={walk.markPoop}

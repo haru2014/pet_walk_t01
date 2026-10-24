@@ -26,7 +26,7 @@ import { MapLibreMapView } from '../components/map/MapLibreMapView';
 export interface DarkPocketScreenProps {
   readonly dogName: string;
   readonly stats: WalkStats;
-  readonly onFinishWalk: () => void;
+  readonly onFinishWalk: (saveRecord: boolean) => void;
   readonly mapVisible: boolean;
   readonly onMapVisibleChange: (visible: boolean) => void;
   readonly targetMinutes?: number | null;
@@ -367,13 +367,34 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         <View style={styles.modalOverlay}>
           <View style={styles.actionModal}>
             <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
-            <Text style={styles.modalBody}>현재까지 {formatElapsed(stats.elapsedSec)} · {stats.distanceKm.toFixed(2)}km를 기록했어요.</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowFinishModal(false)} style={styles.secondaryModalButton}>
-                <Text style={styles.secondaryModalButtonText}>계속 산책</Text>
+            <View style={styles.finishModalButtons}>
+              <View style={styles.finishSummary}>
+                <Text style={styles.finishSummaryLabel}>산책 요약</Text>
+                <Text style={styles.finishSummaryText}>
+                  경과 시간 {formatElapsed(stats.elapsedSec)} · 이동 거리 {stats.distanceKm.toFixed(2)}km
+                </Text>
+                <Text style={styles.finishSummaryHint}>저장하지 않으면 산책 기록과 경로가 남지 않습니다.</Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => { setShowFinishModal(false); onFinishWalk(true); }}
+                style={styles.finishSaveButton}
+              >
+                <Text style={styles.finishSaveButtonText}>기록 저장 후 종료</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setShowFinishModal(false); onFinishWalk(); }} style={styles.confirmFinishButton}>
-                <Text style={styles.confirmFinishText}>기록 저장 및 종료</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => { setShowFinishModal(false); onFinishWalk(false); }}
+                style={styles.finishDiscardButton}
+              >
+                <Text style={styles.finishDiscardButtonText}>저장 없이 종료</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setShowFinishModal(false)}
+                style={styles.finishContinueButton}
+              >
+                <Text style={styles.finishContinueButtonText}>계속 산책</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -490,14 +511,24 @@ const styles = StyleSheet.create({
   mapView: { flex: 1 },
   mapEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', justifyContent: 'center', padding: 22 },
-  actionModal: { backgroundColor: '#19211C', borderColor: '#3B4C41', borderWidth: 1, borderRadius: 22, padding: 20 },
+  actionModal: { width: '100%', maxWidth: 420, alignSelf: 'center', backgroundColor: '#19211C', borderColor: '#3B4C41', borderWidth: 1, borderRadius: 22, padding: 20 },
   modalBody: { color: TOKENS.colors.pocketHudSubtle, fontSize: 14, lineHeight: 21, marginTop: 10, marginBottom: 18 },
   modalButtons: { flexDirection: 'row', gap: 10 },
   secondaryModalButton: { flex: 1, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2B332E' },
   secondaryModalButtonText: { color: '#E5E7EB', fontSize: 13, fontWeight: '700' },
-  confirmFinishButton: { flex: 1.3, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#9B3A3A' },
   confirmEmergencyButton: { flex: 1.3, minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#236846' },
   confirmFinishText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  finishSummary: { width: '100%', marginBottom: 4, padding: 12, borderRadius: 13, backgroundColor: '#202B24' },
+  finishModalButtons: { width: '100%', flexDirection: 'column', alignItems: 'stretch', gap: 8, marginTop: 12 },
+  finishSummaryLabel: { color: '#6EE7B7', fontSize: 12, fontWeight: '800', marginBottom: 5 },
+  finishSummaryText: { color: '#F8FAFC', fontSize: 13, fontWeight: '700', lineHeight: 20 },
+  finishSummaryHint: { color: TOKENS.colors.pocketHudSubtle, fontSize: 11, lineHeight: 16, marginTop: 5 },
+  finishSaveButton: { width: '100%', minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#236846' },
+  finishSaveButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  finishDiscardButton: { width: '100%', minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2C1D1D', borderWidth: 1, borderColor: '#9B3A3A' },
+  finishDiscardButtonText: { color: '#FCA5A5', fontSize: 13, fontWeight: '800' },
+  finishContinueButton: { width: '100%', minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  finishContinueButtonText: { color: '#D1D5DB', fontSize: 13, fontWeight: '700' },
   barkAlertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
