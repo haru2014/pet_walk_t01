@@ -99,14 +99,16 @@ export function buildMapLibreHtml({
     .step-pin {
       width: 26px; height: 26px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; color: #FFFFFF; font-weight: bold; font-size: 11px;
+      background-color: transparent; color: ${routeColors.startMarker}; font-weight: bold; font-size: 11px;
       cursor: pointer; transition: transform 0.15s ease;
+      text-shadow: 0 0 3px rgba(255, 255, 255, 0.85);
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; color: #FFFFFF; font-weight: 800; font-size: 10px;
-      text-align: center;
+      background-color: transparent; color: ${routeColors.startMarker}; font-weight: 800; font-size: 11px;
+      text-align: center; white-space: nowrap;
+      text-shadow: 0 0 3px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.7);
     }
   </style>
 </head>
@@ -293,6 +295,8 @@ export function buildMapLibreHtml({
       function initMarkers(pins, routeData) {
         markers.forEach(function(m) { m.remove(); });
         markers = [];
+        const colors = payload.routeColors || {};
+        const mainColor = colors.startMarker || '${routeColors.startMarker}';
 
         // 출발/도착 마커
         if (routeData && routeData.features && routeData.features.length > 0) {
@@ -301,6 +305,7 @@ export function buildMapLibreHtml({
             const startEl = document.createElement('div');
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
+            startEl.style.color = mainColor;
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
               .setLngLat(firstCoord)
@@ -329,13 +334,15 @@ export function buildMapLibreHtml({
               el.style.justifyContent = 'center';
               el.style.fontSize = '16px';
               el.style.color = '#fff';
+            } else {
+              el.style.color = mainColor;
             }
             if (pin.title) {
               el.innerText = '';
               el.style.width = 'auto';
               el.style.height = 'auto';
               el.style.backgroundColor = 'transparent';
-              el.style.color = '#1f2937';
+              el.style.color = mainColor;
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';
               el.style.gap = '2px';
@@ -343,6 +350,7 @@ export function buildMapLibreHtml({
               iconEl.innerText = pin.icon || '';
               const titleEl = document.createElement('strong');
               titleEl.innerText = pin.title;
+              titleEl.style.color = mainColor;
               el.appendChild(iconEl);
               el.appendChild(titleEl);
               if (pin.detail) {
@@ -368,6 +376,7 @@ export function buildMapLibreHtml({
       function handleNativeMessage(event) {
         try {
           const msg = JSON.parse(event.data);
+          if (msg.routeColors) payload.routeColors = msg.routeColors;
           if (msg.action === 'SET_STYLE' && msg.style) {
             const styleKey = JSON.stringify(msg.style);
             if (styleKey === currentStyleKey) return;

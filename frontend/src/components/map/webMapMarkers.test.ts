@@ -87,7 +87,9 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     const [start, turn, caution, titled] = FakeMarker.created;
 
     expect(start.options.element.style.background).toBe('transparent');
+    expect(start.options.element.style.color).toBe(colors.startMarker);
     expect(turn.options.element.style.background).toBe('transparent');
+    expect(turn.options.element.style.color).toBe(colors.startMarker);
     expect(turn.options.element.textContent).toBe('↱');
     expect(turn.options.anchor).toBe('center');
     expect(turn.options.element.tagName).toBe('button');

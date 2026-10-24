@@ -316,16 +316,21 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   useEffect(() => {
     if (!isWeb && webViewRef.current) {
       webViewRef.current.postMessage(
-        JSON.stringify({ action: 'SET_STYLE', style: activeStyle })
+        JSON.stringify({ action: 'SET_STYLE', style: activeStyle, routeColors })
       );
     }
-  }, [isWeb, activeStyle]);
+  }, [isWeb, activeStyle, routeColors]);
 
   useEffect(() => {
     if (!isWeb && mobileMapLoadedRef.current && webViewRef.current) {
-      webViewRef.current.postMessage(JSON.stringify({ action: 'UPDATE_ROUTE', route, stepPins: directionalPins }));
+      webViewRef.current.postMessage(JSON.stringify({
+        action: 'UPDATE_ROUTE',
+        route,
+        stepPins: directionalPins,
+        routeColors,
+      }));
     }
-  }, [isWeb, route, directionalPins]);
+  }, [isWeb, route, directionalPins, routeColors]);
 
   // ============================================================================
   // 3. 렌더링
