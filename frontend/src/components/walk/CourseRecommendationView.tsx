@@ -43,7 +43,7 @@ export function formatCourseDisplayName(name: string): string {
     .replace(/(?:^|\s)\d+안/g, '')
     .replace(/(?:^|\s)\d+(?:\.\d+)?\s*km\b/gi, '')
     .replace(/갑천생태호수공원\s*\(도안호수공원\)/g, '도안호수공원')
-    .replace(/(^|[\p{Emoji}\u2000-\u3300]\s*)(?:대전|세종)\s+/gu, '$1')
+    .replace(/^([\p{Extended_Pictographic}\u2300-\u27BF\uFE0F\u200D]+\s*)?(?:대전|세종)\s+/u, (_, emoji) => emoji ?? '')
     .replace(/내부\s*보행로/g, '순환로')
     .split('·')
     .map((part) => part.trim().replace(/\s{2,}/g, ' '))

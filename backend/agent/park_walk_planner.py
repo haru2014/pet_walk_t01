@@ -6,6 +6,7 @@
 - 다른 순환로가 부족한 작은 공원은 같은 길의 반대 방향으로 채운다 (방향 표시로 구분된다)
 """
 import math
+from typing import Any, Optional, Tuple
 
 import networkx as nx
 from shapely.geometry import LineString
@@ -210,32 +211,55 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
     return candidates
 
 
-def _select_distinct(candidates: list) -> list:
-    """서로 다른 길 3개를 고른다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
-    chosen: list = []  # [(coords, edge_set, shape)]
+def _is_candidate_distinct(
+    edges: Any,
+    build: Any,
+    chosen: list,
+    max_overlap: float,
+) -> Optional[Tuple[list, Any, Any]]:
+    """후보 경로가 이미 선택된 경로들과 엣지 및 공간적으로 충분히 구별되는지 확인."""
+    if not all(_overlap(edges, other) < max_overlap for _, other, _ in chosen):
+        return None
+    coords = build()
+    if any(coords == c for c, _, _ in chosen):
+        return None
+    shape = _shape(coords)
+    if not all(spatial_overlap(shape, other) < max_overlap for _, _, other in chosen):
+        return None
+    return (coords, edges, shape)
 
-    def add_if(max_overlap: float) -> None:
-        for _, edges, build in candidates:
-            if len(chosen) == CANDIDATE_COUNT:
-                return
-            if all(_overlap(edges, other) < max_overlap for _, other, _ in chosen):
-                coords = build()
-                if any(coords == c for c, _, _ in chosen):
-                    continue
-                shape = _shape(coords)
-                if all(spatial_overlap(shape, other) < max_overlap for _, _, other in chosen):
-                    chosen.append((coords, edges, shape))
 
-    add_if(SAME_ROUTE_OVERLAP)
-    if len(chosen) < CANDIDATE_COUNT:
-        add_if(RELAXED_OVERLAP)
-    base = list(chosen)
-    for coords, edges, shape in base:  # 같은 길의 반대 방향으로 채운다
+def _collect_distinct_routes(candidates: list, chosen: list, max_overlap: float) -> None:
+    """주어진 중복도 상한 이하의 고유 경로를 최대 CANDIDATE_COUNT개까지 수집."""
+    for _, edges, build in candidates:
+        if len(chosen) == CANDIDATE_COUNT:
+            return
+        match = _is_candidate_distinct(edges, build, chosen, max_overlap)
+        if match is not None:
+            chosen.append(match)
+
+
+def _fill_with_reversed_routes(chosen: list, base: list) -> None:
+    """부족한 후보를 기존 경로의 반대 방향으로 보충."""
+    for coords, edges, shape in base:
         if len(chosen) == CANDIDATE_COUNT:
             break
         reverse = list(reversed(coords))
         if not any(reverse == c for c, _, _ in chosen):
             chosen.append((reverse, edges, shape))
+
+
+def _select_distinct(candidates: list) -> list:
+    """서로 다른 길 3개를 고른다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
+    chosen: list = []  # [(coords, edge_set, shape)]
+
+    _collect_distinct_routes(candidates, chosen, SAME_ROUTE_OVERLAP)
+    if len(chosen) < CANDIDATE_COUNT:
+        _collect_distinct_routes(candidates, chosen, RELAXED_OVERLAP)
+
+    base = list(chosen)
+    _fill_with_reversed_routes(chosen, base)
+
     while len(chosen) < CANDIDATE_COUNT:  # 최후 수단: 가장 가까운 후보를 다시 쓴다
         chosen.append(chosen[len(chosen) % len(base)] if base else chosen[0])
     return [coords for coords, _, _ in chosen]
