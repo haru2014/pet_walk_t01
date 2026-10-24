@@ -32,4 +32,20 @@ describe('WeeklyWalkReportCard', () => {
 
     expect(html).toContain(stats.jointCareMessage);
   });
+
+  it('직전 완주 정보가 있는 경우 제목과 통계를 렌더링한다', () => {
+    const stats = WalkStatisticsService.getWeeklyStats([], new Date('2026-10-14T12:00:00.000Z'));
+    const recentWalk = {
+      title: '직전 완주 (10. 12.)',
+      distanceKm: 1.4,
+      durationMinutes: 28,
+      safeRatioPercent: 85,
+    };
+    const html = renderToStaticMarkup(
+      <WeeklyWalkReportCard stats={stats} recentWalk={recentWalk} />
+    );
+
+    expect(html).toContain('직전 완주 (10. 12.)');
+    expect(html).toContain('1.4km · 28분 · 완만 85%');
+  });
 });
