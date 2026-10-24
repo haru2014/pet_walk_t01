@@ -61,6 +61,10 @@ function computeDistanceKm(track: readonly GpsPoint[]): number {
 
 /** 이탈·출발지 이동 안내는 진행 중인 발화 뒤 맨 앞 순번으로 올린다. */
 export function speakGuidanceEvent(event: GuidanceEvent): void {
+  if (event.category === 'turn') {
+    TTSNavigationService.speakTurn(event.message);
+    return;
+  }
   const urgent = event.kind === 'off_route' || event.kind === 'to_start';
   TTSNavigationService.speak(event.message, undefined, false, urgent ? 'high' : 'normal');
 }

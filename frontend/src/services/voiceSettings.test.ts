@@ -255,6 +255,18 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     expect(Speech.speak).toHaveBeenCalledTimes(2);
   });
 
+  it('새 회전 안내가 오면 재생 대기 중인 이전 회전 안내를 교체한다', async () => {
+    TTSNavigationService.speak('산책을 시작합니다');
+    TTSNavigationService.speakTurn('5미터 전방에서 좌회전하십시오.');
+    TTSNavigationService.speakTurn('5미터 전방에서 좌회전하십시오. 이어서 우회전하십시오.');
+
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
+    doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(Speech.speak).mock.calls[1][0])
+      .toBe('5미터 전방에서 좌회전하십시오. 이어서 우회전하십시오.');
+  });
+
   it('stop()은 대기열을 비워 이후 발화가 재생되지 않게 한다', async () => {
     TTSNavigationService.speak('A');
     TTSNavigationService.speak('B');

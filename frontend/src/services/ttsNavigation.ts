@@ -22,6 +22,7 @@ interface QueuedUtterance {
   readonly message: string;
   readonly profileId?: VoiceProfileId;
   readonly priority: SpeakPriority;
+  readonly category?: 'turn';
 }
 
 /** 대기열 최대 길이: 오래된 일반 안내는 버려 지나간 안내가 뒤늦게 나오지 않게 한다. */
@@ -237,6 +238,17 @@ export class TTSNavigationService {
     else self.queue.push(item);
     self.trimQueue();
 
+    if (!self.isBusy) self.playNext();
+  }
+
+  /** 대기 중인 이전 회전 지시는 버리고 최신 회전 안내만 유지한다. */
+  static speakTurn(message: string): void {
+    const self = TTSNavigationService;
+    if (self.settings.isMuted || self.settings.volume <= 0 || self.isBarkMuted) return;
+    if (self.queue.some((item) => item.category === 'turn' && item.message === message)) return;
+    self.queue = self.queue.filter((item) => item.category !== 'turn');
+    self.queue.push({ message, priority: 'normal', category: 'turn' });
+    self.trimQueue();
     if (!self.isBusy) self.playNext();
   }
 
