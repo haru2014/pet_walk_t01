@@ -601,7 +601,6 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
             stats={weeklyStats}
             recentWalk={recentStats}
             onPress={() => setWalkSubFilter('history')}
-            onPressRecent={() => setWalkSubFilter('history')}
             style={{ marginBottom: 10 }}
           />
 

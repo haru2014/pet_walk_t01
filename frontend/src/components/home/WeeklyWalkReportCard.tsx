@@ -27,7 +27,6 @@ export interface WeeklyWalkReportCardProps {
   stats: WeeklyWalkStats;
   onPress?: () => void;
   recentWalk?: RecentWalkInfo | null;
-  onPressRecent?: () => void;
   style?: ViewStyle;
 }
 
@@ -35,7 +34,6 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
   stats,
   onPress,
   recentWalk,
-  onPressRecent,
   style,
 }) => {
   const { colors } = useAppTheme();
@@ -59,13 +57,13 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
             <AppIcon name="sparkle" size={14} color={colors.primaryDark} />
           </View>
-          <View>
+          <View style={styles.titleContent}>
             <View style={styles.titleWithArrow}>
-              <Text style={[styles.cardTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
+              <Text style={[styles.cardTitle, styles.headerTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
               <AppIcon name="chevronRight" size={14} color={colors.textMuted} />
             </View>
             <Text style={[styles.rangeSubtitle, { color: colors.textMuted }]}>
-              {stats.weekRangeLabel} · 터치 시 통계 상세
+              {stats.weekRangeLabel}
             </Text>
           </View>
         </View>
@@ -223,17 +221,15 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
       {recentWalk && (
         <View style={[styles.recentWalkRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={styles.recentWalkLeft}>
-            <Text style={styles.recentPawIcon}>🐾</Text>
-            <Text style={[styles.recentWalkTitle, { color: colors.textMain }]} numberOfLines={1}>
-              {recentWalk.title}
-            </Text>
+            <View style={styles.recentWalkTitleRow}>
+              <Text style={styles.recentPawIcon}>🐾</Text>
+              <Text style={[styles.recentWalkTitle, { color: colors.textMain }]}>
+                {recentWalk.title}
+              </Text>
+            </View>
             <Text style={[styles.recentWalkMeta, { color: colors.textMuted }]}>
               {recentWalk.distanceKm}km · {recentWalk.durationMinutes}분 · 완만 {recentWalk.safeRatioPercent}%
             </Text>
-          </View>
-          <View style={styles.recentWalkRight}>
-            <Text style={[styles.recentWalkLinkText, { color: colors.primaryDark }]}>상세</Text>
-            <AppIcon name="chevronRight" size={11} color={colors.primaryDark} />
           </View>
         </View>
       )}
@@ -261,15 +257,19 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 5,
     marginBottom: 8,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    width: '100%',
+  },
+  titleContent: {
+    flex: 1,
+    minWidth: 0,
   },
   iconCircle: {
     width: 28,
@@ -282,6 +282,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexWrap: 'wrap',
+  },
+  headerTitle: {
+    flexShrink: 1,
   },
   cardTitle: {
     fontSize: TYPOGRAPHY.cardTitle,
@@ -297,6 +301,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   badgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -348,9 +354,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chartHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 2,
     marginBottom: 5,
     paddingHorizontal: 2,
   },
@@ -359,7 +364,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chartHeaderGoal: {
-    fontSize: TYPOGRAPHY.screenTitle,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   barsRow: {
@@ -438,9 +443,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recentWalkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 9,
@@ -448,10 +450,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   recentWalkLeft: {
+    gap: 2,
+  },
+  recentWalkTitleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 5,
-    flex: 1,
   },
   recentPawIcon: {
     fontSize: 10.5,
@@ -459,19 +463,10 @@ const styles = StyleSheet.create({
   recentWalkTitle: {
     fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
+    flex: 1,
   },
   recentWalkMeta: {
     fontSize: TYPOGRAPHY.caption,
     fontWeight: '500',
-  },
-  recentWalkRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginLeft: 6,
-  },
-  recentWalkLinkText: {
-    fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
   },
 });
