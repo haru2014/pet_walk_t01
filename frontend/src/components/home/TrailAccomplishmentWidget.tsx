@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 이번 주 산책 달성도 위젯 (TrailAccomplishmentWidget.tsx)
@@ -11,14 +12,8 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  ViewStyle,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import NativeSvg, {
   Circle as NativeCircle,
   Ellipse as NativeEllipse,
@@ -321,7 +316,7 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   countBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     color: '#15803D',
   },
@@ -332,7 +327,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 15.5,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
@@ -353,7 +348,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     marginTop: 1,
   },
   todayIndicatorDot: {

@@ -99,6 +99,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const latestMaskingCenterRef = useRef(maskingCenter);
   const latestOnMapLoadedRef = useRef(onMapLoaded);
   const latestOnPinSelectRef = useRef(onPinSelect);
+  const userInteractedWithMapRef = useRef(false);
   useEffect(() => {
     latestRouteRef.current = route;
     latestPinsRef.current = directionalPins;
@@ -162,6 +163,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
           interactive,
           // Keep provider and data-source credits visible for the active style.
           attributionControl: { compact: false },
+        });
+        mapInstance.on('move', (event: { originalEvent?: unknown }) => {
+          if (event?.originalEvent) userInteractedWithMapRef.current = true;
         });
 
         webMapInstanceRef.current = mapInstance;
@@ -271,7 +275,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       );
     };
     void updateMarkers();
-    if (routeBounds) {
+    if (routeBounds && !userInteractedWithMapRef.current) {
       map.fitBounds(routeBounds, { padding: 40, duration: 700 });
     } else if (maskingCenter) {
       map.setCenter(maskingCenter);

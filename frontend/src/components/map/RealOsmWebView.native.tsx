@@ -7,9 +7,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Linking, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { WebView } from 'react-native-webview';
-import { TOKENS } from '../../theme/tokens';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { LonLat } from '../../types/route';
 
 export interface RealOsmWebViewProps {
@@ -119,12 +120,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
     fontWeight: '500',
   },
   errorText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.routeCaution,
     fontWeight: '600',
     marginBottom: 8,
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
   retryBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
   topBadge: {
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   openExternalText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: '#FFFFFF',
   },

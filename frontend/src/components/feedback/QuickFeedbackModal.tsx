@@ -6,8 +6,9 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { WalkFeedback, SlopeFeedbackLevel } from '../../types/storage';
 import { AppIcon, AppIconName } from '../common/AppIcon';
 
@@ -175,31 +176,31 @@ const styles = StyleSheet.create({
   container: { backgroundColor: TOKENS.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { fontSize: 17, fontWeight: '800', color: TOKENS.colors.textMain },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: TOKENS.colors.textMain },
   closeBtn: { padding: 4 },
   closeIcon: { fontSize: 18, color: TOKENS.colors.textMuted },
-  subtitle: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16, marginBottom: 12 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 6 },
+  subtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginBottom: 12 },
+  sectionLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 6 },
   scoreRow: { flexDirection: 'row', gap: 6 },
   scoreBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: TOKENS.colors.border, alignItems: 'center', backgroundColor: TOKENS.colors.background },
   scoreBtnSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  scoreText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMuted, marginBottom: 2 },
+  scoreText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', color: TOKENS.colors.textMuted, marginBottom: 2 },
   scoreTextSelected: { color: TOKENS.colors.primaryDark },
   slopeRow: { flexDirection: 'row', gap: 6 },
   slopeBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 10, borderWidth: 1.5, borderColor: TOKENS.colors.border, alignItems: 'center', backgroundColor: TOKENS.colors.background },
   slopeBtnSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
   slopeIconWrap: { marginBottom: 2 },
-  slopeTitle: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
+  slopeTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
   slopeTitleSelected: { color: TOKENS.colors.primaryDark },
-  slopeDesc: { fontSize: 9, color: TOKENS.colors.textMuted, textAlign: 'center' },
+  slopeDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, textAlign: 'center' },
   slopeDescSelected: { color: TOKENS.colors.primaryDark, fontWeight: '600' },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tagChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1.2, borderColor: TOKENS.colors.border, backgroundColor: TOKENS.colors.surface },
   tagChipContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   tagChipSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  tagChipText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.textMuted },
+  tagChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.textMuted },
   tagChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
-  input: { backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 12, color: TOKENS.colors.textMain, marginBottom: 14 },
+  input: { backgroundColor: TOKENS.colors.background, borderWidth: 1, borderColor: TOKENS.colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMain, marginBottom: 14 },
   submitBtn: { backgroundColor: TOKENS.colors.primary, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  submitBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  submitBtnText: { color: '#FFFFFF', fontSize: TYPOGRAPHY.button, fontWeight: '700' },
 });

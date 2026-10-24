@@ -17,6 +17,15 @@ interface LandmarkCenter {
   readonly radiusM: number;
 }
 
+interface RegionBounds {
+  readonly minLat: number;
+  readonly maxLat: number;
+  readonly minLon: number;
+  readonly maxLon: number;
+  readonly code: string;
+  readonly name: string;
+}
+
 const EARTH_RADIUS_M = 6_371_000;
 
 const LANDMARK_CENTERS: readonly LandmarkCenter[] = [
@@ -26,6 +35,14 @@ const LANDMARK_CENTERS: readonly LandmarkCenter[] = [
   { code: 'LM_SEOUL_FOREST', lat: 37.5445, lon: 127.0374, radiusM: 3000 },
   { code: 'LM_GANGNAM', lat: 37.4980, lon: 127.0276, radiusM: 2500 },
   { code: 'LM_SEONGSAN', lat: 37.5680, lon: 126.9050, radiusM: 3000 },
+];
+
+// 도시 단위의 대략적인 커버리지 경계다. 특정 공원 반경 밖에서도
+// 서울로 잘못 고정하지 않도록 하며, 구/동 단위 정확도는 주장하지 않는다.
+const REGION_BOUNDS: readonly RegionBounds[] = [
+  { minLat: 36.1, maxLat: 36.45, minLon: 127.2, maxLon: 127.6, code: 'DAEJEON', name: '대전광역시' },
+  { minLat: 36.45, maxLat: 36.7, minLon: 127.1, maxLon: 127.4, code: 'SEJONG', name: '세종특별자치시' },
+  { minLat: 37.4, maxLat: 37.7, minLon: 126.8, maxLon: 127.2, code: 'SEOUL', name: '서울특별시' },
 ];
 
 const TITLE_HINT_PATTERNS: readonly [RegExp, LandmarkMetadata][] = [
@@ -90,11 +107,6 @@ export function detectLandmarkCategory(
   coordsOrRoute: readonly (readonly [number, number])[] | RouteFeatureCollection | undefined,
   titleHint?: string
 ): LandmarkMetadata {
-  const matched = matchTitleHint(titleHint);
-  if (matched) {
-    return matched;
-  }
-
   const firstCoord = extractFirstCoord(coordsOrRoute);
   if (firstCoord) {
     const [lon, lat] = firstCoord;
@@ -112,7 +124,23 @@ export function detectLandmarkCategory(
     if (closestCenter) {
       return LANDMARK_DEFINITIONS[closestCenter.code];
     }
+
+    const region = REGION_BOUNDS.find(({ minLat, maxLat, minLon, maxLon }) =>
+      lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon
+    );
+    if (region) {
+      return {
+        ...LANDMARK_DEFINITIONS.LM_OTHER,
+        regionCode: region.code,
+        regionName: region.name,
+      };
+    }
+
+    // 좌표가 있으면 제목보다 실제 위치를 우선한다. 제목의 장소명이
+    // 다른 지역으로 잘못 분류되는 일을 방지한다.
+    return LANDMARK_DEFINITIONS.LM_OTHER;
   }
 
-  return LANDMARK_DEFINITIONS.LM_OTHER;
+  // 경로 좌표가 없을 때만 제목으로 보조 분류한다.
+  return matchTitleHint(titleHint) ?? LANDMARK_DEFINITIONS.LM_OTHER;
 }

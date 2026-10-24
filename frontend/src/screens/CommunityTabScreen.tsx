@@ -8,15 +8,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-} from 'react-native';
-import { TOKENS } from '../theme/tokens';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { AppText as Text } from '../components/common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 import { useAppTheme } from '../theme/themeManager';
 import { CardWrapper } from '../components/common/CardWrapper';
 import { fetchCommunityFeeds, CommunityFeedItem } from '../services/communityApi';
@@ -370,7 +364,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   {feed.landmark_name && (
                     <View style={[styles.landmarkChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
                       <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont, color: colors.primaryDark }]}>
-                        📍 {feed.landmark_name} · {feed.region_name}
+                        📍 {feed.landmark_name}{feed.region_name ? ` · ${feed.region_name}` : ''}
                       </Text>
                     </View>
                   )}
@@ -536,19 +530,19 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
   sectionHeader: { marginBottom: 12 },
-  sectionSubtitle: { fontSize: 13, color: TOKENS.colors.textMuted },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },
+  sectionSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },
   badgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
   badgeSupabase: { backgroundColor: '#E0F2FE' },
   badgeOffline: { backgroundColor: '#E8F5E9' },
-  badgeText: { fontSize: 11, fontWeight: '600' },
+  badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
   textSupabase: { color: '#0369A1' },
   textOffline: { color: '#2E7D32' },
   refreshBtn: { paddingVertical: 4, paddingHorizontal: 8 },
-  refreshText: { fontSize: 11, color: TOKENS.colors.textMuted },
-  cardHeaderTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
-  cardBodyText: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 18, marginTop: 6 },
+  refreshText: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted },
+  cardHeaderTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
+  cardBodyText: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginTop: 6 },
   filterChipContainer: { marginBottom: 8 },
   filterChipScroll: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   filterChip: {
@@ -564,7 +558,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.primary,
   },
   filterChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -587,7 +581,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.primary,
   },
   periodFilterChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -595,7 +589,7 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.primaryDark,
     fontWeight: '700',
   },
-  feedListTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
+  feedListTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
   feedCard: { marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
   topActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   bookmarkWrapper: { padding: 2 },
@@ -608,11 +602,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
-  landmarkChipText: { fontSize: 11, color: '#1D4ED8', fontWeight: '700' },
+  landmarkChipText: { fontSize: TYPOGRAPHY.label, color: '#1D4ED8', fontWeight: '700' },
   feedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  feedTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
+  feedTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
   maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
-  maskedChipText: { fontSize: 10, color: '#16A34A', fontWeight: '700' },
+  maskedChipText: { fontSize: TYPOGRAPHY.label, color: '#16A34A', fontWeight: '700' },
   demoBadge: {
     backgroundColor: '#FEF3C7',
     borderColor: '#F59E0B',
@@ -622,18 +616,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   demoBadgeText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     color: '#92400E',
     fontWeight: '700',
   },
   feedMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  feedMetaText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '500' },
+  feedMetaText: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted, fontWeight: '500' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  feedRating: { fontSize: 12, color: TOKENS.colors.primaryDark, fontWeight: '700' },
-  chevronText: { fontSize: 11, color: TOKENS.colors.primary, fontWeight: '600' },
+  feedRating: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, fontWeight: '700' },
+  chevronText: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.primary, fontWeight: '600' },
   divider: { height: 1, backgroundColor: TOKENS.colors.border, marginVertical: 12 },
   expandedContent: { marginTop: 4 },
-  previewNotice: { fontSize: 11, color: TOKENS.colors.textMuted, marginBottom: 8, fontWeight: '600' },
+  previewNotice: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginBottom: 8, fontWeight: '600' },
   miniMapContainer: {
     borderRadius: TOKENS.borderRadius.card,
     overflow: 'hidden',
@@ -651,7 +645,7 @@ const styles = StyleSheet.create({
     borderRadius: TOKENS.borderRadius.button,
     alignItems: 'center',
   },
-  startWalkButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  startWalkButtonText: { color: '#FFFFFF', fontSize: TYPOGRAPHY.button, fontWeight: '700' },
   fullScreenButton: {
     flex: 1,
     backgroundColor: '#F1F5F9',
@@ -661,7 +655,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
   },
-  fullScreenButtonText: { color: '#334155', fontSize: 12, fontWeight: '600' },
+  fullScreenButtonText: { color: '#334155', fontSize: TYPOGRAPHY.button, fontWeight: '600' },
 
   // 모달 스타일
   modalOverlay: {
@@ -684,14 +678,14 @@ const styles = StyleSheet.create({
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   modalHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  modalSubtitle: { fontSize: 12, color: TOKENS.colors.textMuted },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: TOKENS.colors.textMain, marginTop: 2 },
+  modalSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
+  modalTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: TOKENS.colors.textMain, marginTop: 2 },
   closeBtn: { padding: 4 },
-  closeBtnText: { fontSize: 18, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  closeBtnText: { fontSize: TYPOGRAPHY.button, color: TOKENS.colors.textMuted, fontWeight: '600' },
   modalMetaBar: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
-  modalMetaItem: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '600' },
+  modalMetaItem: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted, fontWeight: '600' },
   modalProtectedBadge: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     color: '#16A34A',
     backgroundColor: '#F0FDF4',
     paddingHorizontal: 6,
@@ -715,7 +709,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
   },
-  modalCancelText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  modalCancelText: { fontSize: TYPOGRAPHY.button, fontWeight: '600', color: '#475569' },
   modalConfirmBtn: {
     flex: 2,
     paddingVertical: 12,
@@ -723,7 +717,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primary,
     alignItems: 'center',
   },
-  modalConfirmText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  modalConfirmText: { fontSize: TYPOGRAPHY.button, fontWeight: '700', color: '#FFFFFF' },
   guestBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -741,12 +735,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   guestBannerTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.primaryDark,
   },
   guestBannerDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
   },
@@ -758,7 +752,7 @@ const styles = StyleSheet.create({
   },
   guestBannerBtnText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 });

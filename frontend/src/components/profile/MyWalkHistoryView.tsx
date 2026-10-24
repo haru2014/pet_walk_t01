@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
   },
-  title: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   badge: {
     backgroundColor: TOKENS.colors.primaryLight,
     paddingHorizontal: 7,
@@ -418,9 +419,9 @@ const styles = StyleSheet.create({
     borderColor: '#A7F3D0',
     alignSelf: 'center',
   },
-  badgeText: { fontSize: 10.5, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  subDesc: { fontSize: 11.5, color: TOKENS.colors.textMuted, marginTop: 4, lineHeight: 16 },
-  emptyText: { fontSize: 13, color: TOKENS.colors.textMuted, marginTop: 8 },
+  badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  subDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 4, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
+  emptyText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginTop: 8 },
   recordCard: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
     borderColor: '#DBEAFE',
   },
   verifiedBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#1D4ED8',
     fontWeight: '700',
   },
@@ -466,7 +467,7 @@ const styles = StyleSheet.create({
     borderColor: '#A7F3D0',
   },
   publicBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#047857',
     fontWeight: '700',
   },
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   recordTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
@@ -489,12 +490,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   recordMetaText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     fontWeight: '500',
   },
   recordRating: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.primaryDark,
     fontWeight: '700',
   },
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tagText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   mapViewBtnText: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#1D4ED8',
   },
@@ -561,12 +562,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dogBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
-  recordDate: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
-  recordMetrics: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 2 },
+  recordDate: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
+  recordMetrics: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginTop: 2 },
   publicBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -586,7 +587,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1FAE5',
     borderColor: '#34D399',
   },
-  publicBtnText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.textMuted },
+  publicBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '600', color: TOKENS.colors.textMuted },
   publicBtnTextActive: { color: '#047857', fontWeight: '700' },
   feedbackRow: {
     marginTop: 8,
@@ -594,8 +595,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: TOKENS.colors.border,
   },
-  feedbackComfort: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.primaryDark },
-  feedbackComment: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2, fontStyle: 'italic' },
+  feedbackComfort: { fontSize: TYPOGRAPHY.caption, fontWeight: '600', color: TOKENS.colors.primaryDark },
+  feedbackComment: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted, marginTop: 2, fontStyle: 'italic' },
   periodRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,7 +617,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.primary,
   },
   periodChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -645,13 +646,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   summaryLabel: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '500',
     color: TOKENS.colors.textMuted,
     marginBottom: 2,
   },
   summaryValue: {
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -678,13 +679,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   emptyPeriodText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     textAlign: 'center',
   },
   emptyPeriodSub: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
     marginTop: 4,
@@ -700,7 +701,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   loadMoreBtnText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#475569',
   },

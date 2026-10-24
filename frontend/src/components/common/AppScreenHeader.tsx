@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 공통 화면 상단 헤더 컴포넌트 (AppScreenHeader.tsx)
@@ -9,12 +10,14 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from './AppIcon';
 
 export interface AppScreenHeaderProps {
   title: string;
+  titleFontSize?: number;
   onBack?: () => boolean | void;
   showBack?: boolean;
   rightElement?: React.ReactNode;
@@ -23,6 +26,7 @@ export interface AppScreenHeaderProps {
 
 export const AppScreenHeader: React.FC<AppScreenHeaderProps> = ({
   title,
+  titleFontSize,
   onBack,
   showBack = true,
   rightElement,
@@ -49,7 +53,7 @@ export const AppScreenHeader: React.FC<AppScreenHeaderProps> = ({
       )}
 
       {/* 2. 중앙 화면 제목 */}
-      <Text style={[styles.title, { color: colors.textMain }]} numberOfLines={1}>
+      <Text style={[styles.title, titleFontSize != null && { fontSize: titleFontSize }, { color: colors.textMain }]} numberOfLines={1}>
         {title}
       </Text>
 
@@ -89,7 +93,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   title: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '700',
     letterSpacing: -0.2,
     textAlign: 'center',

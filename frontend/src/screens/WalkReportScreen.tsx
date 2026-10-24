@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 완주 체크인 & 인포그래픽 리포트 화면 (Screen-07, docs/screenshots/07_walk_report.png 원형 복원 및 스크롤 방지 최적화)
@@ -10,7 +11,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { AppText as Text } from '../components/common/AppText';
 import { useAppTheme } from '../theme/themeManager';
 import { useAppResponsive } from '../hooks/useAppResponsive';
 import { WalkRecord, WalkFeedback } from '../types/storage';
@@ -187,7 +189,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       <View style={[styles.feedbackCard, { padding: walkReport.feedbackCardPadding, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.feedbackCardHeader}>
           <View style={styles.feedbackTitleRow}>
-            <Text style={{ fontSize: 14 }}>📝</Text>
+            <Text style={{ fontSize: TYPOGRAPHY.body }}>📝</Text>
             <Text style={[styles.feedbackTitle, { color: colors.textMain }]}>산책 체감 피드백</Text>
           </View>
           <TouchableOpacity onPress={() => setShowFeedbackModal(true)} style={styles.editBtn}>
@@ -284,7 +286,7 @@ const styles = StyleSheet.create({
   },
   completeCapsuleText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -300,19 +302,19 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   dogSummaryBadgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#334155',
   },
   congratsTitle: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     letterSpacing: -0.3,
     marginBottom: 2,
   },
   congratsSubtitle: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     textAlign: 'center',
   },
   statsGrid: {
@@ -332,16 +334,16 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     marginBottom: 2,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
   },
   statUnit: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '500',
   },
   poopBar: {
@@ -353,7 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   poopText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
   },
   feedbackCard: {
@@ -374,12 +376,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   feedbackTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   editBtn: {},
   editText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
   },
   starsRow: {
@@ -388,16 +390,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   starsLabel: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   starsText: {
     color: '#FFB800',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     letterSpacing: 2,
   },
   scoreNumber: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.metricValue,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -410,15 +412,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   commentText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontStyle: 'italic',
   },
   disclaimerText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shareBtnText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   homeBtn: {
@@ -450,7 +452,7 @@ const styles = StyleSheet.create({
   },
   homeBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 });

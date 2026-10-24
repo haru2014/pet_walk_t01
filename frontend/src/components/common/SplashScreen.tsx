@@ -1,13 +1,7 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Easing,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Animated, Easing, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 
 export const SPLASH_BACKGROUND_COLOR = '#536A55';
@@ -292,14 +286,14 @@ const styles = StyleSheet.create({
   branding: { alignItems: 'center' },
   title: {
     color: CREAM,
-    fontSize: 32,
+    fontSize: TYPOGRAPHY.displayValue,
     fontWeight: '700',
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   tagline: {
     color: 'rgba(250, 246, 233, 0.78)',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '500',
     letterSpacing: 1,
     textAlign: 'center',
@@ -324,7 +318,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: CREAM,
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     lineHeight: 19,
     textAlign: 'center',
     marginBottom: 12,
@@ -337,5 +331,5 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(250, 246, 233, 0.5)',
     backgroundColor: 'rgba(250, 246, 233, 0.15)',
   },
-  retryText: { color: CREAM, fontSize: 13, fontWeight: '600' },
+  retryText: { color: CREAM, fontSize: TYPOGRAPHY.label, fontWeight: '600' },
 });

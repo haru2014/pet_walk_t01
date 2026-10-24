@@ -54,6 +54,7 @@ from agent.surface_slope_evaluator import build_segmented_geojson
 from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
+from services.forward_safety import analyze_forward_safety
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
 from services.weather_context import (
@@ -653,6 +654,51 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
     return profiles
 
 
+def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
+    """상단 화면용 날씨·안전 안내만 구성한다. 코스 정보는 하단 카드에서 표시한다."""
+    if not isinstance(weather_context, dict):
+        return ""
+
+    current_weather = weather_context.get("current", weather_context)
+    if not isinstance(current_weather, dict):
+        current_weather = {}
+
+    messages = []
+    rain = rain_notice(weather_context.get("precipitation"))
+    if rain:
+        messages.append(rain)
+
+    surface_temp = current_weather.get("estimated_surface_temp")
+    if isinstance(surface_temp, (int, float)) and not isinstance(surface_temp, bool):
+        if surface_temp > SAFE_MAX_C:
+            golden_window = weather_context.get("golden_time_window", "서늘한 시간대")
+            messages.append(
+                f"현재 지면온도는 {surface_temp:.1f}℃입니다. {golden_window} 산책을 권장하며, "
+                "지금 나가신다면 그늘을 따라 짧게 걸어 주세요."
+            )
+        else:
+            messages.append(f"현재 지면온도는 {surface_temp:.1f}℃입니다.")
+
+    return " ".join(messages)
+
+
+# 코스가 목표 거리의 이 비율보다 짧으면 카드에 안내 문구를 넣는다 (#229, 임시값)
+SHORT_COURSE_RATIO = 0.8
+
+
+def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any], target_distance_m: float) -> None:
+    """공원 보행로가 짧아 목표보다 짧은 코스가 나오면 카드의 안내 줄(reason)에 이유를 알린다 (#229)."""
+    if not candidates or not target_distance_m:
+        return
+    if all(c.total_distance_m >= target_distance_m * SHORT_COURSE_RATIO for c in candidates):
+        return
+    longest = max(int(c.estimated_duration_minutes) for c in candidates)
+    notice = f"이 공원은 산책로가 짧아 최대 약 {longest}분 코스예요. 더 걷고 싶다면 같은 길을 한 바퀴 더 돌아보세요."
+    for course, cand in zip(courses, candidates):
+        if cand.total_distance_m < target_distance_m * SHORT_COURSE_RATIO:
+            course["reason"] = notice
+
+
 def _build_walk_plan_response(
     agent_result: Any,
     request_id: str,
@@ -660,6 +706,7 @@ def _build_walk_plan_response(
     selected_park: Optional[str],
     matched_parking: Optional[Dict[str, Any]],
     validations: Dict[str, Any],
+    target_distance_m: float = 0.0,
 ) -> Dict[str, Any]:
     """산책 경로 계획 API 최종 응답 딕셔너리 생성."""
     best = agent_result.best_route
@@ -673,6 +720,7 @@ def _build_walk_plan_response(
         "course_plans": _build_course_plans_map(agent_result, coords),
         "briefing": agent_result.briefing_message,
         "summary": agent_result.briefing_message,
+        "safety_briefing": _build_safety_briefing(agent_result.weather_context),
         "score": agent_result.best_score,
         "is_live_server": True,
         "weather": agent_result.weather_context,
@@ -684,6 +732,8 @@ def _build_walk_plan_response(
         "route_sources": {s.candidate.route_id: s.candidate.route_source for s in agent_result.all_scored_candidates or []},
     }
     if park_mode:
+        scored = agent_result.all_scored_candidates or []
+        _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(
@@ -814,6 +864,7 @@ def plan_walk_route(req: Dict[str, Any]):
             selected_park=selected_park,
             matched_parking=matched_parking,
             validations=validations,
+            target_distance_m=speed_kmh * 1000.0 / 60.0 * target_duration,
         )
     except RoutePlanningError as exc:
         logger.warning(
@@ -881,6 +932,18 @@ def list_nearby_hazards(
     """현재 위치 반경 내 활성 위험 제보 조회 (가까운 순)."""
     reports = hazard_repo.nearby(lat, lon, radius_m)
     return {"count": len(reports), "radius_m": radius_m, "reports": reports, "is_supabase": hazard_repo.is_connected()}
+
+
+class ForwardSafetyRequest(BaseModel):
+    lat: float = Field(..., ge=-90.0, le=90.0)
+    lon: float = Field(..., ge=-180.0, le=180.0)
+    heading_deg: float = Field(..., ge=0.0, lt=360.0)
+
+
+@app.post("/api/v1/walk/forward-safety")
+def forward_walk_safety(req: ForwardSafetyRequest):
+    """자유 산책 중 진행 방향의 임시 보행 경로를 분석한다. 확인 불가 데이터는 unknown."""
+    return analyze_forward_safety(req.lat, req.lon, req.heading_deg)
 
 
 @app.post("/api/v1/community/share")

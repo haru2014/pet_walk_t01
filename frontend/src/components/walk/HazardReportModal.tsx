@@ -1,19 +1,14 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
- * 현장 위험 제보 및 보행망 안전 우회 / 긴급 복귀 모달 컴포넌트 (US-D2, US-C2)
+ * 현장 위험 제보 및 보행망 안전 우회 / 돌아가기 모달 컴포넌트 (US-D2, US-C2)
  */
 
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { AppIcon } from '../common/AppIcon';
-import { HazardType, RerouteResult } from '../../types/hazard';
+import { HazardReportPayload, HazardType, RerouteResult } from '../../types/hazard';
 import {
   HAZARD_TYPE_LABELS,
   reportHazard,
@@ -41,6 +36,27 @@ const HAZARD_OPTIONS: readonly { type: HazardType; iconName: string; desc: strin
   { type: 'dog_danger', iconName: 'paw', desc: '공격적인 들개 또는 맹견 출몰' },
 ];
 
+/**
+ * 돌아가기 때 서버에 올릴 위험 제보. 사용자가 위험 종류를 직접 고르지 않았으면 올리지 않는다(null).
+ * 예전에는 기본값(공사 구역)으로, 현재 위치에서 0.0002도 옮긴 곳에 danger 제보를 자동으로 올려
+ * 돌아가기만 눌러도 가짜 공사 구역이 쌓였다 (10/22 신성동). 위치는 실제 현재 위치를 쓴다.
+ */
+export function buildEmergencyReturnReport(
+  typeChosen: boolean,
+  hazardType: HazardType,
+  currentLat: number,
+  currentLon: number,
+): HazardReportPayload | null {
+  if (!typeChosen) return null;
+  return {
+    lat: currentLat,
+    lon: currentLon,
+    hazardType,
+    severity: 'danger',
+    description: `돌아가기 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[hazardType]}]`,
+  };
+}
+
 export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   visible,
   onClose,
@@ -54,7 +70,15 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   onRerouteApplied,
 }) => {
   const [selectedType, setSelectedType] = useState<HazardType>('construction');
+  // 사용자가 이번에 위험 종류를 직접 눌러 골랐는지 (돌아가기 때 제보 여부를 정한다)
+  const [typeChosen, setTypeChosen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 닫을 때 '직접 고름' 표시를 지워, 다음에 열었을 때 이전 선택으로 제보되지 않게 한다
+  const close = () => {
+    setTypeChosen(false);
+    onClose();
+  };
 
   const handleReroute = async () => {
     setIsLoading(true);
@@ -89,7 +113,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       });
 
       onRerouteApplied(result);
-      onClose();
+      close();
     } finally {
       setIsLoading(false);
     }
@@ -100,19 +124,15 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
     try {
       const sLat = startLat ?? currentLat;
       const sLon = startLon ?? currentLon;
+      // 복귀 경로 계산에만 쓰는 전방 가상 지점 (서버에 저장하지 않는다)
       const hazardLat = currentLat + 0.0002;
       const hazardLon = currentLon + 0.0002;
 
-      // 1. 위험 제보 적재
-      void reportHazard({
-        lat: hazardLat,
-        lon: hazardLon,
-        hazardType: selectedType,
-        severity: 'danger',
-        description: `긴급 복귀 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[selectedType]}]`,
-      });
+      // 1. 위험 종류를 직접 고른 경우에만 실제 현재 위치로 제보
+      const report = buildEmergencyReturnReport(typeChosen, selectedType, currentLat, currentLon);
+      if (report) void reportHazard(report);
 
-      // 2. 출발지 긴급 복귀 경로 생성
+      // 2. 출발지 돌아가기 경로 생성
       const result = createEmergencyReturnRoute(
         currentLat,
         currentLon,
@@ -123,7 +143,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       );
 
       onRerouteApplied(result);
-      onClose();
+      close();
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +154,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
       <View style={styles.overlay}>
         <View style={styles.card}>
@@ -144,7 +164,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
               <Text style={styles.warningIcon}>⚠️</Text>
               <Text style={styles.title}>현장 위험 제보 & 안전 우회</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="닫기">
+            <TouchableOpacity onPress={close} style={styles.closeBtn} accessibilityLabel="닫기">
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -160,7 +180,10 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
                 <TouchableOpacity
                   key={item.type}
                   activeOpacity={0.7}
-                  onPress={() => setSelectedType(item.type)}
+                  onPress={() => {
+                    setSelectedType(item.type);
+                    setTypeChosen(true);
+                  }}
                   style={[styles.optionItem, isSelected && styles.optionItemSelected]}
                 >
                   <View style={styles.optionLeft}>
@@ -242,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   title: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: '#F8FAFC',
   },
@@ -251,13 +274,13 @@ const styles = StyleSheet.create({
   },
   closeBtnText: {
     color: '#94A3B8',
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
   subtitle: {
     color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 16,
   },
   optionsList: {
@@ -283,7 +306,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionLabel: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#E2E8F0',
     marginBottom: 2,
@@ -292,7 +315,7 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   optionDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: '#64748B',
   },
   radioCircle: {
@@ -327,7 +350,7 @@ const styles = StyleSheet.create({
   },
   rerouteBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '800',
   },
   emergencyReturnBtn: {
@@ -343,7 +366,7 @@ const styles = StyleSheet.create({
   },
   emergencyReturnBtnText: {
     color: '#F87171',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   loadingBox: {
@@ -355,7 +378,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: '#10B981',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
 });

@@ -14,6 +14,7 @@
  */
 
 import { useWindowDimensions } from 'react-native';
+import { TYPOGRAPHY } from '../theme/tokens';
 
 export type ResponsiveTier = 'compact' | 'standard' | 'spacious';
 
@@ -119,7 +120,7 @@ export interface AppResponsiveTokens {
 
   // 4. 추천 산책 코스 화면 (CourseRecommendationView)
   courseRecommend: {
-    mapHeight: number;
+    mapMinHeight: number;
     headerPaddingV: number;
     headerPaddingH: number;
     briefingTitleSize: number;
@@ -221,58 +222,58 @@ export function useAppResponsive(): AppResponsiveTokens {
     screenPaddingBottom: scale(8, 14, 16),
     screenGap: scale(8, 12, 14),
 
-    greetingSubSize: scale(11.5, 12.5, 13),
-    greetingMainSize: scale(16.5, 19, 20.5),
+    greetingSubSize: TYPOGRAPHY.support,
+    greetingMainSize: TYPOGRAPHY.sectionTitle,
     greetingPawIconSize: scale(15, 17, 19),
     greetingMarginBottom: scale(2, 4, 6),
 
     dogCardPaddingV: scale(10, 13, 16),
     dogCardPaddingH: scale(12, 14, 16),
     dogAvatarSize: scale(42, 48, 54),
-    dogNameSize: scale(15, 16.5, 18),
-    dogSubtitleSize: scale(11.5, 12.5, 13),
-    dogBreedSize: scale(10.5, 11.5, 12),
+    dogNameSize: TYPOGRAPHY.cardTitle,
+    dogSubtitleSize: TYPOGRAPHY.support,
+    dogBreedSize: TYPOGRAPHY.caption,
     dogChipPaddingV: scale(3.5, 5, 6),
     dogChipPaddingH: scale(7.5, 9, 10.5),
-    dogChipFontSize: scale(10.5, 11.5, 12),
+    dogChipFontSize: TYPOGRAPHY.label,
     dogChipIconSize: scale(12, 13, 14),
     dogStartBtnPaddingV: scale(7.5, 9.5, 11),
     dogStartBtnPaddingH: scale(12, 15, 17),
-    dogStartBtnFontSize: scale(12, 13, 14),
+    dogStartBtnFontSize: TYPOGRAPHY.button,
     dogCarouselMinHeight: scale(124, 144, 160),
     dogDotsMarginTop: scale(5, 8, 10),
 
     weatherTopMarginBottom: scale(3, 5, 7),
     weatherPawIconSize: scale(15, 17, 19),
-    weatherHeadingSize: scale(14.5, 16, 17),
-    weatherSubHeadingSize: scale(11, 12, 12.5),
+    weatherHeadingSize: TYPOGRAPHY.cardTitle,
+    weatherSubHeadingSize: TYPOGRAPHY.support,
     weatherCardPaddingV: scale(9, 12, 15),
     weatherCardPaddingH: scale(10, 12, 15),
     weatherGaugeSize: scale(66, 74, 82),
-    weatherScoreFontSize: scale(21, 24, 27),
-    weatherScoreUnitSize: scale(9.5, 10.5, 11),
-    weatherStatusBadgeFont: scale(10.5, 11.5, 12),
+    weatherScoreFontSize: TYPOGRAPHY.metricValue,
+    weatherScoreUnitSize: TYPOGRAPHY.caption,
+    weatherStatusBadgeFont: TYPOGRAPHY.label,
     weatherStatusBadgePadV: scale(1.5, 2.5, 3),
     weatherStatusBadgePadH: scale(6, 8, 9),
-    weatherChipFont: scale(9.5, 10.5, 11),
+    weatherChipFont: TYPOGRAPHY.label,
     weatherChipPadV: scale(1.5, 2.5, 3),
     weatherChipPadH: scale(5, 6, 7),
-    weatherStatusTitleSize: scale(13, 14.5, 15.5),
-    weatherRecommendTimeSize: scale(11, 12, 12.5),
-    weatherDetailHintSize: scale(10.5, 11.5, 12),
+    weatherStatusTitleSize: TYPOGRAPHY.cardTitle,
+    weatherRecommendTimeSize: TYPOGRAPHY.support,
+    weatherDetailHintSize: TYPOGRAPHY.caption,
     weatherAttributionMarginTop: scale(3, 5, 6),
-    weatherAttributionSize: scale(9, 9.5, 10),
+    weatherAttributionSize: TYPOGRAPHY.caption,
 
     trailCardPaddingV: scale(9, 12, 15),
     trailCardPaddingH: scale(12, 14, 15),
     trailPuppyAvatarSize: scale(32, 38, 42),
-    trailTitleSize: scale(14.5, 16, 17),
-    trailCountBadgeFont: scale(10, 11.5, 12),
+    trailTitleSize: TYPOGRAPHY.cardTitle,
+    trailCountBadgeFont: TYPOGRAPHY.label,
     trailCountBadgePadV: scale(2, 3, 3.5),
     trailCountBadgePadH: scale(6, 8, 9),
     trailPawWidth: scale(28, 32, 36),
     trailPawHeight: scale(25, 29, 32),
-    trailDayFontSize: scale(9.5, 10.5, 11.5),
+    trailDayFontSize: TYPOGRAPHY.label,
     trailPawsMarginTop: scale(6, 9, 12),
     trailTodayDotSize: scale(4, 4.5, 5),
   };
@@ -282,46 +283,42 @@ export function useAppResponsive(): AppResponsiveTokens {
     containerPaddingH: scale(12, 16, 18),
     containerPaddingV: scale(6, 10, 14),
     sectionGap: scale(8, 12, 16),
-    sectionTitleSize: scale(14, 15.5, 17),
+    sectionTitleSize: TYPOGRAPHY.sectionTitle,
     sectionTitleMarginB: scale(4, 6, 8),
     aiBannerPaddingV: scale(6, 8, 11),
     aiBannerPaddingH: scale(10, 12, 14),
-    aiBannerTitleSize: scale(12, 13, 14),
-    aiBannerBodySize: scale(10.5, 11.5, 12),
+    aiBannerTitleSize: TYPOGRAPHY.cardTitle,
+    aiBannerBodySize: TYPOGRAPHY.support,
     chipPaddingV: scale(4, 6, 8),
     chipPaddingH: scale(8, 11, 14),
-    chipFontSize: scale(11, 12, 13),
+    chipFontSize: TYPOGRAPHY.label,
     envCardHeight: scale(44, 52, 60),
     envCardPaddingV: scale(5, 8, 10),
     envCardPaddingH: scale(8, 10, 12),
-    envCardTitleSize: scale(11.5, 12.5, 13.5),
+    envCardTitleSize: TYPOGRAPHY.cardTitle,
     envCardIconSize: scale(16, 18, 20),
     findButtonPaddingV: scale(10, 12.5, 15),
-    findButtonFontSize: scale(13.5, 15, 16),
+    findButtonFontSize: TYPOGRAPHY.button,
     findButtonMarginTop: scale(6, 10, 14),
   };
 
   // 4. 추천 산책 코스 화면 (CourseRecommendationView)
   const courseRecommend = {
-    mapHeight: scale(
-      Math.max(180, Math.round(height * 0.35)),
-      Math.max(220, Math.round(height * 0.40)),
-      Math.max(280, Math.round(height * 0.46))
-    ),
+    mapMinHeight: scale(145, 160, 175),
     headerPaddingV: scale(6, 8, 10),
     headerPaddingH: scale(12, 16, 18),
-    briefingTitleSize: scale(14, 15.5, 17),
-    briefingSubSize: scale(11, 12, 12.5),
+    briefingTitleSize: TYPOGRAPHY.sectionTitle,
+    briefingSubSize: TYPOGRAPHY.support,
     altCourseChipPadV: scale(4, 5.5, 7),
     altCourseChipPadH: scale(8, 11, 13),
-    altCourseChipFont: scale(11, 12, 13),
+    altCourseChipFont: TYPOGRAPHY.label,
     cardPaddingV: scale(10, 13, 16),
     cardPaddingH: scale(12, 15, 18),
-    courseTitleSize: scale(15, 16.5, 18),
-    metricNumberSize: scale(14, 16, 18),
-    metricLabelSize: scale(10, 11, 12),
+    courseTitleSize: TYPOGRAPHY.cardTitle,
+    metricNumberSize: TYPOGRAPHY.metricValue,
+    metricLabelSize: TYPOGRAPHY.label,
     startButtonPaddingV: scale(10, 12.5, 15),
-    startButtonFontSize: scale(13.5, 15, 16),
+    startButtonFontSize: TYPOGRAPHY.button,
   };
 
   // 5. 커뮤니티 화면 (CommunityTabScreen)
@@ -332,14 +329,14 @@ export function useAppResponsive(): AppResponsiveTokens {
     feedCardGap: scale(10, 13, 16),
     inlineMapHeight: scale(160, 195, 235),
     authorAvatarSize: scale(32, 38, 44),
-    authorNameSize: scale(12.5, 13.5, 14.5),
-    courseTitleSize: scale(14.5, 16, 17.5),
-    metricBadgeFont: scale(10, 11, 12),
+    authorNameSize: TYPOGRAPHY.cardTitle,
+    courseTitleSize: TYPOGRAPHY.cardTitle,
+    metricBadgeFont: TYPOGRAPHY.label,
     metricBadgePadV: scale(2.5, 3.5, 4.5),
     metricBadgePadH: scale(6, 8, 10),
-    maskingNoticeFont: scale(10, 10.5, 11.5),
+    maskingNoticeFont: TYPOGRAPHY.caption,
     actionBtnPaddingV: scale(8, 10, 12),
-    actionBtnFontSize: scale(12, 13, 14),
+    actionBtnFontSize: TYPOGRAPHY.button,
   };
 
   // 6. 마이페이지 (MyProfileTabScreen)
@@ -348,17 +345,17 @@ export function useAppResponsive(): AppResponsiveTokens {
     profileCardPaddingV: scale(12, 15, 18),
     profileCardPaddingH: scale(12, 16, 18),
     profileAvatarSize: scale(48, 58, 68),
-    dogNameSize: scale(16, 18, 20),
-    dogMetaSize: scale(11, 12, 13),
+    dogNameSize: TYPOGRAPHY.cardTitle,
+    dogMetaSize: TYPOGRAPHY.support,
     tabBtnPaddingV: scale(6, 8, 10),
-    tabBtnFontSize: scale(12, 13, 14),
+    tabBtnFontSize: TYPOGRAPHY.label,
     segmentPaddingV: scale(6, 7, 9),
-    segmentFontSize: scale(10.5, 11, 12),
+    segmentFontSize: TYPOGRAPHY.label,
     cardPaddingV: scale(8, 10, 14),
-    statNumberSize: scale(16, 19, 22),
-    statLabelSize: scale(10.5, 11.5, 12.5),
+    statNumberSize: TYPOGRAPHY.metricValue,
+    statLabelSize: TYPOGRAPHY.label,
     menuItemPaddingV: scale(10, 13, 16),
-    menuItemFontSize: scale(13, 14, 15),
+    menuItemFontSize: TYPOGRAPHY.body,
   };
 
   // 7. 산책 리포트 (WalkReportScreen)
@@ -372,15 +369,15 @@ export function useAppResponsive(): AppResponsiveTokens {
     cardPaddingV: scale(10, 14, 18),
     cardPaddingH: scale(12, 16, 18),
     statBoxHeight: scale(64, 72, 82),
-    statValueFontSize: scale(16, 18, 20),
+    statValueFontSize: TYPOGRAPHY.metricValue,
     feedbackCardPadding: scale(8, 10, 14),
     buttonHeight: scale(44, 50, 54),
-    titleSize: scale(17, 20, 23),
+    titleSize: TYPOGRAPHY.sectionTitle,
     gaugeCircleSize: scale(60, 72, 84),
-    gaugeValueSize: scale(15, 18, 21),
-    gaugeLabelSize: scale(10, 11, 12),
+    gaugeValueSize: TYPOGRAPHY.metricValue,
+    gaugeLabelSize: TYPOGRAPHY.label,
     buttonPaddingV: scale(10, 13, 15),
-    buttonFontSize: scale(13.5, 15, 16),
+    buttonFontSize: TYPOGRAPHY.button,
   };
 
   return {

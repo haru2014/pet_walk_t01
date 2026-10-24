@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 디자인 시안 02번 (Dusty Amber & Sage Green) 메인 카드
@@ -10,7 +11,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { DogProfile } from '../../types/dogProfile';
 import { RouteFeatureCollection } from '../../types/route';
 import { createCurrentLocationPin } from '../../services/locationPinHelper';
@@ -98,9 +100,15 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
           </View>
 
           <View style={styles.headerRightActions}>
-            {isMultiDog && (
+            {Boolean(dog) && (
               <TouchableOpacity
-                onPress={() => setShowDropdown((prev) => !prev)}
+                onPress={() => {
+                  if (isMultiDog) {
+                    setShowDropdown((prev) => !prev);
+                  } else {
+                    onPressProfile?.();
+                  }
+                }}
                 style={[
                   styles.dogSwitchButton,
                   {
@@ -112,9 +120,16 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
                 activeOpacity={0.7}
                 accessibilityLabel={`${dog.name} 반려견 선택 드롭다운`}
               >
-                <Text style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}>
-                  {dog.name} ▾
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.dogSwitchText, { color: isDark ? colors.primaryDark : cardTextColor }]}
+                >
+                  {dog.name}
                 </Text>
+{isMultiDog && (
+                  <Text style={[styles.dogSwitchChevron, { color: isDark ? colors.primaryDark : cardTextColor }]}>▾</Text>
+                )}
               </TouchableOpacity>
             )}
 
@@ -234,17 +249,18 @@ const styles = StyleSheet.create({
     paddingTop: 24, paddingHorizontal: 12, paddingBottom: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, minHeight: 48 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: '#2D3A31', letterSpacing: -0.2 },
-  freeWalkBadge: { paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 10, borderWidth: 1 },
-  freeWalkBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: -0.2 },
-  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 8, minHeight: 48 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
+  cardTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', letterSpacing: -0.2, flexShrink: 1 },
+  freeWalkBadge: { minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  freeWalkBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800', letterSpacing: -0.2 },
+  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   dogSwitchButton: {
-    minHeight: 48, minWidth: 48, paddingHorizontal: 12, backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    borderRadius: 24, alignItems: 'center', justifyContent: 'center',
+    minHeight: 48, minWidth: 72, maxWidth: 124, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, flexShrink: 1,
   },
-  dogSwitchText: { fontSize: 13, fontWeight: '700', color: '#2D3A31' },
+  dogSwitchText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#2D3A31', flexShrink: 1, textAlign: 'center' },
+  dogSwitchChevron: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', flexShrink: 0 },
   bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { width: 42, height: 42 },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
@@ -257,8 +273,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   gpsLoadingIcon: { fontSize: 24, marginBottom: 2 },
-  gpsLoadingText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  gpsLoadingSubText: { fontSize: 11, textAlign: 'center' },
+  gpsLoadingText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', textAlign: 'center' },
+  gpsLoadingSubText: { fontSize: TYPOGRAPHY.support, textAlign: 'center' },
   bottomActionsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -278,8 +294,8 @@ const styles = StyleSheet.create({
   metricColumn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   metricValRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metricIcon: { fontSize: 13 },
-  metricValue: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
-  metricLabel: { fontSize: 10.5, fontWeight: '600', opacity: 0.75, marginTop: 1 },
+  metricValue: { fontSize: TYPOGRAPHY.metricValue, fontWeight: '800', letterSpacing: -0.3 },
+  metricLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '600', opacity: 0.75, marginTop: 1 },
   metricDivider: { width: 1, height: 26, opacity: 0.7 },
   startWalkButton: {
     flex: 1,
@@ -293,5 +309,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  startWalkButtonText: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
+  startWalkButtonText: { fontSize: TYPOGRAPHY.button, fontWeight: '800', letterSpacing: -0.3 },
 });

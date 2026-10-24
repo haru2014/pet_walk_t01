@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, type StyleProp, type ViewStyle } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, type StyleProp, type ViewStyle } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import {
   BREED_DURATION_GUIDES,
@@ -188,38 +189,38 @@ const styles = StyleSheet.create({
   container: { marginBottom: 24 },
   containerCompact: { marginBottom: 4 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
-  currentBadge: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain },
+  currentBadge: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   freeWalkCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: TOKENS.colors.surface, borderWidth: 1.5, borderColor: TOKENS.colors.border, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
   freeWalkCardActive: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
   freeWalkInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, marginRight: 12 },
   freeWalkTextContainer: { flex: 1, minWidth: 0 },
-  freeWalkTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  freeWalkTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   freeWalkTitleActive: { color: TOKENS.colors.primaryDark },
-  freeWalkDesc: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2, lineHeight: 16 },
+  freeWalkDesc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2, lineHeight: 16 },
   radioArea: { flexShrink: 0, alignItems: 'center', justifyContent: 'center', paddingLeft: 4 },
   radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: TOKENS.colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: TOKENS.colors.surface },
   radioCircleActive: { borderColor: TOKENS.colors.primaryDark },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: TOKENS.colors.primaryDark },
-  subGuideTitle: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.textMuted, marginBottom: 8 },
+  subGuideTitle: { fontSize: TYPOGRAPHY.support, fontWeight: '600', color: TOKENS.colors.textMuted, marginBottom: 8 },
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   presetChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: TOKENS.colors.surface, borderWidth: 1, borderColor: TOKENS.colors.border },
   presetChipSelected: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
-  presetChipText: { fontSize: 11, color: TOKENS.colors.textMuted },
+  presetChipText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted },
   presetChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
   durationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   durationChip: { minWidth: 68, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, backgroundColor: TOKENS.colors.surface, borderWidth: 1, borderColor: TOKENS.colors.border, alignItems: 'center', justifyContent: 'center' },
   durationChipSelected: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
-  durationChipText: { fontSize: 13, fontWeight: '600', color: TOKENS.colors.textMuted },
+  durationChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.textMuted },
   durationChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '800' },
   customInputSection: { marginTop: 4 },
   customTriggerButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
-  customTriggerText: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.primaryDark },
+  customTriggerText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.primaryDark },
   customInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TOKENS.colors.surface, padding: 8, borderRadius: 8, borderWidth: 1, borderColor: TOKENS.colors.border },
-  customTextInput: { width: 60, height: 36, borderWidth: 1, borderColor: TOKENS.colors.primaryDark, borderRadius: 6, textAlign: 'center', fontSize: 14, fontWeight: '700', backgroundColor: TOKENS.colors.background },
-  customUnitText: { fontSize: 14, color: TOKENS.colors.textMain, fontWeight: '600' },
+  customTextInput: { width: 60, height: 36, borderWidth: 1, borderColor: TOKENS.colors.primaryDark, borderRadius: 6, textAlign: 'center', fontSize: TYPOGRAPHY.body, fontWeight: '700', backgroundColor: TOKENS.colors.background },
+  customUnitText: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMain, fontWeight: '600' },
   customApplyButton: { backgroundColor: TOKENS.colors.primaryDark, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  customApplyText: { color: TOKENS.colors.textWhite, fontSize: 12, fontWeight: '700' },
+  customApplyText: { color: TOKENS.colors.textWhite, fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   customCancelButton: { paddingHorizontal: 8, paddingVertical: 8 },
-  customCancelText: { color: TOKENS.colors.textMuted, fontSize: 12 },
+  customCancelText: { color: TOKENS.colors.textMuted, fontSize: TYPOGRAPHY.button },
 });

@@ -47,8 +47,9 @@ export async function transcribeVoiceCommand(
   const response = await fetchWithServerFallback(
     '/api/v1/voice/transcribe',
     { method: 'POST', body: form },
-    18000,
-    2500
+    75000,
+    2500,
+    false
   );
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));

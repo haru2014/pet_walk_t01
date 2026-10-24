@@ -82,19 +82,23 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     expect(FakeMarker.created[1].lngLat).toEqual([127.381, 36.43]);
   });
 
-  it('핀 종류별 색상과 기본 아이콘을 적용하고 제목이 있으면 하단 앵커를 사용한다', () => {
+  it('마커 배경을 투명하게 유지하고 아이콘과 제목 마커 앵커를 적용한다', () => {
     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
-    const [, turn, caution, titled] = FakeMarker.created;
+    const [start, turn, caution, titled] = FakeMarker.created;
 
-    expect(turn.options.element.style.background).toBe(colors.normal);
+    expect(start.options.element.style.background).toBe('transparent');
+    expect(turn.options.element.style.background).toBe('transparent');
     expect(turn.options.element.textContent).toBe('↱');
     expect(turn.options.anchor).toBe('center');
     expect(turn.options.element.tagName).toBe('button');
     expect(turn.options.element.type).toBe('button');
-    expect(caution.options.element.style.background).toBe(colors.caution);
+    expect(caution.options.element.style.background).toBe('transparent');
     expect(caution.options.element.textContent).toBe('!');
     expect(titled.options.anchor).toBe('bottom');
     expect(titled.options.element.tagName).toBe('div');
+    expect(titled.options.element.style.background).toBe('transparent');
+    expect(titled.options.element.style.border).toBeUndefined();
+    expect(titled.options.element.style.boxShadow).toBeUndefined();
   });
 
   it('회전 핀은 안내 문구의 좌회전·우회전·유턴 방향에 맞는 아이콘을 사용한다', () => {

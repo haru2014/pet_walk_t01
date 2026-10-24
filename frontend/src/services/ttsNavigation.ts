@@ -7,6 +7,7 @@
 
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
+import { setAudioModeAsync } from 'expo-audio';
 import {
   DEFAULT_SOUND_SETTINGS,
   SoundSettings,
@@ -22,6 +23,7 @@ interface QueuedUtterance {
   readonly message: string;
   readonly profileId?: VoiceProfileId;
   readonly priority: SpeakPriority;
+  readonly category?: 'turn';
 }
 
 /** 대기열 최대 길이: 오래된 일반 안내는 버려 지나간 안내가 뒤늦게 나오지 않게 한다. */
@@ -39,6 +41,21 @@ export class TTSNavigationService {
   private static isBusy = false;
   private static utteranceId = 0;
   private static watchdog: ReturnType<typeof setTimeout> | null = null;
+
+  /** 잠금 화면에서 expo-speech가 앱 오디오 세션을 사용하도록 준비한다. */
+  static async prepareForBackgroundSpeech(): Promise<void> {
+    try {
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        allowsRecording: false,
+        shouldPlayInBackground: true,
+        shouldRouteThroughEarpiece: false,
+      });
+    } catch (error) {
+      console.warn('[TTSNavigationService] 백그라운드 오디오 설정 실패:', error);
+    }
+  }
 
   /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
   static async loadAvailableVoices(): Promise<Speech.Voice[]> {
@@ -240,6 +257,17 @@ export class TTSNavigationService {
     if (!self.isBusy) self.playNext();
   }
 
+  /** 대기 중인 이전 회전 지시는 버리고 최신 회전 안내만 유지한다. */
+  static speakTurn(message: string): void {
+    const self = TTSNavigationService;
+    if (self.settings.isMuted || self.settings.volume <= 0 || self.isBarkMuted) return;
+    if (self.queue.some((item) => item.category === 'turn' && item.message === message)) return;
+    self.queue = self.queue.filter((item) => item.category !== 'turn');
+    self.queue.push({ message, priority: 'normal', category: 'turn' });
+    self.trimQueue();
+    if (!self.isBusy) self.playNext();
+  }
+
   private static trimQueue(): void {
     const self = TTSNavigationService;
     while (self.queue.length > MAX_QUEUE_LENGTH) {
@@ -296,6 +324,8 @@ export class TTSNavigationService {
       pitch: profile.pitch,
       rate: profile.rate,
       volume: self.settings.volume,
+      // iOS AVSpeechSynthesizer가 expo-audio에서 활성화한 앱 오디오 세션을 사용한다.
+      useApplicationAudioSession: true,
       ...(matchedVoice ? { voice: matchedVoice } : {}),
       onStart: () => {
         self.isSpeaking = true;

@@ -99,6 +99,19 @@ describe('apiClient - 탄력적 멀티 타깃 API 통신', () => {
     );
   });
 
+  it('요청에서 로컬 폴백을 금지하면 Render 실패 후 로컬 주소를 호출하지 않는다', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Render timeout'));
+
+    await expect(fetchWithServerFallback('/api/v1/voice/transcribe', undefined, 75000, 2500, false))
+      .rejects.toThrow('fallback(disabled)');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${RENDER_API_BASE_URL}/api/v1/voice/transcribe`,
+      expect.anything()
+    );
+  });
+
   it('Render가 5xx를 반환하고 로컬 폴백도 실패하면 실제 Render 응답을 보존해야 한다', async () => {
     const primaryResponse = {
       ok: false,

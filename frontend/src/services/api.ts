@@ -21,6 +21,7 @@ export interface RoutePlanResult {
   readonly route: RouteFeatureCollection;
   readonly stepPins: readonly RouteStepPin[];
   readonly briefingMessage: string;
+  readonly safetyBriefingMessage: string;
   readonly coursePlans?: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }>;
   readonly courseProfiles?: Record<string, CourseProfile>;
   readonly elevationAttribution?: string | null;
@@ -219,6 +220,7 @@ export async function requestWalkPlan(
         courseProfiles: profiles,
         elevationAttribution: data.elevation_source?.attribution ?? null,
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
+        safetyBriefingMessage: typeof data.safety_briefing === 'string' ? data.safety_briefing : '',
       };
     }
     if (!isCurrentLocation) {
@@ -244,5 +246,6 @@ export async function requestWalkPlan(
     route: defaultPlan.route,
     stepPins: fallbackStepPins,
     briefingMessage: fallbackBriefing,
+    safetyBriefingMessage: '',
   };
 }

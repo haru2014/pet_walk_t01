@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 마이페이지 안내 음성 설정 및 미리듣기 카드 컴포넌트 (VoiceSettingCard.tsx)
@@ -8,7 +9,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
 import { useAppTheme } from '../../theme/themeManager';
@@ -171,13 +173,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   cardDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   voicePreviewBox: {
     borderWidth: 1,
@@ -207,7 +209,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   voiceName: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   toneBadge: {
@@ -216,11 +218,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   toneBadgeText: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   voiceDesc: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.support,
     marginTop: 2,
   },
   previewBtn: {
@@ -232,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   previewBtnText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   controlRow: {
@@ -249,11 +251,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   muteStatusText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   muteActionHint: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
   },
   settingBtn: {
     paddingHorizontal: 10,
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   settingBtnText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 });

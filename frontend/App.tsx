@@ -9,7 +9,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { useFonts } from 'expo-font';
+import { View, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { AppText as Text } from './src/components/common/AppText';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
 import { themeManager, useAppTheme } from './src/theme/themeManager';
@@ -54,10 +56,22 @@ import { SplashScreen } from './src/components/common/SplashScreen';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
+const EMPTY_WALK_ROUTE: RouteFeatureCollection = { type: 'FeatureCollection', features: [] };
+
 export default function App() {
+  useFonts({
+    'Pretendard-Regular': require('./assets/fonts/pretendard/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('./assets/fonts/pretendard/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('./assets/fonts/pretendard/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold': require('./assets/fonts/pretendard/Pretendard-Bold.otf'),
+    'Pretendard-ExtraBold': require('./assets/fonts/pretendard/Pretendard-ExtraBold.otf'),
+    'Pretendard-Black': require('./assets/fonts/pretendard/Pretendard-Black.otf'),
+  });
+
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
+  const [pocketMapVisible, setPocketMapVisible] = useState(false);
   const [startupReady, setStartupReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
@@ -199,15 +213,23 @@ export default function App() {
     setSplashAnimationComplete(true);
   }, []);
 
-  const beginWalk = async (title: string, plan: CoursePlan | undefined, bookmark: BookmarkedRoute | null) => {
+  const beginWalk = async (
+    title: string,
+    plan: CoursePlan | undefined,
+    bookmark: BookmarkedRoute | null,
+    mode: 'route' | 'free' = 'route',
+  ) => {
     try {
       const agreed = await consent.ensureConsent();
       if (!agreed) return;
 
       if (plan) walk.loadCourse(plan.route, plan.stepPins);
-      const status = await walk.start();
+      else if (mode === 'free') walk.loadCourse(EMPTY_WALK_ROUTE, []);
+      else walk.loadCourse(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
+      setPreferences((prev) => ({ ...prev, isFreeWalk: mode === 'free', ...(mode === 'free' ? { durationMinutes: null } : {}) }));
+      const status = await walk.start(mode);
       if (status === 'permission_denied') {
-        const msg = '안심 산책을 위해 위치 권한을 허용해 주세요.';
+        const msg = '화면이 꺼진 상태에서도 경로를 기록하고 음성 안내를 하려면 위치 권한을 “항상 허용”으로 설정해 주세요.';
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.alert(`[위치 권한 필요] ${msg}`);
         } else {
@@ -249,12 +271,7 @@ export default function App() {
    * 사전에 추천 경로를 생성하지 않고, 실제 GPS 트래킹을 수행하는 자유 산책 모드로 즉시 진입
    */
   const handleStartFreeWalk = async () => {
-    setPreferences((prev) => ({
-      ...prev,
-      isFreeWalk: true,
-      durationMinutes: null,
-    }));
-    await beginWalk('자유 산책', undefined, null);
+    await beginWalk('자유 산책', undefined, null, 'free');
   };
 
   /**
@@ -301,9 +318,17 @@ export default function App() {
     void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
-  const handleStopWalkAndReport = useCallback(async () => {
+  const handleStopWalkAndReport = useCallback(async (saveRecord = true) => {
+    if (!saveRecord) {
+      await walk.stop();
+      setCompletedRecord(null);
+      setSubScreen('main');
+      setActiveTab('산책');
+      return;
+    }
+
     const distKm = walk.stats.distanceKm;
-    const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const gpsTrack = (await walk.getPersistedTrackBuffer()).map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
@@ -376,10 +401,7 @@ export default function App() {
     Alert.alert('산책을 종료할까요?', '지도를 확인하거나 산책을 마칠 수 있어요.', [
       {
         text: '지도 보기',
-        onPress: () => {
-          setSubScreen('main');
-          setActiveTab('산책');
-        },
+        onPress: () => setPocketMapVisible(true),
       },
       { text: '산책 종료', onPress: () => void handleStopWalkAndReport() },
     ]);
@@ -439,6 +461,20 @@ export default function App() {
     }
   };
 
+  const walkTrack = walk.getTrackBuffer();
+  const recordedCoords = walkTrack.map((point) => [point.longitude, point.latitude] as const);
+  const trackingFeature = recordedCoords.length > 1
+    ? [{
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 0, shaded: false },
+        geometry: { type: 'LineString', coordinates: recordedCoords },
+      } as const]
+    : [];
+  const pocketMapRoute: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [...walk.route.features, ...trackingFeature],
+  };
+
   if (!startupReady || !splashAnimationComplete) {
     return (
       <SafeAreaProvider>
@@ -474,24 +510,31 @@ export default function App() {
             dogName={activeDog.name}
             stats={walk.stats}
             targetMinutes={preferences.durationMinutes}
-            isFreeWalk={preferences.isFreeWalk}
-            onUnlock={handlePocketUnlock}
+            isFreeWalk={walk.mode === 'free'}
+            freeWalkSafety={walk.freeWalkSafety}
+            guidanceMessage={walk.guidanceMessage}
+            onFinishWalk={(saveRecord) => void handleStopWalkAndReport(saveRecord)}
+            mapVisible={pocketMapVisible}
+            onMapVisibleChange={setPocketMapVisible}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
-            currentCoords={walk.getTrackBuffer().length > 0 ? {
-              lat: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].latitude,
-              lon: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].longitude,
+            currentCoords={walk.currentPoint ? {
+              lat: walk.currentPoint.latitude,
+              lon: walk.currentPoint.longitude,
             } : null}
-            startCoords={walk.route.features[0]?.geometry?.coordinates[0] ? {
+            startCoords={walkTrack[0] ? {
+              lat: walkTrack[0].latitude,
+              lon: walkTrack[0].longitude,
+            } : walk.route.features[0]?.geometry?.coordinates[0] ? {
               lat: walk.route.features[0].geometry.coordinates[0][1],
               lon: walk.route.features[0].geometry.coordinates[0][0],
             } : null}
             routeCoords={walk.route.features[0]?.geometry?.coordinates as any}
+            walkedCoords={recordedCoords}
+            mapRoute={pocketMapRoute}
+            mapPins={walk.activePins}
             onReroute={(res) => {
-              walk.applyReroute(res.newRoute);
-              if (res.voiceAlert) {
-                TTSNavigationService.speak(res.voiceAlert);
-              }
+              walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);
             }}
           />
         )}

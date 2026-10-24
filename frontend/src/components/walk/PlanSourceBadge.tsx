@@ -1,10 +1,12 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 경로 데이터 출처 뱃지 (Live AI 서버 vs 로컬 오프라인 폴백)
  */
 
 import React from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 
@@ -56,5 +58,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  text: { fontSize: 11, fontWeight: '600' },
+  text: { fontSize: TYPOGRAPHY.caption, fontWeight: '600' },
 });

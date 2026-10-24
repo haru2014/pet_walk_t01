@@ -105,6 +105,21 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
+  it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
+    const html = buildMapLibreHtml({
+      styleUrl: PRIMARY_STYLE,
+      route,
+      stepPins: [{ ...pin, title: '공원 길', icon: '🌳' }],
+      routeColors: THEME_MAP_ROUTE_COLORS.forest,
+      maskingCenter: [127.38, 36.43],
+    });
+
+    expect(html).toContain('background-color: transparent');
+    expect(html).toContain("el.style.backgroundColor = 'transparent'");
+    expect(html).not.toContain('#ffffffed');
+    expect(html).toContain("postToReactNative('PIN_SELECT'");
+  });
+
   it('정상 로드 시 MAP_LOADED를 1회 보내고 경로/마스킹 소스를 등록한다', () => {
     const view = bootTemplate();
     view.map.emit('style.load');
