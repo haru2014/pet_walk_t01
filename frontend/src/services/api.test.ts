@@ -175,11 +175,13 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
   });
 
   it('검증된 코스와 검증되지 않은 대안 코스가 섞인 응답을 거부한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({
-      validated_park_id: 'yurim', courses: [{ id: 'safe' }, { id: 'unsafe' }],
-      geojson: { features: [{}] }, route_validation: { safe: { passed: true, park_id: 'yurim' } },
-      course_plans: { safe: { route: { features: [{}] } }, unsafe: { route: { features: [{}] } } },
-    }) } as Response);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({
+        validated_park_id: 'yurim', courses: [{ id: 'safe' }, { id: 'unsafe' }],
+        geojson: { features: [{}] }, route_validation: { safe: { passed: true, park_id: 'yurim' } },
+        course_plans: { safe: { route: { features: [{}] } }, unsafe: { route: { features: [{}] } } },
+      })
+    } as Response);
     await expect(requestWalkPlan(dummyDog)).rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED' });
   });
 

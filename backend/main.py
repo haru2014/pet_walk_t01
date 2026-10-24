@@ -415,6 +415,7 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
         "target_duration": target_duration,
         "speed_kmh": speed_kmh,
         "parking_lot_id": req.get("parking_lot_id") or req.get("parking_id"),
+        "regenerate_nonce": int(req.get("regenerate_nonce", 0) or 0),
     }
 
 
@@ -578,6 +579,7 @@ def _validate_and_finalize_park_candidates(
     origin_lat: float,
     weather_context: Dict[str, Any],
     request_id: str,
+    regenerate_nonce: int = 0,
 ) -> Dict[str, Any]:
     """공원 모드 후보 경로 일괄 검증 및 최고 경로 확정."""
     if not selected_park:
@@ -621,10 +623,14 @@ def _validate_and_finalize_park_candidates(
     if not validations:
         raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
 
-    agent_result.all_scored_candidates = valid_scored
     if valid_scored:
+        if regenerate_nonce > 0:
+            shift = regenerate_nonce % len(valid_scored)
+            if shift > 0:
+                valid_scored = valid_scored[shift:] + valid_scored[:shift]
         best = valid_scored[0].candidate
         agent_result.best_score = valid_scored[0].total_score
+    agent_result.all_scored_candidates = valid_scored
     agent_result.best_route = best
     _update_park_briefing(agent_result, best, weather_context, validations)
     return validations
@@ -824,6 +830,7 @@ def plan_walk_route(req: Dict[str, Any]):
                 # 현재 위치 출발은 자택일 수 있어 운영 로그에는 약 1km 단위(소수 둘째 자리)로만 남긴다 (200m 마스킹 감사)
                 "origin_approx": [round(origin_lon, 2), round(origin_lat, 2)],
                 "target_minutes": target_duration,
+                "regenerate_nonce": params["regenerate_nonce"],
             },
             ensure_ascii=False,
         )
@@ -855,7 +862,17 @@ def plan_walk_route(req: Dict[str, Any]):
                 origin_lat=origin_lat,
                 weather_context=weather_context,
                 request_id=request_id,
+                regenerate_nonce=params["regenerate_nonce"],
             )
+        else:
+            if agent_result.all_scored_candidates and params["regenerate_nonce"] > 0:
+                shift = params["regenerate_nonce"] % len(agent_result.all_scored_candidates)
+                if shift > 0:
+                    agent_result.all_scored_candidates = (
+                        agent_result.all_scored_candidates[shift:] + agent_result.all_scored_candidates[:shift]
+                    )
+                    agent_result.best_route = agent_result.all_scored_candidates[0].candidate
+                    agent_result.best_score = agent_result.all_scored_candidates[0].total_score
 
         return _build_walk_plan_response(
             agent_result=agent_result,

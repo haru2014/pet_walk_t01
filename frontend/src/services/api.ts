@@ -29,14 +29,24 @@ export interface RoutePlanResult {
 
 const API_TIMEOUT_MS = 20000;
 
-function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
+function createCurrentLocationFallbackPlan(
+  lat: number,
+  lon: number,
+  nonce = 0,
+): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
   const count = 8;
   const radiusDeg = 0.0018; // 약 200m 완만 순환
+  const rotationAngle = (nonce * (Math.PI / 2)) % (2 * Math.PI); // 재생성마다 90도씩 회전
+  const offsetLon = (radiusDeg * 0.7) * Math.cos(rotationAngle) * 1.2;
+  const offsetLat = (radiusDeg * 0.7) * Math.sin(rotationAngle);
+  const centerLon = lon + offsetLon;
+  const centerLat = lat + offsetLat;
+
   const coords: [number, number][] = [];
   for (let i = 0; i < count; i++) {
-    const angle = (i * 2 * Math.PI) / count;
-    const pLon = lon + radiusDeg * Math.cos(angle) * 1.2;
-    const pLat = lat + radiusDeg * Math.sin(angle);
+    const angle = rotationAngle + (i * 2 * Math.PI) / count;
+    const pLon = centerLon + radiusDeg * Math.cos(angle) * 1.2;
+    const pLat = centerLat + radiusDeg * Math.sin(angle);
     coords.push([Number(pLon.toFixed(6)), Number(pLat.toFixed(6))]);
   }
   coords.push(coords[0]);
@@ -55,8 +65,10 @@ function createCurrentLocationFallbackPlan(lat: number, lon: number): { route: R
     ],
   };
 
+  const directionNames = ['동쪽', '북쪽', '서쪽', '남쪽'];
+  const dirName = directionNames[nonce % directionNames.length];
   const stepPins: RouteStepPin[] = [
-    createCurrentLocationPin(lon, lat, '현재 위치 기반 완만 순환 코스'),
+    createCurrentLocationPin(lon, lat, `현재 위치 기반 ${dirName} 완만 순환 코스`),
   ];
 
   return { route, stepPins };
@@ -79,7 +91,8 @@ function buildPlanPayload(
   dog: DogProfile,
   preferences: WalkPreferences | undefined,
   feedback: FeedbackSummaryPayload | null | undefined,
-  origin: ReturnType<typeof resolveOrigin>
+  origin: ReturnType<typeof resolveOrigin>,
+  options?: { regenerateNonce?: number },
 ) {
   const envs = preferences?.environments ?? [];
   return {
@@ -98,6 +111,7 @@ function buildPlanPayload(
     origin_lon: origin.originLon,
     pilot_park_id: !origin.isCurrentLocation ? origin.park.id : undefined,
     park_zone: origin.parkZone,
+    regenerate_nonce: options?.regenerateNonce ?? 0,
   };
 }
 
@@ -105,15 +119,16 @@ function resolveDefaultPlan(
   isCurrentLocation: boolean,
   originLat: number,
   originLon: number,
-  preferences?: WalkPreferences
+  preferences?: WalkPreferences,
+  nonce = 0,
 ): { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] } {
   if (isCurrentLocation) {
     if (preferences?.userCoordinates) {
-      return createCurrentLocationFallbackPlan(originLat, originLon);
+      return createCurrentLocationFallbackPlan(originLat, originLon, nonce);
     }
     return { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS };
   }
-  return getCoursePlanByParkId(preferences?.pilotParkId);
+  return getCoursePlanByParkId(preferences?.pilotParkId, nonce % 3);
 }
 
 function isValidParkResponse(data: any, parkId: string): boolean {
@@ -154,6 +169,7 @@ export async function requestWalkPlan(
   dog: DogProfile,
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
+  options?: { regenerateNonce?: number },
 ): Promise<RoutePlanResult> {
   const origin = resolveOrigin(preferences);
   const { isCurrentLocation, park, originLat, originLon } = origin;
@@ -166,7 +182,7 @@ export async function requestWalkPlan(
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const payload = buildPlanPayload(dog, preferences, feedback, origin);
+    const payload = buildPlanPayload(dog, preferences, feedback, origin, options);
     const response = await fetchWithServerFallback(
       '/api/v1/walk/plan',
       {
@@ -185,7 +201,7 @@ export async function requestWalkPlan(
       if (!isCurrentLocation && !isValidParkResponse(data, park.id)) {
         throw new RoutePlanError('ROUTE_VALIDATION_FAILED', '선택한 공원 내부의 검증된 경로를 확인할 수 없습니다. 다시 시도해 주세요.', data.request_id);
       }
-      const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
+      const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences, options?.regenerateNonce ?? 0);
       const rawCourses: RecommendedCourse[] = data.courses ?? DEFAULT_RECOMMENDED_COURSES;
       const profiles: Record<string, CourseProfile> | undefined = data.course_profiles;
       const courses: RecommendedCourse[] = rawCourses.map((c, idx) => {
@@ -233,9 +249,9 @@ export async function requestWalkPlan(
   }
 
   // 🛡️ 오프라인 / 데모용 무중단 자동 폴백
-  const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback);
+  const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback, options?.regenerateNonce);
   const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
-  const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences);
+  const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences, options?.regenerateNonce ?? 0);
   const fallbackStepPins = isCurrentLocation
     ? mergeCurrentLocationPin(defaultPlan.stepPins, originLon, originLat)
     : defaultPlan.stepPins;

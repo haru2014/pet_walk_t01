@@ -161,6 +161,32 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
     expect(html).toContain('추천 산책 코스');
     expect(html).toContain('안심 기본 코스');
+    // Option 2: 하단 액션 바에 다시 추천 버튼과 산책 시작 버튼이 공존
+    expect(html).toContain('다시 추천');
+    expect(html).toContain('이 코스로 산책 시작하기');
+    expect(html).toContain('다른 코스 다시 추천받기');
+  });
+
+  it('하단 액션 영역에 다시 추천 버튼(Option 2)이 렌더링된다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('다시 추천');
+    expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
   });
 
   it('formatCourseDisplayName은 중복 거리와 불필요한 안 번호를 제거한다', () => {

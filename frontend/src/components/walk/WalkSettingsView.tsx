@@ -194,13 +194,13 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     const parkObj = getPilotParkById(resolvedParkId);
     setAiNotice(parkId
       ? {
-          summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
-          briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
-        }
+        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+        briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
+      }
       : {
-          summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
-          briefing: intent.briefing_message || undefined,
-        });
+        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+        briefing: intent.briefing_message || undefined,
+      });
   };
 
   const currentPark = getPilotParkById(pilotParkId);

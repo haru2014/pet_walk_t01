@@ -121,12 +121,15 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   );
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateNonce, setRegenerateNonce] = useState(0);
   const [requestInputs, setRequestInputs] = useState({ dog, preferences, feedback });
   if (requestInputs.dog !== dog || requestInputs.preferences !== preferences || requestInputs.feedback !== feedback) {
     setRequestInputs({ dog, preferences, feedback });
     setPlanResult(null);
     setPlanError(null);
     setSelectedCourseIndex(0);
+    setRegenerateNonce(0);
     setCourses(requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback));
   }
 
@@ -144,6 +147,28 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     return () => { isMounted = false; };
   }, [dog, preferences, feedback, requiresValidatedPark]);
 
+  const handleRegenerateRoute = () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    const nextNonce = regenerateNonce + 1;
+    setRegenerateNonce(nextNonce);
+
+    void requestWalkPlan(dog, preferences, feedback, { regenerateNonce: nextNonce })
+      .then((res) => {
+        setPlanResult(res);
+        if (res.courses.length > 0) {
+          setCourses(res.courses);
+        }
+        setSelectedCourseIndex(0);
+      })
+      .catch((error: unknown) => {
+        setPlanError(error instanceof Error ? error.message : '경로를 다시 생성하지 못했습니다.');
+      })
+      .finally(() => {
+        setIsRegenerating(false);
+      });
+  };
+
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
   const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
   const activePlan = useMemo(() => {
@@ -154,9 +179,9 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (requiresValidatedPark) return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
     return getCoursePlanById(
       currentCourse?.id,
-      getCoursePlanByParkId(preferences?.pilotParkId, selectedCourseIndex)
+      getCoursePlanByParkId(preferences?.pilotParkId, (selectedCourseIndex + regenerateNonce) % 3)
     );
-  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark]);
+  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark, regenerateNonce]);
 
   const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
   const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
@@ -439,19 +464,53 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           );
         })()}
 
-        {/* Thumb Zone 산책 시작 버튼 (04_course_recommendation.png 원형 복원) */}
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={() => onStartWalk(currentCourse, plan)}
-          style={[styles.startButton, { height: scale(46, 48, 54), backgroundColor: colors.primary }]}
-        >
-          <View style={styles.btnContent}>
-            <AppIcon name="paw" size={18} color={colors.textWhite} />
-            <Text style={[styles.startButtonText, { fontSize: courseRecommend.startButtonFontSize, color: colors.textWhite }]}>
-              이 코스로 산책 시작하기
-            </Text>
-          </View>
-        </TouchableOpacity>
+        {/* Thumb Zone 산책 시작 & 다시 추천 버튼 그룹 (Option 2) */}
+        <View style={styles.bottomActionRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleRegenerateRoute}
+            disabled={isRegenerating}
+            style={[
+              styles.regenerateButton,
+              {
+                height: scale(46, 48, 54),
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: isRegenerating ? 0.6 : 1,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="다른 코스 다시 추천받기"
+          >
+            <View style={styles.btnContent}>
+              <AppIcon name="refresh" size={16} color={colors.primaryDark} />
+              <Text
+                style={[
+                  styles.regenerateButtonText,
+                  {
+                    color: colors.primaryDark,
+                    fontSize: courseRecommend.startButtonFontSize ? Math.max(12, courseRecommend.startButtonFontSize - 2) : 13,
+                  },
+                ]}
+              >
+                {isRegenerating ? '생성 중…' : '다시 추천'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={() => onStartWalk(currentCourse, plan)}
+            style={[styles.startButton, { height: scale(46, 48, 54), backgroundColor: colors.primary }]}
+          >
+            <View style={styles.btnContent}>
+              <AppIcon name="paw" size={18} color={colors.textWhite} />
+              <Text style={[styles.startButtonText, { fontSize: courseRecommend.startButtonFontSize, color: colors.textWhite }]}>
+                이 코스로 산책 시작하기
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -556,7 +615,26 @@ const styles = StyleSheet.create({
   metricLabel: { fontSize: TYPOGRAPHY.caption, fontWeight: '600' },
   metricValue: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   metricDivider: { width: 1, height: 14, marginHorizontal: 2 },
+  bottomActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  regenerateButton: {
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  regenerateButtonText: {
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
   startButton: {
+    flex: 1,
     height: 48,
     borderRadius: 14,
     alignItems: 'center',

@@ -269,6 +269,7 @@ export function generateAdaptiveCourses(
   dog: DogProfile,
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
+  regenerateNonce?: number,
 ): readonly RecommendedCourse[] {
   const targetMinutes = preferences?.durationMinutes ?? 30;
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
@@ -284,16 +285,31 @@ export function generateAdaptiveCourses(
     buildResidentialCourse(ctx),
   ];
 
-  const scoredCourses = rawCourses.map((c) => {
-    const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
+  const shift = (regenerateNonce ?? 0) % rawCourses.length;
+  if (shift === 0) {
+    const scoredCourses = rawCourses.map((c) => {
+      const score = calculateAdaptiveCourseScore(c, dog, preferences, feedback);
+      return {
+        ...c,
+        score,
+        reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+      };
+    });
+    return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  }
+
+  // 재생성 시: 기존과 다른 대안 코스를 1순위 추천으로 전진 배치
+  const rotatedCourses = [...rawCourses.slice(shift), ...rawCourses.slice(0, shift)];
+  const maxBaseScore = Math.max(...rawCourses.map((c) => calculateAdaptiveCourseScore(c, dog, preferences, feedback)), 90);
+  return rotatedCourses.map((c, idx) => {
+    const score = maxBaseScore - idx * 3;
+    const cleanReason = c.reason.replace(/^AI\s*맞춤(?:\s*점수)?\s*\d+점:?\s*/i, '');
     return {
       ...c,
       score,
-      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+      reason: `AI 맞춤 점수 ${score}점: ${cleanReason}`,
     };
   });
-
-  return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }
 
 /** 사용자 조건에 맞춤형 브리핑 문구를 반환한다. */

@@ -220,5 +220,21 @@ describe('courseAdaptivePlanner', () => {
 
       expect(Number.isFinite(score)).toBe(true);
     });
+
+    it('재생성 시(regenerateNonce > 0) 기존 추천 코스와 다른 대안 코스를 1위 추천으로 제공해야 한다', () => {
+      const prefs: WalkPreferences = {
+        durationMinutes: 30,
+        environments: ['soft', 'shade'],
+        requestText: '',
+      };
+
+      const initialCourses = generateAdaptiveCourses(TEST_DOG, prefs, null, 0);
+      const regeneratedCourses1 = generateAdaptiveCourses(TEST_DOG, prefs, null, 1);
+      const regeneratedCourses2 = generateAdaptiveCourses(TEST_DOG, prefs, null, 2);
+
+      expect(initialCourses[0].id).not.toBe(regeneratedCourses1[0].id);
+      expect(regeneratedCourses1[0].id).not.toBe(regeneratedCourses2[0].id);
+      expect(regeneratedCourses2[0].id).not.toBe(initialCourses[0].id);
+    });
   });
 });
