@@ -92,7 +92,8 @@ export function buildMapLibreHtml({
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; overflow: hidden; background-color: #E8F1EC; }
     .maplibregl-ctrl-bottom-left { transform: scale(0.85); transform-origin: bottom left; }
-    .maplibregl-ctrl-attrib { font-size: 10px; }
+    .maplibregl-ctrl-attrib { font-size: 8px; line-height: 10px; opacity: 0.65; }
+    .maplibregl-ctrl-attrib a { font-size: 8px; color: inherit; }
     
     /* 핀 및 마커 스타일 */
     .step-pin {

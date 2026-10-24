@@ -74,11 +74,14 @@ export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={handleToggleFreeWalk}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: isFreeWalk }}
+        accessibilityLabel="자유 산책 모드"
         style={[styles.freeWalkCard, isFreeWalk && styles.freeWalkCardActive]}
       >
         <View style={styles.freeWalkInfo}>
           <AppIcon name="paw" size={18} color={isFreeWalk ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
-          <View>
+          <View style={styles.freeWalkTextContainer}>
             <Text style={[styles.freeWalkTitle, isFreeWalk && styles.freeWalkTitleActive]}>
               자유 산책 모드
             </Text>
@@ -87,8 +90,10 @@ export const WalkDurationSlider: React.FC<WalkDurationSliderProps> = ({
             </Text>
           </View>
         </View>
-        <View style={[styles.radioCircle, isFreeWalk && styles.radioCircleActive]}>
-          {isFreeWalk && <View style={styles.radioDot} />}
+        <View style={styles.radioArea}>
+          <View style={[styles.radioCircle, isFreeWalk && styles.radioCircleActive]}>
+            {isFreeWalk && <View style={styles.radioDot} />}
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -185,13 +190,15 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
   currentBadge: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  freeWalkCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: TOKENS.colors.surface, borderWidth: 1.5, borderColor: TOKENS.colors.border, borderRadius: 12, padding: 12, marginBottom: 14 },
+  freeWalkCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: TOKENS.colors.surface, borderWidth: 1.5, borderColor: TOKENS.colors.border, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 14 },
   freeWalkCardActive: { borderColor: TOKENS.colors.primaryDark, backgroundColor: TOKENS.colors.primaryLight },
-  freeWalkInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 },
+  freeWalkInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, marginRight: 12 },
+  freeWalkTextContainer: { flex: 1, minWidth: 0 },
   freeWalkTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
   freeWalkTitleActive: { color: TOKENS.colors.primaryDark },
-  freeWalkDesc: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2 },
-  radioCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: TOKENS.colors.border, alignItems: 'center', justifyContent: 'center' },
+  freeWalkDesc: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2, lineHeight: 16 },
+  radioArea: { flexShrink: 0, alignItems: 'center', justifyContent: 'center', paddingLeft: 4 },
+  radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: TOKENS.colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: TOKENS.colors.surface },
   radioCircleActive: { borderColor: TOKENS.colors.primaryDark },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: TOKENS.colors.primaryDark },
   subGuideTitle: { fontSize: 12, fontWeight: '600', color: TOKENS.colors.textMuted, marginBottom: 8 },

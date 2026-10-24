@@ -40,7 +40,12 @@ function getLocationErrorDetails(error: unknown): {
   reason: NonNullable<CurrentLocationResult['reason']>;
   errorMessage: string;
 } {
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  let message = '';
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  }
 
   if (/GPS_TIMEOUT/i.test(message)) {
     return {

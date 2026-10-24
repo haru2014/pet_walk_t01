@@ -32,6 +32,31 @@ import { formatCourseSlope, formatCourseSurface } from '../../services/routeProf
 import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
 
+/**
+ * 코스 표시 명칭 정제 (불필요한 "1안", "2안" 및 중복 거리 제거)
+ */
+export function formatCourseDisplayName(name: string): string {
+  if (!name) return '';
+  return name
+    .replace(/\s*·?\s*\d+안\s*/g, ' · ')
+    .replace(/\s*\d+(?:\.\d+)?\s*km\b/gi, '')
+    .replace(/\s*·\s*·\s*/g, ' · ')
+    .replace(/^\s*·\s*|\s*·\s*$/g, '')
+    .trim();
+}
+
+/**
+ * 코스 추천 사유 문구 정제 (중복 거리 및 불필요한 "1안" 제거)
+ */
+export function formatCourseReasonText(reason: string): string {
+  if (!reason) return '';
+  return reason
+    .replace(/\s*·?\s*\d+안\s*/g, ' · ')
+    .replace(/\s*\d+(?:\.\d+)?\s*km\b(?!\s*\/|\s*h)/gi, '')
+    .replace(/\s*·\s*·\s*/g, ' · ')
+    .trim();
+}
+
 export interface CourseRecommendationViewProps {
   dog: DogProfile;
   preferences?: WalkPreferences;
@@ -217,10 +242,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 고도 자료 출처 (Copernicus DEM 라이선스 6조 (b), #76) */}
+        {/* 고도 및 지도 자료 출처 독립 격리 표시 (Copernicus DEM 라이선스 6조 (b), #76) */}
         {planResult?.elevationAttribution ? (
-          <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
-            고도·경사: {planResult.elevationAttribution}
-          </Text>
+          <View style={styles.attributionContainer}>
+            <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+              {planResult.elevationAttribution}
+            </Text>
+          </View>
         ) : null}
       </ScrollView>
 
@@ -231,6 +259,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <View style={styles.courseChipRow}>
             {courses.slice(0, 3).map((c, idx) => {
               const isSelected = idx === selectedCourseIndex;
+              const isRecommended = idx === 0;
               const score = extractCourseScore(c);
               const scoreText = score != null ? ` · ${score}점` : '';
               return (
@@ -241,31 +270,42 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   style={[
                     styles.courseChip,
                     {
-                      paddingVertical: courseRecommend.altCourseChipPadV,
                       backgroundColor: isSelected ? colors.primaryWash : colors.background,
-                      borderColor: isSelected ? colors.primary : colors.border,
+                      borderColor: isSelected
+                        ? colors.primaryDark
+                        : isRecommended
+                        ? colors.primary
+                        : colors.border,
+                      borderWidth: isSelected || isRecommended ? 1.5 : 1,
                     },
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.courseChipText,
-                      { color: isSelected ? colors.primaryDark : colors.textMain },
-                      isSelected && styles.courseChipTextActive,
+                      {
+                        color: isSelected
+                          ? colors.primaryDark
+                          : isRecommended
+                          ? colors.primaryDark
+                          : colors.textMain,
+                      },
+                      (isSelected || isRecommended) && styles.courseChipTextActive,
                     ]}
                   >
-                    {idx === 0 ? `👑 추천 1${scoreText}` : `코스 ${idx + 1}${scoreText}`}
+                    {isRecommended ? `추천 1${scoreText}` : `코스 ${idx + 1}${scoreText}`}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          <BookmarkToggleButton bookmark={bookmarkCandidate} />
+          <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
         </View>
 
         {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
         <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
-          {currentCourse.name}
+          {formatCourseDisplayName(currentCourse.name)}
         </Text>
         <View style={styles.courseMetricsRow}>
           <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
@@ -284,7 +324,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         {currentCourse.reason ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text style={[styles.reasonText, { color: colors.textMain }]} numberOfLines={2}>
-              💡 {currentCourse.reason}
+              💡 {formatCourseReasonText(currentCourse.reason)}
             </Text>
           </View>
         ) : null}
@@ -294,42 +334,46 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           const surfaceInfo = formatCourseSurface(currentCourse);
           const slopeInfo = formatCourseSlope(currentCourse);
 
-          let slopeContent: React.ReactNode;
-          if (slopeInfo.isUnknown) {
-            slopeContent = <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>;
-          } else if (slopeInfo.isApproximation) {
-            slopeContent = <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>;
-          } else {
-            slopeContent = <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>;
-          }
+          const surfaceValue = surfaceInfo.isUnknown ? '미확인' : surfaceInfo.valueText;
+          const stairsValue =
+            currentCourse.stairsCount === '0' ||
+            currentCourse.stairsCount === '0회' ||
+            currentCourse.stairsCount === '확인된 계단 0회'
+              ? '0회'
+              : formatStairsCountLabel(currentCourse.stairsCount);
+          const slopeValue = slopeInfo.isUnknown
+            ? '미확인'
+            : slopeInfo.numericValue != null
+            ? `${slopeInfo.numericValue}%`
+            : slopeInfo.valueText;
+          const shadeValue =
+            currentCourse.shadePercent == null ? '미확인' : `${currentCourse.shadePercent}%`;
 
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
-                {surfaceInfo.isUnknown ? (
-                  <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
-                ) : (
-                  <>폭신 노면 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
-                )}
-              </Text>
-              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
-                <Text style={{ color: colors.textMain, fontWeight: '700' }}>
-                  {formatStairsCountLabel(currentCourse.stairsCount)}
-                </Text>
-              </Text>
-              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
-                {slopeContent}
-              </Text>
-              <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
-                {currentCourse.shadePercent == null ? (
-                  <Text style={{ color: colors.textMuted }}>{formatShadePercentLabel(currentCourse.shadePercent)}</Text>
-                ) : (
-                  <>{'그늘 '}<Text style={{ color: colors.textMain, fontWeight: '700' }}>{currentCourse.shadePercent}%</Text></>
-                )}
-              </Text>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricIcon}>🌿</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>폭신</Text>
+                <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{surfaceValue}</Text>
+              </View>
+              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricIcon}>🪜</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
+                <Text style={[styles.metricValue, { color: colors.textMain }]}>{stairsValue}</Text>
+              </View>
+              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricIcon}>📐</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>경사</Text>
+                <Text style={[styles.metricValue, { color: colors.textMain }]}>{slopeValue}</Text>
+              </View>
+              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricIcon}>🌳</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>그늘</Text>
+                <Text style={[styles.metricValue, { color: colors.textMain }]}>{shadeValue}</Text>
+              </View>
             </View>
           );
         })()}
@@ -381,7 +425,14 @@ const styles = StyleSheet.create({
   mainScroll: { flex: 1 },
   mainScrollContent: { flexGrow: 1 },
   mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  elevationAttribution: { fontSize: 9, lineHeight: 12, marginTop: 6, paddingHorizontal: 4 },
+  attributionContainer: {
+    paddingHorizontal: 14,
+    paddingVertical: 3,
+    marginTop: 2,
+    marginBottom: 4,
+    alignSelf: 'stretch',
+  },
+  elevationAttribution: { fontSize: 8, lineHeight: 11, opacity: 0.65 },
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
@@ -394,10 +445,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courseChipRow: { flexDirection: 'row', gap: 6, flex: 1, marginRight: 8 },
-  courseChip: { flex: 1, paddingVertical: 5, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
+  courseChipRow: { flexDirection: 'row', gap: 6, flex: 1, marginRight: 8, alignItems: 'center' },
+  courseChip: {
+    flex: 1,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
   courseChipText: { fontSize: 11, fontWeight: '600' },
   courseChipTextActive: { fontWeight: '800' },
+  bookmarkButton: { height: 32 },
   courseMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -417,15 +476,23 @@ const styles = StyleSheet.create({
   metricsBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 6,
   },
-  metricText: { fontSize: 10 },
-  metricDot: { fontSize: 10 },
+  metricItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  metricIcon: { fontSize: 11 },
+  metricLabel: { fontSize: 10, fontWeight: '600' },
+  metricValue: { fontSize: 11, fontWeight: '700' },
+  metricDivider: { width: 1, height: 14, marginHorizontal: 2 },
   startButton: {
     height: 48,
     borderRadius: 14,

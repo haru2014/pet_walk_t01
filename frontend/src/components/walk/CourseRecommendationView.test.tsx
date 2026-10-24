@@ -1,7 +1,11 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CourseRecommendationView } from './CourseRecommendationView';
+import {
+  CourseRecommendationView,
+  formatCourseDisplayName,
+  formatCourseReasonText,
+} from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkPreferences } from '../../types/walkSettings';
 
@@ -156,5 +160,23 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
     expect(html).toContain('추천 산책 코스');
     expect(html).toContain('안심 기본 코스');
+  });
+
+  it('formatCourseDisplayName은 중복 거리와 불필요한 안 번호를 제거한다', () => {
+    expect(formatCourseDisplayName('🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km')).toBe(
+      '🏞️ 세종호수공원 내부 보행로 · 반시계 방향'
+    );
+    expect(formatCourseDisplayName('대전 유림공원 내부 보행로 · 2안 시계 방향 2.3km')).toBe(
+      '대전 유림공원 내부 보행로 · 시계 방향'
+    );
+    expect(formatCourseDisplayName('안심 기본 코스')).toBe('안심 기본 코스');
+  });
+
+  it('formatCourseReasonText는 추천 사유에서 중복 거리와 안 번호를 제거한다', () => {
+    expect(
+      formatCourseReasonText(
+        'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)'
+      )
+    ).toBe('AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 반시계 방향 (실측 최대 경사 2.7%)');
   });
 });

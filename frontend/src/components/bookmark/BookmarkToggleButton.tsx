@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useAppTheme } from '../../theme/themeManager';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
@@ -15,9 +15,10 @@ import { AppIcon } from '../common/AppIcon';
 
 export interface BookmarkToggleButtonProps {
   readonly bookmark: BookmarkedRoute | null;
+  readonly style?: StyleProp<ViewStyle>;
 }
 
-export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ bookmark }) => {
+export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ bookmark, style }) => {
   const { colors } = useAppTheme();
   const [saved, setSaved] = useState(false);
   const bookmarkId = bookmark?.id;
@@ -56,6 +57,7 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
           borderColor: isSaved ? colors.primaryMint : colors.border,
           backgroundColor: isSaved ? colors.primaryWash : colors.background,
         },
+        style,
       ]}
     >
       <View style={styles.content}>
@@ -80,10 +82,12 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
 
 const styles = StyleSheet.create({
   button: {
+    height: 32,
     paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   text: { fontSize: 11, fontWeight: '700' },
   content: { flexDirection: 'row', alignItems: 'center', gap: 4 },
