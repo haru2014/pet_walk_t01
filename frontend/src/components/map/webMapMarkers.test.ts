@@ -42,7 +42,7 @@ class FakeMarker {
 const colors: MapRouteColors = {
   safe: '#10B981', normal: '#3B82F6', caution: '#F59E0B', casing: '#FFFFFF',
   maskCircle: 'rgba(16, 185, 129, 0.18)', maskBorder: '#059669', startMarker: '#059669',
-  mapGuidance: '#D97706',
+  mapGuidance: '#EA580C',
 };
 
 const route: RouteFeatureCollection = {

@@ -219,7 +219,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(view.setDataCalls).toEqual([secondCourse, route]);
   });
 
-  it('출발/도착 마커 및 스텝 핀에 테마 고대비 안내 색상(mapGuidance)과 시인성 텍스트 그림자가 적용된다', () => {
+  it('출발/도착 마커 및 스텝 핀에 테마 고대비 주황색 안내 색상(mapGuidance)과 시인성 텍스트 그림자가 적용된다', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,
       route,
@@ -227,6 +227,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
       routeColors: THEME_MAP_ROUTE_COLORS.dusty_amber,
     });
     expect(html).toContain(`color: ${THEME_MAP_ROUTE_COLORS.dusty_amber.mapGuidance}`);
-    expect(html).toContain('text-shadow: 0 0 3px rgba(255, 255, 255, 0.85)');
+    expect(html).toContain('text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
+    expect(html).toContain('font-weight: 900');
   });
 });
