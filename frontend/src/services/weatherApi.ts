@@ -236,7 +236,7 @@ export function generateFallbackHeatRisk(lat: number, lon: number): HeatRiskResp
       data_source: 'estimated',
     },
     hourly_forecast: hourly,
-    notice: '본 지수는 기상청 예보 모델 기반 추정치(실시간 기상 미연결 시 제공되는 [가상 시뮬레이션 추정치])입니다.',
+    notice: '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.',
     attribution: null,
     insolation_source: 'sky_fallback',
     data_source: 'fallback_estimate',

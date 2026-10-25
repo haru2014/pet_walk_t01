@@ -68,9 +68,9 @@ export const ShareCourseModal: React.FC<ShareCourseModalProps> = ({
           <View style={[styles.privacyBadge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
             <AppIcon name="shield" size={18} color={colors.primaryDark} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.privacyTitle, { color: colors.primaryDark }]}>자택 위치 200m 자동 보호</Text>
+              <Text style={[styles.privacyTitle, { color: colors.primaryDark }]}>집 근처 위치 보호</Text>
               <Text style={[styles.privacyDesc, { color: colors.textMuted }]}>
-                출발·도착지 200m는 최근접 교차로로 자동 절단되어 집 위치가 노출되지 않아요.
+                코스를 공유할 때 출발지와 도착지의 집 근처 200m는 보이지 않도록 처리해요.
               </Text>
             </View>
           </View>
@@ -87,7 +87,7 @@ export const ShareCourseModal: React.FC<ShareCourseModalProps> = ({
             </View>
             <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>완만 노면</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>폭신한 길</Text>
               <Text style={[styles.summaryVal, { color: colors.primaryDark }]}>{safePercent}%</Text>
             </View>
           </View>

@@ -275,7 +275,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           {extractCourseScore(currentCourse) != null && (
             <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
               <Text style={[styles.scoreBadgeText, { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize }]}>
-                AI 맞춤 {extractCourseScore(currentCourse)}점
+                맞춤 점수 {extractCourseScore(currentCourse)}점
               </Text>
             </View>
           )}
@@ -297,20 +297,20 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
           let slopeContent: React.ReactNode;
           if (slopeInfo.isUnknown) {
-            slopeContent = <Text style={{ color: colors.textMuted }}>경사도 정보 없음</Text>;
+            slopeContent = <Text style={{ color: colors.textMuted }}>오르막·내리막 정보가 없어요</Text>;
           } else if (slopeInfo.isApproximation) {
             slopeContent = <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.text}</Text>;
           } else {
-            slopeContent = <>최대 경사 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>;
+            slopeContent = <>가장 가파른 곳 <Text style={{ color: colors.textMain, fontWeight: '700' }}>{slopeInfo.numericValue}%</Text></>;
           }
 
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Text style={[styles.metricText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize }]}>
                 {surfaceInfo.isUnknown ? (
-                  <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
+                  <Text style={{ color: colors.textMuted }}>길 종류 정보가 없어요</Text>
                 ) : (
-                  <>폭신 노면 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
+                  <>폭신한 길 <Text style={{ color: colors.primaryDark, fontWeight: '700' }}>{surfaceInfo.text}</Text></>
                 )}
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>

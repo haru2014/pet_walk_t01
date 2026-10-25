@@ -190,11 +190,11 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
     <VoiceSettingCard style={{ marginBottom: 10 }} />
 
     <CardWrapper variant="flat" style={{ marginBottom: 8 }}>
-      <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>🧪 [테스트] AI 산책로 보정 시뮬레이터</Text>
+      <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>🧪 [테스트] 산책길 추천 미리보기</Text>
       {feedbackSummary && (
         <View style={styles.simStatusBadge}>
           <Text style={styles.simStatusText}>
-            최근 {feedbackSummary.recent_walk_count}회 · 경사 불만족 {feedbackSummary.slope_dissatisfaction_count}회 (보정: {feedbackSummary.recommended_max_slope_offset}%)
+            최근 산책 {feedbackSummary.recent_walk_count}회 · 오르막이 부담스러웠던 산책 {feedbackSummary.slope_dissatisfaction_count}회
           </Text>
         </View>
       )}
@@ -226,7 +226,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
     <CardWrapper variant="flat" style={{ marginBottom: 8 }}>
       <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>📜 약관 및 개인정보 정책</Text>
       <Text style={[styles.backupDesc, { color: colors.textMuted }]}>
-        편안하개의 Local-First 프라이버시 원칙과 서비스 이용약관을 확인할 수 있습니다.
+        산책 경로와 개인 정보가 어떻게 보호되는지, 서비스 이용약관과 함께 확인할 수 있습니다.
       </Text>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
         <TouchableOpacity
@@ -254,7 +254,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
           style={[styles.simButton, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
         >
           <Text style={{ color: colors.primaryDark, fontSize: TYPOGRAPHY.label, fontWeight: '700' }}>
-            📖 4단계 온보딩 플로우 다시 보기 (가입·등록·위치·지도)
+            📖 앱 처음 이용할 때 안내 다시 보기 (가입·등록·위치·지도)
           </Text>
         </TouchableOpacity>
       </CardWrapper>
@@ -320,13 +320,13 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
 
 const confirmAndSignOut = (onSuccess: () => void) => {
   const title = '로그아웃';
-  const message = '로그아웃하시겠습니까?\n\n💡 기기에 저장된 우리 강아지 프로필과 최근 산책 기록은 로컬에 안전하게 유지됩니다.';
+  const message = '로그아웃하시겠습니까?\n\n💡 이 기기에 저장된 우리 강아지 정보와 최근 산책 기록은 그대로 남아요.';
 
   const performSignOut = async () => {
     try {
       await SupabaseService.signOut();
       onSuccess();
-      const successMsg = '정상적으로 로그아웃되었습니다.\n오프라인 안심 게스트 모드로 계속 이용하실 수 있습니다.';
+      const successMsg = '로그아웃했어요.\n이 기기에 저장된 정보로 계속 이용할 수 있어요.';
       if (Platform.OS === 'web') {
         window.alert(successMsg);
       } else {
@@ -571,11 +571,11 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
                 <Text style={[styles.accountSubtitle, { color: colors.textMuted }]}>
-                  {currentUser ? `${currentUser.email} (로그인됨)` : '로컬 게스트 모드 (비로그인)'}
+                  {currentUser ? `${currentUser.email} (로그인됨)` : '로그인하지 않고 이용 중'}
                 </Text>
                 {!currentUser && (
                   <Text style={[styles.guestNotice, { color: colors.primaryDark }]}>
-                    회원가입 시 산책 기록 동기화 및 커뮤니티 코스 공유가 가능합니다.
+                    회원가입하면 산책 기록을 계정에 저장하고 이웃과 코스를 나눌 수 있어요.
                   </Text>
                 )}
               </View>

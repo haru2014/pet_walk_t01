@@ -60,7 +60,7 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={TOKENS.colors.primary} />
-            <Text style={styles.loadingText}>OSM 실시간 지도 불러오는 중...</Text>
+            <Text style={styles.loadingText}>지도를 불러오고 있어요...</Text>
           </View>
         )}
         renderError={() => (
@@ -81,7 +81,7 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
 
       {/* 실시간 실제 맵 뱃지 */}
       <View style={styles.topBadge} pointerEvents="none">
-        <Text style={styles.badgeText}>🗺️ OSM 실시간 실제 지도 (드래그/확대 가능)</Text>
+        <Text style={styles.badgeText}>🗺️ 실제 지도 (움직이거나 확대할 수 있어요)</Text>
       </View>
 
       {/* 새 창 크게보기 버튼 */}

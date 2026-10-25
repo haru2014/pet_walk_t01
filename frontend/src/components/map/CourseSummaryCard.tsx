@@ -44,7 +44,7 @@ export const CourseSummaryCard: React.FC<CourseSummaryCardProps> = ({ summary, o
                 { color: slopeVariant === 'warning' ? colors.routeCaution : colors.primaryDark },
               ]}
             >
-              최대 경사 {summary.maxSlopePercent}%
+              가장 가파른 곳 {summary.maxSlopePercent}%
             </Text>
           </View>
         </StatusBadge>

@@ -126,7 +126,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
         </View>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.metricItem}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>완만 노면</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>편안한 길</Text>
           <Text style={[styles.metricValue, { color: colors.primaryDark }]}>
             {stats.safeSurfaceRatioPercent} <Text style={styles.metricUnit}>%</Text>
           </Text>

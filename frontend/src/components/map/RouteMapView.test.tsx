@@ -85,9 +85,9 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
         />
       );
       expect(html).toContain('width:100%;height:100%');
-      expect(html).toContain('지면온도');
-      expect(html).toContain('경사도');
-      expect(html).toContain('확인 불가');
+      expect(html).toContain('길바닥 온도');
+      expect(html).toContain('오르막·내리막');
+      expect(html).toContain('아직 정보가 없어요');
     }).not.toThrow();
   });
 
@@ -100,7 +100,7 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
       />
     );
     expect(html).toContain('width:100%;height:100%');
-    expect(html).toContain('지면온도');
-    expect(html).toContain('경사도');
+      expect(html).toContain('길바닥 온도');
+    expect(html).toContain('오르막·내리막');
   });
 });

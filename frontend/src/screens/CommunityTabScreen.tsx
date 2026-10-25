@@ -221,7 +221,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           ]}
         >
           <Text style={[styles.badgeText, { color: isSupabase ? colors.primaryDark : colors.textMuted }]}>
-            {isSupabase ? '🌐 실시간 커뮤니티 연결됨' : '🌿 오프라인 [가상 데모 코스]'}
+            {isSupabase ? '🌐 이웃 코스를 불러왔어요' : '🌿 예시 코스를 보고 있어요'}
           </Text>
         </View>
         <TouchableOpacity
@@ -238,7 +238,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
       {!currentUser && (
         <View style={[styles.guestBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
           <View style={styles.guestBannerTextWrap}>
-            <Text style={[styles.guestBannerTitle, { color: colors.primaryDark }]}>👥 비회원 둘러보기 모드</Text>
+          <Text style={[styles.guestBannerTitle, { color: colors.primaryDark }]}>👥 회원가입 없이 둘러보는 중</Text>
             <Text style={[styles.guestBannerDesc, { color: colors.textMuted }]}>
               회원가입 시 나만의 안심 코스를 동네 이웃과 공유할 수 있습니다.
             </Text>
@@ -260,7 +260,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
         <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>🔒 자택 위치 안심 보호 (출발·도착지 200m)</Text>
         <Text style={[styles.cardBodyText, { color: colors.textMuted }]}>
           이웃 보호자들이 공유한 안심 산책 코스입니다. 집 위치 노출을 방지하기 위해
-          출발지와 도착지 반경 200m 구간은 자동으로 가림 처리(블러링)된 안전 경로만 표시됩니다.
+        출발지와 도착지의 집 근처 200m는 보이지 않도록 처리한 경로만 보여드려요.
         </Text>
       </CardWrapper>
 
@@ -488,7 +488,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 <Text style={[styles.modalMetaItem, { color: colors.textMuted }]}>⏱️ 약 {modalFeed.duration_min}분</Text>
                 <Text style={[styles.modalMetaItem, { color: colors.textMuted }]}>⭐ {modalFeed.rating.toFixed(1)} 만족도</Text>
                 <Text style={[styles.modalProtectedBadge, { backgroundColor: colors.primaryWash, color: colors.primaryDark }]}>
-                  🔒 200m 안심 마스킹
+                  🔒 집 근처 200m 보호
                 </Text>
               </View>
 

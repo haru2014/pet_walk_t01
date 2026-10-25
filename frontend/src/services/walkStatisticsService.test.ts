@@ -55,7 +55,7 @@ describe('WalkStatisticsService', () => {
     expect(stats.dailyStats[0].achievementRatePercent).toBe(100);
     expect(stats.completionRatePercent).toBe(29); // 2 / 7일 = 29%
     expect(stats.safeSurfaceRatioPercent).toBe(88); // (0.9 + 0.85) / 2 = 87.5 -> 88%
-    expect(stats.jointCareMessage).toContain('완만 노면');
+    expect(stats.jointCareMessage).toContain('편안한 길');
   });
 
   it('주간 달성도는 전체 산책 횟수가 아닌 산책한 날짜 수를 7일 기준으로 계산한다', () => {

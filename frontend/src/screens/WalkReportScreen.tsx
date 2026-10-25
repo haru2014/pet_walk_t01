@@ -125,7 +125,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       <View style={[styles.congratsCard, { padding: walkReport.congratsCardPadding, backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
         <View style={styles.congratsTopRow}>
           <View style={[styles.completeCapsule, { backgroundColor: colors.primary }]}>
-            <Text style={styles.completeCapsuleText}>WALK COMPLETE 🐾</Text>
+                <Text style={styles.completeCapsuleText}>산책 완료 🐾</Text>
           </View>
           {record.dogSummary && (
             <View style={styles.dogSummaryBadge}>
@@ -169,7 +169,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </View>
         <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.statIcon}>🌿</Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>완만 노면 달성률</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>편안한 길 비율</Text>
           <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.primary }]}>
             {safeRatioPercent} <Text style={styles.statUnit}>%</Text>
           </Text>

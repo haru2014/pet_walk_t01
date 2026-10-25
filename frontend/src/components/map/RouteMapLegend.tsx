@@ -14,8 +14,8 @@ import {
 export type RouteMapLayer = 'course' | 'real_osm' | 'slope' | 'temperature';
 
 const COURSE_LEGEND = [
-  { type: 'safe', label: '완만/그늘' },
-  { type: 'normal', label: '일반 보도' },
+  { type: 'safe', label: '편안한 길' },
+  { type: 'normal', label: '보통 길' },
   { type: 'caution', label: '주의 구간' },
 ] as const;
 
@@ -36,9 +36,8 @@ export interface RouteMapLegendProps {
 
 /**
  * 지도 바로 아래에 별도로 항상 표시되는 범례 영역 (사용자 조작 최소화)
- * - 코스 보행로(경로 선 색상 안내 - 지면온도 오인 방지)
- * - 지면온도 범례 (실측치 부재 시 '확인 불가' 안내)
- * - 경사도 범례 (실측치 부재 시 '확인 불가' 안내)
+ * - 산책길 색상 안내
+ * - 길바닥 온도와 오르막·내리막 범례
  */
 export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   mode = 'course',
@@ -75,11 +74,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
 
         <View style={styles.divider} />
 
-        {/* 2. 지면온도 범례 */}
+        {/* 2. 길바닥 온도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>지면온도</Text>
-            {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>길바닥 온도</Text>
+            {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>아직 정보가 없어요</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {TEMP_ORDER.map((band) => {
@@ -111,11 +110,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
 
         <View style={styles.divider} />
 
-        {/* 3. 경사도 범례 */}
+        {/* 3. 오르막·내리막 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>경사도</Text>
-            {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>오르막·내리막</Text>
+            {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>아직 정보가 없어요</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {SLOPE_ORDER.map((grade) => {

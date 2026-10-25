@@ -70,7 +70,7 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
         <Text style={styles.title}>내가 찜한 안심 코스 ({bookmarks.length})</Text>
       </View>
       <Text style={styles.desc}>
-        오프라인에서도 열람할 수 있고, 지도를 펼쳐 확인한 뒤 바로 산책을 시작해요.
+        인터넷이 연결되지 않아도 볼 수 있어요. 지도를 확인한 뒤 바로 산책을 시작해요.
       </Text>
 
       {!isLoading && bookmarks.length === 0 && (
@@ -184,7 +184,7 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                     <View style={styles.divider} />
 
                     <Text style={styles.previewNotice}>
-                      🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길 / 주황: 주의길)
+                      🗺️ 산책길 미리보기 (초록: 편안한 길 / 파랑: 보통 길 / 주황: 주의 구간)
                     </Text>
 
                     <View style={styles.miniMapContainer}>

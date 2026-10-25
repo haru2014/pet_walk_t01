@@ -48,7 +48,7 @@ export function createBookmark(
     maxSlopePercent: course.maxSlopePercent ?? 0,
     shadePercent: course.shadePercent,
     tags: [
-      course.softSurfacePercent != null ? `폭신 ${course.softSurfacePercent}%` : '폭신 노면 정보없음',
+      course.softSurfacePercent != null ? `폭신한 길 ${course.softSurfacePercent}%` : '길 종류 정보 없음',
       `그늘 ${course.shadeLevel ?? '정보 없음'}`,
       formatStairsCountLabel(course.stairsCount),
     ],

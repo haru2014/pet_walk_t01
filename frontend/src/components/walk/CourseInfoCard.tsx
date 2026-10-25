@@ -44,7 +44,7 @@ export const CourseInfoCard: React.FC<CourseInfoCardProps> = ({ course, summary,
           <Text style={styles.name}>{course.name}</Text>
           {score != null && (
             <View style={styles.scoreBadge}>
-              <Text style={styles.scoreBadgeText}>AI 맞춤 {score}점</Text>
+              <Text style={styles.scoreBadgeText}>맞춤 점수 {score}점</Text>
             </View>
           )}
         </View>
