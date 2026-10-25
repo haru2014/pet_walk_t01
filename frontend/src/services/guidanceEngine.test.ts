@@ -260,3 +260,20 @@ describe('우회 경로 교체 시 안내 상태', () => {
     expect(reset.startChecked).toBe(true);
   });
 });
+
+describe('코스 진행 거리 추적 (이탈 후 합류 지점 선택용)', () => {
+  it('코스 위에 있으면 진행 거리를 갱신하고, 이탈 중에는 마지막 진행 거리를 유지한다', () => {
+    const start = evaluateGuidance(ON_ROUTE_START, SAMPLE_ROUTE, [], STARTED_STATE);
+    expect(start.nextState.routeProgressM).toBeDefined();
+    expect(start.nextState.routeProgressM!).toBeLessThan(5);
+
+    const away = evaluateGuidance(FAR_AWAY, SAMPLE_ROUTE, [], start.nextState);
+    expect(away.nextState.offRouteActive).toBe(true);
+    expect(away.nextState.routeProgressM).toBe(start.nextState.routeProgressM);
+  });
+
+  it('새 경로로 교체하면 진행 거리는 초기화된다', () => {
+    const start = evaluateGuidance(ON_ROUTE_START, SAMPLE_ROUTE, [], STARTED_STATE);
+    expect(resetGuidanceForNewRoute(start.nextState).routeProgressM).toBeUndefined();
+  });
+});

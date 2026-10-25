@@ -103,6 +103,45 @@ class TestWalkRerouteEndpoint:
         assert coords[0] == pytest.approx([127.3825, 36.3745])
         assert coords[-1] == pytest.approx([_DEST[1], _DEST[0]])
 
+    def test_route_deviation_snaps_to_segment_not_vertex(self, client):
+        # 북쪽으로 향하는 긴 직선 코스(정점은 양 끝뿐). 중간에서 동쪽으로 벗어남.
+        route = [[127.0, 36.0], [127.0, 36.004]]
+        payload = {
+            "current_lat": 36.002,
+            "current_lon": 127.0003,
+            "destination_lat": 36.004,
+            "destination_lon": 127.0,
+            "reroute_reason": "deviation",
+            "route_coordinates": route,
+        }
+        body = client.post("/api/v1/walk/reroute", json=payload).json()
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        # 현재 위치 -> 선분 위 합류점(위도 36.002) -> 목적지
+        assert coords[0] == pytest.approx([127.0003, 36.002])
+        assert coords[1] == pytest.approx([127.0, 36.002], abs=1e-5)
+        assert coords[-1] == pytest.approx([127.0, 36.004])
+
+    def test_route_deviation_on_loop_uses_progress_to_continue_forward(self, client):
+        # 시작점=도착점인 순환 코스. 시작점 근처에서 이탈했을 때 진행 거리에 따라 합류 위치가 달라진다.
+        loop = [[127.0, 36.0], [127.0, 36.002], [127.002, 36.002], [127.002, 36.0], [127.0, 36.0]]
+        base = {
+            "current_lat": 36.0003,
+            "current_lon": 127.00003,
+            "destination_lat": 36.0,
+            "destination_lon": 127.0,
+            "reroute_reason": "deviation",
+            "route_coordinates": loop,
+        }
+        late = client.post("/api/v1/walk/reroute", json={**base, "progress_m": 640.0}).json()
+        late_coords = late["geojson"]["features"][0]["geometry"]["coordinates"]
+        # 거의 한 바퀴를 돈 뒤라면 코스 마지막(시작점 복귀) 구간으로 합류해 남은 거리가 짧다.
+        assert late["new_distance_m"] < 100
+        assert late_coords[-1] == pytest.approx([127.0, 36.0])
+
+        early = client.post("/api/v1/walk/reroute", json={**base, "progress_m": 0.0}).json()
+        # 진행 거리가 0이면 코스 처음 구간으로 합류해 코스 전체를 이어 간다.
+        assert early["new_distance_m"] > late["new_distance_m"]
+
     def test_invalid_hazard_type_rejected(self, client):
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(hazard_type="lava"))
         assert res.status_code == 422

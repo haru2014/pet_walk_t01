@@ -33,6 +33,7 @@ import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
 import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
+import { analyzeCourseLaps, formatCourseLapSummary, mergeLoopStartPin } from '../../services/courseLapInfo';
 
 /**
  * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
@@ -302,13 +303,18 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   }, [isCurrentLocOrigin, gpsCoords]);
 
   const activeRoute = activePlan.route;
+  // 같은 순환로를 여러 바퀴 도는 코스는 바퀴 수·순환 구간을 카드와 지도에 함께 표시한다.
+  const lapInfo = useMemo(
+    () => analyzeCourseLaps(activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters),
+    [activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters],
+  );
   const activePins = useMemo(() => {
-    const pins = activePlan.stepPins;
+    const pins = mergeLoopStartPin(activePlan.stepPins, lapInfo);
     if (isCurrentLocOrigin && gpsCoords) {
       return mergeCurrentLocationPin(pins, gpsCoords.lon, gpsCoords.lat);
     }
     return pins;
-  }, [activePlan.stepPins, isCurrentLocOrigin, gpsCoords]);
+  }, [activePlan.stepPins, lapInfo, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
   const activeSummary = useMemo(
     () => buildCourseSummary(activeRoute, dog.speedKmH),
@@ -484,6 +490,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                         {` · ${score}점`}
                       </Text>
                     )}
+                    {c.lapCount != null && c.lapCount > 1 && (
+                      <Text style={[styles.courseChipScore, { color: chipScoreColor }]}>
+                        {` · 🔄${c.lapCount}바퀴`}
+                      </Text>
+                    )}
                   </Text>
                 </TouchableOpacity>
               );
@@ -532,8 +543,29 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           );
         })()}
 
+        {/* 순환 코스: 모두 비슷한 거리·시간에서 코스를 구별할 수 있도록 바퀴 수와 반복 구간을 명시 */}
+        {lapInfo ? (
+          <View
+            accessibilityLabel="순환 코스 반복 안내"
+            style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
+          >
+            <Text
+              style={[
+                styles.reasonText,
+                {
+                  color: colors.primaryDark,
+                  fontSize: courseRecommend.metricLabelSize,
+                  lineHeight: courseRecommend.metricLabelSize * 1.35,
+                },
+              ]}
+            >
+              {`🔄 ${formatCourseLapSummary(lapInfo)}`}
+            </Text>
+          </View>
+        ) : null}
+
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
-        {currentCourse.reason ? (
+        {currentCourse.reason && !lapInfo ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text
               style={[

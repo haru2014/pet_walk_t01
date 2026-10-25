@@ -117,6 +117,54 @@ function formatForwardSafetyMessage(analysis: ForwardSafetyAnalysis): string | n
   return messages.length ? messages.join(' ') : null;
 }
 
+function evaluateForwardSafetyResults(
+  hazardResult: PromiseSettledResult<NearbyHazardReport[]>,
+  safetyResult: PromiseSettledResult<ForwardSafetyAnalysis>,
+  latestPoint: GpsPoint,
+  point: GpsPoint,
+  announcedHazardIds: Set<string>,
+): { freeSafety: FreeWalkSafetyInfo; announceMessage: string | null } {
+  const reports = hazardResult.status === 'fulfilled' ? hazardResult.value : [];
+  const currentHeading = deriveHeading(latestPoint, point);
+  const nearestHazard = currentHeading == null ? undefined : getForwardHazardReports(
+    reports,
+    latestPoint.latitude,
+    latestPoint.longitude,
+    currentHeading,
+  ).find((report) => report.severity !== 'info');
+
+  const safetyAlert = safetyResult.status === 'fulfilled'
+    ? formatForwardSafetyMessage(safetyResult.value) : null;
+
+  if (nearestHazard) {
+    const shouldAnnounce = !announcedHazardIds.has(nearestHazard.report_id);
+    announcedHazardIds.add(nearestHazard.report_id);
+    const distance = haversineMeters(
+      [latestPoint.latitude, latestPoint.longitude],
+      [nearestHazard.lat, nearestHazard.lon],
+    );
+    const message = [formatHazardAlert(nearestHazard, distance), safetyAlert].filter(Boolean).join(' ');
+    return { freeSafety: { status: 'alert', message }, announceMessage: shouldAnnounce ? message : null };
+  }
+
+  if (safetyAlert) {
+    const shouldAnnounce = !announcedHazardIds.has(safetyAlert);
+    announcedHazardIds.add(safetyAlert);
+    return { freeSafety: { status: 'alert', message: safetyAlert }, announceMessage: shouldAnnounce ? safetyAlert : null };
+  }
+
+  const checks: string[] = [];
+  if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('오르막 정보가 아직 없어요');
+  if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 정보가 아직 없어요');
+  if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('앞길 정보를 아직 확인하지 못했어요');
+  if (hazardResult.status === 'rejected') checks.push('위험 제보를 불러오지 못했어요');
+
+  const message = checks.length
+    ? `${checks.join(' · ')}. 정보가 없다고 안전하다는 뜻은 아니에요.`
+    : UNKNOWN_SAFETY_INFO.message;
+  return { freeSafety: { status: 'unknown', message }, announceMessage: null };
+}
+
 /**
  * GPS 점 수신 시 안내 평가 및 이탈 시 서버 재탐색 파이프라인
  */
@@ -156,6 +204,7 @@ export async function handleGuidancePoint(
         destinationLat,
         destinationLon,
         routeCoordinates: coords,
+        progressM: nextState.routeProgressM,
       });
 
       if (rerouteRes.needsReroute && rerouteRes.newRoute) {
@@ -224,135 +273,114 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     [],
   );
 
+  const handleFreeWalkSafety = useCallback((point: GpsPoint, previousPoint: GpsPoint | null) => {
+    const heading = deriveHeading(point, previousPoint);
+    const canLocate = point.accuracyM != null && point.accuracyM <= 35;
+    if (!canLocate || heading == null) {
+      setFreeWalkSafety({
+        status: 'unknown',
+        message: !canLocate
+          ? 'GPS 정확도가 낮아 전방 안전 정보를 확인할 수 없어요.'
+          : '이동 방향을 확인하면 등록된 전방 위험 제보를 확인해요.',
+      });
+      return;
+    }
+
+    const nearestHazard = getForwardHazardReports(
+      nearbyHazardsRef.current,
+      point.latitude,
+      point.longitude,
+      heading,
+    ).find((report) => report.severity !== 'info');
+
+    if (nearestHazard) {
+      const shouldAnnounce = !announcedHazardIdsRef.current.has(nearestHazard.report_id);
+      announcedHazardIdsRef.current.add(nearestHazard.report_id);
+      const distance = haversineMeters([point.latitude, point.longitude], [nearestHazard.lat, nearestHazard.lon]);
+      const message = formatHazardAlert(nearestHazard, distance);
+      setFreeWalkSafety({ status: 'alert', message });
+      if (shouldAnnounce) TTSNavigationService.speak(message, undefined, false, 'high');
+    } else {
+      setFreeWalkSafety(UNKNOWN_SAFETY_INFO);
+    }
+
+    const lastQuery = lastSafetyQueryRef.current;
+    const movedSinceQuery = lastQuery
+      ? haversineMeters([lastQuery.lat, lastQuery.lon], [point.latitude, point.longitude])
+      : Number.POSITIVE_INFINITY;
+    const shouldQuery = !lastQuery || point.timestamp - lastQuery.timestamp >= 30000 || movedSinceQuery >= 80;
+    if (shouldQuery && !safetyQueryInFlightRef.current) {
+      safetyQueryInFlightRef.current = true;
+      lastSafetyQueryRef.current = { timestamp: point.timestamp, lat: point.latitude, lon: point.longitude };
+      setFreeWalkSafety({ status: 'checking', message: '앞길의 계단과 오르막, 등록된 위험 제보를 확인하고 있어요.' });
+      void Promise.allSettled([
+        getNearbyHazardReports(point.latitude, point.longitude),
+        getForwardSafetyAnalysis(point.latitude, point.longitude, heading),
+      ]).then((results) => {
+        if (modeRef.current !== 'free') return;
+        if (results[0].status === 'fulfilled') nearbyHazardsRef.current = results[0].value;
+        const latestPoint = lastPointRef.current ?? point;
+        const { freeSafety, announceMessage } = evaluateForwardSafetyResults(
+          results[0],
+          results[1],
+          latestPoint,
+          point,
+          announcedHazardIdsRef.current,
+        );
+        setFreeWalkSafety(freeSafety);
+        if (announceMessage) TTSNavigationService.speak(announceMessage, undefined, false, 'high');
+      })
+        .catch((error) => {
+          console.warn('[useWalkGuidance] 자유 산책 안전정보 조회 실패:', error);
+          setFreeWalkSafety({
+            status: 'unavailable',
+            message: '위험 제보를 불러오지 못했어요. 주변 상황은 아직 확인되지 않았어요.',
+          });
+        })
+        .finally(() => {
+          safetyQueryInFlightRef.current = false;
+        });
+    }
+  }, []);
+
+  const handleRouteWalkGuidance = useCallback((point: GpsPoint) => {
+    const rerouting = isReroutingRef.current;
+    void handleGuidancePoint(
+      point,
+      routeRef.current,
+      activePins,
+      guidanceRef.current,
+      {
+        speak: speakGuidanceEvent,
+        applyReroute,
+        requestReroute: requestDeviationReroute,
+      },
+      rerouting,
+    )
+      .then((res) => {
+        guidanceRef.current = res.nextState;
+        void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
+        if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
+        if (res.triggeredReroute) {
+          isReroutingRef.current = true;
+        }
+      })
+      .finally(() => {
+        isReroutingRef.current = false;
+      });
+  }, [activePins, applyReroute]);
+
   const handlePoint = useCallback(
     (point: GpsPoint) => {
       setCurrentPoint(point);
       const previousPoint = lastPointRef.current;
       lastPointRef.current = point;
+
       if (modeRef.current === 'free') {
-        const heading = deriveHeading(point, previousPoint);
-        const canLocate = point.accuracyM != null && point.accuracyM <= 35;
-        if (!canLocate || heading == null) {
-          setFreeWalkSafety({
-            status: 'unknown',
-            message: !canLocate
-              ? 'GPS 정확도가 낮아 전방 안전 정보를 확인할 수 없어요.'
-              : '이동 방향을 확인하면 등록된 전방 위험 제보를 확인해요.',
-          });
-        } else {
-          const frontHazards = getForwardHazardReports(
-            nearbyHazardsRef.current,
-            point.latitude,
-            point.longitude,
-            heading,
-          ).filter((report) => report.severity !== 'info');
-          const nearestHazard = frontHazards[0];
-          if (nearestHazard) {
-            const shouldAnnounce = !announcedHazardIdsRef.current.has(nearestHazard.report_id);
-            announcedHazardIdsRef.current.add(nearestHazard.report_id);
-            const distance = haversineMeters([point.latitude, point.longitude], [nearestHazard.lat, nearestHazard.lon]);
-            const message = formatHazardAlert(nearestHazard, distance);
-            setFreeWalkSafety({ status: 'alert', message });
-            if (shouldAnnounce) TTSNavigationService.speak(message, undefined, false, 'high');
-          } else {
-            setFreeWalkSafety(UNKNOWN_SAFETY_INFO);
-          }
-
-          const lastQuery = lastSafetyQueryRef.current;
-          const movedSinceQuery = lastQuery
-            ? haversineMeters([lastQuery.lat, lastQuery.lon], [point.latitude, point.longitude])
-            : Number.POSITIVE_INFINITY;
-          const shouldQuery = !lastQuery || point.timestamp - lastQuery.timestamp >= 30000 || movedSinceQuery >= 80;
-          if (shouldQuery && !safetyQueryInFlightRef.current) {
-            safetyQueryInFlightRef.current = true;
-            lastSafetyQueryRef.current = { timestamp: point.timestamp, lat: point.latitude, lon: point.longitude };
-            setFreeWalkSafety({ status: 'checking', message: '앞길의 계단과 오르막, 등록된 위험 제보를 확인하고 있어요.' });
-            void Promise.allSettled([
-              getNearbyHazardReports(point.latitude, point.longitude),
-              getForwardSafetyAnalysis(point.latitude, point.longitude, heading),
-            ]).then((results) => {
-              if (modeRef.current !== 'free') return;
-              const [hazardResult, safetyResult] = results;
-              const reports = hazardResult.status === 'fulfilled' ? hazardResult.value : [];
-              if (hazardResult.status === 'fulfilled') nearbyHazardsRef.current = reports;
-              const latestPoint = lastPointRef.current ?? point;
-              const currentHeading = deriveHeading(latestPoint, point);
-              const ahead = currentHeading == null ? [] : getForwardHazardReports(
-                reports,
-                latestPoint.latitude,
-                latestPoint.longitude,
-                currentHeading,
-              ).filter((report) => report.severity !== 'info');
-              const nearestHazard = ahead[0];
-              const safetyAlert = safetyResult.status === 'fulfilled'
-                ? formatForwardSafetyMessage(safetyResult.value) : null;
-              if (nearestHazard) {
-                const shouldAnnounce = !announcedHazardIdsRef.current.has(nearestHazard.report_id);
-                announcedHazardIdsRef.current.add(nearestHazard.report_id);
-                const distance = haversineMeters(
-                  [latestPoint.latitude, latestPoint.longitude],
-                  [nearestHazard.lat, nearestHazard.lon],
-                );
-                const message = [formatHazardAlert(nearestHazard, distance), safetyAlert].filter(Boolean).join(' ');
-                setFreeWalkSafety({ status: 'alert', message });
-                if (shouldAnnounce) TTSNavigationService.speak(message, undefined, false, 'high');
-              } else if (safetyAlert) {
-                const key = safetyAlert;
-                const shouldAnnounce = !announcedHazardIdsRef.current.has(key);
-                announcedHazardIdsRef.current.add(key);
-                setFreeWalkSafety({ status: 'alert', message: safetyAlert });
-                if (shouldAnnounce) TTSNavigationService.speak(safetyAlert, undefined, false, 'high');
-              } else {
-                const checks: string[] = [];
-                if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('오르막 정보가 아직 없어요');
-                if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 정보가 아직 없어요');
-                if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('앞길 정보를 아직 확인하지 못했어요');
-                if (hazardResult.status === 'rejected') checks.push('위험 제보를 불러오지 못했어요');
-                setFreeWalkSafety({
-                  status: 'unknown', message: checks.length
-                    ? `${checks.join(' · ')}. 정보가 없다고 안전하다는 뜻은 아니에요.`
-                    : UNKNOWN_SAFETY_INFO.message
-                });
-              }
-            })
-              .catch((error) => {
-                console.warn('[useWalkGuidance] 자유 산책 안전정보 조회 실패:', error);
-                setFreeWalkSafety({
-                  status: 'unavailable',
-                  message: '위험 제보를 불러오지 못했어요. 주변 상황은 아직 확인되지 않았어요.',
-                });
-              })
-              .finally(() => {
-                safetyQueryInFlightRef.current = false;
-              });
-          }
-        }
+        handleFreeWalkSafety(point, previousPoint);
+      } else if (modeRef.current === 'route') {
+        handleRouteWalkGuidance(point);
       }
-      const rerouting = isReroutingRef.current;
-
-      if (modeRef.current === 'route') void handleGuidancePoint(
-        point,
-        routeRef.current,
-        activePins,
-        guidanceRef.current,
-        {
-          speak: speakGuidanceEvent,
-          applyReroute,
-          requestReroute: requestDeviationReroute,
-        },
-        rerouting,
-      )
-        .then((res) => {
-          guidanceRef.current = res.nextState;
-          void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
-          if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
-          if (res.triggeredReroute) {
-            isReroutingRef.current = true;
-          }
-        })
-        .finally(() => {
-          isReroutingRef.current = false;
-        });
 
       setStats((prev) => {
         const nextDist = computeDistanceKm(getTrackBuffer());
@@ -366,7 +394,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
         };
       });
     },
-    [activePins, applyReroute],
+    [handleFreeWalkSafety, handleRouteWalkGuidance],
   );
 
   const lastNotifSecRef = useRef<number>(0);
