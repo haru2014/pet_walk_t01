@@ -176,7 +176,16 @@ class VoiceIntentRequest(BaseModel):
     origin_lon: Optional[float] = None
 
 
-@app.post("/api/v1/voice/transcribe")
+@app.post(
+    "/api/v1/voice/transcribe",
+    responses={
+        400: {"description": "녹음된 음성이 비어 있습니다."},
+        413: {"description": "음성 파일이 너무 큽니다. 짧게 다시 녹음해 주세요."},
+        415: {"description": "지원하지 않는 음성 파일 형식입니다."},
+        502: {"description": "Gemini 음성 인식에 실패했습니다."},
+        503: {"description": "음성 인식 서비스를 사용할 수 없습니다."},
+    },
+)
 def transcribe_voice_command(
     audio: UploadFile = File(...),
     dog_name: str = Form(default=""),
@@ -213,7 +222,13 @@ class TtsRequest(BaseModel):
     style: str = Field(..., max_length=120)
 
 
-@app.post("/api/v1/voice/tts")
+@app.post(
+    "/api/v1/voice/tts",
+    responses={
+        502: {"description": "Gemini TTS generation failed"},
+        503: {"description": "Gemini TTS 서비스를 사용할 수 없습니다."},
+    },
+)
 def generate_tts_endpoint(body: TtsRequest):
     """산책 안내 문구를 Gemini TTS WAV 오디오로 변환한다."""
     try:
@@ -278,7 +293,12 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     # 예전에는 코스 번호별 고정값(85/60/35%)이 그대로 나갔다.
     shade = profile.get("shade_ratio")
     shade_percent = round(shade * 100) if shade is not None else None
-    shade_level = None if shade is None else ("많음" if shade > 0.5 else "보통")
+    if shade is None:
+        shade_level = None
+    elif shade > 0.5:
+        shade_level = "많음"
+    else:
+        shade_level = "보통"
     return {
         "maxSlopePercent": profile.get("max_slope_percent"),
         "softSurfacePercent": soft_percent,
@@ -289,22 +309,54 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _format_course_reason(
+    cand: Any,
+    score: Optional[float],
+    fallback_reason: str,
+    slope_label: str,
+    slope_for_reason: Any,
+    lap_count: int,
+    lap_cycle_m: Optional[float],
+) -> str:
+    """반복 순환 안내 또는 AI 맞춤 점수 기반의 추천 사유 문구 구성."""
+    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
+        repeat_desc = f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
+        if score is not None:
+            return f"{repeat_desc}\nAI 맞춤 점수 {score:.0f}점: {slope_label} {slope_for_reason}%"
+        return f"{repeat_desc}\n{slope_label} {slope_for_reason}%의 완만하고 쾌적한 산책로입니다."
+    if score is not None:
+        return f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
+    return fallback_reason
+
+
+def _apply_profile_to_course(course: Dict[str, Any], profile: Dict[str, Any]) -> None:
+    """실측 프로필(경사, 폭신 노면, 계단)을 카드 필드에 반영 (#114)."""
+    course.update(_measured_card_fields(profile))
+    slope_source = profile.get("slope_source")
+    if slope_source:
+        course["slopeSource"] = slope_source
+    if slope_source == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
+        course["dataReliability"] = "measured"
+
+
 def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_reason: str = "",
                             profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     surface_types = cand.surface_types or []
     is_soft = "grass" in surface_types or "dirt" in surface_types
     slope_for_reason = profile.get("max_slope_percent") if profile else cand.max_slope_percent
     slope_label = "실측 최대 경사" if profile else "경사"
-    reason = (
-        f"AI 맞춤 점수 {score:.0f}점: {cand.name} ({slope_label} {slope_for_reason}%)"
-        if score is not None
-        else fallback_reason
-    )
+
+    lap_count = getattr(cand, "lap_count", 1) or 1
+    lap_cycle_m = getattr(cand, "lap_cycle_m", None)
+    reason = _format_course_reason(cand, score, fallback_reason, slope_label, slope_for_reason, lap_count, lap_cycle_m)
+
     course = {
         "id": cand.route_id,
         "name": cand.name,
         "distanceKm": f"{cand.total_distance_m / 1000.0:.1f} km",
         "estimatedMinutes": int(cand.estimated_duration_minutes),
+        "lapCount": lap_count,
+        "lapCycleMeters": round(lap_cycle_m, 1) if lap_cycle_m else None,
         "softRatio": "85%" if is_soft else "60%",
         "shadeLevel": "많음" if cand.average_shade_ratio > 0.5 else "보통",
         "stairsCount": "확인된 계단 0회" if not cand.has_stairs else "계단 있음",
@@ -316,12 +368,7 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "slopeSource": getattr(cand, "slope_source", "approximation"),
     }
     if profile:
-        # 경사·폭신 노면·계단은 실측값으로 바꾼다 (#114). 그늘은 자료가 없어 앱이 '정보 없음'을 처리한 뒤 바꾼다.
-        course.update(_measured_card_fields(profile))
-        if profile.get("slope_source"):
-            course["slopeSource"] = profile["slope_source"]
-        if profile.get("slope_source") == "dem" or profile.get("stairs_source") == "park_network_osm_tags":
-            course["dataReliability"] = "measured"
+        _apply_profile_to_course(course, profile)
     return course
 
 
@@ -419,6 +466,7 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
         "target_duration": target_duration,
         "speed_kmh": speed_kmh,
         "parking_lot_id": req.get("parking_lot_id") or req.get("parking_id"),
+        "regenerate_nonce": int(req.get("regenerate_nonce", 0) or 0),
     }
 
 
@@ -573,31 +621,25 @@ def _update_park_briefing(
         )
 
 
-def _validate_and_finalize_park_candidates(
-    agent_result: Any,
-    selected_park: Optional[str],
+def _filter_valid_park_candidates(
+    candidates: List[Any],
+    scored_candidates: List[Any],
+    selected_park: str,
     speed_kmh: float,
     target_duration: float,
-    origin_lon: float,
-    origin_lat: float,
-    weather_context: Dict[str, Any],
+    origin: Tuple[float, float],
     request_id: str,
-) -> Dict[str, Any]:
-    """공원 모드 후보 경로 일괄 검증 및 최고 경로 확정."""
-    if not selected_park:
-        raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
-
-    best = agent_result.best_route
-    scored_candidates = agent_result.all_scored_candidates
-    candidates = [s.candidate for s in scored_candidates] or [best]
+) -> Tuple[List[Any], Dict[str, Any], Optional[RoutePlanningError], Any]:
+    """공원 모드 후보 경로의 경계 및 순환 유효성을 검증하고 통과된 목록 반환."""
     valid_scored = []
     validations: Dict[str, Any] = {}
-    last_error = None
+    last_error: Optional[RoutePlanningError] = None
+    best = candidates[0] if candidates else None
 
     for index, candidate in enumerate(candidates):
         try:
             validation = _validate_candidate_route(
-                candidate, selected_park, speed_kmh, target_duration, (origin_lon, origin_lat), request_id
+                candidate, selected_park, speed_kmh, target_duration, origin, request_id
             )
             validations[candidate.route_id] = validation
             if scored_candidates:
@@ -621,14 +663,42 @@ def _validate_and_finalize_park_candidates(
                 )
             )
             continue
+    return valid_scored, validations, last_error, best
+
+
+def _validate_and_finalize_park_candidates(
+    agent_result: Any,
+    selected_park: Optional[str],
+    speed_kmh: float,
+    target_duration: float,
+    origin_lon: float,
+    origin_lat: float,
+    weather_context: Dict[str, Any],
+    request_id: str,
+    regenerate_nonce: int = 0,
+) -> Dict[str, Any]:
+    """공원 모드 후보 경로 일괄 검증 및 최고 경로 확정."""
+    if not selected_park:
+        raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
+
+    best = agent_result.best_route
+    scored_candidates = agent_result.all_scored_candidates
+    candidates = [s.candidate for s in scored_candidates] or [best]
+
+    valid_scored, validations, last_error, fallback_best = _filter_valid_park_candidates(
+        candidates, scored_candidates, selected_park, speed_kmh, target_duration, (origin_lon, origin_lat), request_id
+    )
 
     if not validations:
         raise last_error or RoutePlanningError("NO_VALID_LOOP", "공원 안의 유효한 순환 경로가 없습니다.")
 
-    agent_result.all_scored_candidates = valid_scored
     if valid_scored:
         best = valid_scored[0].candidate
         agent_result.best_score = valid_scored[0].total_score
+    else:
+        best = fallback_best
+
+    agent_result.all_scored_candidates = valid_scored
     agent_result.best_route = best
     _update_park_briefing(agent_result, best, weather_context, validations)
     return validations
@@ -760,6 +830,51 @@ def _build_walk_plan_response(
     return resp_data
 
 
+def _resolve_walk_origin(
+    origin_lat: float,
+    origin_lon: float,
+    parking_lot_id: Optional[str],
+    origin_mode: str,
+    pilot_park_id: Optional[str],
+    target_distance_m: float,
+) -> Tuple[float, float, Optional[str], Optional[Dict[str, Any]]]:
+    """출발지 모드 및 주차장 선택에 따른 실제 출발 좌표와 주차장 정보 확정."""
+    origin_lat, origin_lon, matched_parking = _resolve_parking_snap(
+        origin_lat, origin_lon, parking_lot_id, origin_mode
+    )
+    default_lot = _park_center_to_parking(
+        origin_lat,
+        origin_lon,
+        origin_mode,
+        pilot_park_id,
+        parking_lot_id,
+        target_distance_m=target_distance_m,
+    )
+    if default_lot is not None:
+        origin_lat = default_lot["entrance_lat"]
+        origin_lon = default_lot["entrance_lon"]
+        matched_parking = default_lot
+        parking_lot_id = default_lot["parking_id"]
+    return origin_lat, origin_lon, parking_lot_id, matched_parking
+
+
+def _resolve_walk_user_query(req: Dict[str, Any], dog_name: str, target_duration: float) -> Tuple[str, Dict[str, Any]]:
+    """요청 텍스트 및 환경 설정 오버라이드를 결합한 산책 프롬프트 확정."""
+    intent_overrides = _app_intent_overrides(req)
+    request_text = str(req.get("request_text") or "").strip()
+    if intent_overrides or request_text:
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 산책하고 싶어요. {request_text}".strip()
+    else:
+        default_query = f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
+    user_query = req.get("user_query") or req.get("prompt") or req.get("query") or default_query
+    return user_query, intent_overrides
+
+
+def _rotate_scored_candidates(agent_result: Any, regenerate_nonce: int) -> None:
+    """재생성 요청 시 추천 코스는 유지하고 대안 코스는 이미 비유사 후보로 생성되므로 추가 순환을 하지 않는다."""
+    return
+
+
 @app.post(
     "/api/v1/walk/plan",
     responses={
@@ -774,38 +889,24 @@ def plan_walk_route(req: Dict[str, Any]):
     request_id = str(uuid4())
 
     params = _validate_and_parse_walk_plan_request(req)
-    origin_lat = params["origin_lat"]
-    origin_lon = params["origin_lon"]
-    pilot_park_id = params["pilot_park_id"]
-    origin_mode = params["origin_mode"]
     target_duration = params["target_duration"]
     speed_kmh = params["speed_kmh"]
-    parking_lot_id = params["parking_lot_id"]
+    target_distance_m = speed_kmh * 1000.0 / 60.0 * target_duration
 
-    origin_lat, origin_lon, matched_parking = _resolve_parking_snap(
-        origin_lat, origin_lon, parking_lot_id, origin_mode
+    origin_lat, origin_lon, parking_lot_id, matched_parking = _resolve_walk_origin(
+        params["origin_lat"],
+        params["origin_lon"],
+        params["parking_lot_id"],
+        params["origin_mode"],
+        params["pilot_park_id"],
+        target_distance_m,
     )
-    default_lot = _park_center_to_parking(
-        origin_lat, origin_lon, origin_mode, pilot_park_id, parking_lot_id,
-        target_distance_m=speed_kmh * 1000.0 / 60.0 * target_duration,  # walk_planning_agent 의 D = V × T 와 같은 식
+
+    weather_context = req.get("weather_context") or weather_context_from_response(
+        _live_heat_risk_response(origin_lat, origin_lon)
     )
-    if default_lot is not None:
-        origin_lat, origin_lon, matched_parking = default_lot["entrance_lat"], default_lot["entrance_lon"], default_lot
-        parking_lot_id = default_lot["parking_id"]
 
-    weather_context = req.get("weather_context")
-    if not weather_context:
-        weather_context = weather_context_from_response(_live_heat_risk_response(origin_lat, origin_lon))
-
-    # 앱 산책 설정의 체크 항목 (계단 피하기·그늘·폭신한 길). 예전에는 읽지 않아 설정이 추천에 반영되지 않았다
-    intent_overrides = _app_intent_overrides(req)
-    request_text = str(req.get("request_text") or "").strip()
-    if intent_overrides or request_text:
-        # 앱 요청: 조건은 체크 항목으로 받으므로 기본 문장에 특정 노면을 넣지 않고, 사용자가 쓴 요청 문장을 붙인다
-        default_query = f"{dog_name}와 {target_duration:g}분 동안 산책하고 싶어요. {request_text}".strip()
-    else:
-        default_query = f"{dog_name}와 {target_duration:g}분 동안 폭신한 길 위주로 걷고 싶어요."
-    user_query = req.get("user_query") or req.get("prompt") or req.get("query") or default_query
+    user_query, intent_overrides = _resolve_walk_user_query(req, dog_name, target_duration)
 
     client_dog = {
         "dog_id": req.get("dog_id", "dog_default"),
@@ -818,8 +919,13 @@ def plan_walk_route(req: Dict[str, Any]):
     }
 
     recent_feedback = _parse_recent_feedback(req)
+    origin_mode = params["origin_mode"]
     park_mode = origin_mode in ("park", "parking_pnr")
-    selected_park = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id) if park_mode else None
+    selected_park = (
+        resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=params["pilot_park_id"])
+        if park_mode
+        else None
+    )
     logger.info(
         json.dumps(
             {
@@ -830,6 +936,7 @@ def plan_walk_route(req: Dict[str, Any]):
                 # 현재 위치 출발은 자택일 수 있어 운영 로그에는 약 1km 단위(소수 둘째 자리)로만 남긴다 (200m 마스킹 감사)
                 "origin_approx": [round(origin_lon, 2), round(origin_lat, 2)],
                 "target_minutes": target_duration,
+                "regenerate_nonce": params["regenerate_nonce"],
             },
             ensure_ascii=False,
         )
@@ -846,8 +953,9 @@ def plan_walk_route(req: Dict[str, Any]):
             origin_mode=origin_mode,
             parking_lot_id=parking_lot_id,
             # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
-            pilot_park_id=selected_park or pilot_park_id,
+            pilot_park_id=selected_park or params["pilot_park_id"],
             intent_overrides=intent_overrides,
+            regenerate_nonce=params["regenerate_nonce"],
         )
 
         validations = {}
@@ -861,7 +969,10 @@ def plan_walk_route(req: Dict[str, Any]):
                 origin_lat=origin_lat,
                 weather_context=weather_context,
                 request_id=request_id,
+                regenerate_nonce=params["regenerate_nonce"],
             )
+        else:
+            _rotate_scored_candidates(agent_result, params["regenerate_nonce"])
 
         return _build_walk_plan_response(
             agent_result=agent_result,

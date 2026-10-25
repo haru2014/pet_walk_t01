@@ -85,6 +85,8 @@ class LoopPlan:
     steps: List[Dict[str, Any]]
     distance_m: float
     source: str
+    lap_count: int = 1
+    lap_cycle_m: Optional[float] = None
 
 
 def build_loop_waypoints(
@@ -174,6 +176,25 @@ def _collect_relaxed(sink: Optional[List[Tuple[float, List[List[float]]]]], coor
     sink.append((error + 2.0 * max(0.0, retrace - MAX_BACKTRACK_RATIO), coords))
 
 
+def _query_scale_lengths(
+    origin_lat: float,
+    origin_lon: float,
+    lengths: List[float],
+    variant: int,
+    target_distance_m: float,
+    bearing_offset: float,
+) -> List[Any]:
+    """주어진 스케일별 목표 루프 길이에 대해 OSRM 후보 경로들을 단일 또는 병렬 평가."""
+    if len(lengths) == 1:
+        return [_evaluate_scale(origin_lat, origin_lon, lengths[0], variant, target_distance_m, bearing_offset)]
+    with ThreadPoolExecutor(max_workers=len(lengths)) as pool:
+        futures = [
+            pool.submit(_evaluate_scale, origin_lat, origin_lon, lm, variant, target_distance_m, bearing_offset)
+            for lm in lengths
+        ]
+        return [f.result() for f in futures]
+
+
 def _plan_live(
     origin_lat: float,
     origin_lon: float,
@@ -196,30 +217,16 @@ def _plan_live(
     for _ in range(max_refinements + 1):
         round_started = time.monotonic()
         lengths = [loop_length * sc for sc in scales]
-
-        if len(lengths) == 1:
-            results = [_evaluate_scale(origin_lat, origin_lon, lengths[0], variant, target_distance_m, bearing_offset)]
-        else:
-            with ThreadPoolExecutor(max_workers=len(lengths)) as pool:
-                futures = [
-                    pool.submit(_evaluate_scale, origin_lat, origin_lon, lm, variant, target_distance_m, bearing_offset)
-                    for lm in lengths
-                ]
-                results = [f.result() for f in futures]
-
+        results = _query_scale_lengths(origin_lat, origin_lon, lengths, variant, target_distance_m, bearing_offset)
         round_elapsed = time.monotonic() - round_started
         for res in results:
             if res is not None:
                 _collect_relaxed(relaxed_sink, res[0], res[2])
         anchor, best = _update_round_best(lengths, results, target_distance_m, best)
 
-        if anchor is None:
+        if anchor is None or best is None:
             break
-        if best is None:
-            # 순환 종결·왕복 기준을 못 맞춘 방향은 반경을 바꿔도 거의 나아지지 않는다 (서쪽 실측: 2282→842→2282m 널뜀).
-            # 예산을 쓰지 말고 호출자가 다른 방향으로 다시 시도하게 한다.
-            break
-        if (best is not None and best[1] <= DISTANCE_TOLERANCE) or time.monotonic() + round_elapsed > deadline:
+        if best[1] <= DISTANCE_TOLERANCE or time.monotonic() + round_elapsed > deadline:
             break
 
         ratio = target_distance_m / anchor[1]
@@ -233,12 +240,19 @@ def _plan_live(
     return _to_plan(best[0], "osrm_live")
 
 
-def _to_plan(coords: List[List[float]], source: str) -> LoopPlan:
+def _to_plan(
+    coords: List[List[float]],
+    source: str,
+    lap_count: int = 1,
+    lap_cycle_m: Optional[float] = None,
+) -> LoopPlan:
     return LoopPlan(
         coords=coords,
         steps=build_turn_steps(coords),
         distance_m=round(polyline_length_m(coords), 1),
         source=source,
+        lap_count=lap_count,
+        lap_cycle_m=lap_cycle_m,
     )
 
 
@@ -248,15 +262,18 @@ def _plan_static_pilot_park(
     variant: int,
     pilot_park_id: Optional[str] = None,
     target_distance_m: Optional[float] = None,
+    regenerate_nonce: int = 0,
 ) -> Optional[LoopPlan]:
     """Compatibility entry point: only verified, boundary-constrained graph routes."""
     park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
     if park_key is None:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
     target = target_distance_m or 1400.0
-    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant)
+    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant, regenerate_nonce=regenerate_nonce)
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
-    return _to_plan(coords, f"park_graph_{park_key}")
+    lap_count = getattr(coords, "lap_count", 1) or 1
+    lap_cycle_m = getattr(coords, "lap_cycle_m", None)
+    return _to_plan(coords, f"park_graph_{park_key}", lap_count=lap_count, lap_cycle_m=lap_cycle_m)
 
 
 def _plan_static_seoul(
@@ -343,6 +360,7 @@ def _plan_variant(
     deadline: float,
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
+    regenerate_nonce: int = 0,
 ) -> Optional[LoopPlan]:
     """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
 
@@ -350,12 +368,20 @@ def _plan_variant(
     """
     if origin_mode in ("park", "parking_pnr"):
         return _plan_static_pilot_park(
-            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m
+            origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m,
+            regenerate_nonce=regenerate_nonce,
         )
 
-    # 📍 현위치 기반 모드 (current_location)
+    # 📍 현위치 기반 모드 (current_location): 1안(추천)은 유지하고 2·3안은 회전 오프셋 적용
+    bearing_offset = 0.0
+    if regenerate_nonce > 0 and variant in (2, 3):
+        bearing_offset = ((regenerate_nonce * 60.0) % 360.0)
+
     relaxed: List[Tuple[float, List[List[float]]]] = []
-    plan = _plan_live(origin_lat, origin_lon, target_distance_m, variant, deadline, relaxed_sink=relaxed)
+    plan = _plan_live(
+        origin_lat, origin_lon, target_distance_m, variant, deadline,
+        bearing_offset=bearing_offset, relaxed_sink=relaxed
+    )
     if plan is not None:
         return plan
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
@@ -392,6 +418,46 @@ def _rectangle_candidates(origin_lat: float, origin_lon: float, target_distance_
     }
 
 
+def _substitute_seoul_duplicates(
+    plans: Dict[int, LoopPlan], origin_lat: float, origin_lon: float, origin_mode: str
+) -> None:
+    """서울시청 권역의 중복 순환 후보를 정적 검증 경로로 대체."""
+    if origin_mode in ("park", "parking_pnr"):
+        return
+    seen_routes = {
+        tuple((round(lon, 6), round(lat, 6)) for lon, lat in plan.coords)
+        for plan in plans.values()
+    }
+    for variant, plan in list(plans.items()):
+        signature = tuple((round(lon, 6), round(lat, 6)) for lon, lat in plan.coords)
+        count = sum(
+            tuple((round(lon, 6), round(lat, 6)) for lon, lat in existing.coords) == signature
+            for existing in plans.values()
+        )
+        if count <= 1:
+            continue
+        alternate = _plan_static_seoul(origin_lat, origin_lon, 1)
+        if alternate is None:
+            continue
+        alt_sig = tuple((round(lon, 6), round(lat, 6)) for lon, lat in alternate.coords)
+        if alt_sig not in seen_routes:
+            plans[variant] = alternate
+            seen_routes.add(alt_sig)
+
+
+def _deduplicate_osrm_live(plans: Dict[int, LoopPlan], origin_mode: str) -> Dict[int, LoopPlan]:
+    """도로가 성긴 곳에서 OSRM 이 동일한 경로를 준 경우 후보 번호가 작은 쪽만 유지."""
+    if origin_mode in ("park", "parking_pnr"):
+        return plans
+    unique: Dict[Tuple, int] = {}
+    for variant in sorted(plans):
+        if plans[variant].source != "osrm_live":
+            continue
+        unique.setdefault(tuple((round(lon, 6), round(lat, 6)) for lon, lat in plans[variant].coords), variant)
+    keep = set(unique.values())
+    return {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
+
+
 def plan_loop_candidates(
     origin_lat: float,
     origin_lon: float,
@@ -399,6 +465,7 @@ def plan_loop_candidates(
     time_budget_s: float = PLAN_TIME_BUDGET_S,
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
+    regenerate_nonce: int = 0,
 ) -> Dict[int, LoopPlan]:
     """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
     deadline = time.monotonic() + time_budget_s
@@ -413,49 +480,15 @@ def plan_loop_candidates(
                 deadline,
                 origin_mode,
                 pilot_park_id,
+                regenerate_nonce,
             )
             for variant in VARIANT_BEARINGS
         }
         results = {variant: future.result() for variant, future in futures.items()}
 
-    # 실제 길 기반 코스를 못 만든 후보는 뺀다 (네모를 내보내지 않는다). 하나도 없을 때만 마지막 수단.
     plans = {variant: plan for variant, plan in results.items() if plan is not None}
     if not plans:
         return _rectangle_candidates(origin_lat, origin_lon, target_distance_m)
 
-    # Sparse offline graphs can resolve multiple bearings to the same cycle.
-    # For the Seoul City Hall area, substitute a validated road-aligned loop
-    # for a duplicate so choosing another candidate changes the actual route.
-    seen_routes = {
-        tuple((round(lon, 6), round(lat, 6)) for lon, lat in plan.coords)
-        for plan in plans.values()
-    }
-    for variant, plan in plans.items():
-        if origin_mode in ("park", "parking_pnr"):
-            continue
-        signature = tuple((round(lon, 6), round(lat, 6)) for lon, lat in plan.coords)
-        if sum(
-            tuple((round(lon, 6), round(lat, 6)) for lon, lat in existing.coords) == signature
-            for existing in plans.values()
-        ) <= 1:
-            continue
-
-        alternate = _plan_static_seoul(origin_lat, origin_lon, 1)
-        if alternate is None:
-            continue
-        alternate_signature = tuple((round(lon, 6), round(lat, 6)) for lon, lat in alternate.coords)
-        if alternate_signature not in seen_routes:
-            plans[variant] = alternate
-            seen_routes.add(alternate_signature)
-
-    if origin_mode not in ("park", "parking_pnr"):
-        # 도로가 성긴 곳에서는 방향이 달라도 OSRM 이 같은 길을 줄 수 있다. 실제 길(osrm_live)끼리 같으면 하나만 남긴다 (후보 번호가 작은 쪽 유지).
-        unique: Dict[Tuple, int] = {}
-        for variant in sorted(plans):
-            if plans[variant].source != "osrm_live":
-                continue
-            unique.setdefault(tuple((round(lon, 6), round(lat, 6)) for lon, lat in plans[variant].coords), variant)
-        keep = set(unique.values())
-        plans = {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
-
-    return plans
+    _substitute_seoul_duplicates(plans, origin_lat, origin_lon, origin_mode)
+    return _deduplicate_osrm_live(plans, origin_mode)

@@ -69,6 +69,7 @@ export interface ThemeColors {
   mapRoad: string;
   mapRoadEdge: string;
   mapLabel: string;
+  mapGuidance: string; // 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 대비 색상
 
   pocketBg: string;
   pocketHud: string;
@@ -113,6 +114,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E3DBC7',
     mapLabel: '#5A7361',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#1E2520',
     pocketHud: '#CFA052',
@@ -154,6 +156,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E7EBE7',
     mapLabel: '#799084',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -195,6 +198,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#DDD6FE',
     mapLabel: '#6D28D9',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#1E1B4B',   // 딥 인디고 포켓 배경
     pocketHud: '#A78BFA',  // 네온 바이올렛 HUD
@@ -236,6 +240,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     mapRoad: '#334155',
     mapRoadEdge: '#475569',
     mapLabel: '#94A3B8',
+    mapGuidance: '#FB923C', // 브라이트 오렌지 (다크 모드 및 네온 민트 대비 주황색 안내)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -251,6 +256,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
 export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
   ...BASE_THEME_PALETTES,
+
   ocean: {
     ...BASE_THEME_PALETTES.forest,
     background: '#EFF6FF',
@@ -273,6 +279,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapWater: '#E0F2FE',
     mapRoadEdge: '#BFDBFE',
     mapLabel: '#1D4ED8',
+    mapGuidance: '#EA580C', // 코랄 오렌지 (오션 블루 보행로 보색 대비)
     accent: '#0EA5E9',
     accentLight: '#DBEAFE',
   },
@@ -298,6 +305,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapPark: '#FFEDD5',
     mapRoadEdge: '#FED7AA',
     mapLabel: '#C2410C',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
     success: '#16A34A',
     warning: '#F97316',
     accent: '#FB923C',

@@ -72,6 +72,7 @@ export interface MapLibreMapViewProps {
 export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   route,
   stepPins = [],
+  speedKmH: _speedKmH,
   width = '100%',
   height = 260,
   maskingCenter,
@@ -149,11 +150,15 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
 
         const initialBounds = getRouteBounds(latestRouteRef.current);
-        const defaultCenter: [number, number] = initialBounds
-          ? [(initialBounds[0][0] + initialBounds[1][0]) / 2, (initialBounds[0][1] + initialBounds[1][1]) / 2]
-          : (latestMaskingCenterRef.current
-            ? [latestMaskingCenterRef.current[0], latestMaskingCenterRef.current[1]]
-            : [127.3805, 36.4315]);
+        let defaultCenter: [number, number] = [127.3805, 36.4315];
+        if (initialBounds) {
+          defaultCenter = [
+            (initialBounds[0][0] + initialBounds[1][0]) / 2,
+            (initialBounds[0][1] + initialBounds[1][1]) / 2,
+          ];
+        } else if (latestMaskingCenterRef.current) {
+          defaultCenter = [latestMaskingCenterRef.current[0], latestMaskingCenterRef.current[1]];
+        }
 
         mapInstance = new maplibregl.Map({
           container: webContainerRef.current,
@@ -349,7 +354,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   useEffect(() => {
     if (!isWeb && mobileMapLoadedRef.current && webViewRef.current) {
       webViewRef.current.postMessage(JSON.stringify({
-        action: 'UPDATE_ROUTE', route, stepPins: directionalPins, routeColors,
+        action: 'UPDATE_ROUTE',
+        route,
+        stepPins: directionalPins,
+        routeColors,
         routeConditionColor: routeConditionColorExpression(routeColors),
       }));
     }

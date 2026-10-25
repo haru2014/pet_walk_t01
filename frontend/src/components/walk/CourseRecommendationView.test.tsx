@@ -1,7 +1,14 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CourseRecommendationView } from './CourseRecommendationView';
+import {
+  CourseRecommendationView,
+  formatCourseDisplayName,
+  formatCourseReasonText,
+  getCourseFeatureBadge,
+  getThemeContrastingAccentColor,
+  getWeatherEmoji,
+} from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkPreferences } from '../../types/walkSettings';
 
@@ -156,5 +163,96 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
     expect(html).toContain('추천 산책 코스');
     expect(html).toContain('기본 안심 코스');
+    // Option 2: 하단 액션 바에 다시 추천 버튼과 산책 시작 버튼이 공존
+    expect(html).toContain('다시 추천');
+    expect(html).toContain('이 코스로 산책 시작하기');
+    expect(html).toContain('다른 코스 다시 추천받기');
+  });
+
+  it('하단 액션 영역에 다시 추천 버튼(Option 2)이 렌더링된다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('다시 추천');
+    expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
+  });
+
+  it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
+    expect(formatCourseDisplayName('🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km')).toBe(
+      '🏞️ 세종호수공원 순환로 · 반시계 방향'
+    );
+    expect(formatCourseDisplayName('대전 유림공원 내부 보행로 · 2안 시계 방향 2.3km')).toBe(
+      '유림공원 순환로 · 시계 방향'
+    );
+    expect(
+      formatCourseDisplayName('대전 갑천생태호수공원(도안호수공원) 내부 보행로 · 1안 시계 방향 2.2km')
+    ).toBe('도안호수공원 순환로 · 시계 방향');
+    expect(formatCourseDisplayName('안심 기본 코스')).toBe('안심 기본 코스');
+  });
+
+  it('formatCourseReasonText는 추천 사유에서 중복 점수, 거리와 안 번호를 제거한다', () => {
+    expect(
+      formatCourseReasonText(
+        'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)'
+      )
+    ).toBe('🏞️ 세종호수공원 순환로 · 반시계 방향 (실측 최대 경사 2.7%)');
+
+    expect(
+      formatCourseReasonText(
+        'AI 맞춤 점수 86점: 🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km (실측 최대 경사 2.7%)',
+        '🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km'
+      )
+    ).toBe('실측 최대 경사 2.7%의 완만하고 쾌적한 산책 코스입니다.');
+  });
+
+  it('getCourseFeatureBadge는 코스별 고유 특징 뱃지 정보를 반환한다', () => {
+    const badge0 = getCourseFeatureBadge(
+      { id: 'c1', name: '코스1', estimatedMinutes: 30, distanceKm: '1.5' },
+      0
+    );
+    expect(badge0.label).toBe('최적 맞춤');
+    expect(badge0.icon).toBe('🏆');
+
+    const badgeSoft = getCourseFeatureBadge(
+      { id: 'c2', name: '코스2', estimatedMinutes: 30, distanceKm: '1.5', softSurfacePercent: 70 },
+      1
+    );
+    expect(badgeSoft.label).toBe('폭신 흙길');
+    expect(badgeSoft.icon).toBe('🌿');
+  });
+
+  it('getThemeContrastingAccentColor는 테마별 주 색상에 대비되는 강조 색상을 반환한다', () => {
+    expect(getThemeContrastingAccentColor('dusty_amber')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('forest')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('mint')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('vivid_violet')).toBe('#D97706');
+    expect(getThemeContrastingAccentColor('ocean')).toBe('#EA580C');
+    expect(getThemeContrastingAccentColor('coral')).toBe('#0284C7');
+    expect(getThemeContrastingAccentColor('dark')).toBe('#FBBF24');
+    expect(getThemeContrastingAccentColor('unknown', { accent: '#AABBCC' })).toBe('#AABBCC');
+  });
+
+  it('getWeatherEmoji는 브리핑 문구의 날씨 및 안전 상태에 맞는 이모지를 반환한다', () => {
+    expect(getWeatherEmoji('지금 비가 오고 있어요. 우비를 챙겨주세요.')).toBe('🌧️');
+    expect(getWeatherEmoji('눈이 내려 빙판길에 주의하세요.')).toBe('❄️');
+    expect(getWeatherEmoji('한낮 폭염과 높은 지면열에 주의하세요.')).toBe('☀️');
+    expect(getWeatherEmoji('바람이 강하니 낙하물에 주의하세요.')).toBe('💨');
+    expect(getWeatherEmoji('구름이 많고 흐린 날씨입니다.')).toBe('☁️');
+    expect(getWeatherEmoji('안전하고 쾌적한 산책 되세요.')).toBe('🐾');
+    expect(getWeatherEmoji('')).toBe('🌤️');
   });
 });

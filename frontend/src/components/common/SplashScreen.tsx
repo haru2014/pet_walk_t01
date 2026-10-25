@@ -1,5 +1,5 @@
 import { TYPOGRAPHY } from '../../theme/tokens';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import Svg, { Ellipse, Path } from 'react-native-svg';
@@ -39,15 +39,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   initializationError,
   onRetry,
 }) => {
-  const stepOpacity = useRef(STEP_POSITIONS.map(() => new Animated.Value(0))).current;
-  const stepScale = useRef(STEP_POSITIONS.map(() => new Animated.Value(0.3))).current;
-  const stepLift = useRef(STEP_POSITIONS.map(() => new Animated.Value(20))).current;
-  const rippleOpacity = useRef(STEP_POSITIONS.map(() => new Animated.Value(0))).current;
-  const rippleScale = useRef(STEP_POSITIONS.map(() => new Animated.Value(0.5))).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.4)).current;
-  const brandingOpacity = useRef(new Animated.Value(0)).current;
-  const brandingLift = useRef(new Animated.Value(15)).current;
+  const [stepOpacity] = useState(() => STEP_POSITIONS.map(() => new Animated.Value(0)));
+  const [stepScale] = useState(() => STEP_POSITIONS.map(() => new Animated.Value(0.3)));
+  const [stepLift] = useState(() => STEP_POSITIONS.map(() => new Animated.Value(20)));
+  const [rippleOpacity] = useState(() => STEP_POSITIONS.map(() => new Animated.Value(0)));
+  const [rippleScale] = useState(() => STEP_POSITIONS.map(() => new Animated.Value(0.5)));
+  const [logoOpacity] = useState(() => new Animated.Value(0));
+  const [logoScale] = useState(() => new Animated.Value(0.4));
+  const [brandingOpacity] = useState(() => new Animated.Value(0));
+  const [brandingLift] = useState(() => new Animated.Value(15));
   const completionCallback = useRef(onAnimationComplete);
   const hasCompleted = useRef(false);
 

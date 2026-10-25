@@ -59,10 +59,12 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           </View>
           <View style={styles.titleContent}>
             <View style={styles.titleWithArrow}>
-              <Text style={[styles.cardTitle, styles.headerTitle, { color: colors.textMain }]}>이번 주 산책 달성도</Text>
+              <Text style={[styles.cardTitle, styles.headerTitle, { color: colors.textMain }]} numberOfLines={1}>
+                이번 주 산책 달성도
+              </Text>
               <AppIcon name="chevronRight" size={14} color={colors.textMuted} />
             </View>
-            <Text style={[styles.rangeSubtitle, { color: colors.textMuted }]}>
+            <Text style={[styles.rangeSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
               {stats.weekRangeLabel}
             </Text>
           </View>
@@ -81,6 +83,7 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
           ]}
         >
           <Text
+            numberOfLines={1}
             style={[
               styles.badgeText,
               {
@@ -220,17 +223,15 @@ export const WeeklyWalkReportCard: React.FC<WeeklyWalkReportCardProps> = ({
       {/* 5. 직전 완주 산책 인라인 푸터 (Zero-Scroll 통합 규격) */}
       {recentWalk && (
         <View style={[styles.recentWalkRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <View style={styles.recentWalkLeft}>
-            <View style={styles.recentWalkTitleRow}>
-              <Text style={styles.recentPawIcon}>🐾</Text>
-              <Text style={[styles.recentWalkTitle, { color: colors.textMain }]}>
-                {recentWalk.title}
-              </Text>
-            </View>
-            <Text style={[styles.recentWalkMeta, { color: colors.textMuted }]}>
-              {recentWalk.distanceKm}km · {recentWalk.durationMinutes}분 · 완만 {recentWalk.safeRatioPercent}%
+          <View style={styles.recentWalkTitleRow}>
+            <Text style={styles.recentPawIcon}>🐾</Text>
+            <Text style={[styles.recentWalkTitle, { color: colors.textMain }]} numberOfLines={1}>
+              {recentWalk.title}
             </Text>
           </View>
+          <Text style={[styles.recentWalkMeta, { color: colors.textMuted }]} numberOfLines={1}>
+            {recentWalk.distanceKm}km · {recentWalk.durationMinutes}분 · 완만 {recentWalk.safeRatioPercent}%
+          </Text>
         </View>
       )}
 
@@ -257,15 +258,18 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   headerRow: {
-    alignItems: 'flex-start',
-    gap: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    width: '100%',
+    flex: 1,
+    minWidth: 0,
   },
   titleContent: {
     flex: 1,
@@ -277,12 +281,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   titleWithArrow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   headerTitle: {
     flexShrink: 1,
@@ -301,8 +306,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
+    alignSelf: 'center',
+    flexShrink: 0,
   },
   badgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -443,30 +448,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recentWalkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 7,
     borderRadius: 9,
     borderWidth: 1,
     marginBottom: 5,
-  },
-  recentWalkLeft: {
-    gap: 2,
+    gap: 8,
   },
   recentWalkTitleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 5,
+    flexShrink: 0,
   },
   recentPawIcon: {
-    fontSize: 10.5,
+    fontSize: 11,
   },
   recentWalkTitle: {
-    fontSize: TYPOGRAPHY.cardTitle,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
-    flex: 1,
   },
   recentWalkMeta: {
     fontSize: TYPOGRAPHY.caption,
     fontWeight: '500',
+    flexShrink: 1,
+    textAlign: 'right',
   },
 });

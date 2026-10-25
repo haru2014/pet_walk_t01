@@ -6,6 +6,7 @@
 - 다른 순환로가 부족한 작은 공원은 같은 길의 반대 방향으로 채운다 (방향 표시로 구분된다)
 """
 import math
+from typing import Any, Optional, Tuple
 
 import networkx as nx
 from shapely.geometry import LineString
@@ -158,6 +159,17 @@ def warm_park_cycles(graph: nx.Graph) -> int:
     return sum(len(_cached_extra_cycles(graph, frozenset(nodes))) for nodes in nx.connected_components(graph))
 
 
+class ParkRoute(list):
+    """공원 순환 경로 좌표 목록 및 반복 바퀴 수 메타데이터."""
+    lap_count: int = 1
+    lap_cycle_m: float = 0.0
+
+    def __init__(self, iterable=(), lap_count: int = 1, lap_cycle_m: float = 0.0):
+        super().__init__(iterable)
+        self.lap_count = lap_count
+        self.lap_cycle_m = lap_cycle_m
+
+
 def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float) -> list:
     """조건에 맞는 순환 코스를 목표 거리에 가까운 순으로 모은다.
 
@@ -191,58 +203,95 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
         raise RoutePlanningError("NO_VALID_LOOP", "공원 내부의 연결된 보행로에서 조건에 맞는 순환 경로가 없습니다.")
     scored.sort(key=lambda item: item[:3])
 
-    def builder(index: int, repeats: int, entry: tuple):
-        def build() -> list:
+    def builder(index: int, repeats: int, entry: tuple, cycle_length: float):
+        def build() -> ParkRoute:
             cycle = cycles[index][0]
             position = cycle.index(entry)
             cycle = cycle[position:] + cycle[:position]
             approach = paths[entry]
             nodes = approach + (cycle[1:] + [entry]) * repeats + list(reversed(approach[:-1]))
-            return [list(node) for node in nodes]
+            return ParkRoute([list(node) for node in nodes], lap_count=repeats, lap_cycle_m=round(cycle_length, 1))
+        build.repeats = repeats
+        build.cycle_length_m = round(cycle_length, 1)
         return build
 
     approach_edges: dict = {}
     candidates = []
     for diff, index, repeats, entry in scored:
+        cycle_len = cycles[index][1]
         if entry not in approach_edges:  # route_edge_set 과 같은 모양: 방향 없는 간선의 집합
             approach_edges[entry] = frozenset(frozenset(edge) for edge in zip(paths[entry], paths[entry][1:]))
-        candidates.append((diff, cycles[index][2] | approach_edges[entry], builder(index, repeats, entry)))
+        candidates.append((diff, cycles[index][2] | approach_edges[entry], builder(index, repeats, entry, cycle_len)))
     return candidates
 
 
-def _select_distinct(candidates: list) -> list:
-    """서로 다른 길 3개를 고른다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
-    chosen: list = []  # [(coords, edge_set, shape)]
+def _is_candidate_distinct(
+    edges: Any,
+    build: Any,
+    chosen: list,
+    max_overlap: float,
+) -> Optional[Tuple[ParkRoute, Any, Any]]:
+    """후보 경로가 이미 선택된 경로들과 엣지 및 공간적으로 충분히 구별되는지 확인."""
+    if not all(_overlap(edges, other) < max_overlap for _, other, _ in chosen):
+        return None
+    coords = build()
+    if any(coords == c for c, _, _ in chosen):
+        return None
+    shape = _shape(coords)
+    if not all(spatial_overlap(shape, other) < max_overlap for _, _, other in chosen):
+        return None
+    return (coords, edges, shape)
 
-    def add_if(max_overlap: float) -> None:
-        for _, edges, build in candidates:
-            if len(chosen) == CANDIDATE_COUNT:
-                return
-            if all(_overlap(edges, other) < max_overlap for _, other, _ in chosen):
-                coords = build()
-                if any(coords == c for c, _, _ in chosen):
-                    continue
-                shape = _shape(coords)
-                if all(spatial_overlap(shape, other) < max_overlap for _, _, other in chosen):
-                    chosen.append((coords, edges, shape))
 
-    add_if(SAME_ROUTE_OVERLAP)
-    if len(chosen) < CANDIDATE_COUNT:
-        add_if(RELAXED_OVERLAP)
-    base = list(chosen)
-    for coords, edges, shape in base:  # 같은 길의 반대 방향으로 채운다
-        if len(chosen) == CANDIDATE_COUNT:
+def _collect_distinct_routes(candidates: list, chosen: list, max_overlap: float, target_count: int = CANDIDATE_COUNT) -> None:
+    """주어진 중복도 상한 이하의 고유 경로를 최대 target_count개까지 수집."""
+    for _, edges, build in candidates:
+        if len(chosen) >= target_count:
+            return
+        match = _is_candidate_distinct(edges, build, chosen, max_overlap)
+        if match is not None:
+            chosen.append(match)
+
+
+def _fill_with_reversed_routes(chosen: list, base: list, target_count: int = CANDIDATE_COUNT) -> None:
+    """부족한 후보를 기존 경로의 반대 방향으로 보충."""
+    for coords, edges, shape in base:
+        if len(chosen) >= target_count:
             break
-        reverse = list(reversed(coords))
+        reverse = ParkRoute(
+            reversed(coords),
+            lap_count=getattr(coords, "lap_count", 1),
+            lap_cycle_m=getattr(coords, "lap_cycle_m", 0.0),
+        )
         if not any(reverse == c for c, _, _ in chosen):
             chosen.append((reverse, edges, shape))
-    while len(chosen) < CANDIDATE_COUNT:  # 최후 수단: 가장 가까운 후보를 다시 쓴다
-        chosen.append(chosen[len(chosen) % len(base)] if base else chosen[0])
+
+
+def _select_distinct(candidates: list, pool_size: int = 10) -> list:
+    """서로 다른 길을 모은다. 모자라면 덜 엄격한 기준, 그래도 모자라면 반대 방향으로 채운다."""
+    chosen: list = []  # [(coords, edge_set, shape)]
+
+    _collect_distinct_routes(candidates, chosen, SAME_ROUTE_OVERLAP, target_count=pool_size)
+    if len(chosen) < pool_size:
+        _collect_distinct_routes(candidates, chosen, RELAXED_OVERLAP, target_count=pool_size)
+
+    base = list(chosen)
+    _fill_with_reversed_routes(chosen, base, target_count=pool_size)
+
+    while len(chosen) < max(CANDIDATE_COUNT, min(pool_size, len(base))):  # 최후 수단: 가장 가까운 후보를 다시 쓴다
+        item = chosen[len(chosen) % len(base)] if base else chosen[0]
+        chosen.append(item)
     return [coords for coords, _, _ in chosen]
 
 
-def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float) -> list:
-    """서로 다른 순환 코스 후보 3개 (1안이 목표 거리에 가장 가깝다). 같은 그래프·요청이면 다시 계산하지 않는다."""
+def plan_park_walk_candidates(
+    park_id: str,
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    regenerate_nonce: int = 0,
+) -> list:
+    """순환 코스 후보 3개 생성. 재생성 시(nonce > 0) 1번 추천 코스는 유지하고 2·3번 대안 코스를 새로운 비유사 경로로 제공."""
     graph = build_park_graph(park_id)
     # 경계 밖 주차장은 저장된 진입로 끝에서 공원 코스를 만들고, 진입로를 앞뒤로 붙인다 (#160).
     # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
@@ -250,17 +299,56 @@ def plan_park_walk_candidates(park_id: str, origin_lat: float, origin_lon: float
     key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1))
     cached = _CANDIDATE_CACHE.get(key)
     if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
-        routes = cached[1]
+        pool = cached[1]
     else:
-        routes = _select_distinct(_compute_candidates(graph, start, target_distance_m))
+        pool = _select_distinct(_compute_candidates(graph, start, target_distance_m), pool_size=10)
         if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
             _CANDIDATE_CACHE.clear()
-        _CANDIDATE_CACHE[key] = (graph, routes)
+        _CANDIDATE_CACHE[key] = (graph, pool)
+
+    while len(pool) < CANDIDATE_COUNT:
+        pool.append(pool[0])
+
+    if regenerate_nonce <= 0 or len(pool) <= CANDIDATE_COUNT:
+        routes = [pool[0], pool[1], pool[2]]
+    else:
+        # 1번 추천 경로는 유지하고, 2번과 3번 대안 경로는 기존 2·3번과 중복/유사하지 않은 후보로 선택
+        alternatives = pool[1:]
+        m = len(alternatives)
+        idx1 = (2 * regenerate_nonce) % m
+        idx2 = (2 * regenerate_nonce + 1) % m
+        if idx1 == idx2:
+            idx2 = (idx1 + 1) % m
+        routes = [pool[0], alternatives[idx1], alternatives[idx2]]
+
     if approach is not None:
-        routes = [approach[:-1] + list(route) + list(reversed(approach))[1:] for route in routes]
-    return [[list(point) for point in route] for route in routes]  # 호출한 쪽이 고쳐도 캐시는 그대로
+        routes = [
+            ParkRoute(
+                approach[:-1] + list(route) + list(reversed(approach))[1:],
+                lap_count=getattr(route, "lap_count", 1),
+                lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
+            )
+            for route in routes
+        ]
+    return [
+        ParkRoute(
+            [list(point) for point in route],
+            lap_count=getattr(route, "lap_count", 1),
+            lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
+        )
+        for route in routes
+    ]
 
 
-def plan_park_walk(park_id: str, origin_lat: float, origin_lon: float, target_distance_m: float, variant: int) -> list:
-    routes = plan_park_walk_candidates(park_id, origin_lat, origin_lon, target_distance_m)
+def plan_park_walk(
+    park_id: str,
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    variant: int,
+    regenerate_nonce: int = 0,
+) -> list:
+    routes = plan_park_walk_candidates(
+        park_id, origin_lat, origin_lon, target_distance_m, regenerate_nonce=regenerate_nonce
+    )
     return routes[max(1, min(int(variant), CANDIDATE_COUNT)) - 1]

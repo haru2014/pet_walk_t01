@@ -45,7 +45,12 @@ function getLocationErrorDetails(error: unknown): {
   reason: NonNullable<CurrentLocationResult['reason']>;
   errorMessage: string;
 } {
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  let message = '';
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  }
 
   if (/GPS_TIMEOUT/i.test(message)) {
     return {
@@ -107,15 +112,21 @@ function persistPoint(point: GpsPoint): void {
 }
 
 async function pushLocations(locations: readonly Location.LocationObject[]): Promise<void> {
+  const points: GpsPoint[] = [];
   for (const location of locations) {
     const point = toGpsPoint(location);
     buffer.push(point);
     persistPoint(point);
     listeners.forEach((listener) => listener(point));
-    // 화면 훅이 없는 headless TaskManager 실행에서도 회전 안내를 평가한다.
-    if (listeners.size === 0 && Platform.OS !== 'web') {
-      await processBackgroundGuidancePoint(point);
-    }
+    points.push(point);
+  }
+
+  // 화면 훅이 없는 headless TaskManager 실행에서도 회전 안내를 평가한다.
+  if (listeners.size === 0 && Platform.OS !== 'web') {
+    await points.reduce<Promise<void>>(
+      (chain, point) => chain.then(() => processBackgroundGuidancePoint(point)),
+      Promise.resolve()
+    );
   }
 }
 

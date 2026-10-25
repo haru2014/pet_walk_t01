@@ -62,7 +62,8 @@ export type AppIconName =
   | 'globe'
   | 'ruler'
   | 'edit'
-  | 'speed';
+  | 'speed'
+  | 'refresh';
 
 export interface AppIconProps {
   readonly name: AppIconName;
@@ -184,6 +185,15 @@ export const AppIcon: React.FC<AppIconProps> = ({
         break;
       case 'speed':
         shape = <><Path d="M4 18a9 9 0 1 1 16 0" /><Path d="m12 13 4-4m-4 4-2 5" /><Path d="M5 18h14" /></>;
+        break;
+      case 'refresh':
+        shape = (
+          <>
+            <Path d="M21 3v5h-5" />
+            <Path d="M3 21v-5h5" />
+            <Path d="M20 11.5a8.5 8.5 0 0 0-14.8-4.2L3 10m18 4-2.2 2.7A8.5 8.5 0 0 1 4 12.5" />
+          </>
+        );
         break;
     }
   }
