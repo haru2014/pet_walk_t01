@@ -49,6 +49,10 @@ def test_repeated_laps_do_not_count_as_winding():
     assert 0.9 <= winding_ratio(_ring() * 4) <= 1.1
 
 
+def test_winding_notice_fits_in_20_chars():
+    assert len(main.WINDING_NOTICE_TEXT) <= 20
+
+
 def test_notice_added_only_to_winding_courses():
     courses = [{"reason": "a"}, {"reason": "b"}]
     cands = [SimpleNamespace(geojson_coordinates=_comb()), SimpleNamespace(geojson_coordinates=_ring())]
