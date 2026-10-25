@@ -792,7 +792,7 @@ def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) ->
     for course, cand in zip(courses, candidates):
         coords = getattr(cand, "geojson_coordinates", None) or []
         if winding_ratio(coords) >= WINDING_RATIO_NOTICE:
-            course["reason"] = f"{course.get('reason', '')}\n갈림길이 많은 공원이라 코스가 꼬불꼬불해요.".strip()
+            course["reason"] = f"{course.get('reason', '')}\n갈림길이 많아 코스가 꼬불꼬불해요.".strip()
 
 
 def _build_walk_plan_response(

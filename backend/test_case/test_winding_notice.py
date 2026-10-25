@@ -53,7 +53,7 @@ def test_notice_added_only_to_winding_courses():
     courses = [{"reason": "a"}, {"reason": "b"}]
     cands = [SimpleNamespace(geojson_coordinates=_comb()), SimpleNamespace(geojson_coordinates=_ring())]
     main._add_winding_notice(courses, cands)
-    assert courses[0]["reason"] == "a\n갈림길이 많은 공원이라 코스가 꼬불꼬불해요."
+    assert courses[0]["reason"] == "a\n갈림길이 많아 코스가 꼬불꼬불해요."
     assert courses[1]["reason"] == "b"
 
 
