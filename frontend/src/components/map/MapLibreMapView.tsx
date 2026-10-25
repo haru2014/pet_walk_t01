@@ -277,6 +277,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     const map = webMapInstanceRef.current;
     const source = map.getSource('route-source');
     if (!source) return;
+    map.setPaintProperty?.('route-casing', 'line-color', routeColors.casing);
+    map.setPaintProperty?.('route-core', 'line-color', routeConditionColorExpression(routeColors));
+    map.setPaintProperty?.('masking-fill', 'fill-color', routeColors.maskCircle);
+    map.setPaintProperty?.('masking-line', 'line-color', routeColors.maskBorder);
     source.setData(route);
     const updateMarkers = async () => {
       const maplibregl = await import('maplibre-gl');
@@ -319,6 +323,8 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         onMapLoaded?.();
         webViewRef.current?.postMessage(JSON.stringify({
           action: 'UPDATE_ROUTE', route: latestRouteRef.current, stepPins: latestPinsRef.current,
+          routeColors: latestRouteColorsRef.current,
+          routeConditionColor: routeConditionColorExpression(latestRouteColorsRef.current),
         }));
       } else if (data.type === 'STYLE_ERROR' || data.type === 'STYLE_TIMEOUT') {
         degrade();
@@ -330,16 +336,24 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   useEffect(() => {
     if (!isWeb && webViewRef.current) {
       webViewRef.current.postMessage(
-        JSON.stringify({ action: 'SET_STYLE', style: activeStyle })
+        JSON.stringify({
+          action: 'SET_STYLE',
+          style: activeStyle,
+          routeColors,
+          routeConditionColor: routeConditionColorExpression(routeColors),
+        })
       );
     }
-  }, [isWeb, activeStyle]);
+  }, [isWeb, activeStyle, routeColors]);
 
   useEffect(() => {
     if (!isWeb && mobileMapLoadedRef.current && webViewRef.current) {
-      webViewRef.current.postMessage(JSON.stringify({ action: 'UPDATE_ROUTE', route, stepPins: directionalPins }));
+      webViewRef.current.postMessage(JSON.stringify({
+        action: 'UPDATE_ROUTE', route, stepPins: directionalPins, routeColors,
+        routeConditionColor: routeConditionColorExpression(routeColors),
+      }));
     }
-  }, [isWeb, route, directionalPins]);
+  }, [isWeb, route, directionalPins, routeColors]);
 
   // ============================================================================
   // 3. 렌더링
