@@ -366,6 +366,16 @@ export function buildMapLibreHtml({
                 detailEl.innerText = pin.detail;
                 el.appendChild(detailEl);
               }
+              if (isCurrentLocation) {
+                // 텍스트 안내는 투명하게 두되, 앞서 설정한 위치 핀 장식은 남기지 않습니다.
+                el.style.border = 'none';
+                el.style.borderRadius = '0';
+                el.style.boxShadow = 'none';
+                el.style.transform = 'none';
+                el.style.padding = '0';
+                // 밝고 복잡한 지도 위에서도 안내 문구가 읽히도록 글자에만 흰색 halo를 둡니다.
+                el.style.textShadow = '0 0 2px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.9)';
+              }
             }
             el.onclick = function() {
               postToReactNative('PIN_SELECT', { id: pin.id, instruction: pin.instruction });

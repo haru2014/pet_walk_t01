@@ -105,17 +105,25 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
-  it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
+  it('현재 위치 텍스트 안내는 투명 배경·무테두리로 표시하고 글자 halo로 가독성을 유지한다', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,
       route,
-      stepPins: [{ ...pin, title: '공원 길', icon: '🌳' }],
+      stepPins: [{
+        ...pin,
+        id: 'current-location-pin',
+        title: '현재 위치',
+        detail: '현재 위치 (자유 산책 출발)',
+      }],
       routeColors: THEME_MAP_ROUTE_COLORS.forest,
       maskingCenter: [127.38, 36.43],
     });
 
     expect(html).toContain('background-color: transparent');
     expect(html).toContain("el.style.backgroundColor = 'transparent'");
+    expect(html).toContain("el.style.border = 'none'");
+    expect(html).toContain("el.style.boxShadow = 'none'");
+    expect(html).toContain("el.style.textShadow = '0 0 2px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.9)'");
     expect(html).not.toContain('#ffffffed');
     expect(html).toContain("postToReactNative('PIN_SELECT'");
   });
