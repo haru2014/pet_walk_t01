@@ -49,7 +49,7 @@ export interface MapRouteColors {
   readonly maskCircle: string; // 200m 안심 마스킹 원 색상
   readonly maskBorder: string; // 200m 안심 마스킹 테두리 색상
   readonly startMarker: string;// 출발점 마커 색상 (레거시 호환)
-  readonly mapGuidance: string;// 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 고대비 색상
+  readonly mapGuidance?: string;// 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 고대비 색상
 }
 
 export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
