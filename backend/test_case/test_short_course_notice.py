@@ -10,8 +10,9 @@ from agent.pilot_park_routes import PILOT_PARK_CENTERS
 client = TestClient(main.app)
 
 
-def _cand(distance_m, minutes):
-    return SimpleNamespace(total_distance_m=distance_m, estimated_duration_minutes=minutes)
+def _cand(distance_m, minutes, lap_count=1, lap_cycle_m=None):
+    return SimpleNamespace(total_distance_m=distance_m, estimated_duration_minutes=minutes,
+                           lap_count=lap_count, lap_cycle_m=lap_cycle_m)
 
 
 def test_short_courses_get_notice_with_longest_minutes():
@@ -21,11 +22,21 @@ def test_short_courses_get_notice_with_longest_minutes():
     assert all("산책로가 짧아 최대 약 60분" in c["reason"] for c in courses)
 
 
-def test_only_short_course_changes_when_some_reach_target():
+def test_no_notice_when_any_course_reaches_target():
+    """목표 길이의 코스가 하나라도 있으면 짧은 대안 카드에도 문구를 붙이지 않는다 (#259: 20분 카드에 "최대 60분")."""
+    courses = [{"reason": "a"}, {"reason": "b"}, {"reason": "c"}]
+    main._add_short_course_notice(courses, [_cand(2800, 60), _cand(2800, 60), _cand(900, 20)], 2800)
+    assert [c["reason"] for c in courses] == ["a", "b", "c"]
+
+
+def test_notice_keeps_lap_description():
+    """문구가 붙어도 "순환로 N바퀴" 설명은 지우지 않는다 (#259)."""
     courses = [{"reason": "a"}, {"reason": "b"}]
-    main._add_short_course_notice(courses, [_cand(2000, 43), _cand(1000, 21)], 2000)
-    assert courses[0]["reason"] == "a"
-    assert "최대 약 43분" in courses[1]["reason"]
+    cands = [_cand(2000, 43, lap_count=4, lap_cycle_m=694.0), _cand(1000, 21)]
+    main._add_short_course_notice(courses, cands, 5600)
+    assert "산책로가 짧아 최대 약 43분" in courses[0]["reason"]
+    assert "순환로(약 694m)를 4바퀴 반복하는 코스입니다." in courses[0]["reason"]
+    assert "반복하는 코스" not in courses[1]["reason"]
 
 
 def test_no_notice_when_courses_are_close_to_target():
@@ -34,11 +45,12 @@ def test_no_notice_when_courses_are_close_to_target():
     assert courses == [{"reason": "a"}]
 
 
-def _plan(park, minutes):
+def _plan(park, minutes, regenerate_nonce=0):
     lat, lon, _ = PILOT_PARK_CENTERS[park]
     res = client.post("/api/v1/walk/plan", json={
         "target_duration_minutes": minutes, "speed_kmh": 2.8,
         "origin_lat": lat, "origin_lon": lon, "origin_mode": "park", "pilot_park_id": park,
+        "regenerate_nonce": regenerate_nonce,
     })
     assert res.status_code == 200, res.text
     return res.json()
@@ -52,3 +64,43 @@ def test_songgang_120_minutes_shows_notice():
 def test_songgang_20_minutes_has_no_notice():
     reasons = [c["reason"] for c in _plan("songgang", 20)["courses"]]
     assert not any("산책로가 짧아" in r for r in reasons)
+
+
+def test_regenerated_plan_has_no_notice_while_first_course_reaches_target():
+    for nonce in range(1, 5):
+        courses = _plan("doan", 60, nonce)["courses"]
+        if courses[0]["estimatedMinutes"] >= 48:
+            assert not any("산책로가 짧아" in c["reason"] for c in courses)
+
+
+def test_notice_field_is_sent_for_short_courses():
+    """앱이 바퀴 도는 코스에서 reason 을 숨기므로 같은 안내를 notice 필드로도 보낸다 (#263)."""
+    courses = [{"reason": "a"}, {"reason": "b"}]
+    main._add_short_course_notice(courses, [_cand(1000, 21, lap_count=4, lap_cycle_m=250.0), _cand(900, 19)], 5600)
+    assert all(c["notice"].startswith("이 공원은 산책로가 짧아 최대 약 21분") for c in courses)
+    assert "순환로" not in courses[0]["notice"]  # 바퀴 설명은 앱이 따로 보여 준다
+
+
+def test_no_notice_field_when_not_needed():
+    courses = [{"reason": "a"}, {"reason": "b"}]
+    main._add_short_course_notice(courses, [_cand(2800, 60), _cand(900, 20)], 2800)
+    assert all("notice" not in c for c in courses)
+
+
+def test_songgang_120_every_card_has_notice_field():
+    courses = _plan_courses("songgang", 120)
+    assert len(courses) == 3 and all("산책로가 짧아" in c["notice"] for c in courses)
+
+
+def test_songgang_60_cards_have_no_notice_field():
+    assert not any("notice" in c for c in _plan_courses("songgang", 60))
+
+
+def _plan_courses(park, minutes):
+    lat, lon, _ = PILOT_PARK_CENTERS[park]
+    res = client.post("/api/v1/walk/plan", json={
+        "target_duration_minutes": minutes, "speed_kmh": 2.8,
+        "origin_lat": lat, "origin_lon": lon, "origin_mode": "park", "pilot_park_id": park,
+    })
+    assert res.status_code == 200, res.text
+    return res.json()["courses"]

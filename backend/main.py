@@ -34,7 +34,9 @@ from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
 from agent.route_geometry import haversine_m
-from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set, routes_overlap
+from agent.park_walk_planner import (
+    SAME_ROUTE_OVERLAP, WINDING_RATIO_NOTICE, plan_park_walk_candidates, route_edge_set, routes_overlap, winding_ratio,
+)
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
@@ -309,6 +311,13 @@ def _measured_card_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _lap_description(lap_count: int, lap_cycle_m: Optional[float]) -> str:
+    """같은 순환로를 여러 바퀴 도는 코스의 안내 문구. 반복이 아니면 빈 문자열."""
+    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
+        return f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
+    return ""
+
+
 def _format_course_reason(
     cand: Any,
     score: Optional[float],
@@ -319,8 +328,8 @@ def _format_course_reason(
     lap_cycle_m: Optional[float],
 ) -> str:
     """반복 순환 안내 또는 AI 맞춤 점수 기반의 추천 사유 문구 구성."""
-    if lap_count > 1 and lap_cycle_m and lap_cycle_m > 0:
-        repeat_desc = f"순환로(약 {lap_cycle_m:.0f}m)를 {lap_count}바퀴 반복하는 코스입니다."
+    repeat_desc = _lap_description(lap_count, lap_cycle_m)
+    if repeat_desc:
         if score is not None:
             return f"{repeat_desc}\nAI 맞춤 점수 {score:.0f}점: {slope_label} {slope_for_reason}%"
         return f"{repeat_desc}\n{slope_label} {slope_for_reason}%의 완만하고 쾌적한 산책로입니다."
@@ -767,13 +776,35 @@ def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any
     """공원 보행로가 짧아 목표보다 짧은 코스가 나오면 카드의 안내 줄(reason)에 이유를 알린다 (#229)."""
     if not candidates or not target_distance_m:
         return
-    if all(c.total_distance_m >= target_distance_m * SHORT_COURSE_RATIO for c in candidates):
+    # 목표 길이에 가까운 코스가 하나라도 있으면(예: 다시 추천에서 고정되는 1안) 짧은 대안 카드에는 알리지 않는다 (#259).
+    if any(c.total_distance_m >= target_distance_m * SHORT_COURSE_RATIO for c in candidates):
         return
     longest = max(int(c.estimated_duration_minutes) for c in candidates)
     notice = f"이 공원은 산책로가 짧아 최대 약 {longest}분 코스예요. 더 걷고 싶다면 같은 길을 한 바퀴 더 돌아보세요."
     for course, cand in zip(courses, candidates):
-        if cand.total_distance_m < target_distance_m * SHORT_COURSE_RATIO:
-            course["reason"] = notice
+        repeat_desc = _lap_description(getattr(cand, "lap_count", 1) or 1, getattr(cand, "lap_cycle_m", None))
+        course["reason"] = f"{notice}\n{repeat_desc}" if repeat_desc else notice
+        _append_notice(course, notice)
+
+
+def _append_notice(course: Dict[str, Any], text: str) -> None:
+    """앱이 카드 아래 별도 칸에 그대로 보여 줄 안내(`notice`).
+
+    바퀴 도는 코스에서는 앱이 `reason` 을 숨기므로 같은 문구를 따로 보낸다 (#263). 안내가 없는 카드에는 필드를 넣지 않는다.
+    """
+    course["notice"] = f"{course['notice']} {text}" if course.get("notice") else text
+
+
+WINDING_NOTICE_TEXT = "갈림길이 많아 코스가 꼬불꼬불해요."
+
+
+def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
+    """좁은 갈림길을 헤집어 꼬불꼬불한 코스(예: 도안)는 카드에 이유를 알린다 (#258)."""
+    for course, cand in zip(courses, candidates):
+        coords = getattr(cand, "geojson_coordinates", None) or []
+        if winding_ratio(coords) >= WINDING_RATIO_NOTICE:
+            course["reason"] = f"{course.get('reason', '')}\n{WINDING_NOTICE_TEXT}".strip()
+            _append_notice(course, WINDING_NOTICE_TEXT)
 
 
 def _build_walk_plan_response(
@@ -812,6 +843,7 @@ def _build_walk_plan_response(
     if park_mode:
         scored = agent_result.all_scored_candidates or []
         _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
+        _add_winding_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(
