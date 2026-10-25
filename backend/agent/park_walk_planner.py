@@ -9,7 +9,7 @@ import math
 from typing import Any, Optional, Tuple
 
 import networkx as nx
-from shapely.geometry import LineString
+from shapely.geometry import LineString, MultiPoint
 
 from agent.park_route_validation import build_park_graph, resolve_park_start, RoutePlanningError
 from agent.route_geometry import polyline_length_m
@@ -78,6 +78,33 @@ def routes_overlap(coords_a: list, coords_b: list) -> float:
     (유림 20분: 간선 겹침 0.55~0.61 인데 지도에서는 77~88% 서로 겹침).
     """
     return spatial_overlap(_shape(coords_a), _shape(coords_b))
+
+
+WINDING_RATIO_NOTICE = 2.1  # 이 값 이상이면 좁은 갈림길을 헤집는 코스로 보고 카드에 안내한다 (#258)
+
+
+def winding_ratio(coords: list) -> float:
+    """코스가 좁은 갈림길을 헤집는 정도 = 겹치지 않고 걷는 길이 ÷ 코스를 둘러싼 외곽선(볼록 껍질) 길이.
+
+    동그란 한 바퀴는 1 근처, 같은 길을 오가거나 여러 바퀴 도는 코스는 더 작고, 갈림길을 헤집으면 2 이상이 된다.
+    (운영 4개 공원 × 5개 시간 60개 카드 중 2.1 이상은 도안 60·120분 1안뿐, 그다음으로 높은 값은 1.89)
+    """
+    if len(coords) < 3:
+        return 0.0
+    seen = set()
+    walked = 0.0
+    for a, b in zip(coords, coords[1:]):
+        if a == b:
+            continue
+        key = frozenset((tuple(a), tuple(b)))
+        if key not in seen:
+            seen.add(key)
+            walked += polyline_length_m([a, b])
+    kx = 111_320.0 * math.cos(math.radians(coords[0][1]))
+    hull = MultiPoint(
+        [((p[0] - coords[0][0]) * kx, (p[1] - coords[0][1]) * 110_540.0) for p in coords]
+    ).convex_hull.length
+    return walked / hull if hull else 0.0
 
 
 def route_direction_label(coords: list) -> str:
