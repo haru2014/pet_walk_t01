@@ -474,6 +474,81 @@ const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
   );
 };
 
+interface CourseReasonAndLapSectionProps {
+  lapInfo: ReturnType<typeof analyzeCourseLaps>;
+  currentCourse: RecommendedCourse;
+  colors: ReturnType<typeof useAppTheme>['colors'];
+  courseRecommend: ReturnType<typeof useAppResponsive>['courseRecommend'];
+}
+
+const CourseReasonAndLapSection: React.FC<CourseReasonAndLapSectionProps> = ({
+  lapInfo,
+  currentCourse,
+  colors,
+  courseRecommend,
+}) => {
+  if (lapInfo) {
+    return (
+      <View
+        accessibilityLabel="순환 코스 반복 안내"
+        style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
+      >
+        <Text
+          style={[
+            styles.reasonText,
+            {
+              color: colors.primaryDark,
+              fontSize: courseRecommend.metricLabelSize,
+              lineHeight: courseRecommend.metricLabelSize * 1.35,
+            },
+          ]}
+        >
+          {`🔄 ${formatCourseLapSummary(lapInfo)}`}
+        </Text>
+        {currentCourse.notice ? (
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[
+              styles.reasonText,
+              {
+                color: colors.primaryDark,
+                fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
+                opacity: 0.9,
+                marginTop: 3,
+              },
+            ]}
+          >
+            {`💡 ${currentCourse.notice}`}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
+  if (currentCourse.reason) {
+    return (
+      <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <Text
+          style={[
+            styles.reasonText,
+            {
+              color: colors.textMain,
+              fontSize: courseRecommend.metricLabelSize,
+              lineHeight: courseRecommend.metricLabelSize * 1.35,
+            },
+          ]}
+          numberOfLines={2}
+        >
+          💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name, currentCourse.lapCount, currentCourse.lapCycleMeters)}
+        </Text>
+      </View>
+    );
+  }
+
+  return null;
+};
+
 export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> = ({
   dog,
   preferences,
@@ -711,61 +786,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           courseRecommend={courseRecommend}
         />
         {/* 순환 코스: 모두 비슷한 거리·시간에서 코스를 구별할 수 있도록 바퀴 수와 반복 구간을 명시 */}
-        {lapInfo ? (
-          <View
-            accessibilityLabel="순환 코스 반복 안내"
-            style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
-          >
-            <Text
-              style={[
-                styles.reasonText,
-                {
-                  color: colors.primaryDark,
-                  fontSize: courseRecommend.metricLabelSize,
-                  lineHeight: courseRecommend.metricLabelSize * 1.35,
-                },
-              ]}
-            >
-              {`🔄 ${formatCourseLapSummary(lapInfo)}`}
-            </Text>
-            {currentCourse.notice ? (
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[
-                  styles.reasonText,
-                  {
-                    color: colors.primaryDark,
-                    fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
-                    opacity: 0.9,
-                    marginTop: 3,
-                  },
-                ]}
-              >
-                {`💡 ${currentCourse.notice}`}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
-        {currentCourse.reason && !lapInfo ? (
-          <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Text
-              style={[
-                styles.reasonText,
-                {
-                  color: colors.textMain,
-                  fontSize: courseRecommend.metricLabelSize,
-                  lineHeight: courseRecommend.metricLabelSize * 1.35,
-                },
-              ]}
-              numberOfLines={2}
-            >
-              💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name, currentCourse.lapCount, currentCourse.lapCycleMeters)}
-            </Text>
-          </View>
-        ) : null}
+        <CourseReasonAndLapSection
+          lapInfo={lapInfo}
+          currentCourse={currentCourse}
+          colors={colors}
+          courseRecommend={courseRecommend}
+        />
 
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         <CourseSafetyMetricsBar course={currentCourse} colors={colors} />
