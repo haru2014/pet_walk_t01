@@ -1,0 +1,75 @@
+{"kind":"deck","id":"pr/ma0imt","name":"Deck"}
+{"kind":"layout","id":"ly/ixo36lk7","editable":false,"name":"Master","type":"master"}
+{"kind":"layout","id":"ly/f6dw7ex4","editable":false,"name":"Title Slide","type":"title","placeholders":[{"name":"title","type":"title"},{"name":"subtitle","type":"subtitle"}]}
+{"kind":"layout","id":"ly/bmtgbyl0","editable":false,"name":"Section Header","type":"sectionHeader","placeholders":[{"name":"title","type":"title"}]}
+{"kind":"layout","id":"ly/e1czudgv","editable":false,"name":"Title and Body","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/ihkbqt0v","editable":false,"name":"Title and Two Column","type":"twoColTx","placeholders":[{"name":"title","type":"title"},{"name":"Left column","type":"body"},{"name":"Right column","type":"body"}]}
+{"kind":"layout","id":"ly/36xcfyh4","editable":false,"name":"Title and One Column","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/872lgfap","editable":false,"name":"Blank","type":"blank"}
+{"kind":"slide","id":"sl/de0v5o","slideIndex":0,"layout":{"id":"ly/872lgfap","name":"Blank"},"title":"편안하개","textShapes":4,"backgroundColor":"rgba(255,255,255,1)"}
+{"kind":"textbox","id":"sh/50jilgb6","slideIndex":0,"position":{"left":72,"top":155,"width":820,"height":150},"text":"편안하개","geometry":"rect","lineWidth":0,"style":{"fontSize":104,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"shape","id":"sh/ixszqlcv","slideIndex":0,"position":{"left":74,"top":322,"width":346,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":2}
+{"kind":"shape","id":"sh/3y10jqt0","slideIndex":0,"position":{"left":74,"top":314,"width":1,"height":16},"geometry":"line","lineColor":"#0038FF","lineWidth":2}
+{"kind":"shape","id":"sh/snuhwvux","slideIndex":0,"position":{"left":420,"top":314,"width":1,"height":16},"geometry":"line","lineColor":"#0038FF","lineWidth":2}
+{"kind":"textbox","id":"sh/do3ip0bi","slideIndex":0,"position":{"left":74,"top":354,"width":800,"height":60},"text":"4:3 화면과 Pretendard 적용 시제품","geometry":"rect","lineWidth":0,"style":{"fontSize":34,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/q1szulcr","slideIndex":0,"position":{"left":74,"top":428,"width":780,"height":42},"text":"기술 사양서형 시각 규칙과 편집 가능한 도형을 검토합니다.","geometry":"rect","lineWidth":0,"style":{"fontSize":18,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/r2l0nqtc","slideIndex":0,"position":{"left":74,"top":610,"width":780,"height":24},"text":"레이아웃 검증용 예시 — 프로젝트 성과 데이터 아님","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"notes","id":"nt/de0v5o","slideIndex":0,"text":""}
+{"kind":"slide","id":"sl/dnlh4z","slideIndex":1,"layout":{"id":"ly/872lgfap","name":"Blank"},"title":"01","textShapes":17,"backgroundColor":"rgba(255,255,255,1)"}
+{"kind":"textbox","id":"sh/md8rmp0v","slideIndex":1,"position":{"left":48,"top":28,"width":26,"height":22},"text":"01","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/90jah4jm","slideIndex":1,"position":{"left":78,"top":28,"width":480,"height":22},"text":"협업 흐름을 단계와 근거로 보여줍니다","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/8za9ozi1","slideIndex":1,"position":{"left":650,"top":28,"width":260,"height":20},"text":"편안하개 프로젝트 · 시제품","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"shape","id":"sh/v21sje1c","slideIndex":1,"position":{"left":48,"top":60,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"shape","id":"sh/a1srq90r","slideIndex":1,"position":{"left":48,"top":674,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"textbox","id":"sh/h4jaloji","slideIndex":1,"position":{"left":48,"top":682,"width":360,"height":18},"text":"편안하개 프로젝트","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"textbox","id":"sh/w3a9sjix","slideIndex":1,"position":{"left":880,"top":682,"width":32,"height":18},"text":"2","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"textbox","id":"sh/j6lsne1o","slideIndex":1,"position":{"left":48,"top":92,"width":800,"height":40},"text":"각 단계의 산출물과 확인 자료를 연결하는 구성 예시","geometry":"rect","lineWidth":0,"style":{"fontSize":24,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"shape","id":"sh/i5sru903","slideIndex":1,"position":{"left":60,"top":210,"width":210,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1.5}
+{"kind":"textbox","id":"sh/ozets7y9","slideIndex":1,"position":{"left":60,"top":230,"width":60,"height":24},"text":"01","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/p0nulcfu","slideIndex":1,"position":{"left":60,"top":270,"width":210,"height":38},"text":"요구사항","geometry":"rect","lineWidth":0,"style":{"fontSize":28,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/2xwbqxgj","slideIndex":1,"position":{"left":60,"top":320,"width":210,"height":60},"text":"범위와 사용자 문제","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"shape","id":"sh/3y5cj2xo","slideIndex":1,"position":{"left":280,"top":294,"width":40,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/cnedw7yl","slideIndex":1,"position":{"left":310,"top":289,"width":10,"height":5},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/do7upcf6","slideIndex":1,"position":{"left":310,"top":294,"width":10,"height":5},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/q1wvuxgf","slideIndex":1,"position":{"left":346,"top":210,"width":210,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1.5}
+{"kind":"textbox","id":"sh/b25cn2x0","slideIndex":1,"position":{"left":346,"top":230,"width":60,"height":24},"text":"02","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/0ryd0ryh","slideIndex":1,"position":{"left":346,"top":270,"width":210,"height":38},"text":"구현","geometry":"rect","lineWidth":0,"style":{"fontSize":28,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/ls7utwf2","slideIndex":1,"position":{"left":346,"top":320,"width":210,"height":60},"text":"역할별 작업과 통합","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"shape","id":"sh/983udc76","slideIndex":1,"position":{"left":566,"top":294,"width":40,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/87utkrql","slideIndex":1,"position":{"left":596,"top":289,"width":10,"height":5},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/7mlcbmp0","slideIndex":1,"position":{"left":596,"top":294,"width":10,"height":5},"geometry":"line","lineColor":"#0038FF","lineWidth":1}
+{"kind":"shape","id":"sh/mlcbih8v","slideIndex":1,"position":{"left":632,"top":210,"width":210,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1.5}
+{"kind":"textbox","id":"sh/hcnuhw7i","slideIndex":1,"position":{"left":632,"top":230,"width":60,"height":24},"text":"03","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/wbedorqx","slideIndex":1,"position":{"left":632,"top":270,"width":210,"height":38},"text":"검증","geometry":"rect","lineWidth":0,"style":{"fontSize":28,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/valcfmpc","slideIndex":1,"position":{"left":632,"top":320,"width":210,"height":60},"text":"테스트와 피드백","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/u9cbmh8r","slideIndex":1,"position":{"left":60,"top":480,"width":250,"height":24},"text":"자료 근거를 붙일 위치","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"shape","id":"sh/xgju5s7y","slideIndex":1,"position":{"left":60,"top":512,"width":840,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"textbox","id":"sh/cfatcnqd","slideIndex":1,"position":{"left":60,"top":528,"width":800,"height":30},"text":"문서명 · 기준일 · 확인한 지표","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"notes","id":"nt/dnlh4z","slideIndex":1,"text":""}
+{"kind":"slide","id":"sl/8bpewh","slideIndex":2,"layout":{"id":"ly/872lgfap","name":"Blank"},"title":"02","textShapes":19,"backgroundColor":"rgba(255,255,255,1)"}
+{"kind":"textbox","id":"sh/cfmd0b2d","slideIndex":2,"position":{"left":48,"top":28,"width":26,"height":22},"text":"02","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/redw76l8","slideIndex":2,"position":{"left":78,"top":28,"width":480,"height":22},"text":"검증 결과는 기준일과 조건을 함께 표시합니다","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/qd4vy1kn","slideIndex":2,"position":{"left":650,"top":28,"width":260,"height":20},"text":"편안하개 프로젝트 · 시제품","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"shape","id":"sh/pcve5w32","slideIndex":2,"position":{"left":48,"top":60,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"shape","id":"sh/4bmdwr2h","slideIndex":2,"position":{"left":48,"top":674,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"textbox","id":"sh/3atc3mlw","slideIndex":2,"position":{"left":48,"top":682,"width":360,"height":18},"text":"편안하개 프로젝트","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"textbox","id":"sh/29kvu1kb","slideIndex":2,"position":{"left":880,"top":682,"width":32,"height":18},"text":"3","geometry":"rect","lineWidth":0,"style":{"fontSize":12,"typeface":"Aptos","color":"#7A7A7A","alignment":"left"}}
+{"kind":"textbox","id":"sh/h8bu1w3q","slideIndex":2,"position":{"left":48,"top":92,"width":760,"height":40},"text":"편집 가능한 표 레이아웃 확인","geometry":"rect","lineWidth":0,"style":{"fontSize":24,"typeface":"Aptos","color":"#000000","bold":true,"alignment":"left"}}
+{"kind":"shape","id":"sh/g72dsr25","slideIndex":2,"position":{"left":48,"top":170,"width":864,"height":1},"geometry":"line","lineColor":"#0038FF","lineWidth":1.5}
+{"kind":"shape","id":"sh/mhk36xwb","slideIndex":2,"position":{"left":48,"top":228,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"shape","id":"sh/n2tkf2dw","slideIndex":2,"position":{"left":48,"top":286,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"shape","id":"sh/o32l8neh","slideIndex":2,"position":{"left":48,"top":344,"width":864,"height":1},"geometry":"line","lineColor":"#DCDCD8","lineWidth":1}
+{"kind":"textbox","id":"sh/94v2hsv2","slideIndex":2,"position":{"left":60,"top":184,"width":332,"height":30},"text":"항목","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/edkj2dwf","slideIndex":2,"position":{"left":412,"top":184,"width":250,"height":30},"text":"근거 위치","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/fetkbid0","slideIndex":2,"position":{"left":682,"top":184,"width":222,"height":30},"text":"기준일","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#0038FF","bold":true,"alignment":"left"}}
+{"kind":"textbox","id":"sh/0f2l4ne5","slideIndex":2,"position":{"left":60,"top":242,"width":332,"height":30},"text":"요구사항","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/1gb2dsvq","slideIndex":2,"position":{"left":412,"top":242,"width":250,"height":30},"text":"문서·절","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/q90jydw3","slideIndex":2,"position":{"left":682,"top":242,"width":222,"height":30},"text":"확인 필요","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/ra9k7ido","slideIndex":2,"position":{"left":60,"top":300,"width":332,"height":30},"text":"기능 구현","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/vep0fetg","slideIndex":2,"position":{"left":412,"top":300,"width":250,"height":30},"text":"코드·화면","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/udgz69cv","slideIndex":2,"position":{"left":682,"top":300,"width":222,"height":30},"text":"확인 필요","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/hg7ih4bm","slideIndex":2,"position":{"left":60,"top":358,"width":332,"height":30},"text":"품질 검증","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/gfyh8ju1","slideIndex":2,"position":{"left":412,"top":358,"width":250,"height":30},"text":"실행 결과","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/3ip0jets","slideIndex":2,"position":{"left":682,"top":358,"width":222,"height":30},"text":"확인 필요","geometry":"rect","lineWidth":0,"style":{"fontSize":16,"typeface":"Aptos","color":"#2B2B2B","alignment":"left"}}
+{"kind":"textbox","id":"sh/ihgza9c7","slideIndex":2,"position":{"left":48,"top":430,"width":840,"height":28},"text":"이 표는 구조 확인용이며 실제 완료 여부를 주장하지 않습니다.","geometry":"rect","lineWidth":0,"style":{"fontSize":14,"typeface":"Aptos","color":"#FF8A3D","alignment":"left"}}
+{"kind":"notes","id":"nt/8bpewh","slideIndex":2,"text":""}

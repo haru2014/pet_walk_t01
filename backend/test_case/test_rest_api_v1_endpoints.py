@@ -84,6 +84,25 @@ class TestWalkRerouteEndpoint:
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(severity="info"))
         assert res.json()["status"] == "KEEP_ROUTE"
 
+    def test_route_deviation_reroutes_from_current_position(self, client):
+        payload = {
+            "current_lat": 36.3745,
+            "current_lon": 127.3825,
+            "destination_lat": _DEST[0],
+            "destination_lon": _DEST[1],
+            "reroute_reason": "deviation",
+            "route_coordinates": [[_CUR[1], _CUR[0]], [_DEST[1], _DEST[0]]],
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["needs_reroute"] is True
+        assert "재탐색" in body["voice_alert"]
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert coords[0] == pytest.approx([127.3825, 36.3745])
+        assert coords[-1] == pytest.approx([_DEST[1], _DEST[0]])
+
     def test_invalid_hazard_type_rejected(self, client):
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(hazard_type="lava"))
         assert res.status_code == 422
@@ -252,3 +271,31 @@ class TestParkingNearbyEndpoint:
         assert data["total_count"] == 0
 
 
+
+
+def test_osrm_failure_reason_is_recorded_and_reported_in_health(client, monkeypatch):
+    """OSRM 실패가 조용히 버려지지 않고 이유가 /health 에 남는다 (운영에서 대체 경로로 떨어지는 원인 확인용)."""
+    import urllib.error
+    import urllib.request
+    from agent import road_network_routes as rnr
+
+    def _timeout(*_args, **_kwargs):
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", _timeout)
+    before = rnr.osrm_status()["failure"]
+    assert rnr._fetch_osrm_foot_route_uncached([(36.33, 127.43), (36.34, 127.43)], 0.1) is None
+    status = client.get("/health").json()["osrm"]
+    assert status["failure"] == before + 1
+    assert "TimeoutError" in status["last_error"]
+    assert set(status) >= {"success", "failure", "last_error", "last_error_elapsed_ms", "circuit_open"}
+
+
+def test_walk_plan_reports_route_source_per_course(client):
+    res = client.post("/api/v1/walk/plan", json={
+        "origin_mode": "park", "pilot_park_id": "yurim",
+        "origin_lat": 36.3620608, "origin_lon": 127.3601379, "target_duration_minutes": 30,
+    })
+    assert res.status_code == 200
+    sources = res.json()["route_sources"]
+    assert len(sources) == 3 and all(source == "park_graph_yurim" for source in sources.values())

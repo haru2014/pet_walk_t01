@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 
 export interface ShareCourseModalProps {
@@ -35,6 +36,7 @@ export const ShareCourseModal: React.FC<ShareCourseModalProps> = ({
   onClose,
   isSubmitting = false,
 }) => {
+  const { colors } = useAppTheme();
   const [title, setTitle] = useState(defaultTitle);
   const [rating, setRating] = useState<number>(5);
   const [selectedChip, setSelectedChip] = useState<string>('모든 반려견');
@@ -51,98 +53,128 @@ export const ShareCourseModal: React.FC<ShareCourseModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
-              <AppIcon name="users" size={20} color={TOKENS.colors.primaryDark} />
-              <Text style={styles.headerTitle}>이웃과 안심 코스 공유</Text>
+              <AppIcon name="users" size={20} color={colors.primaryDark} />
+              <Text style={[styles.headerTitle, { color: colors.textMain }]}>이웃과 안심 코스 공유</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.closeBtn}>✕</Text>
+              <Text style={[styles.closeBtn, { color: colors.textMuted }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.privacyBadge}>
-            <AppIcon name="shield" size={18} color={TOKENS.colors.primaryDark} />
+          <View style={[styles.privacyBadge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+            <AppIcon name="shield" size={18} color={colors.primaryDark} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.privacyTitle}>자택 위치 200m 자동 보호</Text>
-              <Text style={styles.privacyDesc}>출발·도착지 200m는 최근접 교차로로 자동 절단되어 집 위치가 노출되지 않아요.</Text>
+              <Text style={[styles.privacyTitle, { color: colors.primaryDark }]}>자택 위치 200m 자동 보호</Text>
+              <Text style={[styles.privacyDesc, { color: colors.textMuted }]}>
+                출발·도착지 200m는 최근접 교차로로 자동 절단되어 집 위치가 노출되지 않아요.
+              </Text>
             </View>
           </View>
 
-          <View style={styles.courseSummaryRow}>
+          <View style={[styles.courseSummaryRow, { backgroundColor: colors.background }]}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>거리</Text>
-              <Text style={styles.summaryVal}>{distanceKm.toFixed(2)}km</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>거리</Text>
+              <Text style={[styles.summaryVal, { color: colors.textMain }]}>{distanceKm.toFixed(2)}km</Text>
             </View>
-            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>시간</Text>
-              <Text style={styles.summaryVal}>{durationMinutes}분</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>시간</Text>
+              <Text style={[styles.summaryVal, { color: colors.textMain }]}>{durationMinutes}분</Text>
             </View>
-            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>완만 노면</Text>
-              <Text style={[styles.summaryVal, { color: TOKENS.colors.primaryDark }]}>{safePercent}%</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>완만 노면</Text>
+              <Text style={[styles.summaryVal, { color: colors.primaryDark }]}>{safePercent}%</Text>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>코스 이름</Text>
+            <Text style={[styles.inputLabel, { color: colors.textMain }]}>코스 이름</Text>
             <TextInput
-              style={styles.textInput}
+              style={[
+                styles.textInput,
+                { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain },
+              ]}
               value={title}
               onChangeText={setTitle}
               placeholder="예: 성산근린공원 폭신한 숲길 루프"
-              placeholderTextColor={TOKENS.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               maxLength={40}
             />
           </View>
 
           <View style={styles.ratingRow}>
-            <Text style={styles.inputLabel}>이 코스 추천도</Text>
+            <Text style={[styles.inputLabel, { color: colors.textMain }]}>이 코스 추천도</Text>
             <View style={styles.starsWrap}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity key={star} onPress={() => setRating(star)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                  <AppIcon name="star" size={24} color={star <= rating ? TOKENS.colors.primary : TOKENS.colors.border} filled={star <= rating} />
+                  <AppIcon name="star" size={24} color={star <= rating ? colors.primary : colors.border} filled={star <= rating} />
                 </TouchableOpacity>
               ))}
-              <Text style={styles.ratingValueText}>{rating}.0점</Text>
+              <Text style={[styles.ratingValueText, { color: colors.primaryDark }]}>{rating}.0점</Text>
             </View>
           </View>
 
           <View style={styles.chipsSection}>
-            <Text style={styles.inputLabel}>추천 대상</Text>
+            <Text style={[styles.inputLabel, { color: colors.textMain }]}>추천 대상</Text>
             <View style={styles.chipsWrap}>
               {DOG_SIZE_CHIPS.map((chip) => (
                 <TouchableOpacity
                   key={chip}
                   onPress={() => setSelectedChip(chip)}
-                  style={[styles.chip, selectedChip === chip && styles.chipActive]}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: selectedChip === chip ? colors.primaryLight : colors.background,
+                      borderColor: selectedChip === chip ? colors.primary : colors.border,
+                    },
+                  ]}
                 >
-                  <Text style={[styles.chipText, selectedChip === chip && styles.chipTextActive]}>{chip}</Text>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: selectedChip === chip ? colors.primaryDark : colors.textMuted },
+                      selectedChip === chip && { fontWeight: '700' },
+                    ]}
+                  >
+                    {chip}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>이웃을 위한 산책 팁 (선택)</Text>
+            <Text style={[styles.inputLabel, { color: colors.textMain }]}>이웃을 위한 산책 팁 (선택)</Text>
             <TextInput
-              style={[styles.textInput, { height: 42 }]}
+              style={[
+                styles.textInput,
+                { height: 42, backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain },
+              ]}
               value={comment}
               onChangeText={setComment}
               placeholder="예: 흙길이 부드럽고 계단이 없어 관절이 편안해요."
-              placeholderTextColor={TOKENS.colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               maxLength={100}
             />
           </View>
 
           <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={styles.cancelBtnText}>취소</Text>
+            <TouchableOpacity
+              style={[styles.cancelBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+              onPress={onClose}
+              disabled={isSubmitting}
+            >
+              <Text style={[styles.cancelBtnText, { color: colors.textMain }]}>취소</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isSubmitting}>
+            <TouchableOpacity
+              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (

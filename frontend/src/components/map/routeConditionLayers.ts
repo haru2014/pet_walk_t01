@@ -50,6 +50,53 @@ export const SLOPE_GRADE_STYLE: Record<SlopeGrade, { color: string; label: strin
   unknown: { color: '#9CA3AF', label: '확인 불가', symbol: '·' },
 };
 
+/** MapLibre expressions use actual server fields and leave unknown values on the course color. */
+export function routeConditionColorExpression(routeColors: {
+  safe: string;
+  normal: string;
+  caution: string;
+}): unknown[] {
+  const hasTemperature = ['all', ['has', 'surfaceTempC'], ['!=', ['get', 'surfaceTempC'], null]];
+  const courseColor = [
+    'match', ['get', 'segmentType'],
+    'safe', routeColors.safe,
+    'caution', routeColors.caution,
+    routeColors.normal,
+  ];
+  const temperatureColor = [
+    'case',
+    ['<=', ['get', 'surfaceTempC'], 33], SURFACE_TEMP_STYLE.safe.color,
+    ['<=', ['get', 'surfaceTempC'], 39], SURFACE_TEMP_STYLE.cautionLow.color,
+    ['<=', ['get', 'surfaceTempC'], 45], SURFACE_TEMP_STYLE.cautionHigh.color,
+    SURFACE_TEMP_STYLE.danger.color,
+  ];
+  return ['case', hasTemperature, temperatureColor, courseColor];
+}
+
+export function slopeSymbolExpression(): unknown[] {
+  const hasSlope = ['all', ['has', 'slopeSignedPercent'], ['!=', ['get', 'slopeSignedPercent'], null]];
+  const value = ['get', 'slopeSignedPercent'];
+  return [
+    'case', hasSlope,
+    ['case', ['<', value, -8], '▼▼', ['<', value, -3], '▼', ['<=', value, 3], '━', ['<', value, 8], '▲', '▲▲'],
+    '',
+  ];
+}
+
+export function slopeSymbolColorExpression(): unknown[] {
+  const hasSlope = ['all', ['has', 'slopeSignedPercent'], ['!=', ['get', 'slopeSignedPercent'], null]];
+  const value = ['get', 'slopeSignedPercent'];
+  return [
+    'case', hasSlope,
+    ['case', ['<', value, -8], SLOPE_GRADE_STYLE.steepDown.color,
+      ['<', value, -3], SLOPE_GRADE_STYLE.gentleDown.color,
+      ['<=', value, 3], SLOPE_GRADE_STYLE.flat.color,
+      ['<', value, 8], SLOPE_GRADE_STYLE.gentleUp.color,
+      SLOPE_GRADE_STYLE.steepUp.color],
+    SLOPE_GRADE_STYLE.unknown.color,
+  ];
+}
+
 export function classifySurfaceTempC(value: number | null | undefined): SurfaceTempBand {
   if (value == null || Number.isNaN(value)) return 'unknown';
   if (value <= 33) return 'safe';

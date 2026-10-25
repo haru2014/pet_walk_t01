@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   classifySlopeSignedPercent,
   classifySurfaceTempC,
+  routeConditionColorExpression,
   resolveSegmentCondition,
+  slopeSymbolExpression,
   SLOPE_GRADE_THRESHOLDS,
 } from './routeConditionLayers';
 
@@ -41,5 +43,23 @@ describe('resolveSegmentCondition', () => {
     expect(fromProps.slopeSignedPercent).toBeUndefined();
     expect(classifySurfaceTempC(fromProps.surfaceTempC)).toBe('unknown');
     expect(classifySlopeSignedPercent(fromProps.slopeSignedPercent)).toBe('unknown');
+  });
+});
+
+describe('MapLibre route condition expressions', () => {
+  it('colors only known surface temperatures and falls back to the course segment color', () => {
+    const expression = JSON.stringify(routeConditionColorExpression({ safe: '#0a0', normal: '#aa0', caution: '#a00' }));
+    expect(expression).toContain('surfaceTempC');
+    expect(expression).toContain('#10B981');
+    expect(expression).toContain('#DC2626');
+    expect(expression).toContain('segmentType');
+  });
+
+  it('labels slopes from the signed server value and leaves missing values unmarked', () => {
+    const expression = JSON.stringify(slopeSymbolExpression());
+    expect(expression).toContain('slopeSignedPercent');
+    expect(expression).toContain('▼');
+    expect(expression).toContain('▲');
+    expect(expression).toContain('""');
   });
 });

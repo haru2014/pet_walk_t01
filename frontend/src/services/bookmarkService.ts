@@ -8,8 +8,9 @@
 import { LocalStorageService } from './storage';
 import { STORAGE_KEYS } from '../types/storage';
 import { BookmarkedRoute, CoursePlan } from '../types/bookmark';
-import { RecommendedCourse } from '../types/walkSettings';
+import { formatStairsCountLabel, RecommendedCourse } from '../types/walkSettings';
 import { RouteFeatureCollection } from '../types/route';
+import { WalkDogSummary } from '../types/dogProfile';
 
 import { detectLandmarkCategory } from './landmarkTagger';
 
@@ -28,20 +29,29 @@ export function routeFingerprint(route: RouteFeatureCollection): string {
 export function createBookmark(
   course: RecommendedCourse,
   plan: CoursePlan,
-  dogName: string,
+  dogSummaryOrName: WalkDogSummary | string,
   now: Date = new Date(),
 ): BookmarkedRoute {
   const distance = Number.parseFloat(course.distanceKm);
   const landmarkInfo = detectLandmarkCategory(plan.route, course.name);
+  const isString = typeof dogSummaryOrName === 'string';
+  const dogName = isString ? dogSummaryOrName : dogSummaryOrName.name;
+  const dogSummary = isString ? undefined : dogSummaryOrName;
+
   return {
     id: `bm_${course.id}_${routeFingerprint(plan.route)}`,
     title: course.name,
     dogName,
+    dogSummary,
     totalDistanceKm: Number.isFinite(distance) ? distance : 0,
     estimatedMinutes: course.estimatedMinutes,
-    maxSlopePercent: course.maxSlopePercent,
+    maxSlopePercent: course.maxSlopePercent ?? 0,
     shadePercent: course.shadePercent,
-    tags: [`폭신 ${course.softSurfacePercent}%`, `그늘 ${course.shadeLevel}`, `계단 ${course.stairsCount}`],
+    tags: [
+      course.softSurfacePercent != null ? `폭신 ${course.softSurfacePercent}%` : '폭신 노면 정보없음',
+      `그늘 ${course.shadeLevel ?? '정보 없음'}`,
+      formatStairsCountLabel(course.stairsCount),
+    ],
     routeGeoJson: plan.route,
     stepPins: plan.stepPins,
     savedAt: now.toISOString(),

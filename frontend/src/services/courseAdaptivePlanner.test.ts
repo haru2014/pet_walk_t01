@@ -5,11 +5,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { DogProfile, DEFAULT_DOGS } from '../types/dogProfile';
-import { WalkPreferences } from '../types/walkSettings';
+import { DEFAULT_RECOMMENDED_COURSES, WalkPreferences } from '../types/walkSettings';
 import {
   generateAdaptiveCourses,
   generateAdaptiveBriefing,
   buildAdaptiveConditionLabels,
+  extractCourseScore,
+  calculateAdaptiveCourseScore,
 } from './courseAdaptivePlanner';
 
 const TEST_DOG: DogProfile = {
@@ -95,5 +97,128 @@ describe('courseAdaptivePlanner', () => {
     expect(briefing).toContain('초코');
     expect(briefing).toContain('20분');
     expect(briefing).toContain('폭신한 길');
+  });
+
+  it('사용자가 75분(1시간 15분) 및 120분(2시간)을 선택했을 때 적응형 코스 및 라벨이 올바르게 생성되어야 한다 (US-A3, #38)', () => {
+    const prefs75: WalkPreferences = {
+      durationMinutes: 75,
+      environments: ['soft', 'shade'],
+      requestText: '',
+    };
+
+    const courses75 = generateAdaptiveCourses(TEST_DOG, prefs75);
+    expect(courses75[0].estimatedMinutes).toBe(75);
+    expect(courses75[0].distanceKm).toBe('3.5 km'); // 2.8 * (75/60) = 3.5 km
+    const labels75 = buildAdaptiveConditionLabels(TEST_DOG, prefs75);
+    expect(labels75).toContain('1시간 15분');
+
+    const prefs120: WalkPreferences = {
+      durationMinutes: 120,
+      environments: ['soft', 'shade'],
+      requestText: '',
+    };
+    const labels120 = buildAdaptiveConditionLabels(TEST_DOG, prefs120);
+    expect(labels120).toContain('2시간');
+  });
+
+  it('자유 산책 모드(isFreeWalk=true) 선택 시 브리핑과 라벨에 자유 산책이 명시되어야 한다 (#38)', () => {
+    const freePrefs: WalkPreferences = {
+      durationMinutes: null,
+      environments: ['soft', 'quiet'],
+      requestText: '',
+      isFreeWalk: true,
+    };
+
+    const labels = buildAdaptiveConditionLabels(TEST_DOG, freePrefs);
+    expect(labels).toContain('초코');
+    expect(labels).toContain('자유 산책');
+
+    const briefing = generateAdaptiveBriefing(TEST_DOG, freePrefs);
+    expect(briefing).toContain('자유 산책');
+  });
+
+  describe('Issue #155 (PR #154 맞춤 점수 및 순위 동적 변동 검증)', () => {
+    it('반려견 관절 케어 단계(0단계 건강견 vs 3단계 고위험견)에 따라 맞춤 점수가 차등 산출된다', () => {
+      const prefs: WalkPreferences = {
+        durationMinutes: 30,
+        environments: ['soft', 'shade', 'stairs'],
+        requestText: '',
+      };
+
+      const healthyDog: DogProfile = { ...TEST_DOG, jointCareLevel: 0 };
+      const seniorDog: DogProfile = { ...TEST_DOG, jointCareLevel: 3 };
+
+      const healthyCourses = generateAdaptiveCourses(healthyDog, prefs);
+      const seniorCourses = generateAdaptiveCourses(seniorDog, prefs);
+
+      // 모든 코스에 score가 매겨져 있고 reason에 AI 맞춤 점수가 포함되어야 함
+      healthyCourses.forEach((c) => {
+        expect(c.score).toBeDefined();
+        expect(c.reason).toContain('AI 맞춤 점수');
+      });
+
+      // 경사 상한이 엄격한 노령견(상한 4%)은 경사가 있는 코스(Residential 3.2%, Park 2.8%)에서 감점 기준이 더 엄격함
+      const healthyResidential = healthyCourses.find((c) => c.name.includes('골목길') || c.name.includes('외곽'));
+      const seniorResidential = seniorCourses.find((c) => c.name.includes('골목길') || c.name.includes('외곽'));
+
+      expect(healthyResidential?.score).toBeGreaterThanOrEqual(seniorResidential?.score ?? 0);
+    });
+
+    it('그늘 우선과 폭신 노면 우선 선호에 따라 선호 적합도 점수가 다르게 산출된다', () => {
+      const shadePrefs: WalkPreferences = {
+        durationMinutes: 30,
+        environments: ['shade'],
+        requestText: '',
+      };
+      const softPrefs: WalkPreferences = {
+        durationMinutes: 30,
+        environments: ['soft'],
+        requestText: '',
+      };
+
+      const shadeCourses = generateAdaptiveCourses(TEST_DOG, shadePrefs);
+      const softCourses = generateAdaptiveCourses(TEST_DOG, softPrefs);
+
+      // 그늘 우선 시 그늘 비율이 높은 코스의 점수 기여도가 높음
+      expect(shadeCourses[0].score).toBeDefined();
+      expect(softCourses[0].score).toBeDefined();
+    });
+
+    it('extractCourseScore 유틸리티가 코스의 score 필드 및 reason 문구로부터 점수를 파싱한다', () => {
+      const testCourse = {
+        id: 'c1',
+        name: '테스트 코스',
+        distanceKm: '1.5 km',
+        estimatedMinutes: 20,
+        softRatio: '70%',
+        shadeLevel: '많음',
+        stairsCount: '0회',
+        shadePercent: 60,
+        reason: 'AI 맞춤 점수 94점: 편안한 숲길 코스예요.',
+        score: 94,
+      };
+
+      expect(extractCourseScore(testCourse)).toBe(94);
+
+      // score 필드가 없더라도 reason 문자열에서 안전하게 파싱
+      const noScoreField = { ...testCourse, score: undefined };
+      expect(extractCourseScore(noScoreField)).toBe(94);
+    });
+
+    it('그늘 자료가 없는 코스도 유효한 중립 점수로 평가한다', () => {
+      const unknownShadeCourse = {
+        ...DEFAULT_RECOMMENDED_COURSES[0],
+        shadeLevel: null,
+        shadePercent: null,
+      };
+
+      const score = calculateAdaptiveCourseScore(unknownShadeCourse, TEST_DOG, {
+        durationMinutes: 30,
+        environments: ['shade'],
+        requestText: '',
+      });
+
+      expect(Number.isFinite(score)).toBe(true);
+    });
   });
 });

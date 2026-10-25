@@ -1,16 +1,25 @@
 {
   "name": "petwalk-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.ts",
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.117.3",
     "expo": "~57.0.27",
+    "expo-asset": "~57.0.20",
+    "expo-audio": "~57.0.5",
+    "expo-document-picker": "~57.0.3",
+    "expo-file-system": "~57.0.7",
     "expo-haptics": "~57.0.3",
+    "expo-image-picker": "^57.0.20",
     "expo-location": "~57.0.20",
+    "expo-sharing": "~57.0.24",
     "expo-speech": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.21",
+    "expo-updates": "~57.0.26",
+    "maplibre-gl": "^6.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -18,25 +27,34 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1",
     "vitest": "^5.0.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "postinstall": "node scripts/copy-maplibre-worker.mjs",
+    "prestart": "node scripts/copy-maplibre-worker.mjs",
     "start": "expo start",
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "preweb": "node scripts/copy-maplibre-worker.mjs",
     "web": "expo start --web",
     "test": "vitest run",
     "check": "tsc --noEmit",
     "export": "expo export",
+    "preexport:web": "node scripts/copy-maplibre-worker.mjs",
     "export:web": "expo export --platform web",
     "export:android": "expo export --platform android",
     "build:apk": "eas build -p android --profile preview",
-    "ota:update": "eas update --branch preview --message \"UI 핫픽스 실시간 반영\""
+    "ota:update": "eas update --branch preview --message \"UI 핫픽스 실시간 반영\"",
+    "lint": "expo lint"
   },
   "private": true
 }

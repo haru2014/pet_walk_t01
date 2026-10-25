@@ -10,6 +10,9 @@ import {
   clearWeatherCache,
   getCachedWeather,
   buildWeatherCacheKey,
+  computeFocusedGoldenWindow,
+  computeGoldenWindowDay,
+  NO_SUN_SURFACE_OFFSET_C,
 } from './weatherApi';
 
 describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () => {
@@ -32,7 +35,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(fallback.isLiveServer).toBe(false);
       expect(fallback.hourly_forecast).toHaveLength(24);
-      expect(fallback.notice).toContain('기상청 예보 모델 기반 추정치');
+      expect(fallback.notice).toContain('[가상 시뮬레이션 추정치]');
       expect(fallback.golden_time_window).toBeTruthy();
     });
 
@@ -47,13 +50,30 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       expect(noonForecast.risk_level).not.toBe('SAFE');
     });
 
-    it('심야(0~5시)에는 일사량 가중치(0.0)가 적용되어 지면열과 기온이 일치하고 SAFE여야 한다', () => {
+    it('심야(0~5시)에는 일사량 가중치(0.0)가 적용되어 지면열이 기온보다 1.6도 높고(Issue #153 다 안) SAFE여야 한다', () => {
       const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
       const nightForecast = fallback.hourly_forecast[2];
 
-      expect(nightForecast.estimated_surface_temp).toBe(nightForecast.air_temp_celsius);
+      expect(nightForecast.estimated_surface_temp).toBeCloseTo(
+        nightForecast.air_temp_celsius + NO_SUN_SURFACE_OFFSET_C,
+        1
+      );
       expect(nightForecast.is_golden_time).toBe(true);
       expect(nightForecast.risk_level).toBe('SAFE');
+    });
+
+    it('일사량 수치(solar_radiation_w_m2)와 노면별 체감 지면온도(surface_temps)가 정확히 산출되어야 한다', () => {
+      const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
+      const noon = fallback.hourly_forecast[13];
+
+      expect(noon.solar_radiation_w_m2).toBe(1000);
+      expect(noon.surface_temps).toBeDefined();
+      expect(noon.surface_temps?.asphalt).toBeCloseTo(noon.air_temp_celsius + 18.0, 1);
+      expect(noon.surface_temps?.grass).toBeCloseTo(noon.air_temp_celsius + 4.0, 1);
+      // 흙 상승폭 12.6℃: 기상청 ASOS 관측 지면온도(맨땅) 적합값, 서버 SURFACE_HEAT_GAIN_MAP 과 같음
+      expect(noon.surface_temps?.dirt).toBeCloseTo(noon.air_temp_celsius + 12.6, 1);
+      expect(fallback.surface_temps).toBeDefined();
+      expect(fallback.data_source).toBe('fallback_estimate');
     });
   });
 
@@ -109,14 +129,52 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('Open-Meteo 실시간 연동 시 일사량 및 노면별 지면온도를 정확히 파싱해야 한다', async () => {
+      const mockOpenMeteoPayload = {
+        data_source: 'open_meteo_live',
+        insolation_source: 'open_meteo',
+        current: {
+          hour: 14,
+          air_temp_celsius: 28.0,
+          estimated_surface_temp: 38.8,
+          solar_radiation_w_m2: 720.0,
+          surface_temps: {
+            asphalt: 41.0,
+            paved: 38.1,
+            dirt: 33.8,
+            grass: 30.9,
+          },
+          risk_level: 'CAUTION',
+          is_golden_time: false,
+        },
+        golden_time_window: '18:00 ~ 20:00',
+        golden_time_window_day: 'today',
+        hourly_forecast: [],
+        notice: '기상청 예보 모델 기반 추정치',
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockOpenMeteoPayload,
+      } as Response);
+
+      const result = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
+
+      expect(result.isLiveServer).toBe(true);
+      expect(result.data_source).toBe('open_meteo_live');
+      expect(result.solar_radiation_w_m2).toBe(720.0);
+      expect(result.surface_temps?.asphalt).toBe(41.0);
+      expect(result.surface_temps?.grass).toBe(30.9);
+    });
+
     it('서버 통신 실패/에러 발생 시에도 예외 없이 안전한 폴백을 반환해야 한다', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
       const result = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
 
       expect(result.isLiveServer).toBe(false);
       expect(result.hourly_forecast).toHaveLength(24);
-      expect(result.notice).toContain('기상청 예보 모델 기반 추정치');
+      expect(result.notice).toContain('[가상 시뮬레이션 추정치]');
     });
 
     it('1시간 TTL 메모리 캐싱으로 동일 위치 재호출 시 네트워크를 중복 요청하지 않아야 한다', async () => {
@@ -124,16 +182,136 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       // 첫 번째 호출: fetch 시도 후 폴백 캐싱
       const first = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const callsAfterFirst = fetchSpy.mock.calls.length;
+      expect(callsAfterFirst).toBeGreaterThanOrEqual(1);
 
-      // 두 번째 호출: 캐시 히트로 fetch 호출 안 함
+      // 두 번째 호출: 캐시 히트로 fetch 추가 호출 안 함
       const second = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterFirst);
       expect(second.fetched_at).toBe(first.fetched_at);
 
       // forceRefresh 옵션 전달 시 캐시를 무시하고 재요청
       await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+    });
+
+    it('오프라인 폴백 응답은 10초(FALLBACK_CACHE_TTL_MS) 후 만료되어 서버 재시도를 허용해야 한다', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Offline'));
+
+      // 1. 첫 호출: 실패하여 폴백 생성
+      await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+      // 2. 5초 경과: 폴백 캐시 유효
+      const realNow = Date.now;
+      try {
+        const baseNow = realNow();
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 5000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).not.toBeNull();
+
+        // 3. 11초 경과: 폴백 캐시 만료되어 null 반환 (실서버 재조회 준비)
+        vi.spyOn(Date, 'now').mockReturnValue(baseNow + 11000);
+        expect(getCachedWeather(SEOUL_LAT, SEOUL_LON)).toBeNull();
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+  });
+
+  describe('computeFocusedGoldenWindow (1.5~2시간 슬롯 압축)', () => {
+    it.each([
+      [13, '19:00 ~ 21:00', '한낮(13시)에는 다가올 저녁 골든타임 슬롯 반환 (18시는 33.1℃로 CAUTION)'],
+      [18, '19:00 ~ 21:00', '18시(33.1℃, CAUTION)에는 다가올 저녁 골든타임 슬롯 반환'],
+      [19, '19:00 ~ 21:00', '골든타임 시간대(19시, 32.0℃)에는 현재 진행 중인 슬롯 반환'],
+      [7, '06:00 ~ 08:00', '아침 시간대(7시)에는 아침 안심 슬롯 반환'],
+    ])('%s시 테스트: %s (%s)', (hour, expected) => {
+      const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
+      const windowStr = computeFocusedGoldenWindow(fallback.hourly_forecast, hour);
+      expect(windowStr).toBe(expected);
+    });
+  });
+
+  describe('computeGoldenWindowDay (오늘/내일 구분 표시 - Issue #50)', () => {
+    it('낮 또는 초저녁(13시, 18시)에는 당일 골든타임(today)을 반환해야 한다', () => {
+      const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
+      const day13 = computeGoldenWindowDay(fallback.hourly_forecast, 13);
+      const day18 = computeGoldenWindowDay(fallback.hourly_forecast, 18);
+      expect(day13).toBe('today');
+      expect(day18).toBe('today');
+    });
+
+    it('오늘 모든 안전 구간이 종료된 심야(23시)에는 내일(tomorrow)을 반환해야 한다', () => {
+      const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
+      const day23 = computeGoldenWindowDay(fallback.hourly_forecast, 23);
+      expect(day23).toBe('tomorrow');
+    });
+
+    it('서버 응답에 golden_time_window_day가 전달되면 그대로 보존해야 한다', async () => {
+      const mockPayload = {
+        current: { hour: 20, air_temp_celsius: 13.2, estimated_surface_temp: 13.2, risk_level: 'SAFE', is_golden_time: true },
+        golden_time_window: '20:00 ~ 23:00',
+        golden_time_window_day: 'today',
+      };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPayload,
+      } as Response);
+
+      const res = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
+      expect(res.golden_time_window_day).toBe('today');
+    });
+  });
+
+  describe('Issue #57 - Open-Meteo 일사량 출처 표기 (attribution, CC BY 4.0)', () => {
+    it('서버 응답에 attribution과 insolation_source가 제공되면 그대로 보존해야 한다', async () => {
+      const mockPayload = {
+        current: {
+          hour: 15,
+          air_temp_celsius: 27.5,
+          estimated_surface_temp: 32.0,
+          risk_level: 'SAFE',
+          is_golden_time: true,
+        },
+        golden_time_window: '17:00 ~ 20:00',
+        attribution: 'Weather data by Open-Meteo.com (CC BY 4.0)',
+        insolation_source: 'open_meteo',
+      };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPayload,
+      } as Response);
+
+      const res = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
+      expect(res.attribution).toBe('Weather data by Open-Meteo.com (CC BY 4.0)');
+      expect(res.insolation_source).toBe('open_meteo');
+    });
+
+    it('서버 응답에 attribution이 누락되거나 null이어도 깨지지 않고 attribution=null로 처리되어야 한다', async () => {
+      const mockPayload = {
+        current: {
+          hour: 15,
+          air_temp_celsius: 27.5,
+          estimated_surface_temp: 32.0,
+          risk_level: 'SAFE',
+          is_golden_time: true,
+        },
+        golden_time_window: '17:00 ~ 20:00',
+      };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPayload,
+      } as Response);
+
+      const res = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON, { forceRefresh: true });
+      expect(res.attribution).toBeNull();
+      expect(res.insolation_source).toBeUndefined();
+    });
+
+    it('오프라인 폴백 데이터 생성 시 attribution은 null, insolation_source는 sky_fallback이어야 한다', () => {
+      const fallback = generateFallbackHeatRisk(SEOUL_LAT, SEOUL_LON);
+      expect(fallback.attribution).toBeNull();
+      expect(fallback.insolation_source).toBe('sky_fallback');
     });
   });
 });

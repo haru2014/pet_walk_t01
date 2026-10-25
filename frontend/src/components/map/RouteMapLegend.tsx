@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import { SegmentType } from '../../types/route';
 import {
   SLOPE_GRADE_STYLE,
@@ -49,10 +51,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   hasTempData = false,
   hasSlopeData = false,
 }) => {
+  const { colors } = useAppTheme();
   if (mode !== 'course') return null;
 
   return (
-    <View style={styles.legendContainer} accessibilityLabel="지도 범례">
+    <View style={[styles.legendContainer, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel="지도 범례">
       <ScrollView
         style={styles.legendScroll}
         contentContainerStyle={styles.legendScrollContent}
@@ -62,14 +65,14 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
         {/* 1. 코스 보행로 (경로 선 색상 - 온도 오인 방지) */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>코스 보행로</Text>
-            <Text style={styles.sectionHint}>경로 선 색상</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>코스 보행로</Text>
+            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>경로 선 색상</Text>
           </View>
           <View style={styles.itemsWrap}>
             {COURSE_LEGEND.map((item) => (
               <View key={item.label} style={styles.legendItem}>
                 <View style={[styles.legendBar, { backgroundColor: item.color }]} />
-                <Text style={styles.legendLabel}>{item.label}</Text>
+                <Text style={[styles.legendLabel, { color: colors.textMain }]}>{item.label}</Text>
               </View>
             ))}
           </View>
@@ -80,8 +83,8 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
         {/* 2. 지면온도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>지면온도</Text>
-            {!hasTempData && <Text style={styles.statusBadge}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>지면온도</Text>
+            {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {TEMP_ORDER.map((band) => {
@@ -99,6 +102,7 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
                   <Text
                     style={[
                       styles.legendLabel,
+                      { color: colors.textMain },
                       !hasTempData && isUnknown && styles.activeUnknownText,
                     ]}
                   >
@@ -115,8 +119,8 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
         {/* 3. 경사도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>경사도</Text>
-            {!hasSlopeData && <Text style={styles.statusBadge}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>경사도</Text>
+            {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {SLOPE_ORDER.map((grade) => {
@@ -134,6 +138,7 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
                   <Text
                     style={[
                       styles.legendLabel,
+                      { color: colors.textMain },
                       !hasSlopeData && isUnknown && styles.activeUnknownText,
                     ]}
                   >
@@ -184,17 +189,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMuted,
   },
   sectionHint: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
     fontWeight: '500',
   },
   statusBadge: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     backgroundColor: '#F3F4F6',
@@ -234,13 +239,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   legendSymbol: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     minWidth: 14,
     textAlign: 'center',
   },
   legendLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
     fontWeight: '500',
   },

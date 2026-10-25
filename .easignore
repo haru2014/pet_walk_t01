@@ -1,0 +1,32 @@
+# Root EAS Build Ignore Configuration
+# Exclude files from EAS Build upload archive
+
+# Dependencies
+node_modules/
+backend/venv/
+backend/.venv/
+.venv/
+__pycache__/
+
+# Presentations & Office Documents (PPT / PPTX)
+*.ppt
+*.pptx
+**/*.ppt
+**/*.pptx
+
+# Non-build folders & docs
+docs/
+error/
+scratch/
+*.log
+
+# Tests
+**/*.test.*
+**/*.spec.*
+**/__tests__/
+test_case/
+backend/test_case/
+
+# Local & environment files
+.env
+.env.local

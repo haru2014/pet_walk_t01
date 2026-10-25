@@ -1,28 +1,36 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 산책 설정 화면 (Screen-03, US-A1, US-A3)
+ * 모바일 산책 조건 설정 화면 (Screen-03, docs/screenshots/03_walk_settings.png 원형 복원 및 스크롤 방지 최적화)
  *
- * 목표 시간 칩, 6대 선호 환경 다중 선택, 자연어/음성 입력, 산책 코스 탐색
+ * 1. 헤더: 뒤로가기 & '산책 설정'
+ * 2. 상단 타이틀: "{dog.name}와 어떤 산책을 할까요?" & AI 배너
+ * 3. 대전·세종 4대 거점 공원 퀵 선택 칩
+ * 4. "얼마나 걸을까요?": 20분 / 30분 / 40분 / 1시간 원터치 칩
+ * 5. "어떤 길이 좋을까요?": 6대 환경 2열 카드 그리드
+ * 6. 하단 Thumb Zone 버튼: [✨ AI 산책 코스 찾아보기]
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
+import { AppScreenHeader } from '../common/AppScreenHeader';
 import { DogProfile } from '../../types/dogProfile';
+import { PILOT_PARKS, getPilotParkById } from '../../types/pilotParks';
+import { useAppResponsive } from '../../hooks/useAppResponsive';
 import {
   EnvironmentId,
   WALK_ENVIRONMENTS,
   WalkPreferences,
+  WalkOriginMode,
+  formatDurationLabel,
 } from '../../types/walkSettings';
-import { TTSNavigationService } from '../../services/ttsNavigation';
+import { WalkVoiceInputSection } from './WalkVoiceInputSection';
+import { WalkDurationSlider } from './WalkDurationSlider';
+import { getCurrentLocationCoords } from '../../services/locationService';
+import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voiceIntentApi';
+import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
+import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
@@ -31,24 +39,115 @@ export interface WalkSettingsViewProps {
   onFindRoute: (preferences: WalkPreferences) => void;
 }
 
+const PRESET_DURATIONS = [20, 30, 40, 60] as const;
+
+function getAiBannerTitle(
+  originMode: WalkOriginMode,
+  isLocating: boolean,
+  userCoords: { lat: number; lon: number } | undefined,
+  currentParkShortName: string
+): string {
+  if (originMode !== 'current_location') {
+    return `${currentParkShortName} (공원 보행률 90% 이상)`;
+  }
+  if (isLocating) {
+    return '현재 GPS 위치 수신 중...';
+  }
+  if (userCoords) {
+    return `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`;
+  }
+  return '현재 위치 기준 실시간 안심 경로';
+}
+
+function getAiBannerBody(
+  originMode: WalkOriginMode,
+  locationError: string | null,
+  isLocating: boolean,
+  userCoords: { lat: number; lon: number } | undefined,
+  currentParkName: string
+): string {
+  if (originMode !== 'current_location') {
+    return `${currentParkName}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`;
+  }
+  if (locationError) {
+    return `⚠️ ${locationError}`;
+  }
+  if (isLocating) {
+    return '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...';
+  }
+  if (userCoords) {
+    return '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.';
+  }
+  return '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)';
+}
+
+function buildAiNoticeSummary(
+  targetDuration: number | null,
+  parkName?: string,
+  intent?: VoiceIntentResult['intent']
+): string {
+  const parts: string[] = [];
+  if (targetDuration) parts.push(`${targetDuration}분`);
+  if (parkName) parts.push(parkName);
+  if (intent?.prefer_shade) parts.push('그늘길');
+  if (intent?.prefer_cushion) parts.push('폭신한 흙길');
+  if (intent?.avoid_stairs) parts.push('계단피하기');
+  return parts.join(' · ');
+}
+
 export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   dog,
   initialPreferences,
   onBack,
   onFindRoute,
 }) => {
+  const { colors } = useAppTheme();
+  const { walkSettings, scale } = useAppResponsive();
+  const [originMode, setOriginMode] = useState<WalkOriginMode>(
+    initialPreferences?.originMode ?? 'park'
+  );
+  const [pilotParkId, setPilotParkId] = useState<string>(
+    initialPreferences?.pilotParkId ?? 'yurim'
+  );
   const [duration, setDuration] = useState<number | null>(
     initialPreferences?.durationMinutes ?? 30
   );
+  const [isFreeWalk, setIsFreeWalk] = useState<boolean>(
+    initialPreferences?.isFreeWalk ?? false
+  );
+  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(false);
   const [environments, setEnvironments] = useState<EnvironmentId[]>(
     initialPreferences?.environments ?? ['soft', 'shade', 'stairs']
   );
-  const [requestText, setRequestText] = useState(
-    initialPreferences?.requestText ?? ''
+  const [requestText, setRequestText] = useState<string>(initialPreferences?.requestText ?? '');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | undefined>(
+    initialPreferences?.userCoordinates
   );
-  const [isListening, setIsListening] = useState(false);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<{ summary: string; briefing?: string } | null>(null);
+  const [unsupportedLandmark, setUnsupportedLandmark] = useState<string | null>(null);
 
-  const durationOptions = [20, 30, 40, 60];
+  const clearVoiceWarning = () => {
+    setUnsupportedLandmark(null);
+    setAiNotice(null);
+  };
+
+  const fetchUserLocation = async () => {
+    setIsLocating(true);
+    setLocationError(null);
+    const res = await getCurrentLocationCoords(5000);
+    setIsLocating(false);
+    if (res.ok && res.coords) {
+      const coords = { lat: res.coords.latitude, lon: res.coords.longitude };
+      setUserCoords(coords);
+      return coords;
+    } else {
+      const err = res.errorMessage || '현재 위치를 확인할 수 없습니다.';
+      setLocationError(err);
+      return null;
+    }
+  };
 
   const handleToggleEnvironment = (id: EnvironmentId) => {
     setEnvironments((prev) =>
@@ -56,203 +155,382 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     );
   };
 
-  const handleToggleVoiceInput = () => {
-    if (isListening) {
-      setIsListening(false);
-      return;
+  const handleIntentParsed = (result: VoiceIntentResult) => {
+    const { intent, landmark_park_id } = result;
+
+    // 1. 산책 시간 자동 반영
+    let resolvedDuration = duration;
+    if (intent.target_duration_minutes) {
+      resolvedDuration = intent.target_duration_minutes;
+      setDuration(resolvedDuration);
+      setIsFreeWalk(false);
+      if (![20, 30, 40, 60].includes(intent.target_duration_minutes)) {
+        setShowDetailedDuration(true);
+      }
     }
 
-    setIsListening(true);
-    TTSNavigationService.speak('원하시는 산책 조건을 편안하게 말씀해주세요.');
+    // 2. 환경 칩 자동 반영 (버그 수정: avoid_stairs 감지 시 stairs 칩 켜기)
+    setEnvironments((prev) => resolveAiEnvironments(prev, intent));
 
-    // 모바일 음성 발화 예시 자동 반영
-    setTimeout(() => {
-      setRequestText((prev) =>
-        prev ? `${prev} 계단 피하고 시원한 길로 찾아줘` : `${dog.name}랑 30분 정도 폭신한 길로 걸을래`
-      );
-      setIsListening(false);
-    }, 1600);
+    // 3. 랜드마크 공원 자동 설정 (정규화 적용)
+    let resolvedParkId = pilotParkId;
+    const rawTarget = intent.destination_landmark || landmark_park_id;
+    const parkId = normalizeToFrontendParkId(rawTarget);
+    setUnsupportedLandmark(rawTarget && !parkId ? rawTarget : null);
+    if (rawTarget && !parkId) {
+      setAiNotice({ summary: unsupportedParkMessage(rawTarget) });
+      return;
+    }
+    if (parkId) {
+      resolvedParkId = parkId;
+      // 장소 언급은 출발 위치 선택이 아니다. 공원 모드는 사용자가 직접 선택한다.
+      setOriginMode('current_location');
+      setPilotParkId(resolvedParkId);
+    }
+
+    // 4. AI 맞춤 설정 알림 요약
+    const parkObj = getPilotParkById(resolvedParkId);
+    setAiNotice(parkId
+      ? {
+          summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+          briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
+        }
+      : {
+          summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+          briefing: intent.briefing_message || undefined,
+        });
   };
 
-  const handleSubmit = () => {
-    onFindRoute({
-      durationMinutes: duration,
-      environments,
-      requestText,
-    });
-  };
+  const currentPark = getPilotParkById(pilotParkId);
 
-  // 선택된 조건 레이블 배열
-  const selectedLabels: string[] = [
-    dog.name,
-    ...(duration ? [duration === 60 ? '1시간' : `${duration}분`] : []),
-    ...WALK_ENVIRONMENTS.filter((opt) => environments.includes(opt.id)).map(
-      (opt) => opt.label
-    ),
-    ...(requestText.trim() ? ['직접 입력한 요청'] : []),
-  ];
+  const handleSubmit = async () => {
+    if (unsupportedLandmark) return;
+    const payloadDuration = isFreeWalk ? null : duration;
+    if (originMode === 'current_location') {
+      const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
+      onFindRoute({
+        originMode,
+        durationMinutes: payloadDuration,
+        environments,
+        requestText,
+        isFreeWalk,
+        pilotParkId: undefined,
+        userCoordinates: coords,
+      });
+    } else {
+      onFindRoute({
+        originMode,
+        durationMinutes: payloadDuration,
+        environments,
+        requestText,
+        isFreeWalk,
+        pilotParkId,
+      });
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onBack}
-          style={styles.backButton}
-        >
-          <AppIcon name="back" size={24} color={TOKENS.colors.textMain} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>산책 설정</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
+      <AppScreenHeader title="산책 설정" onBack={onBack} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 타이틀 안내 */}
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={[styles.contentWrap, { paddingHorizontal: walkSettings.containerPaddingH }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 2. 타이틀 & 안내 섹션 (03_walk_settings.png 원형 복원) */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>{dog.name}와 어떤 산책을 할까요?</Text>
-          <Text style={styles.subTitle}>
-            원하는 산책 조건을 알려주면 AI가 {dog.name}에게{'\n'}맞는 안심 길을 찾아볼게요.
+          <Text style={[styles.mainTitle, { color: colors.textMain }]}>
+            {dog.name}와 어떤 산책을 할까요?
+          </Text>
+          <Text style={[styles.subTitle, { color: colors.textMuted }]}>
+            원하는 산책 조건을 알려주면 AI가 {dog.name}에게 맞는 안심 길을 찾아볼게요.
           </Text>
         </View>
 
-        {/* AI 안내 배너 */}
-        <View style={styles.aiBanner}>
-          <View style={styles.aiBannerHeader}>
-            <AppIcon name="sparkle" size={18} color={TOKENS.colors.primaryDark} />
-            <Text style={styles.aiBannerTitle}>오늘의 산책, AI에게 맡겨보세요</Text>
-          </View>
-          <Text style={styles.aiBannerBody}>
-            {dog.name}의 산책 시간과 원하는 환경을 알려주면{'\n'}
-            관절 안심 지수와 온도를 분석해 코스를 찾아드릴게요.
-          </Text>
-        </View>
+        {/* 3. 직접 말해도 좋아요 (자연어 음성/텍스트 입력 섹션 - US-A1) */}
+        <WalkVoiceInputSection
+          dogName={dog.name}
+          requestText={requestText}
+          onChangeText={setRequestText}
+          onIntentParsed={handleIntentParsed}
+          coords={userCoords}
+          onFindRouteDirectly={handleSubmit}
+          hideResultBadge={true}
+        />
 
-        {/* 섹션 1: 얼마나 걸을까요? */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>얼마나 걸을까요?</Text>
-          <View style={styles.durationGrid}>
-            {durationOptions.map((minutes) => {
-              const isSelected = duration === minutes;
-              const label = minutes === 60 ? '1시간' : `${minutes}분`;
-              return (
-                <TouchableOpacity
-                  key={minutes}
-                  activeOpacity={0.8}
-                  onPress={() => setDuration(isSelected ? null : minutes)}
-                  style={[
-                    styles.durationChip,
-                    isSelected && styles.durationChipSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.durationChipText,
-                      isSelected && styles.durationChipTextSelected,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 섹션 2: 어떤 길이 좋을까요? */}
-        <View style={styles.section}>
-          <View style={styles.environmentHeaderRow}>
-            <Text style={styles.sectionTitle}>어떤 길이 좋을까요?</Text>
-            <Text style={styles.sectionHint}>여러 개 선택할 수 있어요</Text>
-          </View>
-
-          <View style={styles.envGrid}>
-            {WALK_ENVIRONMENTS.map((option) => {
-              const isSelected = environments.includes(option.id);
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  activeOpacity={0.8}
-                  onPress={() => handleToggleEnvironment(option.id)}
-                  style={[
-                    styles.envCard,
-                    isSelected && styles.envCardSelected,
-                  ]}
-                >
-                  <View style={styles.envCardTop}>
-                    <AppIcon name={option.icon} size={24} color={isSelected ? TOKENS.colors.primaryDark : TOKENS.colors.textMuted} />
-                    {isSelected && (
-                      <View style={styles.envCheckCircle}>
-                        <Text style={styles.envCheckMark}>✓</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.envLabel,
-                      isSelected && styles.envLabelSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text style={styles.envDetail}>{option.detail}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 섹션 3: 직접 말해도 좋아요 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>직접 말해도 좋아요</Text>
-          <View style={styles.textInputBox}>
-            <TextInput
-              value={requestText}
-              onChangeText={setRequestText}
-              multiline
-              placeholder={`예) ${dog.name}랑 30분 정도 천천히 걷고 싶어.\n계단은 피하고 그늘이 많은 길로 찾아줘.`}
-              placeholderTextColor="#9CA3AF"
-              style={styles.textArea}
-            />
+        {/* AI 맞춤 조건 적용 알림 카드 */}
+        {aiNotice && (
+          <View style={styles.aiFeedbackCard}>
+            <View style={styles.aiFeedbackTop}>
+              <AppIcon name="sparkle" size={14} color="#4338CA" />
+              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : 'AI 맞춤 산책 조건 적용 완료'}</Text>
+            </View>
+            <Text style={styles.aiFeedbackSummary}>{aiNotice.summary}</Text>
+            {aiNotice.briefing ? (
+              <Text style={styles.aiFeedbackBriefing}>{aiNotice.briefing}</Text>
+            ) : null}
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={handleToggleVoiceInput}
-              style={[
-                styles.micButton,
-                isListening && styles.micButtonActive,
-              ]}
+              onPress={handleSubmit}
+              disabled={Boolean(unsupportedLandmark)}
+              style={styles.aiFeedbackQuickBtn}
             >
-              <AppIcon name="mic" size={20} color={isListening ? TOKENS.colors.textWhite : TOKENS.colors.textMuted} />
+              <AppIcon name="sparkle" size={13} color="#FFFFFF" />
+              <Text style={styles.aiFeedbackQuickBtnText}>이 조건으로 산책로 바로 찾기 🚀</Text>
             </TouchableOpacity>
           </View>
-          {isListening && (
-            <Text style={styles.listeningNotice}>말씀해주세요. 듣고 있어요...</Text>
+        )}
+
+        {/* 4. 산책 경로 생성 진입 방식 (1. 현재 위치 기반 / 2. 지정한 공원 주변) */}
+        <View style={styles.originModeRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              setOriginMode('current_location');
+              clearVoiceWarning();
+              if (!userCoords && !isLocating) {
+                void fetchUserLocation();
+              }
+            }}
+            style={[
+              styles.originModeBtn,
+              {
+                backgroundColor: originMode === 'current_location' ? colors.primary : colors.surface,
+                borderColor: originMode === 'current_location' ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.originModeText,
+                { color: originMode === 'current_location' ? colors.textWhite : colors.textMain },
+                originMode === 'current_location' && styles.originModeTextActive,
+              ]}
+            >
+              📍 현재 위치 기반
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { setOriginMode('park'); clearVoiceWarning(); }}
+            style={[
+              styles.originModeBtn,
+              {
+                backgroundColor: originMode === 'park' ? colors.primary : colors.surface,
+                borderColor: originMode === 'park' ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.originModeText,
+                { color: originMode === 'park' ? colors.textWhite : colors.textMain },
+                originMode === 'park' && styles.originModeTextActive,
+              ]}
+            >
+              🏞️ 지정 공원 둘레길
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 4. AI 안내 배너 (모드별 분기) */}
+        <View style={[styles.aiBanner, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+          <View style={styles.aiBannerHeader}>
+            <AppIcon name="sparkle" size={15} color={colors.primaryDark} />
+            <Text style={[styles.aiBannerTitle, { color: colors.primaryDark }]}>
+              {getAiBannerTitle(originMode, isLocating, userCoords, currentPark.shortName)}
+            </Text>
+          </View>
+          <Text style={[styles.aiBannerBody, { color: locationError ? '#DC2626' : colors.textMuted }]}>
+            {getAiBannerBody(originMode, locationError, isLocating, userCoords, currentPark.name)}
+          </Text>
+
+          {/* 거점 공원 모드일 때만 공원 칩 행 표출 */}
+          {originMode === 'park' && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.parkScrollRow}>
+              {PILOT_PARKS.map((park) => {
+                const isSelected = park.id === pilotParkId;
+                return (
+                  <TouchableOpacity
+                    key={park.id}
+                    activeOpacity={0.8}
+                    onPress={() => { setPilotParkId(park.id); clearVoiceWarning(); }}
+                    style={[
+                      styles.parkChip,
+                      {
+                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.parkChipText,
+                        { color: isSelected ? colors.textWhite : colors.textMain, fontWeight: isSelected ? '700' : '500' },
+                      ]}
+                    >
+                      {park.badgeLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           )}
         </View>
 
-        {/* 섹션 4: 현재 산책 조건 태그 */}
-        <View style={styles.section}>
-          <Text style={styles.summaryTitle}>현재 산책 조건</Text>
-          <View style={styles.tagWrap}>
-            {selectedLabels.map((lbl) => (
-              <View key={lbl} style={styles.summaryTag}>
-                <Text style={styles.summaryTagText}>{lbl}</Text>
+        {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.durationTitleRow}>
+              <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
+              <View style={[styles.durationBadge, { backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.durationBadgeText, { color: colors.primaryDark }]}>
+                  {formatDurationLabel(duration, isFreeWalk)}
+                </Text>
               </View>
-            ))}
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setShowDetailedDuration((prev) => !prev)}
+              style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
+            >
+              <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
+                {showDetailedDuration ? '간편 설정 접기 ▲' : '상세 설정 (최대 2시간) ▼'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {!showDetailedDuration ? (
+            <View style={styles.durationChipRow}>
+              {PRESET_DURATIONS.map((min) => {
+                const isSelected = !isFreeWalk && duration === min;
+                const label = min === 60 ? '1시간' : `${min}분`;
+                return (
+                  <TouchableOpacity
+                    key={min}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setIsFreeWalk(false);
+                      setDuration(min);
+                    }}
+                    style={[
+                      styles.durationChip,
+                      {
+                        height: scale(36, 38, 44),
+                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.durationChipText,
+                        {
+                          color: isSelected ? colors.textWhite : colors.textMain,
+                          fontWeight: isSelected ? '800' : '600',
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <WalkDurationSlider
+              duration={duration}
+              isFreeWalk={isFreeWalk}
+              onChangeDuration={(mins) => {
+                setIsFreeWalk(false);
+                setDuration(mins);
+              }}
+              onChangeFreeWalk={(free) => {
+                setIsFreeWalk(free);
+                if (free) {
+                  setDuration(null);
+                } else if (!duration) {
+                  setDuration(30);
+                }
+              }}
+              hideHeader={true}
+            />
+          )}
+        </View>
+
+        {/* 5. 섹션 2: 어떤 길이 좋을까요? (6대 안심 환경 2열 카드 그리드 복원) */}
+        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: colors.textMain }]}>어떤 길이 좋을까요?</Text>
+            <Text style={[styles.sectionSubGuide, { color: colors.textMuted }]}>여러 개 선택할 수 있어요</Text>
+          </View>
+          <View style={styles.envGrid}>
+            {WALK_ENVIRONMENTS.map((opt) => {
+              const isChecked = environments.includes(opt.id);
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  activeOpacity={0.8}
+                  onPress={() => handleToggleEnvironment(opt.id)}
+                  style={[
+                    styles.envCard,
+                    {
+                      minHeight: walkSettings.envCardHeight,
+                      padding: scale(7, 9, 12),
+                      backgroundColor: colors.surface,
+                      borderColor: isChecked ? colors.primary : colors.border,
+                      borderWidth: isChecked ? 1.5 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.envCardHeader}>
+                    <AppIcon name={opt.icon} size={18} color={isChecked ? colors.primaryDark : colors.textMuted} />
+                    {isChecked ? (
+                      <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
+                        <Text style={styles.checkText}>✓</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.uncheckCircle, { borderColor: colors.border }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.envLabel, { color: colors.textMain }]}>{opt.label}</Text>
+                  <Text style={[styles.envDetail, { color: colors.textMuted }]} numberOfLines={1}>
+                    {opt.detail}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </ScrollView>
 
-      {/* 하단 고정 버튼 */}
-      <View style={styles.bottomBar}>
+      {/* 6. 하단 Thumb Zone 탐색 버튼 (03_walk_settings.png 원형 복원) */}
+      <View style={[styles.bottomBar, { paddingVertical: scale(8, 10, 14), backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.88}
+          disabled={isLocating || Boolean(unsupportedLandmark)}
           onPress={handleSubmit}
-          style={styles.submitButton}
+          style={[styles.submitButton, { height: scale(46, 50, 56), backgroundColor: colors.primary, opacity: isLocating ? 0.75 : 1 }]}
         >
           <View style={styles.submitButtonContent}>
-            <AppIcon name="sparkle" size={18} color={TOKENS.colors.textWhite} />
-            <Text style={styles.submitButtonText}>AI 산책 코스 찾아보기</Text>
+            {isLocating ? (
+              <>
+                <ActivityIndicator size="small" color={colors.textWhite} style={{ marginRight: 6 }} />
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
+                  현재 위치 확인 중...
+                </Text>
+              </>
+            ) : (
+              <>
+                <AppIcon name="sparkle" size={18} color={colors.textWhite} />
+                <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
+                  AI 산책 코스 찾아보기
+                </Text>
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -263,274 +541,258 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: TOKENS.colors.background,
   },
   header: {
-    height: 52,
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: TOKENS.colors.border,
-    backgroundColor: TOKENS.colors.surface,
   },
-  backButton: {
-    width: 36,
+  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
+  headerPlaceholder: { width: 32 },
+  contentScroll: {
+    flex: 1,
+  },
+  contentWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  titleSection: {
+    marginBottom: 4,
+  },
+  originModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  originModeBtn: {
+    flex: 1,
     height: 36,
+    borderRadius: 10,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: TOKENS.colors.textMain,
-    letterSpacing: -0.3,
+  originModeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
-  headerPlaceholder: {
-    width: 36,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 110,
-  },
-  titleSection: {
-    marginBottom: 20,
-    marginTop: 6,
+  originModeTextActive: {
+    fontWeight: '800',
   },
   mainTitle: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: '800',
-    color: TOKENS.colors.textMain,
-    letterSpacing: -0.5,
-    marginBottom: 6,
+    letterSpacing: -0.4,
+    marginBottom: 2,
   },
   subTitle: {
-    fontSize: 14,
-    color: TOKENS.colors.textMuted,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
   },
   aiBanner: {
-    backgroundColor: TOKENS.colors.primaryWash,
+    borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
-    borderColor: TOKENS.colors.primaryMint,
-    borderRadius: TOKENS.borderRadius.card,
-    padding: 16,
-    marginBottom: 24,
   },
   aiBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  aiBannerTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  aiBannerBody: {
+    fontSize: 11,
+    lineHeight: 14,
+    marginBottom: 6,
+  },
+  parkScrollRow: {
+    flexDirection: 'row',
+  },
+  parkChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginRight: 6,
+  },
+  parkChipText: {
+    fontSize: 11,
+  },
+  sectionBlock: {
+    marginTop: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  durationTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 6,
   },
-  aiBannerTitle: {
-    fontSize: 14,
+  durationBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  durationBadgeText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: TOKENS.colors.primaryDark,
   },
-  aiBannerBody: {
-    fontSize: 12,
-    color: TOKENS.colors.textMuted,
-    lineHeight: 18,
-    paddingLeft: 24,
+  detailToggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 6,
   },
-  section: {
-    marginBottom: 24,
+  detailToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: TOKENS.colors.textMain,
-    letterSpacing: -0.3,
-    marginBottom: 12,
+    letterSpacing: -0.2,
+    marginBottom: 6,
   },
-  environmentHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  sectionSubGuide: {
+    fontSize: 11,
   },
-  sectionHint: {
-    fontSize: 12,
-    color: TOKENS.colors.textMuted,
-  },
-  durationGrid: {
+  durationChipRow: {
     flexDirection: 'row',
     gap: 8,
   },
   durationChip: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: TOKENS.colors.surface,
-    borderWidth: 1.5,
-    borderColor: TOKENS.colors.border,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  durationChipSelected: {
-    backgroundColor: TOKENS.colors.primary,
-    borderColor: TOKENS.colors.primary,
-  },
   durationChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: TOKENS.colors.textMuted,
-  },
-  durationChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 13,
   },
   envGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   envCard: {
-    width: '48%',
-    backgroundColor: TOKENS.colors.surface,
-    borderWidth: 1.5,
-    borderColor: TOKENS.colors.border,
-    borderRadius: 16,
-    padding: 12,
-    minHeight: 84,
+    width: '48.5%',
+    padding: 9,
+    borderRadius: 12,
   },
-  envCardSelected: {
-    borderColor: TOKENS.colors.primary,
-    backgroundColor: TOKENS.colors.primaryLight,
-  },
-  envCardTop: {
+  envCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  envCheckCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: TOKENS.colors.primary,
+  checkCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  envCheckMark: {
+  checkText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
+  uncheckCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
   },
   envLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: TOKENS.colors.textMain,
-    marginBottom: 2,
-  },
-  envLabelSelected: {
-    color: TOKENS.colors.primaryDark,
+    marginBottom: 1,
   },
   envDetail: {
-    fontSize: 11,
-    color: TOKENS.colors.textMuted,
-  },
-  textInputBox: {
-    backgroundColor: TOKENS.colors.surface,
-    borderRadius: TOKENS.borderRadius.card,
-    borderWidth: 1.5,
-    borderColor: TOKENS.colors.border,
-    padding: 14,
-    position: 'relative',
-  },
-  textArea: {
-    fontSize: 13,
-    color: TOKENS.colors.textMain,
-    lineHeight: 20,
-    minHeight: 70,
-    textAlignVertical: 'top',
-    paddingRight: 40,
-  },
-  micButton: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: TOKENS.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: TOKENS.colors.border,
-  },
-  micButtonActive: {
-    backgroundColor: TOKENS.colors.primary,
-    borderColor: TOKENS.colors.primary,
-  },
-  listeningNotice: {
-    fontSize: 11,
-    color: TOKENS.colors.primaryDark,
-    marginTop: 6,
-    paddingLeft: 4,
-  },
-  summaryTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: TOKENS.colors.textMuted,
-    marginBottom: 8,
-  },
-  tagWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  summaryTag: {
-    backgroundColor: TOKENS.colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
-  },
-  summaryTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: TOKENS.colors.primaryDark,
+    fontSize: 10,
   },
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: TOKENS.colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: TOKENS.colors.border,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 6,
   },
   submitButton: {
-    backgroundColor: TOKENS.colors.primary,
-    height: 52,
+    height: 50,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TOKENS.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
   },
   submitButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
+  },
+  submitButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  aiFeedbackCard: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  aiFeedbackTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  aiFeedbackTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#4338CA',
+  },
+  aiFeedbackSummary: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#312E81',
+    marginBottom: 4,
+  },
+  aiFeedbackBriefing: {
+    fontSize: 11.5,
+    color: '#475569',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  aiFeedbackQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#4F46E5',
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  aiFeedbackQuickBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

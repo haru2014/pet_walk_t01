@@ -1,0 +1,88 @@
+{
+  "type": "FeatureCollection",
+  "name": "4개 공원 대표점_미확보 위치는 null (경계가 아님)",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "sejong_lake",
+        "name": "세종호수공원",
+        "osm_type": "",
+        "osm_id": "",
+        "geo_status": "대표점 확인·경계 미추출",
+        "source": "한국철도공사 철도역 인근 문화시설",
+        "url": "https://qbh.purpleo.kr/article/138992"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.2744374,
+          36.4988616
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "doan_gapcheon_lake",
+        "name": "갑천생태호수공원(도안호수공원)",
+        "osm_type": "relation",
+        "osm_id": 19159630,
+        "geo_status": "대표점·OSM 경계객체 확인(꼭짓점 미추출)",
+        "source": "OpenStreetMap Nominatim (갑천 생태호수공원, 대전광역시 공식 공원 안내와 같은 공원)",
+        "url": "https://www.openstreetmap.org/relation/19159630"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.3509288,
+          36.3283553
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "songgang",
+        "name": "송강공원(송강동 근린공원)",
+        "osm_type": "way",
+        "osm_id": 564388430,
+        "geo_status": "대표점·OSM 경계객체 확인(꼭짓점 미추출)",
+        "source": "Mapcarta / OpenStreetMap",
+        "url": "https://mapcarta.com/W564388430"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.38478,
+          36.43536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "yurim",
+        "name": "대전 유림공원",
+        "osm_type": "way",
+        "osm_id": 49323607,
+        "geo_status": "대표점·OSM 경계객체 확인(꼭짓점 미추출)",
+        "source": "Mapcarta / OpenStreetMap",
+        "url": "https://mapcarta.com/W49323607"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.35771,
+          36.36096
+        ]
+      }
+    }
+  ]
+}
