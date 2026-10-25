@@ -34,7 +34,6 @@ export const THEME_TO_MAP_STYLE: Record<ThemeId, OpenFreeMapStyleKey> = {
   forest: 'liberty',
   vivid_violet: 'bright',
   dark: 'dark',
-  mint: 'liberty',
   ocean: 'bright',
   coral: 'bright',
 } as const;
@@ -88,15 +87,6 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     maskCircle: 'rgba(52, 211, 153, 0.22)',
     maskBorder: '#34D399',
     startMarker: '#34D399',
-  },
-  mint: {
-    safe: '#10B981',
-    normal: '#3B82F6',
-    caution: THEME_PALETTES.mint.routeCaution,
-    casing: '#FFFFFF',
-    maskCircle: 'rgba(16, 185, 129, 0.18)',
-    maskBorder: '#059669',
-    startMarker: '#10B981',
   },
   ocean: {
     safe: '#10B981',

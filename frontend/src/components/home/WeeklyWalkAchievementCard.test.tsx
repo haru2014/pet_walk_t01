@@ -11,7 +11,7 @@ function toReactNativeWebRgba(hex: string, alpha: number): string {
 
 describe('WeeklyWalkAchievementCard', () => {
   it.each([
-    { label: '민트', colors: THEME_PALETTES.mint },
+    { label: '숲길', colors: THEME_PALETTES.forest },
     { label: '바다', colors: THEME_PALETTES.ocean },
     { label: '코랄', colors: THEME_PALETTES.coral },
   ])('uses the $label theme colors for a completed badge', ({ colors }) => {
@@ -26,11 +26,11 @@ describe('WeeklyWalkAchievementCard', () => {
 
   it('does not show the completed badge before reaching the goal', () => {
     const html = renderToStaticMarkup(
-      <WeeklyWalkAchievementCard walkCount={2} colors={THEME_PALETTES.mint} />,
+      <WeeklyWalkAchievementCard walkCount={2} colors={THEME_PALETTES.forest} />,
     );
 
     expect(html).toContain('진행 중');
     expect(html).not.toContain('달성 완료');
-    expect(html).not.toContain(`background-color:${toReactNativeWebRgba(THEME_PALETTES.mint.primary, 0.14)}`);
+    expect(html).not.toContain(`background-color:${toReactNativeWebRgba(THEME_PALETTES.forest.primary, 0.14)}`);
   });
 });

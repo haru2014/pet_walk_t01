@@ -3,7 +3,7 @@
  * React Native 모바일 디자인 토큰 (Design Tokens)
  *
  * Upstream: dusty amber, forest, violet, and dark palettes
- * PR #202: mint, ocean, and coral palettes
+ * PR #202: ocean and coral palettes
  */
 
 import { ThemeId } from '../types/theme';
@@ -80,7 +80,7 @@ export interface ThemeColors {
   accentLight: string;
 }
 
-type LegacyThemeId = Exclude<ThemeId, 'mint' | 'ocean' | 'coral'>;
+type LegacyThemeId = Exclude<ThemeId, 'ocean' | 'coral'>;
 
 const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
   // 🐶 0. 더스티 앰버 & 세이지 그린 (02번 디자인 시안 - docs/reference/UI개선/app_design_n2-1.png)
@@ -250,15 +250,6 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
 export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
   ...BASE_THEME_PALETTES,
-  mint: {
-    ...BASE_THEME_PALETTES.forest,
-    primary: '#10B981',
-    primaryDark: '#087F5B',
-    primaryLight: '#D1FAE5',
-    primaryWash: 'rgba(16, 185, 129, 0.14)',
-    primaryMint: '#A7F3D0',
-    primarySubtle: '#D1FAE5',
-  },
   ocean: {
     ...BASE_THEME_PALETTES.forest,
     background: '#EFF6FF',

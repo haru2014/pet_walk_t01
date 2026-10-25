@@ -26,7 +26,6 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
     expect(getMapStyleKeyForTheme('dark')).toBe('dark');
     expect(getMapStyleForTheme('dark')).toBe(OPENFREEMAP_STYLES.dark);
-    expect(getMapStyleKeyForTheme('mint')).toBe('liberty');
     expect(getMapStyleKeyForTheme('ocean')).toBe('bright');
     expect(getMapStyleKeyForTheme('coral')).toBe('bright');
   });
@@ -51,7 +50,6 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     expect(darkColors.safe).toBe('#34D399');   // 야간 고시인성 네온 민트
     expect(darkColors.casing).toBe('#0F172A'); // 다크 테두리
 
-    expect(getMapRouteColors('mint').safe).toBe('#10B981');
     expect(getMapRouteColors('ocean').normal).toBe('#2563EB');
     expect(getMapRouteColors('coral').normal).toBe('#F97316');
   });
@@ -62,7 +60,6 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
       'forest',
       'vivid_violet',
       'dark',
-      'mint',
       'ocean',
       'coral',
     ];
