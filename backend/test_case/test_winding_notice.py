@@ -74,3 +74,13 @@ def test_doan_60_minutes_first_course_gets_notice():
 def test_other_parks_have_no_winding_notice():
     for park in ("sejong", "yurim", "songgang"):
         assert not any("꼬불꼬불" in r for r in _plan(park, 60)), park
+
+
+def test_doan_60_minutes_notice_field():
+    lat, lon, _ = PILOT_PARK_CENTERS["doan"]
+    res = client.post("/api/v1/walk/plan", json={
+        "target_duration_minutes": 60, "speed_kmh": 2.8,
+        "origin_lat": lat, "origin_lon": lon, "origin_mode": "park", "pilot_park_id": "doan",
+    })
+    notices = [c.get("notice") for c in res.json()["courses"]]
+    assert sum(1 for n in notices if n and "꼬불꼬불" in n) == 1

@@ -785,14 +785,27 @@ def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any
     for course, cand in zip(courses, candidates):
         repeat_desc = _lap_description(getattr(cand, "lap_count", 1) or 1, getattr(cand, "lap_cycle_m", None))
         course["reason"] = f"{notice}\n{repeat_desc}" if repeat_desc else notice
+        _append_notice(course, notice)
+
+
+def _append_notice(course: Dict[str, Any], text: str) -> None:
+    """앱이 카드 아래 별도 칸에 그대로 보여 줄 안내(`notice`).
+
+    바퀴 도는 코스에서는 앱이 `reason` 을 숨기므로 같은 문구를 따로 보낸다 (#263). 안내가 없는 카드에는 필드를 넣지 않는다.
+    """
+    course["notice"] = f"{course['notice']} {text}" if course.get("notice") else text
+
+
+WINDING_NOTICE_TEXT = "갈림길이 많아 코스가 꼬불꼬불해요."
 
 
 def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
-    """좁은 갈림길을 헤집어 꼬불꼬불한 코스(예: 도안)는 카드 안내 줄(reason)에 이유를 알린다 (#258)."""
+    """좁은 갈림길을 헤집어 꼬불꼬불한 코스(예: 도안)는 카드에 이유를 알린다 (#258)."""
     for course, cand in zip(courses, candidates):
         coords = getattr(cand, "geojson_coordinates", None) or []
         if winding_ratio(coords) >= WINDING_RATIO_NOTICE:
-            course["reason"] = f"{course.get('reason', '')}\n갈림길이 많아 코스가 꼬불꼬불해요.".strip()
+            course["reason"] = f"{course.get('reason', '')}\n{WINDING_NOTICE_TEXT}".strip()
+            _append_notice(course, WINDING_NOTICE_TEXT)
 
 
 def _build_walk_plan_response(
