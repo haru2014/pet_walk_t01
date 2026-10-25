@@ -49,14 +49,14 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(404, { detail: { code: 'WALK_NOT_FOUND', message: 'x' } }));
     const result = await SupabaseService.setWalkRecordPublic(WALK_ID, true);
     expect(result).toMatchObject({ ok: false, code: 'WALK_NOT_FOUND' });
-    expect((result as { message: string }).message).toContain('클라우드');
+    expect((result as { message: string }).message).toContain('계정에 아직 저장되지 않은 산책 기록');
   });
 
   it('경로가 너무 짧아 가릴 수 없으면(422) 공개하지 않고 이유를 알려 준다', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(422, { detail: { code: 'ROUTE_TOO_SHORT_TO_MASK', message: 'x' } }));
     const result = await SupabaseService.setWalkRecordPublic(WALK_ID, true);
     expect(result).toMatchObject({ ok: false, code: 'ROUTE_TOO_SHORT_TO_MASK' });
-    expect((result as { message: string }).message).toContain('200m');
+    expect((result as { message: string }).message).toContain('집 근처 위치를 보호하고 나면');
   });
 
   it('로그인 만료(401)를 알려 준다', async () => {

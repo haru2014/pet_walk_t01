@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center' },
+  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center', paddingTop: 3 },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,

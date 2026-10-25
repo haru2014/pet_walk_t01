@@ -149,7 +149,7 @@ describe('Phase 5 - 3초 원터치 피드백 메타데이터 바인딩 (US-E2)',
     const context = await FeedbackContextService.buildRecentFeedbackContext();
     expect(context.slope_dissatisfaction_count).toBe(1);
     expect(context.recommended_max_slope_offset).toBe(-1.5);
-    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('최대 경사도를 1.5% 더 완화');
+    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('오르막이 적은 길을 먼저 찾아요');
   });
 
   it('완만/평지(gentle) 피드백 추가 시 불만족 카운트가 상쇄되고 보정치가 정상 회복되어야 한다', async () => {
@@ -166,7 +166,7 @@ describe('Phase 5 - 3초 원터치 피드백 메타데이터 바인딩 (US-E2)',
     // 1건 steep - 1건 gentle = 0건 순 불만족 (회복)
     expect(context.slope_dissatisfaction_count).toBe(0);
     expect(context.recommended_max_slope_offset).toBe(0);
-    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('최적의 표준 평지 코스');
+    expect(FeedbackContextService.generateBriefingNotice(context)).toContain('관절과 발바닥이 편안한 길을 먼저 찾아요');
   });
 });
 
