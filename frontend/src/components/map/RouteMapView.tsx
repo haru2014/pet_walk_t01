@@ -61,6 +61,14 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     [route],
   );
   const summary = useMemo(() => buildCourseSummary(route, speedKmH), [route, speedKmH]);
+  const hasTempData = useMemo(
+    () => route.features.some((feature) => feature.properties.surfaceTempC != null),
+    [route],
+  );
+  const hasSlopeData = useMemo(
+    () => route.features.some((feature) => feature.properties.slopeSignedPercent != null),
+    [route],
+  );
   const routeHazardPins = useMemo<readonly RouteStepPin[]>(
     () => route.features.flatMap((feature, index) => {
       const hasStairs = feature.properties.hasStairs === true;
@@ -117,11 +125,6 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             onPinSelect?.(instruction);
           }}
         />
-        {showLegend && (
-          <View pointerEvents="none" style={styles.legendOverlay}>
-            <RouteMapLegend />
-          </View>
-        )}
         {stairsCount != null && (
           <View
             pointerEvents="none"
@@ -147,6 +150,12 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
         )}
       </View>
 
+      {showLegend && (
+        <View style={styles.legendWrapper}>
+          <RouteMapLegend hasTempData={hasTempData} hasSlopeData={hasSlopeData} />
+        </View>
+      )}
+
       {showSummaryCard && (
         <View style={styles.summaryWrapper}>
           <CourseSummaryCard summary={summary} onStart={onStart} />
@@ -167,7 +176,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  legendOverlay: { position: 'absolute', left: 8, top: 8, zIndex: 2 },
+  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center' },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,

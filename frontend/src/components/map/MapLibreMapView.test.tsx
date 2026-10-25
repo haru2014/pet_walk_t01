@@ -96,6 +96,9 @@ describe('MapLibreMapView 및 인라인 템플릿 TDD 검증 (T-OFM-3, T-OFM-4)'
     expect(html).toContain('maplibre-gl.css');
     expect(html).toContain('https://tiles.openfreemap.org/styles/liberty');
     expect(html).toContain('route-core');
+    expect(html).toContain('route-slope-symbols');
+    expect(html).toContain('surfaceTempC');
+    expect(html).toContain('slopeSignedPercent');
     expect(html).toContain('route-casing');
     expect(html).toContain('masking-source');
     expect(html).toContain('step-pin');

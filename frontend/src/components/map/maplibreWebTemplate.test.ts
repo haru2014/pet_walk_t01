@@ -37,6 +37,7 @@ function bootTemplate() {
   const messageListeners: ((event: { data: string }) => void)[] = [];
   const documentMessageListeners: ((event: { data: string }) => void)[] = [];
   const setDataCalls: unknown[] = [];
+  const markers: { element: any; remove: () => void }[] = [];
 
   const map = {
     on(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
@@ -57,6 +58,8 @@ function bootTemplate() {
     getSource(id: string) {
       return sources[id] ? { setData(data: unknown) { setDataCalls.push(data); } } : undefined;
     },
+    getLayer() { return true; },
+    setPaintProperty() {},
     fitBounds() {},
     setStyle(style: unknown, options: unknown) {
       setStyleCalls.push({ style, options });
@@ -78,8 +81,10 @@ function bootTemplate() {
   };
   const fakeMapLibre = {
     Map: function FakeMap() { return map; },
-    Marker: function FakeMarker(this: object) {
-      return { setLngLat() { return this; }, addTo() { return this; }, remove() {} };
+    Marker: function FakeMarker(this: object, options: { element: any }) {
+      const marker = { element: options.element, setLngLat() { return this; }, addTo() { return this; }, remove() {} };
+      markers.push(marker);
+      return marker;
     },
     AttributionControl: function FakeControl() {},
   };
@@ -96,6 +101,7 @@ function bootTemplate() {
     setStyleCalls,
     messageTypes: () => posted.map((message) => message.type),
     setDataCalls,
+    markers,
     // iOS: react-native-webview 가 window 로 message 이벤트를 보낸다
     send: (message: object) => messageListeners.forEach((listener) => listener({ data: JSON.stringify(message) })),
     // 안드로이드: document 로 보낸다 (react-native-webview RNCWebViewManagerImpl.kt postMessage)
@@ -105,19 +111,50 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
-  it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
+  it('현재 위치 텍스트 안내는 투명 배경·무테두리로 표시하고 글자 halo로 가독성을 유지한다', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,
       route,
-      stepPins: [{ ...pin, title: '공원 길', icon: '🌳' }],
+      stepPins: [{
+        ...pin,
+        id: 'current-location-pin',
+        title: '현재 위치',
+        detail: '현재 위치 (자유 산책 출발)',
+      }],
       routeColors: THEME_MAP_ROUTE_COLORS.forest,
       maskingCenter: [127.38, 36.43],
     });
 
     expect(html).toContain('background-color: transparent');
     expect(html).toContain("el.style.backgroundColor = 'transparent'");
+    expect(html).toContain("el.style.border = 'none'");
+    expect(html).toContain("el.style.boxShadow = 'none'");
+    expect(html).toContain("const pinColor = isCurrentLocation ? colors.startMarker");
+    expect(html).toContain("startEl.style.color = colors.startMarker");
+    expect(html).toContain("el.style.textShadow = textHalo");
+    expect(html).toContain("0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing");
     expect(html).not.toContain('#ffffffed');
     expect(html).toContain("postToReactNative('PIN_SELECT'");
+  });
+
+  it('WebView map markers update to the selected theme palette without opaque backgrounds', () => {
+    const view = bootTemplate();
+    view.map.emit('style.load');
+    view.map.emit('load');
+
+    view.send({
+      action: 'SET_STYLE',
+      style: PRIMARY_STYLE,
+      routeColors: THEME_MAP_ROUTE_COLORS.ocean,
+    });
+
+    const [startMarker, turnMarker] = view.markers.slice(-2);
+    expect(startMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.startMarker);
+    expect(startMarker.element.style.backgroundColor).toBeUndefined();
+    expect(startMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
+    expect(turnMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.normal);
+    expect(turnMarker.element.style.backgroundColor).toBe('transparent');
+    expect(turnMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
   });
 
   it('정상 로드 시 MAP_LOADED를 1회 보내고 경로/마스킹 소스를 등록한다', () => {
@@ -128,6 +165,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(view.messageTypes()).toEqual(['MAP_LOADED']);
     expect(view.sources['route-source']).toBeDefined();
     expect(view.sources['masking-source']).toBeDefined();
+    expect(buildMapLibreHtml({ styleUrl: PRIMARY_STYLE, route, routeColors: THEME_MAP_ROUTE_COLORS.forest })).toContain('route-slope-symbols');
     expect(view.timers[0].ms).toBe(STYLE_LOAD_TIMEOUT_MS);
   });
 

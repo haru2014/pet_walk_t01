@@ -22,6 +22,7 @@ import { disposeWebMap, removeHandles } from './webMapLifecycle';
 import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
 import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
 import { getRouteStepPinIcon } from './routeStepIcon';
+import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
 
 function getRouteBounds(routeData: RouteFeatureCollection): [[number, number], [number, number]] | null {
   const coordinates = routeData.features.flatMap((feature) => feature.geometry.coordinates);
@@ -218,14 +219,27 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
             source: 'route-source',
             layout: { 'line-join': 'round', 'line-cap': 'round' },
             paint: {
-              'line-color': [
-                'match',
-                ['get', 'segmentType'],
-                'safe', currentColors.safe,
-                'caution', currentColors.caution,
-                currentColors.normal,
-              ],
+              'line-color': routeConditionColorExpression(currentColors) as never,
               'line-width': 5,
+            },
+          });
+
+          mapInstance.addLayer({
+            id: 'route-slope-symbols',
+            type: 'symbol',
+            source: 'route-source',
+            filter: ['all', ['has', 'slopeSignedPercent'], ['!=', ['get', 'slopeSignedPercent'], null]],
+            layout: {
+              'symbol-placement': 'line',
+              'text-field': slopeSymbolExpression() as never,
+              'text-font': ['Noto Sans Regular'],
+              'text-size': 13,
+              'text-keep-upright': false,
+            },
+            paint: {
+              'text-color': slopeSymbolColorExpression() as never,
+              'text-halo-color': '#FFFFFF',
+              'text-halo-width': 1.5,
             },
           });
 
@@ -263,6 +277,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     const map = webMapInstanceRef.current;
     const source = map.getSource('route-source');
     if (!source) return;
+    map.setPaintProperty?.('route-casing', 'line-color', routeColors.casing);
+    map.setPaintProperty?.('route-core', 'line-color', routeConditionColorExpression(routeColors));
+    map.setPaintProperty?.('masking-fill', 'fill-color', routeColors.maskCircle);
+    map.setPaintProperty?.('masking-line', 'line-color', routeColors.maskBorder);
     source.setData(route);
     const updateMarkers = async () => {
       const maplibregl = await import('maplibre-gl');
@@ -305,6 +323,8 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         onMapLoaded?.();
         webViewRef.current?.postMessage(JSON.stringify({
           action: 'UPDATE_ROUTE', route: latestRouteRef.current, stepPins: latestPinsRef.current,
+          routeColors: latestRouteColorsRef.current,
+          routeConditionColor: routeConditionColorExpression(latestRouteColorsRef.current),
         }));
       } else if (data.type === 'STYLE_ERROR' || data.type === 'STYLE_TIMEOUT') {
         degrade();
@@ -316,7 +336,12 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   useEffect(() => {
     if (!isWeb && webViewRef.current) {
       webViewRef.current.postMessage(
-        JSON.stringify({ action: 'SET_STYLE', style: activeStyle, routeColors })
+        JSON.stringify({
+          action: 'SET_STYLE',
+          style: activeStyle,
+          routeColors,
+          routeConditionColor: routeConditionColorExpression(routeColors),
+        })
       );
     }
   }, [isWeb, activeStyle, routeColors]);
@@ -328,6 +353,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         route,
         stepPins: directionalPins,
         routeColors,
+        routeConditionColor: routeConditionColorExpression(routeColors),
       }));
     }
   }, [isWeb, route, directionalPins, routeColors]);

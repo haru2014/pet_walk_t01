@@ -41,14 +41,14 @@ describe('ThemeManager & Theme Tokens', () => {
     await themeManager.setTheme('dusty_amber');
   });
 
-  it('THEME_LIST에 upstream 테마와 민트·오션·코랄 테마가 모두 정의되어 있어야 한다', () => {
-    expect(THEME_LIST).toHaveLength(7);
+  it('THEME_LIST에 중복 민트 테마 없이 upstream·오션·코랄 테마가 정의되어 있어야 한다', () => {
+    expect(THEME_LIST).toHaveLength(6);
     const ids = THEME_LIST.map((t) => t.id);
     expect(ids).toContain<ThemeId>('dusty_amber');
     expect(ids).toContain<ThemeId>('forest');
     expect(ids).toContain<ThemeId>('vivid_violet');
     expect(ids).toContain<ThemeId>('dark');
-    expect(ids).toContain<ThemeId>('mint');
+    expect(ids).not.toContain('mint');
     expect(ids).toContain<ThemeId>('ocean');
     expect(ids).toContain<ThemeId>('coral');
   });
@@ -59,7 +59,6 @@ describe('ThemeManager & Theme Tokens', () => {
       '숲길',
       '바이올렛',
       '야간',
-      '민트',
       '바다',
       '코랄',
     ]);
@@ -83,6 +82,14 @@ describe('ThemeManager & Theme Tokens', () => {
     expect(TOKENS.colors.primary).toBe(THEME_PALETTES.ocean.primary);
     expect(notifiedTheme).toBe('ocean');
     unsubscribe();
+  });
+
+  it('기존 설치에 저장된 민트 테마를 같은 팔레트인 숲길 테마로 이전한다', async () => {
+    memoryStore.set(STORAGE_KEYS.APP_THEME, JSON.stringify('mint'));
+
+    await expect(themeManager.init()).resolves.toBe('forest');
+    expect(themeManager.getTheme()).toBe('forest');
+    expect(memoryStore.get(STORAGE_KEYS.APP_THEME)).toBe(JSON.stringify('forest'));
   });
 
   it('저장에 실패하면 활성 테마와 토큰을 변경하지 않는다', async () => {

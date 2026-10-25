@@ -3,7 +3,7 @@
  * 멀티 테마 상태 및 영속성 관리 매니저 (US-THEME)
  *
  * 1. Upstream palette themes: amber, forest, violet, dark
- * 2. PR #202 palette themes: mint, ocean, coral
+ * 2. PR #202 palette themes: ocean, coral
  */
 
 import { useState, useEffect } from 'react';
@@ -21,7 +21,11 @@ class ThemeManager {
 
   async init(): Promise<ThemeId> {
     const saved = await LocalStorageService.getItem<unknown>(STORAGE_KEYS.APP_THEME);
-    this.currentTheme = isThemeId(saved) ? saved : 'dusty_amber';
+    // Older installs may still have the removed mint theme saved; it used the forest palette.
+    this.currentTheme = saved === 'mint' ? 'forest' : isThemeId(saved) ? saved : 'dusty_amber';
+    if (saved === 'mint') {
+      await LocalStorageService.setItem(STORAGE_KEYS.APP_THEME, 'forest');
+    }
     applyThemeTokens(this.currentTheme);
     this.initialized = true;
     this.listeners.forEach((listener) => listener(this.currentTheme));

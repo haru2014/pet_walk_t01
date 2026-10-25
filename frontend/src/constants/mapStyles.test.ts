@@ -26,7 +26,6 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
     expect(getMapStyleKeyForTheme('dark')).toBe('dark');
     expect(getMapStyleForTheme('dark')).toBe(OPENFREEMAP_STYLES.dark);
-    expect(getMapStyleKeyForTheme('mint')).toBe('liberty');
     expect(getMapStyleKeyForTheme('ocean')).toBe('bright');
     expect(getMapStyleKeyForTheme('coral')).toBe('bright');
   });
@@ -39,9 +38,9 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
   it('각 테마별 보행로 3색(safe/normal/caution) 및 마스킹 원 색상을 올바르게 반환해야 한다', () => {
     const forestColors = getMapRouteColors('forest');
-    expect(forestColors.safe).toBe('#10B981');
-    expect(forestColors.normal).toBe('#3B82F6');
-    expect(forestColors.caution).toBe('#E87524');
+    expect(forestColors.safe).toBe('#047857');
+    expect(forestColors.normal).toBe('#2563EB');
+    expect(forestColors.caution).toBe('#C2410C');
     expect(forestColors.maskCircle).toContain('rgba(');
 
     const vividColors = getMapRouteColors('vivid_violet');
@@ -49,29 +48,34 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
     const darkColors = getMapRouteColors('dark');
     expect(darkColors.safe).toBe('#34D399');   // 야간 고시인성 네온 민트
+    expect(darkColors.normal).toBe('#60A5FA');
+    expect(darkColors.caution).toBe('#FB923C');
     expect(darkColors.casing).toBe('#0F172A'); // 다크 테두리
 
-    expect(getMapRouteColors('mint').safe).toBe('#10B981');
     expect(getMapRouteColors('ocean').normal).toBe('#2563EB');
-    expect(getMapRouteColors('coral').normal).toBe('#F97316');
+    expect(getMapRouteColors('coral').normal).toBe('#2563EB');
   });
 
-  it('keeps caution route colors aligned with each theme palette and distinct from coral routes', () => {
+  it('uses three distinct route colors in every theme, matching its theme tokens', () => {
     const themes: ThemeId[] = [
       'dusty_amber',
       'forest',
       'vivid_violet',
       'dark',
-      'mint',
       'ocean',
       'coral',
     ];
 
     themes.forEach((theme) => {
-      expect(getMapRouteColors(theme).caution).toBe(THEME_PALETTES[theme].routeCaution);
+      const routeColors = getMapRouteColors(theme);
+      expect(routeColors.safe).toBe(THEME_PALETTES[theme].routeSafe);
+      expect(routeColors.normal).toBe(THEME_PALETTES[theme].routeNormal);
+      expect(routeColors.caution).toBe(THEME_PALETTES[theme].routeCaution);
+      expect(new Set([routeColors.safe, routeColors.normal, routeColors.caution]).size).toBe(3);
     });
-    expect(THEME_PALETTES.dusty_amber.routeCaution).toBe('#E87524');
-    expect(THEME_PALETTES.forest.routeCaution).toBe('#E87524');
-    expect(THEME_PALETTES.coral.routeCaution).toBe('#B45309');
+    expect(THEME_PALETTES.dusty_amber.routeNormal).toBe('#49657A');
+    expect(THEME_PALETTES.dusty_amber.routeCaution).toBe('#C2410C');
+    expect(THEME_PALETTES.coral.routeNormal).toBe('#2563EB');
+    expect(THEME_PALETTES.coral.routeCaution).toBe('#C2410C');
   });
 });

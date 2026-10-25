@@ -3,13 +3,14 @@
  * React Native 모바일 디자인 토큰 (Design Tokens)
  *
  * Upstream: dusty amber, forest, violet, and dark palettes
- * PR #202: mint, ocean, and coral palettes
+ * PR #202: ocean and coral palettes
  */
 
 import { ThemeId } from '../types/theme';
 
-export const ROUTE_CAUTION_COLOR = '#E87524';
-export const CORAL_ROUTE_CAUTION_COLOR = '#B45309';
+export const ROUTE_CAUTION_COLOR = '#C2410C';
+export const DARK_ROUTE_CAUTION_COLOR = '#FB923C';
+export const CORAL_ROUTE_CAUTION_COLOR = ROUTE_CAUTION_COLOR;
 
 /** 앱 전역 텍스트 역할별 크기. 화면 크기와 무관하게 같은 역할은 같은 크기를 사용한다. */
 export const TYPOGRAPHY = {
@@ -81,7 +82,7 @@ export interface ThemeColors {
   accentLight: string;
 }
 
-type LegacyThemeId = Exclude<ThemeId, 'mint' | 'ocean' | 'coral'>;
+type LegacyThemeId = Exclude<ThemeId, 'ocean' | 'coral'>;
 
 const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
   // 🐶 0. 더스티 앰버 & 세이지 그린 (02번 디자인 시안 - docs/reference/UI개선/app_design_n2-1.png)
@@ -104,7 +105,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     textWhite: '#FFFFFF',
 
     routeSafe: '#5A7361',  // 세이지 그린 안심길
-    routeNormal: '#B59C5E',// 올리브 오커 일반길
+    routeNormal: '#49657A',// 슬레이트 블루 일반길
     routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5EFE0',
@@ -145,8 +146,8 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     textMuted: '#4E5853',  // 차콜 뮤트 텍스트 (명도 대비 강화: 5.5:1 이상)
     textWhite: '#FFFFFF',
 
-    routeSafe: '#10B981',
-    routeNormal: '#3B82F6',
+    routeSafe: '#047857',
+    routeNormal: '#2563EB',
     routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F2F5F0',
@@ -187,8 +188,8 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     textMuted: '#7C3AED',  // 퍼플 액센트 뮤트
     textWhite: '#FFFFFF',
 
-    routeSafe: '#8B5CF6',  // 바이올렛 안심길
-    routeNormal: '#06B6D4',// 민트/시안 일반길
+    routeSafe: '#15803D',  // 선명한 그린 안심길
+    routeNormal: '#7C3AED',// 비비드 바이올렛 일반길
     routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5F3FF',
@@ -229,9 +230,9 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
     textMuted: '#94A3B8',  // 슬레이트 그레이 텍스트
     textWhite: '#FFFFFF',
 
-    routeSafe: '#10B981',
-    routeNormal: '#38BDF8',
-    routeCaution: ROUTE_CAUTION_COLOR,
+    routeSafe: '#34D399',
+    routeNormal: '#60A5FA',
+    routeCaution: DARK_ROUTE_CAUTION_COLOR,
 
     mapGround: '#0F172A',
     mapPark: '#1E293B',
@@ -255,16 +256,7 @@ const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
 
 export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
   ...BASE_THEME_PALETTES,
-  mint: {
-    ...BASE_THEME_PALETTES.forest,
-    primary: '#10B981',
-    primaryDark: '#087F5B',
-    primaryLight: '#D1FAE5',
-    primaryWash: 'rgba(16, 185, 129, 0.14)',
-    primaryMint: '#A7F3D0',
-    primarySubtle: '#D1FAE5',
-    mapGuidance: '#EA580C', // 비비드 오렌지 (민트 그린 보행로 대비 주황색 안내)
-  },
+
   ocean: {
     ...BASE_THEME_PALETTES.forest,
     background: '#EFF6FF',
@@ -280,8 +272,8 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#DBEAFE',
     textMain: '#1E3A8A',
     textMuted: '#475569',
-    routeSafe: '#2563EB',
-    routeNormal: '#06B6D4',
+    routeSafe: '#15803D',
+    routeNormal: '#2563EB',
     mapGround: '#EFF6FF',
     mapPark: '#DBEAFE',
     mapWater: '#E0F2FE',
@@ -306,7 +298,8 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#FFEDD5',
     textMain: '#431407',
     textMuted: '#7C2D12',
-    routeSafe: '#F97316',
+    routeSafe: '#15803D',
+    routeNormal: '#2563EB',
     routeCaution: CORAL_ROUTE_CAUTION_COLOR,
     mapGround: '#FFF7ED',
     mapPark: '#FFEDD5',

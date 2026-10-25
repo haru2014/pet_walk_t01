@@ -11,6 +11,7 @@
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
+import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
 
 export interface BuildMapLibreHtmlOptions {
   readonly styleUrl: string;
@@ -73,6 +74,9 @@ export function buildMapLibreHtml({
     route,
     stepPins,
     routeColors,
+    routeConditionColor: routeConditionColorExpression(routeColors),
+    slopeSymbol: slopeSymbolExpression(),
+    slopeSymbolColor: slopeSymbolColorExpression(),
     maskingFeature,
     maskingCenter,
     interactive,
@@ -154,6 +158,8 @@ export function buildMapLibreHtml({
       // 현재 표시 중인 데이터/스타일 상태 (스타일 교체 후 레이어 재등록에 사용)
       let currentRoute = payload.route;
       let currentPins = payload.stepPins;
+      let currentRouteColors = payload.routeColors;
+      let currentRouteConditionColor = payload.routeConditionColor;
       let currentStyleKey = JSON.stringify(payload.styleUrl);
       let mapLoaded = false;
       let userInteractedWithMap = false;
@@ -191,8 +197,8 @@ export function buildMapLibreHtml({
       // 스타일이 (재)로드될 때마다 경로/마스킹/핀 레이어를 다시 등록
       function applyStyleLayers() {
         if (map.getSource('route-source')) return;
-        initLayers(currentRoute, payload.routeColors, payload.maskingFeature);
-        initMarkers(currentPins, currentRoute);
+        initLayers(currentRoute, currentRouteColors, payload.maskingFeature, currentRouteConditionColor);
+        initMarkers(currentPins, currentRoute, currentRouteColors);
         if (watchdogId) clearTimeout(watchdogId);
         if (mapLoaded) return;
         mapLoaded = true;
@@ -216,7 +222,7 @@ export function buildMapLibreHtml({
       armStyleWatchdog();
 
       // 벡터 소스 및 레이어 등록
-      function initLayers(routeData, colors, maskData) {
+      function initLayers(routeData, colors, maskData, routeColorExpression) {
         // 1. 200m 마스킹 원 소스 및 레이어 (있는 경우)
         if (maskData) {
           map.addSource('masking-source', {
@@ -279,24 +285,36 @@ export function buildMapLibreHtml({
             'line-cap': 'round'
           },
           paint: {
-            'line-color': [
-              'match',
-              ['get', 'segmentType'],
-              'safe', colors.safe,
-              'caution', colors.caution,
-              colors.normal
-            ],
+            'line-color': routeColorExpression || payload.routeConditionColor,
             'line-width': 5
+          }
+        });
+
+        map.addLayer({
+          id: 'route-slope-symbols',
+          type: 'symbol',
+          source: 'route-source',
+          filter: ['all', ['has', 'slopeSignedPercent'], ['!=', ['get', 'slopeSignedPercent'], null]],
+          layout: {
+            'symbol-placement': 'line',
+            'text-field': payload.slopeSymbol,
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 13,
+            'text-keep-upright': false
+          },
+          paint: {
+            'text-color': payload.slopeSymbolColor,
+            'text-halo-color': '#FFFFFF',
+            'text-halo-width': 1.5
           }
         });
       }
 
       // 스텝 핀 및 마커 등록
-      function initMarkers(pins, routeData) {
+      function initMarkers(pins, routeData, colors) {
         markers.forEach(function(m) { m.remove(); });
         markers = [];
-        const colors = payload.routeColors || {};
-        const guidanceColor = colors.mapGuidance || colors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
+        const textHalo = '0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing;
 
         function getLargeArrowSvg(icon, color) {
           if (icon === '↱') {
@@ -321,10 +339,8 @@ export function buildMapLibreHtml({
             const startEl = document.createElement('div');
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
-            startEl.style.color = guidanceColor;
-            startEl.style.fontSize = '13px';
-            startEl.style.fontWeight = '900';
-            startEl.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
+            startEl.style.color = colors.startMarker;
+            startEl.style.textShadow = textHalo;
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
               .setLngLat(firstCoord)
@@ -338,49 +354,41 @@ export function buildMapLibreHtml({
           pins.forEach(function(pin) {
             const el = document.createElement('div');
             const isCurrentLocation = pin.id === 'current-location-pin' || pin.title === '현재 위치';
-            const hasTitle = Boolean(pin.title);
+            const pinColor = isCurrentLocation ? colors.startMarker
+              : (pin.kind === 'caution' ? colors.caution : (pin.kind === 'safe' ? colors.safe : colors.normal));
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
             const iconStr = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
             el.innerText = iconStr;
-            if (isCurrentLocation && !hasTitle) {
-              el.style.width = '32px';
-              el.style.height = '32px';
-              el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
-              el.style.transform = pin.bearingDeg == null ? 'rotate(-45deg)' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
-              el.style.backgroundColor = '#2563EB';
-              el.style.border = '2px solid #fff';
-              el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';
+            el.style.backgroundColor = 'transparent';
+            el.style.border = 'none';
+            el.style.boxShadow = 'none';
+            el.style.color = pinColor;
+            el.style.textShadow = textHalo;
+            if (isCurrentLocation) {
+              el.style.width = '30px';
+              el.style.height = '30px';
+              el.style.borderRadius = '0';
+              el.style.transform = pin.bearingDeg == null ? 'none' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
+              el.style.backgroundColor = 'transparent';
+              el.style.border = 'none';
+              el.style.boxShadow = 'none';
               el.style.display = 'flex';
               el.style.alignItems = 'center';
               el.style.justifyContent = 'center';
               el.style.fontSize = '16px';
-              el.style.color = '#fff';
-              if (pin.bearingDeg != null) {
-                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
-              }
+              el.style.color = pinColor;
             } else {
-              el.style.color = guidanceColor;
-              el.style.fontSize = '15px';
-              el.style.fontWeight = '900';
-              el.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
-              el.style.backgroundColor = 'transparent';
-              el.style.border = 'transparent';
-              el.style.boxShadow = 'none';
-              const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
+              const arrowSvg = getLargeArrowSvg(iconStr, pinColor);
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }
             }
-            if (hasTitle) {
+            if (pin.title) {
               el.innerText = '';
               el.style.width = 'auto';
               el.style.height = 'auto';
               el.style.backgroundColor = 'transparent';
-              el.style.border = 'transparent';
-              el.style.boxShadow = 'none';
-              el.style.borderRadius = '0';
-              el.style.transform = 'none';
-              el.style.color = guidanceColor;
+              el.style.color = pinColor;
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';
               el.style.gap = '2px';
@@ -389,20 +397,29 @@ export function buildMapLibreHtml({
               iconEl.style.fontSize = '14px';
               const titleEl = document.createElement('strong');
               titleEl.innerText = pin.title;
-              titleEl.style.color = guidanceColor;
+              titleEl.style.color = pinColor;
               titleEl.style.fontSize = '12px';
               titleEl.style.fontWeight = '900';
-              titleEl.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF';
+              titleEl.style.textShadow = textHalo;
               el.appendChild(iconEl);
               el.appendChild(titleEl);
               if (pin.detail) {
                 const detailEl = document.createElement('small');
                 detailEl.innerText = pin.detail;
-                detailEl.style.fontSize = '10px';
-                detailEl.style.fontWeight = '700';
-                detailEl.style.textShadow = '0 0 4px #FFFFFF';
+                detailEl.style.textShadow = textHalo;
                 el.appendChild(detailEl);
               }
+              if (isCurrentLocation) {
+                // 텍스트 안내는 투명하게 두되, 앞서 설정한 위치 핀 장식은 남기지 않습니다.
+                el.style.border = 'none';
+                el.style.borderRadius = '0';
+                el.style.boxShadow = 'none';
+                el.style.transform = 'none';
+                el.style.padding = '0';
+                el.style.textShadow = textHalo;
+              }
+              iconEl.style.textShadow = textHalo;
+              titleEl.style.textShadow = textHalo;
             }
             el.onclick = function() {
               postToReactNative('PIN_SELECT', { id: pin.id, instruction: pin.instruction });
@@ -423,8 +440,13 @@ export function buildMapLibreHtml({
           const msg = JSON.parse(event.data);
           if (msg.routeColors) payload.routeColors = msg.routeColors;
           if (msg.action === 'SET_STYLE' && msg.style) {
+            currentRouteColors = msg.routeColors || currentRouteColors;
+            currentRouteConditionColor = msg.routeConditionColor || currentRouteConditionColor;
             const styleKey = JSON.stringify(msg.style);
-            if (styleKey === currentStyleKey) return;
+            if (styleKey === currentStyleKey) {
+              updateThemeColors();
+              return;
+            }
             currentStyleKey = styleKey;
             styleParsed = false;
             map.once('style.load', applyStyleLayers);
@@ -434,17 +456,36 @@ export function buildMapLibreHtml({
           } else if (msg.action === 'UPDATE_ROUTE' && msg.route) {
             currentRoute = msg.route;
             currentPins = msg.stepPins || [];
+            currentRouteColors = msg.routeColors || currentRouteColors;
+            currentRouteConditionColor = msg.routeConditionColor || currentRouteConditionColor;
             const src = map.getSource('route-source');
             if (src) {
               src.setData(msg.route);
+              updateThemeColors();
             } else if (map.isStyleLoaded()) {
-              initLayers(msg.route, payload.routeColors, payload.maskingFeature);
+              initLayers(msg.route, currentRouteColors, payload.maskingFeature, currentRouteConditionColor);
+              initMarkers(currentPins, currentRoute, currentRouteColors);
             }
-            initMarkers(msg.stepPins || [], msg.route);
             const b = computeBounds(msg.route);
             if (b && !userInteractedWithMap) map.fitBounds(b, { padding: 40, duration: 600 });
           }
         } catch(e) {}
+      }
+
+      function updateThemeColors() {
+        if (map.getLayer && map.getLayer('route-casing')) {
+          map.setPaintProperty('route-casing', 'line-color', currentRouteColors.casing);
+        }
+        if (map.getLayer && map.getLayer('route-core')) {
+          map.setPaintProperty('route-core', 'line-color', currentRouteConditionColor);
+        }
+        if (map.getLayer && map.getLayer('masking-fill')) {
+          map.setPaintProperty('masking-fill', 'fill-color', currentRouteColors.maskCircle);
+        }
+        if (map.getLayer && map.getLayer('masking-line')) {
+          map.setPaintProperty('masking-line', 'line-color', currentRouteColors.maskBorder);
+        }
+        initMarkers(currentPins, currentRoute, currentRouteColors);
       }
       window.addEventListener('message', handleNativeMessage);
       document.addEventListener('message', handleNativeMessage);
