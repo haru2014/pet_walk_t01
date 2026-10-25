@@ -38,7 +38,7 @@ describe('Theme selection persistence', () => {
   it('keeps the active theme unchanged when persistence fails', async () => {
     const setItem = vi.spyOn(LocalStorageService, 'setItem');
     setItem.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-    await themeManager.setTheme('mint');
+    await themeManager.setTheme('forest');
     const activeTheme = themeManager.getTheme();
     const activePrimary = TOKENS.colors.primary;
 

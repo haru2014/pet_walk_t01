@@ -3,7 +3,7 @@
  * 앱에서 선택할 수 있는 컬러 테마 정의
  */
 
-export type ThemeId = 'dusty_amber' | 'forest' | 'vivid_violet' | 'dark' | 'mint' | 'ocean' | 'coral';
+export type ThemeId = 'dusty_amber' | 'forest' | 'vivid_violet' | 'dark' | 'ocean' | 'coral';
 
 export interface ThemeMeta {
   readonly id: ThemeId;
@@ -51,15 +51,6 @@ export const THEME_LIST: readonly ThemeMeta[] = [
     previewBackground: '#0F172A',
     previewAccent: '#38BDF8',
     badgeText: '야간',
-  },
-  {
-    id: 'mint',
-    name: '민트',
-    description: '산뜻하고 자연 친화적인 민트 테마',
-    previewPrimary: '#10B981',
-    previewBackground: '#F8FAF9',
-    previewAccent: '#A7F3D0',
-    badgeText: '민트',
   },
   {
     id: 'ocean',
