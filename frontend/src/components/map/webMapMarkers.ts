@@ -24,10 +24,10 @@ export type MarkerConstructor = new (options: {
 function createStartElement(colors: MapRouteColors): HTMLElement {
   const element = document.createElement('div');
   element.textContent = '출발/도착 🐾';
-  const textHalo = `0 0 2px ${colors.casing}, 0 0 5px ${colors.casing}`;
+  const textHalo = `0 0 1px ${colors.casing}, 0 1px 2px rgba(15, 23, 42, 0.9)`;
   Object.assign(element.style, {
     background: 'transparent',
-    color: colors.startMarker, textShadow: textHalo, fontSize: '10px', fontWeight: '800',
+    color: colors.startMarker, textShadow: textHalo, fontSize: '12px', fontWeight: '900',
     whiteSpace: 'nowrap',
   });
   return element;
@@ -62,7 +62,7 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: stri
 function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
-  const textHalo = `0 0 2px ${colors.casing}, 0 0 5px ${colors.casing}`;
+  const textHalo = `0 0 1px ${colors.casing}, 0 1px 2px rgba(15, 23, 42, 0.9)`;
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
@@ -74,8 +74,9 @@ function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElemen
     background: 'transparent',
     border: 'none', boxShadow: 'none',
     color: pinColor(pin, colors), textShadow: textHalo,
-    fontWeight: '700', cursor: 'pointer',
-    fontSize: hasTitle ? '10px' : '13px', whiteSpace: 'nowrap', textAlign: 'center',
+    fontWeight: '900', cursor: 'pointer',
+    fontSize: hasTitle ? '10px' : '18px', lineHeight: '20px', whiteSpace: 'nowrap', textAlign: 'center',
+    display: hasTitle ? 'grid' : 'flex', alignItems: 'center', justifyContent: 'center',
   });
   if (isCurrentLoc && pin.bearingDeg != null) {
     element.style.borderRadius = '50%';
