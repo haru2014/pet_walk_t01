@@ -405,7 +405,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
             >
               <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
-              {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '시간 직접 고르기 (최대 2시간) ▼'}
+                {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '맞춤 설정 (최대 2시간) ▼'}
               </Text>
             </TouchableOpacity>
           </View>
