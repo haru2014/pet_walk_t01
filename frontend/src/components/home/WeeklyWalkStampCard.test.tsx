@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
+import { themeManager } from '../../theme/themeManager';
+import { THEME_PALETTES } from '../../theme/tokens';
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
@@ -40,6 +42,21 @@ describe('WeeklyWalkStampCard - 7일 발자국 스탬프 위젯', () => {
 
     expect(html).toContain('이번 주 산책 달성도');
     expect(html).toContain('2/7일 완료');
+  });
+
+  it('선택한 테마의 배경 및 글자 색으로 완료 배지를 표시한다', () => {
+    const getColors = vi.spyOn(themeManager, 'getColors').mockReturnValue(THEME_PALETTES.ocean);
+
+    try {
+      const html = renderToStaticMarkup(
+        <WeeklyWalkStampCard weeklyStats={mockWeeklyStats} onPress={vi.fn()} />,
+      );
+
+      expect(html).toContain('background-color:rgba(37,99,235,0.14)');
+      expect(html).toContain('color:rgba(29,78,216,1.00)');
+    } finally {
+      getColors.mockRestore();
+    }
   });
 
   it('월~일 7개 요일 라벨이 모두 노출된다', () => {
