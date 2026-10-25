@@ -18,6 +18,7 @@ import {
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { fetchWithServerFallback } from './apiClient';
 import { haversineMeters, polylineLengthMeters } from './routeGeometry';
+import { buildRejoinPath } from './routeRejoin';
 
 export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
   high_curb: '높은 턱',
@@ -256,7 +257,7 @@ export function generateLocalDetourRoute(
     kept.unshift(start);
   }
   const lastKept = kept.at(-1);
-  if (!lastKept || lastKept[0] !== end[0] || lastKept[1] !== end[1]) {
+  if (lastKept?.[0] !== end[0] || lastKept?.[1] !== end[1]) {
     kept.push(end);
   }
 
@@ -396,18 +397,9 @@ export function generateLocalDeviationReroute(payload: DeviationReroutePayload):
     ? payload.routeCoordinates.map((c) => [c[0], c[1]] as [number, number])
     : [start, end];
 
-  let bestIdx = 0;
-  let bestDist = Infinity;
-  for (let i = 0; i < base.length; i++) {
-    const d = haversineMeters([payload.currentLat, payload.currentLon], [base[i][1], base[i][0]]);
-    if (d < bestDist) {
-      bestDist = d;
-      bestIdx = i;
-    }
-  }
-
-  const remaining = base.slice(bestIdx);
-  const detourCoords: [number, number][] = [start, ...(remaining.length > 0 ? remaining : [end])];
+  // 정점이 아닌 선분 위로 합류하고, 순환 코스는 지금까지 온 곳보다 앞쪽에서 이어 간다.
+  const rejoin = buildRejoinPath(base, start, payload.progressM);
+  const detourCoords: [number, number][] = rejoin ? rejoin.coordinates : [start, end];
 
   const localGeojson: RouteFeatureCollection = {
     type: 'FeatureCollection',
@@ -457,6 +449,7 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
         confidence: 0.9,
         route_coordinates: payload.routeCoordinates ? payload.routeCoordinates.map((c) => [c[0], c[1]]) : null,
         reroute_reason: 'deviation',
+        progress_m: payload.progressM ?? null,
       }),
     });
 

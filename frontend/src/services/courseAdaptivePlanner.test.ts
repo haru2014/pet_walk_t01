@@ -38,13 +38,13 @@ describe('courseAdaptivePlanner', () => {
     expect(courses[0].distanceKm).toBe('0.9 km');
     expect(courses[0].reason).toContain('20분');
 
-    // 코스 2 (약 90% 가벼운 순환)
-    expect(courses[1].estimatedMinutes).toBe(18);
+    // 코스 2 (약 -15% 가벼운 순환: 20 * 0.85 = 17분)
+    expect(courses[1].estimatedMinutes).toBe(17);
     expect(courses[1].distanceKm).toBe('0.8 km');
 
-    // 코스 3 (약 110% 여유 순환)
-    expect(courses[2].estimatedMinutes).toBe(22);
-    expect(courses[2].distanceKm).toBe('1.0 km');
+    // 코스 3 (약 +15% 여유 순환: 20 * 1.15 = 23분)
+    expect(courses[2].estimatedMinutes).toBe(23);
+    expect(courses[2].distanceKm).toBe('1.1 km');
   });
 
   it('사용자가 60분을 선택했을 때 1시간 분량의 코스가 산출되어야 한다', () => {

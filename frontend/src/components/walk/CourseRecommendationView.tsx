@@ -33,6 +33,7 @@ import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
 import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
+import { analyzeCourseLaps, formatCourseLapSummary, mergeLoopStartPin } from '../../services/courseLapInfo';
 
 /**
  * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
@@ -60,6 +61,10 @@ export function getCourseFeatureBadge(
 ): { label: string; icon: string; color: string; bgColor: string } {
   if (course.lapCount && course.lapCount > 1) {
     return { label: `${course.lapCount}바퀴 순환`, icon: '🔄', color: '#D97706', bgColor: '#FEF3C7' };
+  }
+
+  if (course.differenceTag) {
+    return { label: course.differenceTag, icon: '✨', color: '#0D9488', bgColor: '#CCFBF1' };
   }
 
   if (index === 0) {
@@ -199,6 +204,77 @@ export interface CourseRecommendationViewProps {
   onPinSelect?: (instruction: string) => void;
 }
 
+interface RegenerateSuccessResult {
+  readonly fresh: ReadonlySet<string>;
+  readonly nextIndex: number;
+  readonly notice: string | null;
+}
+
+function computeRegenerateChanges(
+  previousCourses: readonly RecommendedCourse[],
+  newCourses: readonly RecommendedCourse[]
+): RegenerateSuccessResult {
+  const previousIds = new Set(previousCourses.map((c) => c.id));
+  const fresh = new Set(newCourses.slice(1).map((c) => c.id).filter((id) => !previousIds.has(id)));
+  const firstFreshIndex = newCourses.findIndex((c, i) => i > 0 && fresh.has(c.id));
+  const nextIndex = Math.max(0, firstFreshIndex);
+  const notice = fresh.size > 0 ? '1번 추천 코스는 그대로 두고, 새로운 2·3번 대안 코스를 불러왔어요!' : null;
+  return { fresh, nextIndex, notice };
+}
+
+interface CourseSafetyMetricsBarProps {
+  readonly course: RecommendedCourse;
+  readonly colors: ReturnType<typeof useAppTheme>['colors'];
+}
+
+const CourseSafetyMetricsBar: React.FC<CourseSafetyMetricsBarProps> = ({ course, colors }) => {
+  const surfaceInfo = formatCourseSurface(course);
+  const slopeInfo = formatCourseSlope(course);
+
+  const surfaceValue = surfaceInfo.isUnknown ? '미확인' : surfaceInfo.valueText;
+  const stairsValue =
+    course.stairsCount === '0' ||
+    course.stairsCount === '0회' ||
+    course.stairsCount === '확인된 계단 0회'
+      ? '0회'
+      : formatStairsCountLabel(course.stairsCount);
+  let slopeValue = slopeInfo.valueText;
+  if (slopeInfo.isUnknown) {
+    slopeValue = '미확인';
+  } else if (slopeInfo.numericValue != null) {
+    slopeValue = `${slopeInfo.numericValue}%`;
+  }
+  const shadeValue = course.shadePercent == null ? '미확인' : `${course.shadePercent}%`;
+
+  return (
+    <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={styles.metricItem}>
+        <Text style={styles.metricIcon}>🌿</Text>
+        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>폭신</Text>
+        <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{surfaceValue}</Text>
+      </View>
+      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.metricItem}>
+        <Text style={styles.metricIcon}>🪜</Text>
+        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
+        <Text style={[styles.metricValue, { color: colors.textMain }]}>{stairsValue}</Text>
+      </View>
+      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.metricItem}>
+        <Text style={styles.metricIcon}>📐</Text>
+        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>경사</Text>
+        <Text style={[styles.metricValue, { color: colors.textMain }]}>{slopeValue}</Text>
+      </View>
+      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.metricItem}>
+        <Text style={styles.metricIcon}>🌳</Text>
+        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>그늘</Text>
+        <Text style={[styles.metricValue, { color: colors.textMain }]}>{shadeValue}</Text>
+      </View>
+    </View>
+  );
+};
+
 export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> = ({
   dog,
   preferences,
@@ -218,6 +294,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenerateNonce, setRegenerateNonce] = useState(0);
+  const [freshCourseIds, setFreshCourseIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!regenerateNotice) return undefined;
+    const timer = setTimeout(() => setRegenerateNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [regenerateNotice]);
   const [requestInputs, setRequestInputs] = useState({ dog, preferences, feedback });
   if (requestInputs.dog !== dog || requestInputs.preferences !== preferences || requestInputs.feedback !== feedback) {
     setRequestInputs({ dog, preferences, feedback });
@@ -225,6 +308,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     setPlanError(null);
     setSelectedCourseIndex(0);
     setRegenerateNonce(0);
+    setFreshCourseIds(new Set());
+    setRegenerateNotice(null);
     setCourses(requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback));
   }
 
@@ -252,7 +337,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       .then((res) => {
         setPlanResult(res);
         if (res.courses.length > 0) {
+          const { fresh, nextIndex, notice } = computeRegenerateChanges(courses, res.courses);
+          setFreshCourseIds(fresh);
           setCourses(res.courses);
+          setSelectedCourseIndex(nextIndex);
+          if (notice) setRegenerateNotice(notice);
+          return;
         }
         setSelectedCourseIndex(0);
       })
@@ -302,13 +392,18 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   }, [isCurrentLocOrigin, gpsCoords]);
 
   const activeRoute = activePlan.route;
+  // 같은 순환로를 여러 바퀴 도는 코스는 바퀴 수·순환 구간을 카드와 지도에 함께 표시한다.
+  const lapInfo = useMemo(
+    () => analyzeCourseLaps(activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters),
+    [activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters],
+  );
   const activePins = useMemo(() => {
-    const pins = activePlan.stepPins;
+    const pins = mergeLoopStartPin(activePlan.stepPins, lapInfo);
     if (isCurrentLocOrigin && gpsCoords) {
       return mergeCurrentLocationPin(pins, gpsCoords.lon, gpsCoords.lat);
     }
     return pins;
-  }, [activePlan.stepPins, isCurrentLocOrigin, gpsCoords]);
+  }, [activePlan.stepPins, lapInfo, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
   const activeSummary = useMemo(
     () => buildCourseSummary(activeRoute, dog.speedKmH),
@@ -479,9 +574,17 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                     ]}
                   >
                     {isRecommended ? '추천 1' : `코스 ${idx + 1}`}
+                    {freshCourseIds.has(c.id) && (
+                      <Text style={[styles.courseChipScore, { color: colors.primary }]}>{' · NEW'}</Text>
+                    )}
                     {score != null && (
                       <Text style={[styles.courseChipScore, { color: chipScoreColor }]}>
                         {` · ${score}점`}
+                      </Text>
+                    )}
+                    {c.lapCount != null && c.lapCount > 1 && (
+                      <Text style={[styles.courseChipScore, { color: chipScoreColor }]}>
+                        {` · 🔄${c.lapCount}바퀴`}
                       </Text>
                     )}
                   </Text>
@@ -531,9 +634,29 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             </View>
           );
         })()}
+        {/* 순환 코스: 모두 비슷한 거리·시간에서 코스를 구별할 수 있도록 바퀴 수와 반복 구간을 명시 */}
+        {lapInfo ? (
+          <View
+            accessibilityLabel="순환 코스 반복 안내"
+            style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
+          >
+            <Text
+              style={[
+                styles.reasonText,
+                {
+                  color: colors.primaryDark,
+                  fontSize: courseRecommend.metricLabelSize,
+                  lineHeight: courseRecommend.metricLabelSize * 1.35,
+                },
+              ]}
+            >
+              {`🔄 ${formatCourseLapSummary(lapInfo)}`}
+            </Text>
+          </View>
+        ) : null}
 
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
-        {currentCourse.reason ? (
+        {currentCourse.reason && !lapInfo ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text
               style={[
@@ -552,54 +675,18 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         ) : null}
 
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
-        {(() => {
-          const surfaceInfo = formatCourseSurface(currentCourse);
-          const slopeInfo = formatCourseSlope(currentCourse);
+        <CourseSafetyMetricsBar course={currentCourse} colors={colors} />
 
-          const surfaceValue = surfaceInfo.isUnknown ? '미확인' : surfaceInfo.valueText;
-          const stairsValue =
-            currentCourse.stairsCount === '0' ||
-            currentCourse.stairsCount === '0회' ||
-            currentCourse.stairsCount === '확인된 계단 0회'
-              ? '0회'
-              : formatStairsCountLabel(currentCourse.stairsCount);
-          let slopeValue = slopeInfo.valueText;
-          if (slopeInfo.isUnknown) {
-            slopeValue = '미확인';
-          } else if (slopeInfo.numericValue != null) {
-            slopeValue = `${slopeInfo.numericValue}%`;
-          }
-          const shadeValue =
-            currentCourse.shadePercent == null ? '미확인' : `${currentCourse.shadePercent}%`;
-
-          return (
-            <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricIcon}>🌿</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>폭신</Text>
-                <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{surfaceValue}</Text>
-              </View>
-              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricIcon}>🪜</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
-                <Text style={[styles.metricValue, { color: colors.textMain }]}>{stairsValue}</Text>
-              </View>
-              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricIcon}>📐</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>경사</Text>
-                <Text style={[styles.metricValue, { color: colors.textMain }]}>{slopeValue}</Text>
-              </View>
-              <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricIcon}>🌳</Text>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>그늘</Text>
-                <Text style={[styles.metricValue, { color: colors.textMain }]}>{shadeValue}</Text>
-              </View>
-            </View>
-          );
-        })()}
+        {regenerateNotice ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
+          >
+            <Text style={[styles.reasonText, { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize }]}>
+              ✨ {regenerateNotice}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Thumb Zone 산책 시작 & 다시 추천 버튼 그룹 (Option 2) */}
         <View style={styles.bottomActionRow}>

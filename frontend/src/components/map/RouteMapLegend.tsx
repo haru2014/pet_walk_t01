@@ -26,12 +26,6 @@ export interface RouteMapLegendProps {
   mode?: RouteMapLayer;
   hasTempData?: boolean;
   hasSlopeData?: boolean;
-  /** 하위 호환용 (토글 제거됨) */
-  temperatureOn?: boolean;
-  slopeOn?: boolean;
-  onToggleTemperature?: () => void;
-  onToggleSlope?: () => void;
-  bottomOffset?: number;
   isModalView?: boolean;
 }
 

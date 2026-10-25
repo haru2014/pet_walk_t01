@@ -2,6 +2,8 @@
 > **AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼**  
 > *"견주에게는 시선과 두 손의 자유를, 반려견에게는 관절 안심 발걸음을"*
 
+> **현재 코드 기준 (2026-10-25):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시할 수 있습니다. 실제 배포 상태와 테스트 통과 수는 이 갱신에서 확인하지 않았으므로 아래의 배포 링크와 누적 테스트 수는 **마지막 기록값**으로 봐 주세요. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 실행·배포 안내는 [백엔드 가이드](docs/09_백엔드_서버_실행_배포_가이드.md)를 참고하세요.
+
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
@@ -131,14 +133,14 @@ open mockup/index.html
 
 ### 4️⃣ 🧪 종합 TDD & 단위 테스트 전수 검증
 
-백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.
+~~백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.~~ 테스트 실행 안내와 아래 숫자는 과거 실행 기록이며, 현재 HEAD의 결과는 이 갱신에서 재확인하지 않았습니다.
 
 ```bash
-# 1. 백엔드 Pytest 전수 검증 (801개 수집, 796개 통과, 5개 건너뜀)
+# 1. 백엔드 Pytest 마지막 기록 (801개 수집, 796개 통과, 5개 건너뜀; 현재 HEAD에서는 재실행하지 않음)
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (70개 파일, 406개 통과)
+# 2. 프론트엔드 Vitest 마지막 기록 (70개 파일, 406개 통과; 현재 HEAD에서는 재실행하지 않음)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -160,7 +162,7 @@ cd frontend && npm run check
 6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
    - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
    - [6.2 프로젝트 주요 마일스톤 (수행계획서 정합)](#62-프로젝트-주요-마일스톤-수행계획서-정합)
-   - [6.3 📊 현재 프로젝트 개발 및 구현 현황 (Current Implementation Status)](#63-📊-현재-프로젝트-개발-및-구현-현황-current-implementation-status)
+   - [6.3 📊 2026-10-21 구현 현황 기록](#63-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
 7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
    - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
    - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
@@ -354,7 +356,7 @@ graph LR
 
 ---
 
-### 6.3 📊 현재 프로젝트 개발 및 구현 현황 (Current Implementation Status)
+### 6.3 📊 ~~현재 프로젝트 개발 및 구현 현황~~ (2026-10-21 기록)
 
 본 프로젝트는 핵심 사용자 여정 및 Phase 2 프론트엔드 단독 완결형 스토리를 100% 완료하고 엄격한 품질 가드레일을 통과한 안정화 상태입니다.
 
@@ -429,11 +431,25 @@ graph LR
 - 기존 문서에는 MVP 15개와 README 일부의 18개 핵심 스토리 등 서로 다른 집계가 남아 있다. 원래 내용을 유지하며 숫자를 임의로 통일하지 않았고, 범위별 집계 및 완료 판정은 정합성 확인 대상으로 남겼다. 상세 매핑은 [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)의 5절을 참조한다.
 - 변경 이력: 2026-10-23자 보완 절을 추가했으며, 기존 README 내용의 삭제·축약·대체는 없고 삭제된 항목도 없다.
 
+### 6.5 2026-10-25 최신 코드 현황
+
+2026-10-25 저장소 코드에서 확인한 업데이트입니다. 아래는 코드 정적 확인 결과이며, 새로 테스트하거나 운영 서버에 배포해 확인한 결과는 아닙니다.
+
+| 영역 | 현재 코드에서 확인한 내용 |
+|---|---|
+| 산책 코스 재생성 | `regenerate_nonce`를 산책 계획 요청에 전달합니다. 공원 모드에서는 1번 코스를 유지하고 2·3번은 이전 대안과의 경로 겹침이 50% 미만인 새 후보를 우선하며, 후보가 부족하면 반대 방향 등을 보충합니다. 일반 경로의 재생성은 별도 처리이므로 공원 모드와 동일한 다양성을 보장한다고 단정할 수 없습니다. |
+| 코스 길이·시간 | 목표 시간과 속도로 목표 거리를 계산하고, 카드의 거리는 0.1km 단위, 시간은 분 단위로 표시합니다. 표기값이 같거나 비슷해도 내부 수치는 다를 수 있습니다. 재생성 대안이 반드시 목표 대비 ±10~20%가 된다는 보장은 코드상 확인되지 않았습니다. |
+| 순환 안내 | 지정 공원 코스의 순환 진입점·한 바퀴 길이·바퀴 수를 추정해 추천 화면과 산책 안내에 반영하는 코드가 추가되었습니다. |
+| 현장 안전 | 위험 제보, 전방 안전 확인, 경로 우회 API가 포함되어 있습니다. |
+| 검증 범위 | 이번 문서 갱신에서는 테스트를 실행하지 않았습니다. 기존 테스트 수 표기는 과거 실행 기록이며 현 HEAD 통과를 의미하지 않습니다. |
+
+최근 관련 변경은 `d66661c`(순환 구간·바퀴 안내)와 `fdbe678`(2·3번 대안 코스 재생성)입니다.
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)
 
-본 프로젝트는 **TDD(Test-Driven Development) 및 ATDD(인수 테스트 주도 개발)**를 기반으로 구축되었으며, 18개 핵심 스토리 및 Phase 2 확장 백로그의 모든 인수 조건(Acceptance Criteria)과 완료 정의(DoD)를 테스트 코드로 100% 사전 검증합니다. (상세 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
+~~본 프로젝트는 TDD/ATDD를 기반으로 구축되었으며, 모든 인수 조건과 DoD를 테스트 코드로 100% 사전 검증합니다.~~ 아래 테스트 수와 PASS 표시는 과거 실행 결과로 보존합니다. 현재 코드 현황은 §6.5의 정적 검토를 참고하세요. (테스트 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
 
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
@@ -475,7 +491,9 @@ cd frontend && npm test
 | [`docs/04_ai_problem_definition.md`](docs/04_ai_problem_definition.md) | AI 문제 정의서 (아키텍처, 5대 핵심 문제, 성공 지표 및 평가 기준) | AI 문제 정의 |
 | [`docs/05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md) | 프로젝트 전체 일정, 주차별 R&R, 간트 차트 및 4단계 마일스톤 수행계획 | 마일스톤 / 일정 |
 | [`docs/06_편안하개_Project_Proposal.md`](docs/06_편안하개_Project_Proposal.md) | 편안하개 프로젝트 제안서 및 핵심 솔루션 개요 | 프로젝트 제안 |
-| [`docs/07_편한하개_API_list.md`](docs/07_편한하개_API_list.md) | 전체 REST API 및 Supabase 엔드포인트 규격, 실데이터 명세서 | API 규격서 |
+| ~~[`docs/07_편한하개_API_list.md`](docs/07_편한하개_API_list.md)~~ [`docs/07_편안하개_API_list.md`](docs/07_편안하개_API_list.md) | 전체 REST API 및 Supabase 엔드포인트 규격, 실데이터 명세서 | API 규격서 |
+| [`docs/README.md`](docs/README.md) | 현재 기준 문서와 과거 기획·보고 자료의 구분 | 문서 안내 |
+| [`docs/reports/2026-10-25_현재_코드_기준_상태.md`](docs/reports/2026-10-25_현재_코드_기준_상태.md) | 현재 코드에서 확인한 기능·라우트·검증 범위 | 현재 상태 |
 | [`docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md`](docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md) | OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 도입 계획서 | 지도 엔진 계획 |
 | [`docs/reports/10월13일_작업결과보고서.md`](docs/reports/10월13일_작업결과보고서.md) | 10월 13일 핵심 엔지니어링 및 기능 구현 결과보고서 | 진척 결과보고서 |
 | [`docs/reports/구현현황보고서.md`](docs/reports/구현현황보고서.md) | 편안하개 실데이터 기반 스프린트 진척 및 종합 현황 분석 보고서 | 진척 현황분석 |
@@ -501,7 +519,7 @@ pet_walk_t01/
 │   ├── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
 │   ├── 05_편안하개_프로젝트_수행계획서_일정.md # 프로젝트 수행 기간, 간트 차트 및 마일스톤
 │   ├── 06_편안하개_Project_Proposal.md         # 프로젝트 제안서
-│   ├── 07_편한하개_API_list.md                 # 전체 REST API 규격서 및 구현 현황
+│   ├── ~~07_편한하개_API_list.md~~ 07_편안하개_API_list.md # 전체 REST API 규격서 및 구현 현황
 │   ├── 08_OpenFreeMap_MapLibre_배경지도_구현계획서.md # OpenFreeMap+MapLibre 벡터 지도 계획
 │   ├── reports/                               # 📊 프로젝트 공식 현황 및 작업 결과 보고서
 │   │   ├── 10월13일_작업결과보고서.md            # 10월 13일 핵심 구현 작업 결과보고서
