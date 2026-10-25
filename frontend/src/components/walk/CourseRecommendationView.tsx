@@ -634,7 +634,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             </View>
           );
         })()}
-
         {/* 순환 코스: 모두 비슷한 거리·시간에서 코스를 구별할 수 있도록 바퀴 수와 반복 구간을 명시 */}
         {lapInfo ? (
           <View

@@ -44,8 +44,8 @@ const mockRecords: WalkRecord[] = [
   {
     id: 'walk-1',
     dogId: 'dog-1',
-    startedAt: '2026-10-18T10:00:00.000Z',
-    completedAt: '2026-10-18T10:30:00.000Z',
+    startedAt: new Date(Date.now() - 1800000).toISOString(),
+    completedAt: new Date().toISOString(),
     durationMinutes: 30,
     totalDistanceKm: 1.8,
     averageSpeedKmH: 3.6,

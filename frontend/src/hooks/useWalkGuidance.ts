@@ -381,7 +381,6 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       } else if (modeRef.current === 'route') {
         handleRouteWalkGuidance(point);
       }
-
       setStats((prev) => {
         const nextDist = computeDistanceKm(getTrackBuffer());
         const currentSpeed = Math.round((point.speedMps ?? 0) * MPS_TO_KMH * 10) / 10;
