@@ -77,7 +77,7 @@ def test_notice_field_is_sent_for_short_courses():
     """앱이 바퀴 도는 코스에서 reason 을 숨기므로 같은 안내를 notice 필드로도 보낸다 (#263)."""
     courses = [{"reason": "a"}, {"reason": "b"}]
     main._add_short_course_notice(courses, [_cand(1000, 21, lap_count=4, lap_cycle_m=250.0), _cand(900, 19)], 5600)
-    assert all(c["notice"].startswith("이 공원은 산책로가 짧아 최대 약 21분") for c in courses)
+    assert all(c["notice"] == "산책로가 짧아 최대 약 21분이에요" for c in courses)
     assert "순환로" not in courses[0]["notice"]  # 바퀴 설명은 앱이 따로 보여 준다
 
 
@@ -90,6 +90,7 @@ def test_no_notice_field_when_not_needed():
 def test_songgang_120_every_card_has_notice_field():
     courses = _plan_courses("songgang", 120)
     assert len(courses) == 3 and all("산책로가 짧아" in c["notice"] for c in courses)
+    assert all(len(c["notice"]) <= 20 for c in courses)  # 앱 카드에 한 줄로 보이는 길이 (#263)
 
 
 def test_songgang_60_cards_have_no_notice_field():
@@ -104,3 +105,9 @@ def _plan_courses(park, minutes):
     })
     assert res.status_code == 200, res.text
     return res.json()["courses"]
+
+
+def test_notice_stays_within_20_chars_even_for_three_digit_minutes():
+    courses = [{"reason": "a"}]
+    main._add_short_course_notice(courses, [_cand(5000, 120)], 20000)
+    assert courses[0]["notice"] == "산책로가 짧아 최대 약 120분이에요" and len(courses[0]["notice"]) <= 20
