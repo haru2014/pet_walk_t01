@@ -13,8 +13,8 @@ describe('RouteMapLegend', () => {
     try {
       const html = renderToStaticMarkup(<RouteMapLegend />);
 
-      expect(html).toContain('완만/그늘');
-      expect(html).toContain('일반 보도');
+      expect(html).toContain('편안한 길');
+      expect(html).toContain('보통 길');
       expect(html).toContain('주의 구간');
       expect(html).toContain('background-color:rgba(21,128,61,1.00)');
       expect(html).toContain('background-color:rgba(37,99,235,1.00)');

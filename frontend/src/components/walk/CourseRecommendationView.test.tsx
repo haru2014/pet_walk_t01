@@ -155,6 +155,6 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
 
     // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
     expect(html).toContain('추천 산책 코스');
-    expect(html).toContain('안심 기본 코스');
+    expect(html).toContain('기본 안심 코스');
   });
 });

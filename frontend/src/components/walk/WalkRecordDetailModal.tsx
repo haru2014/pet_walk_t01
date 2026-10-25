@@ -266,7 +266,7 @@ export const WalkRecordDetailModal: React.FC<WalkRecordDetailModalProps> = ({
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statEmoji}>🌿</Text>
-                <Text style={styles.statLabel}>완만 노면율</Text>
+                <Text style={styles.statLabel}>편안한 길 비율</Text>
                 <Text style={[styles.statValue, { color: TOKENS.colors.primaryDark }]}>
                   {safeRatioPercent}<Text style={styles.statUnit}>%</Text>
                 </Text>

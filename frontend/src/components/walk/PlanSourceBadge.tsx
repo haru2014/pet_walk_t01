@@ -40,7 +40,7 @@ export const PlanSourceBadge: React.FC<PlanSourceBadgeProps> = ({ isLive, style 
             { color: isLive ? colors.primaryDark : colors.textMain },
           ]}
         >
-          {isLive ? '실시간 AI 맞춤 코스' : '안심 기본 코스'}
+          {isLive ? '맞춤 산책 코스' : '기본 안심 코스'}
         </Text>
       </View>
     </View>

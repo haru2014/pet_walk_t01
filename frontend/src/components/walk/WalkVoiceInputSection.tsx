@@ -111,7 +111,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
       const message = error instanceof Error ? error.message : '';
       console.warn('[WalkVoiceInputSection] 음성 인식 요청 실패:', error);
       setRecordingError(message.startsWith('[apiClient]')
-        ? '음성 인식 서버에 연결하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
+        ? '말씀을 확인하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
         : message || '음성 인식에 실패했어요. 다시 말씀해 주세요.');
     } finally {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
@@ -156,7 +156,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
         {isAnalyzing && (
           <View style={styles.analyzingPill}>
             <ActivityIndicator size="small" color="#4F46E5" />
-            <Text style={styles.analyzingText}>Gemini 음성 인식 중...</Text>
+            <Text style={styles.analyzingText}>말씀하신 내용을 확인하고 있어요...</Text>
           </View>
         )}
       </View>
@@ -213,9 +213,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
           <View style={styles.badgeTop}>
             <AppIcon name="sparkle" size={14} color="#4F46E5" />
             <Text style={styles.badgeTitle}>
-              {analysisResult.data_source === 'gemini_transcription'
-                ? 'Gemini 음성 인식 · 앱 명령 분석'
-                : analysisResult.data_source === 'local_fallback' ? '로컬 규칙 분석' : 'Gemini AI'} 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단피하기 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
+              말씀하신 조건으로 산책을 설정했어요 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단 적은 길 · ' : ''}{analysisResult.intent.destination_landmark ?? '주변 산책길'})
             </Text>
           </View>
           {analysisResult.intent.briefing_message && (
@@ -230,7 +228,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
               style={styles.directFindBtn}
             >
               <AppIcon name="sparkle" size={13} color="#FFFFFF" />
-              <Text style={styles.directFindBtnText}>✨ 이 AI 맞춤 조건으로 산책로 바로 찾기</Text>
+              <Text style={styles.directFindBtnText}>✨ 이 조건으로 산책길 찾기</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -102,8 +102,8 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
             <Text style={[styles.subTitle, { color: colors.textMain }]}>{contentTitle}</Text>
             <Text style={[styles.policyNotice, { color: colors.textMuted }]}>
               {activeTab === 'terms'
-                ? 'Local-First 및 위치기반서비스 규정 포함'
-                : '200m 공간 마스킹 및 단말기 격리 보관 원칙'}
+                ? '위치 정보 이용 안내 포함'
+                : '집 근처 위치 보호 및 휴대폰 보관 안내'}
             </Text>
           </View>
 

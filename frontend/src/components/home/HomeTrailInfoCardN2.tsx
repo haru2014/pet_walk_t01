@@ -50,8 +50,8 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   const surfaceTemp = weather?.current_surface_temp ?? 24.8;
   const isGolden = weather?.is_current_golden ?? true;
   const weatherNotice = isGolden
-    ? `지면온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n안심하고 걷기 좋은 골든타임입니다.`
-    : `지면온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
+    ? `길바닥 온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n산책하기 좋은 시간이에요.`
+    : `길바닥 온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
 
   const walkIndex = computeWalkIndex(weather);
 
@@ -66,16 +66,16 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
         onPress={onOpenWeatherModal ?? onOpenPlanner}
         style={[styles.trailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         accessibilityRole="button"
-        accessibilityLabel="골든타임 산책로 정보 및 기상 상세 보기"
+        accessibilityLabel="산책하기 좋은 시간과 날씨 자세히 보기"
       >
         <View style={styles.cardTextCol}>
-          <Text style={[styles.trailTitle, { color: colors.textMain }]}>Trail info</Text>
+          <Text style={[styles.trailTitle, { color: colors.textMain }]}>산책 정보</Text>
           <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
-            {isLoadingWeather ? '실시간 산책 지표를 확인하고 있어요...' : weatherNotice}
+            {isLoadingWeather ? '산책 날씨를 확인하고 있어요...' : weatherNotice}
           </Text>
           <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
-              {isGolden ? '✨ 골든타임 산책 추천' : '⚠️ 낮 시간대 그늘길 권장'}
+              {isGolden ? '✨ 지금 산책하기 좋아요' : '⚠️ 서늘한 그늘길을 추천해요'}
             </Text>
           </View>
         </View>

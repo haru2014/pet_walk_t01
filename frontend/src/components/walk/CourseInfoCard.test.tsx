@@ -111,7 +111,7 @@ describe('CourseInfoCard (노면 및 경사도 표시 검증)', () => {
     );
 
     expect(html).toContain('세종호수 은빛해변길');
-    expect(html).toContain('AI 맞춤 93점');
+    expect(html).toContain('맞춤 점수 93점');
     expect(html).toContain('은빛해변 광폭 보행데크 중심의 계단 0개 평지 코스예요');
   });
 

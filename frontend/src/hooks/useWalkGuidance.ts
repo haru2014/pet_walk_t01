@@ -73,7 +73,7 @@ export function speakGuidanceEvent(event: GuidanceEvent): void {
 
 const UNKNOWN_SAFETY_INFO: FreeWalkSafetyInfo = {
   status: 'unknown',
-  message: '위험 제보나 경사 정보가 아직 없어요. 발밑을 가볍게 살피며 여유롭게 이동해 볼까요?',
+  message: '위험 제보나 오르막 정보가 아직 없어요. 발밑을 살피며 여유롭게 이동해 주세요.',
 };
 
 function deriveHeading(point: GpsPoint, previous: GpsPoint | null): number | null {
@@ -106,11 +106,11 @@ function formatForwardSafetyMessage(analysis: ForwardSafetyAnalysis): string | n
   const messages: string[] = [];
   if (analysis.slope.status === 'warning') {
     const distance = analysis.slope.warning_distance_m == null ? '' : ` 약 ${formatHazardDistance(analysis.slope.warning_distance_m)}미터 앞에`;
-    const direction = analysis.slope.direction ?? '급경사';
+    const direction = analysis.slope.direction ?? '가파른 오르막';
     messages.push(`전방${distance} ${direction} 구간이 있습니다. 주의해서 이동해 주세요.`);
   }
   if (analysis.stairs.status === 'warning' && (analysis.stairs.count ?? 0) > 0) {
-    messages.push(`전방 보행 경로에 OSM에 등록된 계단 ${analysis.stairs.count}곳이 있습니다. 주변을 살펴 이동해 주세요.`);
+    messages.push(`앞길에 계단 ${analysis.stairs.count}곳이 있어요. 주변을 살펴 이동해 주세요.`);
   }
   return messages.length ? messages.join(' ') : null;
 }
@@ -264,7 +264,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
           if (shouldQuery && !safetyQueryInFlightRef.current) {
             safetyQueryInFlightRef.current = true;
             lastSafetyQueryRef.current = { timestamp: point.timestamp, lat: point.latitude, lon: point.longitude };
-            setFreeWalkSafety({ status: 'checking', message: '전방 보행로의 계단·경사와 등록된 위험 제보를 확인하고 있어요.' });
+            setFreeWalkSafety({ status: 'checking', message: '앞길의 계단과 오르막, 등록된 위험 제보를 확인하고 있어요.' });
             void Promise.allSettled([
               getNearbyHazardReports(point.latitude, point.longitude),
               getForwardSafetyAnalysis(point.latitude, point.longitude, heading),
@@ -302,13 +302,13 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
                 if (shouldAnnounce) TTSNavigationService.speak(safetyAlert, undefined, false, 'high');
               } else {
                 const checks: string[] = [];
-                if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('경사 DEM 자료 미확인');
-                if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 OSM 자료 미확인');
-                if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('전방 보행로 분석 불가');
-                if (hazardResult.status === 'rejected') checks.push('위험 제보 서버 미응답');
+                if (safetyResult.status === 'rejected' || safetyResult.value?.slope.status === 'unknown') checks.push('오르막 정보가 아직 없어요');
+                if (safetyResult.status === 'rejected' || safetyResult.value?.stairs.status === 'unknown') checks.push('계단 정보가 아직 없어요');
+                if (safetyResult.status === 'fulfilled' && safetyResult.value.route_status === 'unknown') checks.push('앞길 정보를 아직 확인하지 못했어요');
+                if (hazardResult.status === 'rejected') checks.push('위험 제보를 불러오지 못했어요');
                 setFreeWalkSafety({
                   status: 'unknown', message: checks.length
-                    ? `${checks.join(' · ')}. 자료가 없다고 안전한 것은 아닙니다.`
+                    ? `${checks.join(' · ')}. 정보가 없다고 안전하다는 뜻은 아니에요.`
                     : UNKNOWN_SAFETY_INFO.message
                 });
               }
@@ -317,7 +317,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
                 console.warn('[useWalkGuidance] 자유 산책 안전정보 조회 실패:', error);
                 setFreeWalkSafety({
                   status: 'unavailable',
-                  message: '서버에서 위험 제보를 확인하지 못했어요. 주변 안전 정보는 미확인입니다.',
+                  message: '위험 제보를 불러오지 못했어요. 주변 상황은 아직 확인되지 않았어요.',
                 });
               })
               .finally(() => {

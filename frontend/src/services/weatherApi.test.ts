@@ -35,7 +35,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(fallback.isLiveServer).toBe(false);
       expect(fallback.hourly_forecast).toHaveLength(24);
-      expect(fallback.notice).toContain('[가상 시뮬레이션 추정치]');
+      expect(fallback.notice).toContain('예상 정보를 보여드려요');
       expect(fallback.golden_time_window).toBeTruthy();
     });
 
@@ -174,7 +174,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(result.isLiveServer).toBe(false);
       expect(result.hourly_forecast).toHaveLength(24);
-      expect(result.notice).toContain('[가상 시뮬레이션 추정치]');
+      expect(result.notice).toContain('예상 정보를 보여드려요');
     });
 
     it('1시간 TTL 메모리 캐싱으로 동일 위치 재호출 시 네트워크를 중복 요청하지 않아야 한다', async () => {

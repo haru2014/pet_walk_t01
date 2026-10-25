@@ -289,7 +289,7 @@ export function generateAdaptiveCourses(
     return {
       ...c,
       score,
-      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+      reason: c.reason.includes('맞춤 점수') ? c.reason : `맞춤 점수 ${score}점: ${c.reason}`,
     };
   });
 

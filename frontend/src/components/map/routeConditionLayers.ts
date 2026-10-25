@@ -34,20 +34,20 @@ export const SLOPE_GRADE_THRESHOLDS: SlopeGradeThresholds = {
 };
 
 export const SURFACE_TEMP_STYLE: Record<SurfaceTempBand, { color: string; label: string }> = {
-  safe: { color: '#10B981', label: '안전' },
-  cautionLow: { color: '#F59E0B', label: '주의(낮음)' },
-  cautionHigh: { color: '#F97316', label: '주의(높음)' },
-  danger: { color: '#DC2626', label: '위험' },
-  unknown: { color: '#9CA3AF', label: '확인 불가' },
+  safe: { color: '#10B981', label: '산책하기 좋아요' },
+  cautionLow: { color: '#F59E0B', label: '조금 더워요' },
+  cautionHigh: { color: '#F97316', label: '많이 더워요' },
+  danger: { color: '#DC2626', label: '매우 뜨거워요' },
+  unknown: { color: '#9CA3AF', label: '아직 정보가 없어요' },
 };
 
 export const SLOPE_GRADE_STYLE: Record<SlopeGrade, { color: string; label: string; symbol: string }> = {
   flat: { color: '#64748B', label: '평지', symbol: '━' },
   gentleUp: { color: '#16A34A', label: '완만한 오르막', symbol: '▲' },
-  steepUp: { color: '#EA580C', label: '급한 오르막', symbol: '▲▲' },
+  steepUp: { color: '#EA580C', label: '가파른 오르막', symbol: '▲▲' },
   gentleDown: { color: '#0284C7', label: '완만한 내리막', symbol: '▼' },
-  steepDown: { color: '#1D4ED8', label: '급한 내리막', symbol: '▼▼' },
-  unknown: { color: '#9CA3AF', label: '확인 불가', symbol: '·' },
+  steepDown: { color: '#1D4ED8', label: '가파른 내리막', symbol: '▼▼' },
+  unknown: { color: '#9CA3AF', label: '아직 정보가 없어요', symbol: '·' },
 };
 
 /** MapLibre expressions use actual server fields and leave unknown values on the course color. */

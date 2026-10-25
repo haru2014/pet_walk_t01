@@ -123,7 +123,7 @@ export const NearbyExploreMapView: React.FC<NearbyExploreMapViewProps> = ({
       <View style={styles.privacyNoticeBar}>
         <AppIcon name="map" size={14} color={TOKENS.colors.primaryDark} />
         <Text style={styles.privacyNoticeText}>
-          지도와 산책견 핀은 실제 위치가 아닌 데모 데이터입니다.
+          예시 지도예요. 실제 위치를 표시하지 않습니다.
         </Text>
       </View>
 
