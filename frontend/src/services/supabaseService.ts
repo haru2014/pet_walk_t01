@@ -17,7 +17,7 @@ import { generateUuid, isUuid } from '../utils/uuid';
 import { fetchWithServerFallback } from './apiClient';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_KEY || '';
 const SESSION_KEY = '@편안하개:auth_session';
 
 /** 후기 공개/해제 결과. 실패하면 이유(code)와 사용자에게 보여 줄 문구(message)를 담는다. */

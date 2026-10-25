@@ -728,6 +728,23 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             >
               {`🔄 ${formatCourseLapSummary(lapInfo)}`}
             </Text>
+            {currentCourse.notice ? (
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[
+                  styles.reasonText,
+                  {
+                    color: colors.primaryDark,
+                    fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
+                    opacity: 0.9,
+                    marginTop: 3,
+                  },
+                ]}
+              >
+                {`💡 ${currentCourse.notice}`}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 

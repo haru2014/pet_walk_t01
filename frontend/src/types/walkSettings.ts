@@ -127,6 +127,7 @@ export interface RecommendedCourse {
   lapCount?: number;
   lapCycleMeters?: number | null;
   differenceTag?: string;
+  notice?: string;
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [

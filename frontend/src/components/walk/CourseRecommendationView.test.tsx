@@ -11,6 +11,8 @@ import {
 } from './CourseRecommendationView';
 import { DogProfile } from '../../types/dogProfile';
 import { WalkPreferences } from '../../types/walkSettings';
+import * as courseAdaptivePlanner from '../../services/courseAdaptivePlanner';
+import * as courseLapInfo from '../../services/courseLapInfo';
 
 vi.mock('expo-task-manager', () => ({
   defineTask: vi.fn(),
@@ -189,6 +191,51 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
 
     expect(html).toContain('다시 추천');
     expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
+  });
+
+  it('순환 코스에서 notice가 주어지면 바퀴 요약 블록에 💡 안내 문구가 함께 렌더링된다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+    };
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+      {
+        id: 'c_test_lap',
+        name: '송강근린공원 순환로',
+        distanceKm: '1.2 km',
+        estimatedMinutes: 20,
+        softRatio: '80%',
+        shadeLevel: '보통',
+        stairsCount: '계단 0개',
+        shadePercent: 50,
+        reason: '공원 순환로를 여러 바퀴 도는 코스입니다.',
+        lapCount: 4,
+        lapCycleMeters: 450,
+        notice: '산책로가 짧아 최대 약 60분 코스예요',
+      },
+    ]);
+    vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce({
+      lapCount: 4,
+      lapCycleMeters: 450,
+      approachMeters: 50,
+      entry: [127.3592, 36.3628],
+      totalMeters: 1900,
+    });
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('4바퀴');
+    expect(html).toContain('💡 산책로가 짧아 최대 약 60분 코스예요');
   });
 
   it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
