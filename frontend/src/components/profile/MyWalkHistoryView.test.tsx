@@ -40,12 +40,15 @@ vi.mock('../walk/WalkRecordDetailModal', () => ({
   })),
 }));
 
+// '최근 7일' 필터에 걸리도록 기록 시각은 고정 날짜가 아니라 지금 기준으로 만든다 (고정 날짜는 7일이 지나면 테스트가 깨진다).
+const mockWalkStartedAt = Date.now() - 2 * 60 * 60 * 1000;
+
 const mockRecords: WalkRecord[] = [
   {
     id: 'walk-1',
     dogId: 'dog-1',
-    startedAt: '2026-10-18T10:00:00.000Z',
-    completedAt: '2026-10-18T10:30:00.000Z',
+    startedAt: new Date(mockWalkStartedAt).toISOString(),
+    completedAt: new Date(mockWalkStartedAt + 30 * 60 * 1000).toISOString(),
     durationMinutes: 30,
     totalDistanceKm: 1.8,
     averageSpeedKmH: 3.6,
