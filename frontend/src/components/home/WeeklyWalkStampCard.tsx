@@ -84,10 +84,10 @@ export const WeeklyWalkStampCard: React.FC<WeeklyWalkStampCardProps> = ({
         <View
           style={[
             styles.badgeWrap,
-            { backgroundColor: isDark ? 'rgba(74, 222, 128, 0.18)' : '#DCFCE7' },
+            { backgroundColor: colors.primaryWash },
           ]}
         >
-          <Text style={[styles.badgeText, { color: isDark ? '#4ADE80' : '#15803D' }]}>
+          <Text style={[styles.badgeText, { color: colors.primaryDark }]}>
             {completedDaysCount}/7일 완료
           </Text>
         </View>
