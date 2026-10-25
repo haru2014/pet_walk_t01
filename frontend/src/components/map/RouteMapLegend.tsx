@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
-import { SegmentType } from '../../types/route';
+import { getMapRouteColors } from '../../constants/mapStyles';
 import {
   SLOPE_GRADE_STYLE,
   SURFACE_TEMP_STYLE,
@@ -13,17 +13,11 @@ import {
 
 export type RouteMapLayer = 'course' | 'real_osm' | 'slope' | 'temperature';
 
-export const SEGMENT_COLORS: Record<SegmentType, string> = {
-  safe: TOKENS.colors.routeSafe,
-  normal: TOKENS.colors.routeNormal,
-  caution: TOKENS.colors.routeCaution,
-};
-
 const COURSE_LEGEND = [
-  { color: SEGMENT_COLORS.safe, label: '안심 구간' },
-  { color: SEGMENT_COLORS.normal, label: '일반 보행로' },
-  { color: SEGMENT_COLORS.caution, label: '주의 구간' },
-];
+  { type: 'safe', label: '완만/그늘' },
+  { type: 'normal', label: '일반 보도' },
+  { type: 'caution', label: '주의 구간' },
+] as const;
 
 const TEMP_ORDER: SurfaceTempBand[] = ['safe', 'cautionLow', 'cautionHigh', 'danger', 'unknown'];
 const SLOPE_ORDER: SlopeGrade[] = ['flat', 'gentleUp', 'steepUp', 'gentleDown', 'steepDown', 'unknown'];
@@ -51,7 +45,8 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   hasTempData = false,
   hasSlopeData = false,
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const routeColors = getMapRouteColors(theme);
   if (mode !== 'course') return null;
 
   return (
@@ -71,7 +66,7 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
           <View style={styles.itemsWrap}>
             {COURSE_LEGEND.map((item) => (
               <View key={item.label} style={styles.legendItem}>
-                <View style={[styles.legendBar, { backgroundColor: item.color }]} />
+                <View style={[styles.legendBar, { backgroundColor: routeColors[item.type] }]} />
                 <Text style={[styles.legendLabel, { color: colors.textMain }]}>{item.label}</Text>
               </View>
             ))}
