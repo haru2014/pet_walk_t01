@@ -11,6 +11,7 @@
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
+import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
 
 export interface BuildMapLibreHtmlOptions {
   readonly styleUrl: string;
@@ -73,6 +74,9 @@ export function buildMapLibreHtml({
     route,
     stepPins,
     routeColors,
+    routeConditionColor: routeConditionColorExpression(routeColors),
+    slopeSymbol: slopeSymbolExpression(),
+    slopeSymbolColor: slopeSymbolColorExpression(),
     maskingFeature,
     maskingCenter,
     interactive,
@@ -276,14 +280,27 @@ export function buildMapLibreHtml({
             'line-cap': 'round'
           },
           paint: {
-            'line-color': [
-              'match',
-              ['get', 'segmentType'],
-              'safe', colors.safe,
-              'caution', colors.caution,
-              colors.normal
-            ],
+            'line-color': payload.routeConditionColor,
             'line-width': 5
+          }
+        });
+
+        map.addLayer({
+          id: 'route-slope-symbols',
+          type: 'symbol',
+          source: 'route-source',
+          filter: ['all', ['has', 'slopeSignedPercent'], ['!=', ['get', 'slopeSignedPercent'], null]],
+          layout: {
+            'symbol-placement': 'line',
+            'text-field': payload.slopeSymbol,
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 13,
+            'text-keep-upright': false
+          },
+          paint: {
+            'text-color': payload.slopeSymbolColor,
+            'text-halo-color': '#FFFFFF',
+            'text-halo-width': 1.5
           }
         });
       }

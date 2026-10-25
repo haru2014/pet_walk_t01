@@ -128,6 +128,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(view.messageTypes()).toEqual(['MAP_LOADED']);
     expect(view.sources['route-source']).toBeDefined();
     expect(view.sources['masking-source']).toBeDefined();
+    expect(buildMapLibreHtml({ styleUrl: PRIMARY_STYLE, route, routeColors: THEME_MAP_ROUTE_COLORS.forest })).toContain('route-slope-symbols');
     expect(view.timers[0].ms).toBe(STYLE_LOAD_TIMEOUT_MS);
   });
 
