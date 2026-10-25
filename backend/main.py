@@ -34,7 +34,9 @@ from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
 from agent.route_geometry import haversine_m
-from agent.park_walk_planner import SAME_ROUTE_OVERLAP, plan_park_walk_candidates, route_edge_set, routes_overlap
+from agent.park_walk_planner import (
+    SAME_ROUTE_OVERLAP, WINDING_RATIO_NOTICE, plan_park_walk_candidates, route_edge_set, routes_overlap, winding_ratio,
+)
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
@@ -785,6 +787,14 @@ def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any
         course["reason"] = f"{notice}\n{repeat_desc}" if repeat_desc else notice
 
 
+def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
+    """좁은 갈림길을 헤집어 꼬불꼬불한 코스(예: 도안)는 카드 안내 줄(reason)에 이유를 알린다 (#258)."""
+    for course, cand in zip(courses, candidates):
+        coords = getattr(cand, "geojson_coordinates", None) or []
+        if winding_ratio(coords) >= WINDING_RATIO_NOTICE:
+            course["reason"] = f"{course.get('reason', '')}\n갈림길이 많은 공원이라 코스가 꼬불꼬불해요.".strip()
+
+
 def _build_walk_plan_response(
     agent_result: Any,
     request_id: str,
@@ -821,6 +831,7 @@ def _build_walk_plan_response(
     if park_mode:
         scored = agent_result.all_scored_candidates or []
         _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
+        _add_winding_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(
