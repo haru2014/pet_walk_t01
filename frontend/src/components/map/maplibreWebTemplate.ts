@@ -100,15 +100,15 @@ export function buildMapLibreHtml({
     
     /* 핀 및 마커 스타일 */
     .step-pin {
-      width: 26px; height: 26px; border-radius: 50%;
+      width: 30px; height: 30px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; color: #FFFFFF; font-weight: bold; font-size: 11px;
+      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 18px; line-height: 20px;
       cursor: pointer; transition: transform 0.15s ease;
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; color: #FFFFFF; font-weight: 800; font-size: 10px;
+      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 12px;
       text-align: center;
     }
   </style>
@@ -311,7 +311,7 @@ export function buildMapLibreHtml({
       function initMarkers(pins, routeData, colors) {
         markers.forEach(function(m) { m.remove(); });
         markers = [];
-        const textHalo = '0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing;
+        const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)';
 
         // 출발/도착 마커
         if (routeData && routeData.features && routeData.features.length > 0) {
@@ -321,6 +321,8 @@ export function buildMapLibreHtml({
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
             startEl.style.color = colors.startMarker;
+            startEl.style.fontSize = '12px';
+            startEl.style.fontWeight = '900';
             startEl.style.textShadow = textHalo;
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
@@ -339,6 +341,14 @@ export function buildMapLibreHtml({
               : (pin.kind === 'caution' ? colors.caution : (pin.kind === 'safe' ? colors.safe : colors.normal));
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
             el.innerText = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
+            el.style.width = isCurrentLocation ? '30px' : '32px';
+            el.style.height = isCurrentLocation ? '30px' : '32px';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.fontSize = pin.title ? '10px' : (isCurrentLocation ? '16px' : '18px');
+            el.style.fontWeight = '900';
+            el.style.lineHeight = '20px';
             el.style.backgroundColor = 'transparent';
             el.style.border = 'none';
             el.style.boxShadow = 'none';

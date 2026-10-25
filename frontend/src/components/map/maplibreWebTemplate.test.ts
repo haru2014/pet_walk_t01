@@ -132,7 +132,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(html).toContain("const pinColor = isCurrentLocation ? colors.startMarker");
     expect(html).toContain("startEl.style.color = colors.startMarker");
     expect(html).toContain("el.style.textShadow = textHalo");
-    expect(html).toContain("0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing");
+    expect(html).toContain("const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)'");
     expect(html).not.toContain('#ffffffed');
     expect(html).toContain("postToReactNative('PIN_SELECT'");
   });
@@ -151,10 +151,15 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     const [startMarker, turnMarker] = view.markers.slice(-2);
     expect(startMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.startMarker);
     expect(startMarker.element.style.backgroundColor).toBeUndefined();
+    expect(startMarker.element.style.fontSize).toBe('12px');
     expect(startMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
+    expect(startMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
     expect(turnMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.normal);
     expect(turnMarker.element.style.backgroundColor).toBe('transparent');
+    expect(turnMarker.element.style.fontSize).toBe('18px');
+    expect(turnMarker.element.style.fontWeight).toBe('900');
     expect(turnMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
+    expect(turnMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
   });
 
   it('정상 로드 시 MAP_LOADED를 1회 보내고 경로/마스킹 소스를 등록한다', () => {
