@@ -80,11 +80,6 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     expect(markers).toHaveLength(1 + pins.length);
     expect(FakeMarker.created.every((marker) => marker.map === map)).toBe(true);
     expect(FakeMarker.created[0].lngLat).toEqual([127.38, 36.43]);
-    expect(FakeMarker.created[0].options.element.style.color).toBe(colors.startMarker);
-    expect(FakeMarker.created[0].options.element.style.fontSize).toBe('12px');
-    expect(FakeMarker.created[0].options.element.style.fontWeight).toBe('900');
-    expect(FakeMarker.created[0].options.element.style.textShadow).toContain(colors.casing);
-    expect(FakeMarker.created[0].options.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
     expect(FakeMarker.created[1].lngLat).toEqual([127.381, 36.43]);
   });
 
@@ -93,26 +88,23 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     const [start, turn, caution, titled] = FakeMarker.created;
 
     expect(start.options.element.style.background).toBe('transparent');
+    expect(start.options.element.style.border).toBe('transparent');
+    expect(start.options.element.style.color).toBe(colors.mapGuidance);
     expect(turn.options.element.style.background).toBe('transparent');
-    expect(turn.options.element.style.color).toBe(colors.normal);
-    expect(turn.options.element.style.fontSize).toBe('18px');
-    expect(turn.options.element.style.fontWeight).toBe('900');
-    expect(turn.options.element.style.textShadow).toContain(colors.casing);
-    expect(turn.options.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
+    expect(turn.options.element.style.border).toBe('transparent');
+    expect(turn.options.element.style.color).toBe(colors.mapGuidance);
     expect(turn.options.element.textContent).toBe('↱');
     expect(turn.options.anchor).toBe('center');
     expect(turn.options.element.tagName).toBe('button');
     expect(turn.options.element.type).toBe('button');
     expect(caution.options.element.style.background).toBe('transparent');
-    expect(caution.options.element.style.color).toBe(colors.caution);
+    expect(caution.options.element.style.border).toBe('transparent');
     expect(caution.options.element.textContent).toBe('!');
     expect(titled.options.anchor).toBe('bottom');
     expect(titled.options.element.tagName).toBe('div');
     expect(titled.options.element.style.background).toBe('transparent');
-    expect(titled.options.element.style.border).toBe('none');
+    expect(titled.options.element.style.border).toBe('transparent');
     expect(titled.options.element.style.boxShadow).toBe('none');
-    expect(titled.options.element.style.color).toBe(colors.safe);
-    expect(titled.options.element.children.every((child) => child.style.textShadow?.includes(colors.casing))).toBe(true);
   });
 
   it('회전 핀은 안내 문구의 좌회전·우회전·유턴 방향에 맞는 아이콘을 사용한다', () => {

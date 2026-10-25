@@ -40,6 +40,21 @@ export interface HomeParkWalkCardN2Props {
   userCoords?: { lon: number; lat: number } | null;
 }
 
+function resolveCardTextColor(isDark: boolean, theme: string, textMain: string): string {
+  if (isDark) return textMain;
+  return theme === 'dusty_amber' ? '#2D3A31' : textMain;
+}
+
+function resolveDisplayTime(estimatedMinutes?: number | string): string {
+  if (estimatedMinutes == null) return '자율';
+  return typeof estimatedMinutes === 'number' ? `${estimatedMinutes}분` : estimatedMinutes;
+}
+
+function resolveMetricsCardBg(isDark: boolean, theme: string, background: string): string {
+  if (isDark) return background;
+  return theme === 'dusty_amber' ? '#F4DFBD' : 'rgba(255, 255, 255, 0.5)';
+}
+
 export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   dog,
   dogs,
@@ -65,16 +80,17 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
 
   const activePins = useMemo(() => {
     if (hasGps && userCoords) {
-      return [createCurrentLocationPin(userCoords.lon, userCoords.lat, '현재 위치 (자유 산책 출발)')];
+      return [createCurrentLocationPin(userCoords.lon, userCoords.lat, '(자유 산책 출발)')];
     }
     return [];
   }, [hasGps, userCoords]);
 
   const cardBgColor = theme === 'dusty_amber' ? colors.accent : colors.surface;
   const isDark = theme === 'dark';
-  const cardTextColor = isDark ? colors.textMain : (theme === 'dusty_amber' ? '#2D3A31' : colors.textMain);
+  const cardTextColor = resolveCardTextColor(isDark, theme, colors.textMain);
   const displayDist = distanceKm ?? '자율';
-  const displayTime = estimatedMinutes != null ? (typeof estimatedMinutes === 'number' ? `${estimatedMinutes}분` : estimatedMinutes) : '자율';
+  const displayTime = resolveDisplayTime(estimatedMinutes);
+  const metricsCardBg = resolveMetricsCardBg(isDark, theme, colors.background);
 
   return (
     <View style={styles.container}>
@@ -127,7 +143,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
                 >
                   {dog.name}
                 </Text>
-{isMultiDog && (
+                {isMultiDog && (
                   <Text style={[styles.dogSwitchChevron, { color: isDark ? colors.primaryDark : cardTextColor }]}>▾</Text>
                 )}
               </TouchableOpacity>
@@ -189,7 +205,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
             style={[
               styles.metricsCard,
               {
-                backgroundColor: isDark ? colors.background : (theme === 'dusty_amber' ? '#F4DFBD' : 'rgba(255, 255, 255, 0.5)'),
+                backgroundColor: metricsCardBg,
                 borderColor: colors.border,
                 borderWidth: 1,
               },

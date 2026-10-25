@@ -100,16 +100,18 @@ export function buildMapLibreHtml({
     
     /* 핀 및 마커 스타일 */
     .step-pin {
-      width: 30px; height: 30px; border-radius: 50%;
+      width: 32px; height: 32px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 18px; line-height: 20px;
+      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 15px;
       cursor: pointer; transition: transform 0.15s ease;
+      text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95);
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 12px;
-      text-align: center;
+      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 13px;
+      text-align: center; white-space: nowrap;
+      text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95);
     }
   </style>
 </head>
@@ -311,7 +313,24 @@ export function buildMapLibreHtml({
       function initMarkers(pins, routeData, colors) {
         markers.forEach(function(m) { m.remove(); });
         markers = [];
-        const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)';
+        const activeColors = colors || payload.routeColors || {};
+        const guidanceColor = activeColors.mapGuidance || activeColors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
+
+        function getLargeArrowSvg(icon, color) {
+          if (icon === '↱') {
+            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 8 22 L 8 13 Q 8 8 13 8 L 15 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="13,2 26,8 13,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          }
+          if (icon === '↰') {
+            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 20 22 L 20 13 Q 20 8 15 8 L 13 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="15,2 2,8 15,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          }
+          if (icon === '↶') {
+            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 19 22 L 19 12 Q 19 6 13.5 6 Q 8 6 8 12 L 8 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="2,13 8,25 14,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          }
+          if (icon === '➤') {
+            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><polygon points="26,14 4,4 9,14 4,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          }
+          return null;
+        }
 
         // 출발/도착 마커
         if (routeData && routeData.features && routeData.features.length > 0) {
@@ -320,10 +339,10 @@ export function buildMapLibreHtml({
             const startEl = document.createElement('div');
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
-            startEl.style.color = colors.startMarker;
-            startEl.style.fontSize = '12px';
+            startEl.style.color = guidanceColor;
+            startEl.style.fontSize = '13px';
             startEl.style.fontWeight = '900';
-            startEl.style.textShadow = textHalo;
+            startEl.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
               .setLngLat(firstCoord)
@@ -337,69 +356,71 @@ export function buildMapLibreHtml({
           pins.forEach(function(pin) {
             const el = document.createElement('div');
             const isCurrentLocation = pin.id === 'current-location-pin' || pin.title === '현재 위치';
-            const pinColor = isCurrentLocation ? colors.startMarker
-              : (pin.kind === 'caution' ? colors.caution : (pin.kind === 'safe' ? colors.safe : colors.normal));
+            const hasTitle = Boolean(pin.title);
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
-            el.innerText = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
-            el.style.width = isCurrentLocation ? '30px' : '32px';
-            el.style.height = isCurrentLocation ? '30px' : '32px';
-            el.style.display = 'flex';
-            el.style.alignItems = 'center';
-            el.style.justifyContent = 'center';
-            el.style.fontSize = pin.title ? '10px' : (isCurrentLocation ? '16px' : '18px');
-            el.style.fontWeight = '900';
-            el.style.lineHeight = '20px';
-            el.style.backgroundColor = 'transparent';
-            el.style.border = 'none';
-            el.style.boxShadow = 'none';
-            el.style.color = pinColor;
-            el.style.textShadow = textHalo;
-            if (isCurrentLocation) {
-              el.style.width = '30px';
-              el.style.height = '30px';
-              el.style.borderRadius = '0';
-              el.style.transform = pin.bearingDeg == null ? 'none' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
-              el.style.backgroundColor = 'transparent';
-              el.style.border = 'none';
-              el.style.boxShadow = 'none';
+            const iconStr = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
+            el.innerText = iconStr;
+            if (isCurrentLocation && !hasTitle) {
+              el.style.width = '32px';
+              el.style.height = '32px';
+              el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
+              el.style.transform = pin.bearingDeg == null ? 'rotate(-45deg)' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
+              el.style.backgroundColor = '#2563EB';
+              el.style.border = '2px solid #fff';
+              el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';
               el.style.display = 'flex';
               el.style.alignItems = 'center';
               el.style.justifyContent = 'center';
               el.style.fontSize = '16px';
-              el.style.color = pinColor;
+              el.style.color = '#fff';
+              if (pin.bearingDeg != null) {
+                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
+              }
+            } else {
+              el.style.color = guidanceColor;
+              el.style.fontSize = '15px';
+              el.style.fontWeight = '900';
+              el.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
+              el.style.backgroundColor = 'transparent';
+              el.style.border = 'transparent';
+              el.style.boxShadow = 'none';
+              const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
+              if (arrowSvg) {
+                el.innerHTML = arrowSvg;
+              }
             }
-            if (pin.title) {
+            if (hasTitle) {
               el.innerText = '';
               el.style.width = 'auto';
               el.style.height = 'auto';
               el.style.backgroundColor = 'transparent';
-              el.style.color = pinColor;
+              el.style.border = 'transparent';
+              el.style.boxShadow = 'none';
+              el.style.borderRadius = '0';
+              el.style.transform = 'none';
+              el.style.color = guidanceColor;
               el.style.whiteSpace = 'nowrap';
               el.style.display = 'grid';
               el.style.gap = '2px';
               const iconEl = document.createElement('span');
               iconEl.innerText = pin.icon || '';
+              iconEl.style.fontSize = '14px';
               const titleEl = document.createElement('strong');
               titleEl.innerText = pin.title;
+              titleEl.style.color = guidanceColor;
+              titleEl.style.fontSize = '12px';
+              titleEl.style.fontWeight = '900';
+              titleEl.style.textShadow = '0 0 4px #FFFFFF, 0 0 8px #FFFFFF';
               el.appendChild(iconEl);
               el.appendChild(titleEl);
               if (pin.detail) {
                 const detailEl = document.createElement('small');
                 detailEl.innerText = pin.detail;
-                detailEl.style.textShadow = textHalo;
+                detailEl.style.fontSize = '10px';
+                detailEl.style.fontWeight = '700';
+                detailEl.style.textShadow = '0 0 4px #FFFFFF';
                 el.appendChild(detailEl);
               }
-              if (isCurrentLocation) {
-                // 텍스트 안내는 투명하게 두되, 앞서 설정한 위치 핀 장식은 남기지 않습니다.
-                el.style.border = 'none';
-                el.style.borderRadius = '0';
-                el.style.boxShadow = 'none';
-                el.style.transform = 'none';
-                el.style.padding = '0';
-                el.style.textShadow = textHalo;
-              }
-              iconEl.style.textShadow = textHalo;
-              titleEl.style.textShadow = textHalo;
             }
             el.onclick = function() {
               postToReactNative('PIN_SELECT', { id: pin.id, instruction: pin.instruction });

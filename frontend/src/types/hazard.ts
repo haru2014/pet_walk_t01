@@ -45,6 +45,8 @@ export interface DeviationReroutePayload {
   readonly destinationLat: number;
   readonly destinationLon: number;
   readonly routeCoordinates?: readonly (readonly [number, number])[];
+  /** 마지막으로 코스 위에 있던 지점의 진행 거리(m). 순환 코스에서 앞쪽 합류 지점을 고르는 데 쓴다. */
+  readonly progressM?: number;
 }
 
 export interface BlockedHazardInfo {

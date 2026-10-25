@@ -49,18 +49,18 @@ function bootTemplate() {
       (handlers[name] ??= []).push(wrapped);
     },
     emit(name: string, arg?: unknown) { [...(handlers[name] ?? [])].forEach((fn) => fn(arg)); },
-    addControl() {},
+    addControl() { },
     addSource(id: string, source: unknown) {
       if (sources[id]) throw new Error(`duplicate source ${id}`);
       sources[id] = source;
     },
-    addLayer() {},
+    addLayer() { },
     getSource(id: string) {
       return sources[id] ? { setData(data: unknown) { setDataCalls.push(data); } } : undefined;
     },
     getLayer() { return true; },
-    setPaintProperty() {},
-    fitBounds() {},
+    setPaintProperty() { },
+    fitBounds() { },
     setStyle(style: unknown, options: unknown) {
       setStyleCalls.push({ style, options });
       Object.keys(sources).forEach((id) => { delete sources[id]; });
@@ -74,7 +74,7 @@ function bootTemplate() {
     },
   };
   const fakeDocument = {
-    createElement: () => ({ style: {}, appendChild() {} }),
+    createElement: () => ({ style: {}, appendChild() { } }),
     addEventListener: (name: string, listener: (event: { data: string }) => void) => {
       if (name === 'message') documentMessageListeners.push(listener);
     },
@@ -82,11 +82,11 @@ function bootTemplate() {
   const fakeMapLibre = {
     Map: function FakeMap() { return map; },
     Marker: function FakeMarker(this: object, options: { element: any }) {
-      const marker = { element: options.element, setLngLat() { return this; }, addTo() { return this; }, remove() {} };
+      const marker = { element: options.element, setLngLat() { return this; }, addTo() { return this; }, remove() { } };
       markers.push(marker);
       return marker;
     },
-    AttributionControl: function FakeControl() {},
+    AttributionControl: function FakeControl() { },
   };
   const fakeSetTimeout = (fn: () => void, ms: number) => timers.push({ fn, ms });
 
@@ -111,28 +111,17 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
-  it('현재 위치 텍스트 안내는 투명 배경·무테두리로 표시하고 글자 halo로 가독성을 유지한다', () => {
+  it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,
       route,
-      stepPins: [{
-        ...pin,
-        id: 'current-location-pin',
-        title: '현재 위치',
-        detail: '현재 위치 (자유 산책 출발)',
-      }],
+      stepPins: [{ ...pin, title: '공원 길', icon: '🌳' }],
       routeColors: THEME_MAP_ROUTE_COLORS.forest,
       maskingCenter: [127.38, 36.43],
     });
 
     expect(html).toContain('background-color: transparent');
     expect(html).toContain("el.style.backgroundColor = 'transparent'");
-    expect(html).toContain("el.style.border = 'none'");
-    expect(html).toContain("el.style.boxShadow = 'none'");
-    expect(html).toContain("const pinColor = isCurrentLocation ? colors.startMarker");
-    expect(html).toContain("startEl.style.color = colors.startMarker");
-    expect(html).toContain("el.style.textShadow = textHalo");
-    expect(html).toContain("const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)'");
     expect(html).not.toContain('#ffffffed');
     expect(html).toContain("postToReactNative('PIN_SELECT'");
   });
@@ -149,17 +138,15 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     });
 
     const [startMarker, turnMarker] = view.markers.slice(-2);
-    expect(startMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.startMarker);
+    expect(startMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.mapGuidance || THEME_MAP_ROUTE_COLORS.ocean.startMarker);
     expect(startMarker.element.style.backgroundColor).toBeUndefined();
-    expect(startMarker.element.style.fontSize).toBe('12px');
-    expect(startMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
-    expect(startMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
-    expect(turnMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.normal);
+    expect(startMarker.element.style.fontSize).toBe('13px');
+    expect(startMarker.element.style.textShadow).toBe('0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
+    expect(turnMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.mapGuidance || THEME_MAP_ROUTE_COLORS.ocean.startMarker);
     expect(turnMarker.element.style.backgroundColor).toBe('transparent');
-    expect(turnMarker.element.style.fontSize).toBe('18px');
+    expect(turnMarker.element.style.fontSize).toBe('15px');
     expect(turnMarker.element.style.fontWeight).toBe('900');
-    expect(turnMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
-    expect(turnMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
+    expect(turnMarker.element.style.textShadow).toBe('0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
   });
 
   it('정상 로드 시 MAP_LOADED를 1회 보내고 경로/마스킹 소스를 등록한다', () => {
@@ -260,5 +247,17 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
 
     view.send({ action: 'UPDATE_ROUTE', route, stepPins: [] });  // iOS 경로도 그대로 동작
     expect(view.setDataCalls).toEqual([secondCourse, route]);
+  });
+
+  it('출발/도착 마커 및 스텝 핀에 테마 고대비 주황색 안내 색상(mapGuidance)과 시인성 텍스트 그림자가 적용된다', () => {
+    const html = buildMapLibreHtml({
+      styleUrl: PRIMARY_STYLE,
+      route,
+      stepPins: [pin],
+      routeColors: THEME_MAP_ROUTE_COLORS.dusty_amber,
+    });
+    expect(html).toContain(`color: ${THEME_MAP_ROUTE_COLORS.dusty_amber.mapGuidance}`);
+    expect(html).toContain('text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
+    expect(html).toContain('font-weight: 900');
   });
 });

@@ -14,6 +14,7 @@
 
 import { LonLat, RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { haversineMeters, polylineLengthMeters } from './routeGeometry';
+import { collectRouteProjections, selectRouteProjection } from './routeRejoin';
 
 export const PRE_BRIEF_DISTANCE_M = 30;
 export const TURN_PRE_BRIEF_DISTANCE_M = 5;
@@ -56,6 +57,11 @@ export interface GuidanceState {
   /** 첫 GPS 수신 시 출발지 거리 점검을 이미 마쳤는지 */
   readonly startChecked: boolean;
   readonly arrived: boolean;
+  /**
+   * 마지막으로 코스 위에 있던 지점의 진행 거리(m).
+   * 이탈 재탐색 때 순환 코스의 앞쪽 합류 지점을 고르는 기준으로 쓴다.
+   */
+  readonly routeProgressM?: number;
 }
 
 export const INITIAL_GUIDANCE_STATE: GuidanceState = {
@@ -173,8 +179,10 @@ function projectOntoRoute(position: LonLat, route: RouteFeatureCollection): Rout
   return closest;
 }
 
+const TURN_PATTERN = /유턴|(?:크게\s*)?(?:좌회전|우회전)/;
+
 function turnInstruction(instruction: string): string | null {
-  const match = instruction.match(/유턴|(?:크게\s*)?(?:좌회전|우회전)/);
+  const match = TURN_PATTERN.exec(instruction);
   return match?.[0] ?? null;
 }
 
@@ -182,12 +190,74 @@ function formatTurnBriefing(turns: readonly string[]): string {
   const [first, ...following] = turns;
   const firstInstruction = `${first}하십시오.`;
   if (following.length === 0) return `${TURN_PRE_BRIEF_DISTANCE_M}미터 전방에서 ${firstInstruction}`;
-  return `${TURN_PRE_BRIEF_DISTANCE_M}미터 전방에서 ${firstInstruction} 이어서 ${following.map((turn) => `${turn}하십시오.`).join(' ')}`;
+  const followingText = following.map((turn) => `${turn}하십시오.`).join(' ');
+  return `${TURN_PRE_BRIEF_DISTANCE_M}미터 전방에서 ${firstInstruction} 이어서 ${followingText}`;
 }
 
 interface CollectedPreBriefs {
   readonly events: GuidanceEvent[];
   readonly consumedPinIds: string[];
+}
+
+interface TurnCandidate {
+  pin: RouteStepPin;
+  turn: string;
+  progressM: number;
+}
+
+function shouldTriggerTurnBrief(
+  position: LonLat,
+  prev: LonLat | null,
+  route: RouteFeatureCollection,
+  turn: TurnCandidate,
+  routeProgress: number | undefined,
+): boolean {
+  const distanceToTurnM = routeProgress == null
+    ? haversineMeters(position, turn.pin.position)
+    : turn.progressM - routeProgress;
+  const crossedTurnSincePreviousFix = routeProgress != null && prev != null
+    ? (projectOntoRoute(prev, route)?.progressM ?? routeProgress) < turn.progressM
+      && routeProgress >= turn.progressM - TURN_PRE_BRIEF_DISTANCE_M
+    : false;
+  const closeToTurn = passedWithin(turn.pin.position, prev, position, TURN_PRE_BRIEF_DISTANCE_M);
+
+  return distanceToTurnM <= TURN_PRE_BRIEF_DISTANCE_M
+    && distanceToTurnM >= -TURN_PRE_BRIEF_DISTANCE_M
+    && (distanceToTurnM >= 0 || crossedTurnSincePreviousFix || closeToTurn);
+}
+
+function collectTurnPreBriefEvent(
+  position: LonLat,
+  prev: LonLat | null,
+  route: RouteFeatureCollection,
+  turnPins: TurnCandidate[],
+  consumedPinIds: string[],
+  routeProgress: number | undefined,
+): GuidanceEvent | null {
+  const nextTurnIndex = turnPins.findIndex(({ pin, progressM }) =>
+    !consumedPinIds.includes(pin.id) && (routeProgress == null || progressM >= routeProgress - TURN_PRE_BRIEF_DISTANCE_M));
+  if (nextTurnIndex < 0) return null;
+
+  const nextTurns = [turnPins[nextTurnIndex]];
+  for (let index = nextTurnIndex + 1; index < turnPins.length; index += 1) {
+    if (turnPins[index].progressM - nextTurns[0].progressM > TURN_PRE_BRIEF_DISTANCE_M) break;
+    nextTurns.push(turnPins[index]);
+  }
+
+  const firstTurn = nextTurns[0];
+  if (!shouldTriggerTurnBrief(position, prev, route, firstTurn, routeProgress)) {
+    return null;
+  }
+
+  const groupedIds = nextTurns.map(({ pin }) => pin.id);
+  consumedPinIds.push(...groupedIds);
+  return {
+    kind: 'pre_brief',
+    category: 'turn',
+    message: formatTurnBriefing(nextTurns.map(({ turn }) => turn)),
+    pinId: firstTurn.pin.id,
+    pinIds: groupedIds,
+  };
 }
 
 function collectPreBriefEvents(
@@ -200,7 +270,7 @@ function collectPreBriefEvents(
   const events: GuidanceEvent[] = [];
   const consumedPinIds: string[] = [];
   const routeProgress = projectOntoRoute(position, route)?.progressM;
-  const turnPins = pins.flatMap((pin) => {
+  const turnPins: TurnCandidate[] = pins.flatMap((pin) => {
     const turn = turnInstruction(pin.instruction);
     if (!turn || announced.includes(pin.id)) return [];
     const projection = projectOntoRoute(pin.position, route);
@@ -214,37 +284,9 @@ function collectPreBriefEvents(
     });
   }
 
-  const nextTurnIndex = turnPins.findIndex(({ pin, progressM }) =>
-    !consumedPinIds.includes(pin.id) && (routeProgress == null || progressM >= routeProgress - TURN_PRE_BRIEF_DISTANCE_M));
-  if (nextTurnIndex >= 0) {
-    const nextTurns = [turnPins[nextTurnIndex]];
-    for (let index = nextTurnIndex + 1; index < turnPins.length; index += 1) {
-      if (turnPins[index].progressM - nextTurns[0].progressM > TURN_PRE_BRIEF_DISTANCE_M) break;
-      nextTurns.push(turnPins[index]);
-    }
-
-    const firstTurn = nextTurns[0];
-    const distanceToTurnM = routeProgress == null
-      ? haversineMeters(position, firstTurn.pin.position)
-      : firstTurn.progressM - routeProgress;
-    const crossedTurnSincePreviousFix = routeProgress != null && prev != null
-      ? (projectOntoRoute(prev, route)?.progressM ?? routeProgress) < firstTurn.progressM
-        && routeProgress >= firstTurn.progressM - TURN_PRE_BRIEF_DISTANCE_M
-      : false;
-    const closeToTurn = passedWithin(firstTurn.pin.position, prev, position, TURN_PRE_BRIEF_DISTANCE_M);
-    if (distanceToTurnM <= TURN_PRE_BRIEF_DISTANCE_M
-      && distanceToTurnM >= -TURN_PRE_BRIEF_DISTANCE_M
-      && (distanceToTurnM >= 0 || crossedTurnSincePreviousFix || closeToTurn)) {
-      const groupedIds = nextTurns.map(({ pin }) => pin.id);
-      consumedPinIds.push(...groupedIds);
-      events.push({
-        kind: 'pre_brief',
-        category: 'turn',
-        message: formatTurnBriefing(nextTurns.map(({ turn }) => turn)),
-        pinId: firstTurn.pin.id,
-        pinIds: groupedIds,
-      });
-    }
+  const turnEvent = collectTurnPreBriefEvent(position, prev, route, turnPins, consumedPinIds, routeProgress);
+  if (turnEvent) {
+    events.push(turnEvent);
   }
 
   pins.forEach((pin) => {
@@ -331,6 +373,15 @@ export function evaluateGuidance(
   const distance = distanceToRouteMeters(position, route);
   const isOffRoute = Number.isFinite(distance) && distance > OFF_ROUTE_DISTANCE_M;
 
+  let routeProgressM = state.routeProgressM;
+  if (!isOffRoute && Number.isFinite(distance)) {
+    const onRoute = selectRouteProjection(
+      collectRouteProjections(route.features.map((feature) => feature.geometry.coordinates), position),
+      routeProgressM,
+    );
+    if (onRoute) routeProgressM = onRoute.progressM;
+  }
+
   const startCheck = checkStartFarDeparture(position, route, state.startChecked);
   if (startCheck.event) {
     events.push(startCheck.event);
@@ -366,6 +417,7 @@ export function evaluateGuidance(
       sinceCueM,
       startChecked: true,
       arrived: arrivalCheck.arrived,
+      routeProgressM,
     },
   };
 }

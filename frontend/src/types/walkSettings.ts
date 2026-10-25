@@ -126,6 +126,7 @@ export interface RecommendedCourse {
   slopeSource?: 'dem' | 'approximation' | 'unknown';
   lapCount?: number;
   lapCycleMeters?: number | null;
+  differenceTag?: string;
 }
 
 export const DEFAULT_RECOMMENDED_COURSES: readonly RecommendedCourse[] = [

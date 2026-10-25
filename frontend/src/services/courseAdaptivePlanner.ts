@@ -97,10 +97,10 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
   };
 }
 
-/** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 90%) */
+/** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 -15% 완만 산책) */
 function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
   const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
-  const minutes = Math.max(10, Math.round(targetMinutes * 0.9));
+  const minutes = Math.max(10, Math.round(targetMinutes * 0.85));
   const features: string[] = [];
   if (envs.includes('rest')) features.push('쉬어갈 벤치');
   if (envs.includes('shade')) features.push('풍부한 그늘');
@@ -127,13 +127,14 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     shadePercent: 55,
     softSurfacePercent: 75,
     reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
+    differenceTag: '가벼운 여유 코스 (-15%)',
   };
 }
 
-/** 코스 3: 조용한 주택가 및 골목 안심 코스 (목표 시간 약 110%) */
+/** 코스 3: 조용한 주택가 및 외곽 집중 코스 (목표 시간 약 +15% 운동 산책) */
 function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
   const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
-  const minutes = Math.round(targetMinutes * 1.1);
+  const minutes = Math.round(targetMinutes * 1.15);
   const hasQuiet = envs.includes('quiet');
   const features: string[] = [];
   if (envs.includes('traffic')) features.push('차량 통행이 적은 골목길');
@@ -163,6 +164,7 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     shadePercent: 42,
     softSurfacePercent: 62,
     reason: `${detail}를 따라 복잡하지 않고 평온하게 걸을 수 있어요.`,
+    differenceTag: '충분한 운동 코스 (+15%)',
   };
 }
 
@@ -315,12 +317,14 @@ export function generateAdaptiveCourses(
     id: `${scoredCourses[1].id}-alt-${regenerateNonce}-a`,
     name: `🌿 ${dog.name}를 위한 대안 안심 순환로 ${regenerateNonce}안`,
     reason: `기존 경로와 다른 새로운 보행 환경 코스입니다.\n${scoredCourses[1].reason}`,
+    differenceTag: '새로운 대안 동선',
   };
   const alt2 = {
     ...scoredCourses[2],
     id: `${scoredCourses[2].id}-alt-${regenerateNonce}-b`,
     name: `🚶 ${dog.name}와 걷는 새로운 순환 코스 ${regenerateNonce}안`,
     reason: `기존 경로와 다른 완만한 대체 산책로입니다.\n${scoredCourses[2].reason}`,
+    differenceTag: '반대 방향·외곽 순환',
   };
   return [bestCourse, alt1, alt2];
 }

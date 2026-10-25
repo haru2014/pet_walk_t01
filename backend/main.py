@@ -367,6 +367,9 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
         "dataReliability": getattr(cand, "data_reliability", "estimated"),
         "slopeSource": getattr(cand, "slope_source", "approximation"),
     }
+    direction = getattr(cand, "direction_label", None)
+    if direction:
+        course["differenceTag"] = direction
     if profile:
         _apply_profile_to_course(course, profile)
     return course
