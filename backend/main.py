@@ -51,6 +51,7 @@ from agent.hazard_service import (
     run_vision_inspection,
 )
 from agent.surface_slope_evaluator import build_segmented_geojson
+from services.segment_conditions import link_conditions
 from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
@@ -337,9 +338,12 @@ def _build_course_list(agent_result: Any, profiles: Optional[Dict[str, Any]] = N
                                     profile=profiles.get(best.route_id))]
 
 
-def _build_segmented_geojson(coords: List[List[float]], max_slope: float) -> Dict[str, Any]:
-    """경로 좌표열을 DEM 고도차 및 노면 실측 기반 3대 안심 등급(safe/normal/caution)으로 분할."""
-    return build_segmented_geojson(coords, max_slope_hint=max_slope)
+def _build_segmented_geojson(coords: List[List[float]], max_slope: float, park_id: Optional[str] = None,
+                             weather_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """경로를 안심 등급·경사 방향·지면온도 단계별 구간으로 나눈다. 구간마다 진행 방향 경사(slopeSignedPercent)와
+    추정 지면온도(surfaceTempC)를 넣고, 모르면 None (앱 지도 #158·#233)."""
+    conditions = link_conditions(coords, park_id, weather_context)
+    return build_segmented_geojson(coords, max_slope_hint=max_slope, link_conditions=conditions)
 
 
 def _build_step_pins(cand: Any, coords: List[List[float]]) -> List[Dict[str, Any]]:
@@ -630,7 +634,7 @@ def _validate_and_finalize_park_candidates(
     return validations
 
 
-def _build_course_plans_map(agent_result: Any, fallback_coords: Any) -> Dict[str, Any]:
+def _build_course_plans_map(agent_result: Any, fallback_coords: Any, park_id: Optional[str] = None) -> Dict[str, Any]:
     """스코어링된 후보 경로별 geojson 및 stepPins 맵 구성."""
     course_plans: Dict[str, Any] = {}
     if agent_result.all_scored_candidates:
@@ -638,7 +642,8 @@ def _build_course_plans_map(agent_result: Any, fallback_coords: Any) -> Dict[str
             cand = scored.candidate
             cand_coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
             course_plans[cand.route_id] = {
-                "route": _build_segmented_geojson(cand_coords, cand.max_slope_percent),
+                "route": _build_segmented_geojson(cand_coords, cand.max_slope_percent, park_id,
+                                                  agent_result.weather_context),
                 "stepPins": _build_step_pins(cand, cand_coords),
             }
     return course_plans
@@ -652,6 +657,34 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
         coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
         profiles[cand.route_id] = measure_route_profile(coords, park_id)
     return profiles
+
+
+def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
+    """상단 화면용 날씨·안전 안내만 구성한다. 코스 정보는 하단 카드에서 표시한다."""
+    if not isinstance(weather_context, dict):
+        return ""
+
+    current_weather = weather_context.get("current", weather_context)
+    if not isinstance(current_weather, dict):
+        current_weather = {}
+
+    messages = []
+    rain = rain_notice(weather_context.get("precipitation"))
+    if rain:
+        messages.append(rain)
+
+    surface_temp = current_weather.get("estimated_surface_temp")
+    if isinstance(surface_temp, (int, float)) and not isinstance(surface_temp, bool):
+        if surface_temp > SAFE_MAX_C:
+            golden_window = weather_context.get("golden_time_window", "서늘한 시간대")
+            messages.append(
+                f"현재 지면온도는 {surface_temp:.1f}℃입니다. {golden_window} 산책을 권장하며, "
+                "지금 나가신다면 그늘을 따라 짧게 걸어 주세요."
+            )
+        else:
+            messages.append(f"현재 지면온도는 {surface_temp:.1f}℃입니다.")
+
+    return " ".join(messages)
 
 
 # 코스가 목표 거리의 이 비율보다 짧으면 카드에 안내 문구를 넣는다 (#229, 임시값)
@@ -687,11 +720,13 @@ def _build_walk_plan_response(
     resp_data = {
         "request_id": request_id,
         "courses": _build_course_list(agent_result, profiles),
-        "geojson": _build_segmented_geojson(coords, best.max_slope_percent),
+        "geojson": _build_segmented_geojson(coords, best.max_slope_percent, selected_park if park_mode else None,
+                                            agent_result.weather_context),
         "step_pins": _build_step_pins(best, coords),
-        "course_plans": _build_course_plans_map(agent_result, coords),
+        "course_plans": _build_course_plans_map(agent_result, coords, selected_park if park_mode else None),
         "briefing": agent_result.briefing_message,
         "summary": agent_result.briefing_message,
+        "safety_briefing": _build_safety_briefing(agent_result.weather_context),
         "score": agent_result.best_score,
         "is_live_server": True,
         "weather": agent_result.weather_context,

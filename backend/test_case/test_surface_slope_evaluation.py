@@ -115,8 +115,10 @@ class TestSurfaceSlopeEvaluator:
             props = feat["properties"]
             assert props["segmentType"] in {"safe", "normal", "caution"}
             assert isinstance(props["maxSlopePercent"], (int, float))
-            assert isinstance(props["shaded"], bool)
+            # 그늘·노면은 실측값이 없으면 None (예전에는 경사로 지어낸 값이었다, #158)
+            assert props["shaded"] is None or isinstance(props["shaded"], bool)
             assert "surface" in props
+            assert "slopeSignedPercent" in props and "surfaceTempC" in props
 
             # LineString 좌표 유효성
             geom = feat["geometry"]

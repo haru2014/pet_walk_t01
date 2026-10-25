@@ -1,5 +1,7 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { HeatRiskResponse } from '../../types/weather';
 import { DogProfile } from '../../types/dogProfile';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
@@ -145,19 +147,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardTextCol: { flex: 1, paddingRight: 6 },
-  trailTitle: { fontSize: 16, fontWeight: '800', color: '#2D3A31', marginBottom: 3, letterSpacing: -0.2 },
-  trailDescription: { fontSize: 11.5, lineHeight: 15, color: '#758579', fontWeight: '500', marginBottom: 4 },
+  trailTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', marginBottom: 3, letterSpacing: -0.2 },
+  trailDescription: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, color: '#758579', fontWeight: '500', marginBottom: 4 },
   goldenBadge: { alignSelf: 'flex-start', backgroundColor: '#E3ECE4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  goldenBadgeText: { fontSize: 10, fontWeight: '700', color: '#5A7361' },
+  goldenBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#5A7361' },
   // 산책 지수 UI 스타일
   walkIndexWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 48, marginLeft: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  scoreNumber: { fontSize: 22, fontWeight: '900', letterSpacing: -0.6, lineHeight: 24 },
-  scoreUnit: { fontSize: 11, fontWeight: '700', marginBottom: 1.5, marginLeft: 1 },
+  scoreNumber: { fontSize: TYPOGRAPHY.metricValue, fontWeight: '900', letterSpacing: -0.6, lineHeight: TYPOGRAPHY_LINE_HEIGHT.metricValue },
+  scoreUnit: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', marginBottom: 1.5, marginLeft: 1 },
   scoreBarTrack: { width: 44, height: 3, borderRadius: 1.5, marginVertical: 3, overflow: 'hidden' },
   scoreBarFill: { height: '100%', borderRadius: 1.5 },
   gradeBadge: { paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 5, alignItems: 'center' },
-  gradeBadgeText: { fontSize: 9.5, fontWeight: '700' },
+  gradeBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   verticalDivider: { width: 1, height: 38, marginHorizontal: 8, opacity: 0.7 },
   treeImageWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center', opacity: 0.9 },
   tree01Image: { width: 52, height: 52 },

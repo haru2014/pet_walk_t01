@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 모바일 추천 산책 코스 화면 (Screen-04, docs/screenshots/04_course_recommendation.png 원형 복원 및 스크롤 방지 최적화)
@@ -10,7 +11,8 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
@@ -141,8 +143,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     return base;
   }, [dog, preferences, feedback]);
 
-  const briefingText = planResult?.briefingMessage ??
-    `반려견 ${dog.name}와의 소중한 산책을 위해 계단 걱정 없이 경사가 완만한 폭신한 길 위주로 구성된 안심 코스를 준비했어요.`;
+  const safetyBriefingText = planResult?.safetyBriefingMessage ?? '';
 
   if (!currentCourse || (requiresValidatedPark && !planResult)) {
     return (
@@ -162,6 +163,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
       <AppScreenHeader
         title="추천 산책 코스"
+        titleFontSize={courseRecommend.briefingTitleSize >= 20 ? 22 : 21}
         onBack={onBack}
         rightAction={
           <View style={styles.headerRightGroup}>
@@ -171,23 +173,21 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         }
       />
 
-      {/* 스크롤 가능한 본문 영역 (헤더와 하단 카드는 화면에 안정적으로 고정) */}
-      <ScrollView
-        style={styles.mainScroll}
-        contentContainerStyle={styles.mainScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      {/* 지도와 안내가 한 화면에 들어오도록 세로 스크롤 없이 배치 */}
+      <View style={styles.mainScroll}>
         {/* 2. 상단 AI 맞춤 브리핑 & 조건 태그 (04_course_recommendation.png 원형 복원) */}
         <View style={[styles.briefingSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.titleRow}>
             <AppIcon name="sparkle" size={16} color={colors.primaryDark} />
-            <Text style={[styles.briefingTitle, { color: colors.textMain }]}>
+            <Text style={[styles.briefingTitle, { color: colors.textMain, fontSize: courseRecommend.briefingTitleSize }]}>
               {dog.name}에게 맞는 산책 코스를 찾았어요.
             </Text>
           </View>
-          <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85 }]} numberOfLines={2}>
-            {briefingText}
-          </Text>
+          {safetyBriefingText ? (
+            <Text style={[styles.briefingDesc, { color: colors.textMain, opacity: 0.85, fontSize: courseRecommend.briefingSubSize, lineHeight: courseRecommend.briefingSubSize * 1.35 }]}>
+              {safetyBriefingText}
+            </Text>
+          ) : null}
           {/* 가로 태그 칩 */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
             {conditionLabels.map((lbl) => (
@@ -198,19 +198,20 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, borderWidth: 1 },
                 ]}
               >
-                <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
+                <Text style={[styles.tagText, { color: colors.primaryDark, fontSize: courseRecommend.altCourseChipFont }]}>{lbl}</Text>
               </View>
             ))}
           </ScrollView>
         </View>
 
         {/* 3. 중앙 실시간 지도 (뷰포트에 최적화된 정중앙 배치) */}
-        <View style={[styles.mapSection, { minHeight: courseRecommend.mapHeight }]}>
+        <View style={[styles.mapSection, { minHeight: courseRecommend.mapMinHeight }]}>
           <RouteMapView
             route={activeRoute}
             stepPins={activePins}
             speedKmH={dog.speedKmH}
             stairsCount={currentCourse.stairsCount}
+            fillContainer
             onStart={() => onStartWalk(currentCourse, plan)}
             onPinSelect={onPinSelect}
           />
@@ -222,7 +223,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
             고도·경사: {planResult.elevationAttribution}
           </Text>
         ) : null}
-      </ScrollView>
+      </View>
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
       <View style={[styles.bottomCard, { paddingVertical: courseRecommend.cardPaddingV, paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -250,7 +251,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                   <Text
                     style={[
                       styles.courseChipText,
-                      { color: isSelected ? colors.primaryDark : colors.textMain },
+                      { color: isSelected ? colors.primaryDark : colors.textMain, fontSize: courseRecommend.altCourseChipFont },
                       isSelected && styles.courseChipTextActive,
                     ]}
                   >
@@ -264,16 +265,16 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         </View>
 
         {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간 / 속도) */}
-        <Text style={[styles.courseName, { color: colors.textMain }]} numberOfLines={1}>
+        <Text style={[styles.courseName, { color: colors.textMain, fontSize: courseRecommend.courseTitleSize }]}>
           {currentCourse.name}
         </Text>
         <View style={styles.courseMetricsRow}>
-          <Text style={[styles.courseMetaText, { color: colors.primaryDark }]}>
+          <Text style={[styles.courseMetaText, { color: colors.primaryDark, fontSize: courseRecommend.metricNumberSize }]}>
             {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
           </Text>
           {extractCourseScore(currentCourse) != null && (
             <View style={[styles.scoreBadge, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark }]}>
+              <Text style={[styles.scoreBadgeText, { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize }]}>
                 AI 맞춤 {extractCourseScore(currentCourse)}점
               </Text>
             </View>
@@ -283,7 +284,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         {/* 코스별 추천 사유 (Issue #155 맞춤 점수 근거 및 실측 지표 안내) */}
         {currentCourse.reason ? (
           <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Text style={[styles.reasonText, { color: colors.textMain }]} numberOfLines={2}>
+            <Text style={[styles.reasonText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize, lineHeight: courseRecommend.metricLabelSize * 1.35 }]}>
               💡 {currentCourse.reason}
             </Text>
           </View>
@@ -305,7 +306,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
           return (
             <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
+              <Text style={[styles.metricText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize }]}>
                 {surfaceInfo.isUnknown ? (
                   <Text style={{ color: colors.textMuted }}>노면 정보 없음</Text>
                 ) : (
@@ -313,17 +314,17 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
                 )}
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
+              <Text style={[styles.metricText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize }]}>
                 <Text style={{ color: colors.textMain, fontWeight: '700' }}>
                   {formatStairsCountLabel(currentCourse.stairsCount)}
                 </Text>
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
+              <Text style={[styles.metricText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize }]}>
                 {slopeContent}
               </Text>
               <Text style={[styles.metricDot, { color: colors.textMuted }]}>·</Text>
-              <Text style={[styles.metricText, { color: colors.textMain }]}>
+              <Text style={[styles.metricText, { color: colors.textMain, fontSize: courseRecommend.metricLabelSize }]}>
                 {currentCourse.shadePercent == null ? (
                   <Text style={{ color: colors.textMuted }}>{formatShadePercentLabel(currentCourse.shadePercent)}</Text>
                 ) : (
@@ -363,7 +364,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3 },
+  headerTitle: { fontSize: TYPOGRAPHY.screenTitle, fontWeight: '700', letterSpacing: -0.3 },
   headerRightGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerVoiceBar: { marginTop: 0, alignSelf: 'auto' },
   briefingSection: {
@@ -373,15 +374,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-  briefingTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
-  briefingDesc: { fontSize: 11, lineHeight: 15, marginBottom: 6 },
+  briefingTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.3 },
+  briefingDesc: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginBottom: 4 },
   tagScrollRow: { flexDirection: 'row' },
   tagChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 6 },
-  tagText: { fontSize: 10, fontWeight: '700' },
+  tagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   mainScroll: { flex: 1 },
-  mainScrollContent: { flexGrow: 1 },
-  mapSection: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  elevationAttribution: { fontSize: 9, lineHeight: 12, marginTop: 6, paddingHorizontal: 4 },
+  mapSection: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
+  elevationAttribution: { fontSize: TYPOGRAPHY.caption, lineHeight: TYPOGRAPHY_LINE_HEIGHT.caption, marginTop: 3, paddingHorizontal: 4 },
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
@@ -396,36 +396,37 @@ const styles = StyleSheet.create({
   },
   courseChipRow: { flexDirection: 'row', gap: 6, flex: 1, marginRight: 8 },
   courseChip: { flex: 1, paddingVertical: 5, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
-  courseChipText: { fontSize: 11, fontWeight: '600' },
+  courseChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
   courseChipTextActive: { fontWeight: '800' },
   courseMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courseName: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  courseName: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', marginBottom: 2 },
   scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  scoreBadgeText: { fontSize: 10, fontWeight: '800' },
+  scoreBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800' },
   reasonBox: {
     paddingVertical: 5,
     paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
-  reasonText: { fontSize: 10, lineHeight: 14 },
-  courseMetaText: { fontSize: 12, fontWeight: '700' },
+  reasonText: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
+  courseMetaText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   metricsBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 6,
+    gap: 4,
   },
-  metricText: { fontSize: 10 },
-  metricDot: { fontSize: 10 },
+  metricText: { fontSize: TYPOGRAPHY.label },
+  metricDot: { fontSize: TYPOGRAPHY.label },
   startButton: {
     height: 48,
     borderRadius: 14,
@@ -433,6 +434,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  startButtonText: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+  startButtonText: { fontSize: TYPOGRAPHY.button, fontWeight: '700', letterSpacing: -0.2 },
 });
 

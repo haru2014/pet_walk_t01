@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Modal, View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { AppText as Text } from './AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon, AppIconName } from './AppIcon';
 import { LocationConsentController } from '../../hooks/useLocationConsent';
 
@@ -140,12 +141,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   title: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     textAlign: 'center',
@@ -153,10 +154,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   noticeList: {
     gap: 12,
@@ -184,15 +185,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   noticeTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 2,
   },
   noticeDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.surface,
   },
   cancelText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: TOKENS.colors.surface,
   },

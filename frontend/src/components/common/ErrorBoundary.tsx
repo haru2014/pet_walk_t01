@@ -1,5 +1,7 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from './AppText';
 
 interface Props {
   children: ReactNode;
@@ -64,18 +66,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: '#1A1C1E',
     marginBottom: 8,
     textAlign: 'center',
   },
   desc: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: '#6C757D',
     textAlign: 'center',
     marginBottom: 20,
-    lineHeight: 18,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   btn: {
     paddingHorizontal: 20,
@@ -85,7 +87,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 });

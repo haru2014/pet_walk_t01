@@ -9,7 +9,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { useFonts } from 'expo-font';
+import { View, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import { AppText as Text } from './src/components/common/AppText';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
 import { themeManager, useAppTheme } from './src/theme/themeManager';
@@ -57,6 +59,15 @@ export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_
 const EMPTY_WALK_ROUTE: RouteFeatureCollection = { type: 'FeatureCollection', features: [] };
 
 export default function App() {
+  useFonts({
+    'Pretendard-Regular': require('./assets/fonts/pretendard/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('./assets/fonts/pretendard/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('./assets/fonts/pretendard/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold': require('./assets/fonts/pretendard/Pretendard-Bold.otf'),
+    'Pretendard-ExtraBold': require('./assets/fonts/pretendard/Pretendard-ExtraBold.otf'),
+    'Pretendard-Black': require('./assets/fonts/pretendard/Pretendard-Black.otf'),
+  });
+
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');

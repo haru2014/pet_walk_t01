@@ -8,8 +8,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { AppText as Text } from './AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon, AppIconName } from './AppIcon';
 
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     // 배경색은 테마에 따라 인라인으로 주입
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
     textAlign: 'center',

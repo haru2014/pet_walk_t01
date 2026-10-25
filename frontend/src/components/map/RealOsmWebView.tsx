@@ -7,8 +7,9 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Linking, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { LonLat } from '../../types/route';
 
 export interface RealOsmWebViewProps {
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   openExternalText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: '#FFFFFF',
   },

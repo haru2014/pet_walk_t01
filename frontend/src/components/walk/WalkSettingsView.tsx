@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 모바일 산책 조건 설정 화면 (Screen-03, docs/screenshots/03_walk_settings.png 원형 복원 및 스크롤 방지 최적화)
@@ -11,7 +12,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { AppScreenHeader } from '../common/AppScreenHeader';
@@ -382,7 +384,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
-        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
+        <View
+          style={[
+            styles.sectionBlock,
+            { marginTop: walkSettings.sectionGap, marginBottom: walkSettings.sectionGap },
+          ]}
+        >
           <View style={styles.sectionHeaderRow}>
             <View style={styles.durationTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
@@ -551,7 +558,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
+  headerTitle: { fontSize: TYPOGRAPHY.screenTitle, fontWeight: '700', letterSpacing: -0.3 },
   headerPlaceholder: { width: 32 },
   contentScroll: {
     flex: 1,
@@ -578,21 +585,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   originModeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   originModeTextActive: {
     fontWeight: '800',
   },
   mainTitle: {
-    fontSize: 19,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     letterSpacing: -0.4,
     marginBottom: 2,
   },
   subTitle: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   aiBanner: {
     borderRadius: 12,
@@ -606,12 +613,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   aiBannerTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   aiBannerBody: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 6,
   },
   parkScrollRow: {
@@ -625,7 +632,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   parkChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
   },
   sectionBlock: {
     marginTop: 2,
@@ -648,7 +655,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   durationBadgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   detailToggleBtn: {
@@ -659,17 +666,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   detailToggleText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.sectionTitle,
     fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 6,
   },
   sectionSubGuide: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
   },
   durationChipRow: {
     flexDirection: 'row',
@@ -684,7 +691,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   durationChipText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
   },
   envGrid: {
     flexDirection: 'row',
@@ -711,7 +718,7 @@ const styles = StyleSheet.create({
   },
   checkText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '900',
     lineHeight: 12,
   },
@@ -722,12 +729,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   envLabel: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     marginBottom: 1,
   },
   envDetail: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.support,
   },
   bottomBar: {
     paddingHorizontal: 16,
@@ -746,7 +753,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitButtonText: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -765,18 +772,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   aiFeedbackTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: '#4338CA',
   },
   aiFeedbackSummary: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '600',
     color: '#312E81',
     marginBottom: 4,
   },
   aiFeedbackBriefing: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#475569',
     lineHeight: 16,
     marginBottom: 8,
@@ -791,7 +798,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   aiFeedbackQuickBtnText: {
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },

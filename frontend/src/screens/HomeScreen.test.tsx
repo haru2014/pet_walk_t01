@@ -99,7 +99,28 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
       />
     );
 
-    expect(html).toContain(`${mockDog.name} ▾`);
+    expect(html).toContain(mockDog.name);
+    expect(html).toContain('▾');
+  });
+
+  it('단일 반려견 등록 시에도 반려견 이름 프로필 버튼이 메인 카드 헤더에 정상 노출된다', () => {
+    const html = renderToStaticMarkup(
+      <HomeScreen
+        dog={mockDog}
+        dogs={[mockDog]}
+        selectedDogId={mockDog.id}
+        onSelectDog={vi.fn()}
+        onAddDog={vi.fn()}
+        feedbackSummary={null}
+        onPressProfile={vi.fn()}
+        onStartWalk={vi.fn()}
+        onOpenPlanner={vi.fn()}
+      />
+    );
+
+    expect(html).toContain(mockDog.name);
+    expect(html).not.toContain('▾');
+    expect(html).toContain('프로필 확인 및 변경');
   });
 
   it('갈색 카드 헤더에 알림 버튼이 정상 포함된다', () => {

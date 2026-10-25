@@ -7,17 +7,10 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Platform,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { TOKENS } from '../../theme/tokens';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { TTSNavigationService } from '../../services/ttsNavigation';
 import {
@@ -255,7 +248,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   analyzingPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 12,
   },
-  analyzingText: { fontSize: 11, color: '#4F46E5', fontWeight: '600' },
+  analyzingText: { fontSize: TYPOGRAPHY.caption, color: '#4F46E5', fontWeight: '600' },
   textInputBox: {
     backgroundColor: TOKENS.colors.surface,
     borderRadius: 14,
@@ -277,7 +270,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   textArea: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
     lineHeight: 18,
     minHeight: 38,
@@ -302,7 +295,7 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
   },
   analyzeBtnText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.button,
     color: '#4F46E5',
     fontWeight: '700',
   },
@@ -325,7 +318,7 @@ const styles = StyleSheet.create({
   },
   recordingError: {
     color: '#B42318',
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     marginTop: 6,
   },
   pulsingDot: {
@@ -335,7 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   listeningNotice: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.support,
     color: '#DC2626',
     fontWeight: '600',
   },
@@ -355,12 +348,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badgeTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#4F46E5',
   },
   briefingText: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#5B21B6',
     lineHeight: 16,
   },
@@ -376,7 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   directFindBtnText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },

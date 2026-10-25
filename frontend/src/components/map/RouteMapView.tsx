@@ -6,8 +6,9 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  stairsOverlayText: { fontSize: 11, fontWeight: '700' },
+  stairsOverlayText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   briefingBanner: {
     position: 'absolute', bottom: 10, left: 10, right: 10,
     borderRadius: 12,
@@ -197,6 +198,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  briefingText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  briefingText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', textAlign: 'center' },
   summaryWrapper: { marginTop: 12, width: MAP_WIDTH },
 });

@@ -9,8 +9,9 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Modal, Platform, StyleSheet, TouchableOpacity, View, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { formatShadePercentLabel } from '../../types/walkSettings';
 import { BookmarkService } from '../../services/bookmarkService';
@@ -286,10 +287,10 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  title: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  desc: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16, marginTop: 4 },
-  empty: { fontSize: 12, color: TOKENS.colors.primaryDark, marginTop: 12, textAlign: 'center' },
+  desc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginTop: 4 },
+  empty: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, marginTop: 12, textAlign: 'center' },
   scrollArea: {
     maxHeight: 520,
     marginTop: 8,
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.3,
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   expandTagText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   removeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   meta: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
   },
 
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
   },
   collapsedStartBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   previewNotice: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     marginBottom: 8,
@@ -443,7 +444,7 @@ const styles = StyleSheet.create({
   },
   startWalkButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   fullScreenButton: {
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
   },
   fullScreenButtonText: {
     color: TOKENS.colors.textMain,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
 
@@ -494,13 +495,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.primaryDark,
     fontWeight: '700',
     marginBottom: 2,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   closeBtnText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.button,
     color: TOKENS.colors.textMuted,
     fontWeight: '700',
   },
@@ -523,12 +524,12 @@ const styles = StyleSheet.create({
     borderBottomColor: TOKENS.colors.border,
   },
   modalMetaItem: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
   modalProtectedBadge: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#065F46',
     backgroundColor: '#ECFDF5',
@@ -558,7 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.surface,
   },
   modalCancelText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -570,7 +571,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalConfirmText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dogSummaryText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },

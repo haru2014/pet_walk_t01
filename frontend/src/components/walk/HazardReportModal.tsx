@@ -1,17 +1,12 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
- * 현장 위험 제보 및 보행망 안전 우회 / 긴급 복귀 모달 컴포넌트 (US-D2, US-C2)
+ * 현장 위험 제보 및 보행망 안전 우회 / 돌아가기 모달 컴포넌트 (US-D2, US-C2)
  */
 
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { AppIcon } from '../common/AppIcon';
 import { HazardReportPayload, HazardType, RerouteResult } from '../../types/hazard';
 import {
@@ -42,9 +37,9 @@ const HAZARD_OPTIONS: readonly { type: HazardType; iconName: string; desc: strin
 ];
 
 /**
- * 긴급 복귀 때 서버에 올릴 위험 제보. 사용자가 위험 종류를 직접 고르지 않았으면 올리지 않는다(null).
+ * 돌아가기 때 서버에 올릴 위험 제보. 사용자가 위험 종류를 직접 고르지 않았으면 올리지 않는다(null).
  * 예전에는 기본값(공사 구역)으로, 현재 위치에서 0.0002도 옮긴 곳에 danger 제보를 자동으로 올려
- * 긴급 복귀만 눌러도 가짜 공사 구역이 쌓였다 (10/22 신성동). 위치는 실제 현재 위치를 쓴다.
+ * 돌아가기만 눌러도 가짜 공사 구역이 쌓였다 (10/22 신성동). 위치는 실제 현재 위치를 쓴다.
  */
 export function buildEmergencyReturnReport(
   typeChosen: boolean,
@@ -58,7 +53,7 @@ export function buildEmergencyReturnReport(
     lon: currentLon,
     hazardType,
     severity: 'danger',
-    description: `긴급 복귀 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[hazardType]}]`,
+    description: `돌아가기 요청 - 현장 위험 [${HAZARD_TYPE_LABELS[hazardType]}]`,
   };
 }
 
@@ -75,7 +70,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   onRerouteApplied,
 }) => {
   const [selectedType, setSelectedType] = useState<HazardType>('construction');
-  // 사용자가 이번에 위험 종류를 직접 눌러 골랐는지 (긴급 복귀 때 제보 여부를 정한다)
+  // 사용자가 이번에 위험 종류를 직접 눌러 골랐는지 (돌아가기 때 제보 여부를 정한다)
   const [typeChosen, setTypeChosen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -137,7 +132,7 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       const report = buildEmergencyReturnReport(typeChosen, selectedType, currentLat, currentLon);
       if (report) void reportHazard(report);
 
-      // 2. 출발지 긴급 복귀 경로 생성
+      // 2. 출발지 돌아가기 경로 생성
       const result = createEmergencyReturnRoute(
         currentLat,
         currentLon,
@@ -270,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   title: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: '#F8FAFC',
   },
@@ -279,13 +274,13 @@ const styles = StyleSheet.create({
   },
   closeBtnText: {
     color: '#94A3B8',
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
   subtitle: {
     color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 16,
   },
   optionsList: {
@@ -311,7 +306,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionLabel: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#E2E8F0',
     marginBottom: 2,
@@ -320,7 +315,7 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   optionDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: '#64748B',
   },
   radioCircle: {
@@ -355,7 +350,7 @@ const styles = StyleSheet.create({
   },
   rerouteBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '800',
   },
   emergencyReturnBtn: {
@@ -371,7 +366,7 @@ const styles = StyleSheet.create({
   },
   emergencyReturnBtnText: {
     color: '#F87171',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   loadingBox: {
@@ -383,7 +378,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: '#10B981',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
 });

@@ -6,8 +6,9 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon, AppIconName } from '../common/AppIcon';
 import { RecommendedCourse } from '../../types/walkSettings';
 import { CourseSummary } from '../../types/route';
@@ -99,18 +100,18 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
-  name: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
+  name: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   scoreBadge: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  scoreBadgeText: { fontSize: 10, fontWeight: '800', color: TOKENS.colors.primaryDark },
+  scoreBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800', color: TOKENS.colors.primaryDark },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { backgroundColor: TOKENS.colors.primaryLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
-  badgeText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  stats: { fontSize: 13, color: TOKENS.colors.textMuted, marginBottom: 14 },
+  badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  stats: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginBottom: 14 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: TOKENS.colors.border, paddingTop: 12, gap: 8 },
   statBox: { flex: 1, alignItems: 'center' },
   statIcon: { marginBottom: 2 },
-  statLabel: { fontSize: 11, color: TOKENS.colors.textMuted, marginBottom: 2 },
-  statValue: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
+  statLabel: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginBottom: 2 },
+  statValue: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   reasonBox: {
     marginTop: 10,
     paddingVertical: 6,
@@ -120,5 +121,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
   },
-  reasonText: { fontSize: 11, lineHeight: 15, color: TOKENS.colors.textMuted },
+  reasonText: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, color: TOKENS.colors.textMuted },
 });
