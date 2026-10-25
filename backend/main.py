@@ -687,7 +687,6 @@ def _validate_and_finalize_park_candidates(
     origin_lat: float,
     weather_context: Dict[str, Any],
     request_id: str,
-    regenerate_nonce: int = 0,
 ) -> Dict[str, Any]:
     """공원 모드 후보 경로 일괄 검증 및 최고 경로 확정."""
     if not selected_park:
@@ -905,9 +904,6 @@ def _resolve_walk_user_query(req: Dict[str, Any], dog_name: str, target_duration
     return user_query, intent_overrides
 
 
-def _rotate_scored_candidates(agent_result: Any, regenerate_nonce: int) -> None:
-    """재생성 요청 시 추천 코스는 유지하고 대안 코스는 이미 비유사 후보로 생성되므로 추가 순환을 하지 않는다."""
-    return
 
 
 @app.post(
@@ -1004,10 +1000,7 @@ def plan_walk_route(req: Dict[str, Any]):
                 origin_lat=origin_lat,
                 weather_context=weather_context,
                 request_id=request_id,
-                regenerate_nonce=params["regenerate_nonce"],
             )
-        else:
-            _rotate_scored_candidates(agent_result, params["regenerate_nonce"])
 
         return _build_walk_plan_response(
             agent_result=agent_result,

@@ -14,13 +14,19 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01-z095.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01-z095.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ddnwbsujhsndodjtvuuq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_e1Ei1BT4raPXl3lLIeNjcg_Ohy2ZTW4",
+        "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_e1Ei1BT4raPXl3lLIeNjcg_Ohy2ZTW4"
       }
     },
     "production": {
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01-z095.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://pet-walk-t01-z095.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ddnwbsujhsndodjtvuuq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_e1Ei1BT4raPXl3lLIeNjcg_Ohy2ZTW4",
+        "EXPO_PUBLIC_SUPABASE_KEY": "sb_publishable_e1Ei1BT4raPXl3lLIeNjcg_Ohy2ZTW4"
       }
     }
   },
