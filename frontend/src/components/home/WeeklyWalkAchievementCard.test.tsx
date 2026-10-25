@@ -4,9 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { THEME_PALETTES } from '../../theme/tokens';
 import { WeeklyWalkAchievementCard } from './WeeklyWalkAchievementCard';
 
-function toReactNativeWebRgba(hex: string, alpha: number): string {
-  const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
-  return `rgba(${channels.join(',')},${alpha.toFixed(2)})`;
+function normalizeWebColor(color: string): string {
+  const hex = color.match(/^#([\da-f]{6})$/i);
+  if (hex) {
+    const channels = [0, 2, 4].map((offset) => Number.parseInt(hex[1].slice(offset, offset + 2), 16));
+    return `rgba(${channels.join(',')},1.00)`;
+  }
+  return color.replace(/\s/g, '').toLowerCase();
 }
 
 describe('WeeklyWalkAchievementCard', () => {
@@ -18,9 +22,10 @@ describe('WeeklyWalkAchievementCard', () => {
     const html = renderToStaticMarkup(
       <WeeklyWalkAchievementCard walkCount={3} colors={colors} />,
     );
+    const normalizedHtml = html.replace(/\s/g, '').toLowerCase();
 
-    expect(html).toContain(`background-color:${toReactNativeWebRgba(colors.primary, 0.14)}`);
-    expect(html).toContain(`color:${toReactNativeWebRgba(colors.primaryDark, 1)}`);
+    expect(normalizedHtml).toContain(`background-color:${normalizeWebColor(colors.primaryWash)}`);
+    expect(normalizedHtml).toContain(`color:${normalizeWebColor(colors.primaryDark)}`);
     expect(html).toContain('달성 완료');
   });
 
@@ -28,9 +33,10 @@ describe('WeeklyWalkAchievementCard', () => {
     const html = renderToStaticMarkup(
       <WeeklyWalkAchievementCard walkCount={2} colors={THEME_PALETTES.forest} />,
     );
+    const normalizedHtml = html.replace(/\s/g, '').toLowerCase();
 
     expect(html).toContain('진행 중');
     expect(html).not.toContain('달성 완료');
-    expect(html).not.toContain(`background-color:${toReactNativeWebRgba(THEME_PALETTES.forest.primary, 0.14)}`);
+    expect(normalizedHtml).not.toContain(`background-color:${normalizeWebColor(THEME_PALETTES.forest.primaryWash)}`);
   });
 });
