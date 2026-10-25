@@ -53,8 +53,8 @@ export interface MapRouteColors {
 
 export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   dusty_amber: {
-    safe: '#5A7361',       // 세이지 그린
-    normal: '#B59C5E',     // 올리브 오커
+    safe: THEME_PALETTES.dusty_amber.routeSafe,
+    normal: THEME_PALETTES.dusty_amber.routeNormal,
     caution: THEME_PALETTES.dusty_amber.routeCaution,
     casing: '#FDFAF4',
     maskCircle: 'rgba(90, 115, 97, 0.18)',
@@ -62,8 +62,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     startMarker: '#5A7361',
   },
   forest: {
-    safe: '#10B981',       // 에메랄드 그린
-    normal: '#3B82F6',     // 소프트 블루
+    safe: THEME_PALETTES.forest.routeSafe,
+    normal: THEME_PALETTES.forest.routeNormal,
     caution: THEME_PALETTES.forest.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(16, 185, 129, 0.18)',
@@ -71,8 +71,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     startMarker: '#059669',
   },
   vivid_violet: {
-    safe: '#10B981',       // 산뜻한 그린
-    normal: '#7C3AED',     // 비비드 바이올렛
+    safe: THEME_PALETTES.vivid_violet.routeSafe,
+    normal: THEME_PALETTES.vivid_violet.routeNormal,
     caution: THEME_PALETTES.vivid_violet.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(124, 58, 237, 0.18)',
@@ -80,8 +80,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     startMarker: '#7C3AED',
   },
   dark: {
-    safe: '#34D399',       // 네온 민트 (야간 고시인성)
-    normal: '#60A5FA',     // 스카이 블루
+    safe: THEME_PALETTES.dark.routeSafe,
+    normal: THEME_PALETTES.dark.routeNormal,
     caution: THEME_PALETTES.dark.routeCaution,
     casing: '#0F172A',     // 다크 배경 대비선
     maskCircle: 'rgba(52, 211, 153, 0.22)',
@@ -89,8 +89,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     startMarker: '#34D399',
   },
   ocean: {
-    safe: '#10B981',
-    normal: '#2563EB',
+    safe: THEME_PALETTES.ocean.routeSafe,
+    normal: THEME_PALETTES.ocean.routeNormal,
     caution: THEME_PALETTES.ocean.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(37, 99, 235, 0.18)',
@@ -98,8 +98,8 @@ export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
     startMarker: '#2563EB',
   },
   coral: {
-    safe: '#10B981',
-    normal: '#F97316',
+    safe: THEME_PALETTES.coral.routeSafe,
+    normal: THEME_PALETTES.coral.routeNormal,
     caution: THEME_PALETTES.coral.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(249, 115, 22, 0.18)',
