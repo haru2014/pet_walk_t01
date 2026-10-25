@@ -284,6 +284,76 @@ def _select_distinct(candidates: list, pool_size: int = 10) -> list:
     return [coords for coords, _, _ in chosen]
 
 
+REGENERATE_MAX_OVERLAP = 0.5  # 다시 추천 시 직전에 보여준 2·3번과 지도상 이 값 미만으로만 겹쳐야 "새 코스"로 본다
+
+
+def _reversed_route(route: Any) -> ParkRoute:
+    return ParkRoute(
+        reversed(route),
+        lap_count=getattr(route, "lap_count", 1),
+        lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
+    )
+
+
+def _is_fresh(route: Any, previous: list, picked: list) -> bool:
+    """직전 회차 코스 및 이번에 이미 고른 코스와 지도상 충분히 다른지."""
+    return all(routes_overlap(route, other) < REGENERATE_MAX_OVERLAP for other in [*previous, *picked])
+
+
+def _collect_fresh_routes(order: list, previous: list, picked: list) -> None:
+    for route in order:
+        if len(picked) >= 2:
+            break
+        if not any(route == c for c in picked) and _is_fresh(route, previous, picked):
+            picked.append(route)
+
+
+def _collect_reversed_routes(previous: list, picked: list) -> None:
+    for route in previous:
+        if len(picked) >= 2:
+            break
+        rev = _reversed_route(route)
+        if not any(rev == c for c in picked):
+            picked.append(rev)
+
+
+def _collect_fallback_routes(order: list, previous: list, picked: list) -> None:
+    for route in order:
+        if len(picked) >= 2:
+            break
+        if not any(route == c for c in picked) and not any(route == c for c in previous):
+            picked.append(route)
+    for route in order:
+        if len(picked) >= 2:
+            break
+        if not any(route == c for c in picked):
+            picked.append(route)
+
+
+def _pick_regenerated_alternatives(alternatives: list, regenerate_nonce: int) -> list:
+    """다시 추천 회차(nonce)별 2·3번 코스. 서버는 무상태(stateless)이므로 1회차부터 순서대로 재현한다.
+
+    1. 직전 회차의 2·3번과 중복도 50% 이하(REGENERATE_MAX_OVERLAP)인 새로운 경로 후보를 최우선 선택.
+    2. 공원이 작아 신규 비유사 경로가 부족하면, 직전 코스의 반대 방향(시계<->반시계 회전 역전)을 우선 배치.
+       (순환 방향과 진입 선형이 완전히 반전되므로 사용자 관점에서 새로운 코스로 체감)
+    3. 그래도 부족할 경우 이전과 다른 순서의 후보를 보충.
+    """
+    m = len(alternatives)
+    previous = alternatives[:2]
+    for nonce in range(1, regenerate_nonce + 1):
+        order = [alternatives[(2 * nonce + k) % m] for k in range(m)]
+        picked: list = []
+
+        _collect_fresh_routes(order, previous, picked)
+        if len(picked) < 2:
+            _collect_reversed_routes(previous, picked)
+        if len(picked) < 2:
+            _collect_fallback_routes(order, previous, picked)
+
+        previous = picked
+    return previous
+
+
 def plan_park_walk_candidates(
     park_id: str,
     origin_lat: float,
@@ -312,14 +382,7 @@ def plan_park_walk_candidates(
     if regenerate_nonce <= 0 or len(pool) <= CANDIDATE_COUNT:
         routes = [pool[0], pool[1], pool[2]]
     else:
-        # 1번 추천 경로는 유지하고, 2번과 3번 대안 경로는 기존 2·3번과 중복/유사하지 않은 후보로 선택
-        alternatives = pool[1:]
-        m = len(alternatives)
-        idx1 = (2 * regenerate_nonce) % m
-        idx2 = (2 * regenerate_nonce + 1) % m
-        if idx1 == idx2:
-            idx2 = (idx1 + 1) % m
-        routes = [pool[0], alternatives[idx1], alternatives[idx2]]
+        routes = [pool[0], *_pick_regenerated_alternatives(pool[1:], regenerate_nonce)]
 
     if approach is not None:
         routes = [

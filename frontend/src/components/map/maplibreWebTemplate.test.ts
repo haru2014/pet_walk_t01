@@ -49,18 +49,18 @@ function bootTemplate() {
       (handlers[name] ??= []).push(wrapped);
     },
     emit(name: string, arg?: unknown) { [...(handlers[name] ?? [])].forEach((fn) => fn(arg)); },
-    addControl() {},
+    addControl() { },
     addSource(id: string, source: unknown) {
       if (sources[id]) throw new Error(`duplicate source ${id}`);
       sources[id] = source;
     },
-    addLayer() {},
+    addLayer() { },
     getSource(id: string) {
       return sources[id] ? { setData(data: unknown) { setDataCalls.push(data); } } : undefined;
     },
     getLayer() { return true; },
-    setPaintProperty() {},
-    fitBounds() {},
+    setPaintProperty() { },
+    fitBounds() { },
     setStyle(style: unknown, options: unknown) {
       setStyleCalls.push({ style, options });
       Object.keys(sources).forEach((id) => { delete sources[id]; });
@@ -74,7 +74,7 @@ function bootTemplate() {
     },
   };
   const fakeDocument = {
-    createElement: () => ({ style: {}, appendChild() {} }),
+    createElement: () => ({ style: {}, appendChild() { } }),
     addEventListener: (name: string, listener: (event: { data: string }) => void) => {
       if (name === 'message') documentMessageListeners.push(listener);
     },
@@ -82,11 +82,11 @@ function bootTemplate() {
   const fakeMapLibre = {
     Map: function FakeMap() { return map; },
     Marker: function FakeMarker(this: object, options: { element: any }) {
-      const marker = { element: options.element, setLngLat() { return this; }, addTo() { return this; }, remove() {} };
+      const marker = { element: options.element, setLngLat() { return this; }, addTo() { return this; }, remove() { } };
       markers.push(marker);
       return marker;
     },
-    AttributionControl: function FakeControl() {},
+    AttributionControl: function FakeControl() { },
   };
   const fakeSetTimeout = (fn: () => void, ms: number) => timers.push({ fn, ms });
 
@@ -119,7 +119,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
         ...pin,
         id: 'current-location-pin',
         title: '현재 위치',
-        detail: '현재 위치 (자유 산책 출발)',
+        detail: '(자유 산책 출발)',
       }],
       routeColors: THEME_MAP_ROUTE_COLORS.forest,
       maskingCenter: [127.38, 36.43],

@@ -82,6 +82,7 @@ class RouteCandidate(BaseModel):
     surface_source: Optional[str] = None
     surface_known_ratio: Optional[float] = None
     data_reliability: str = "estimated"
+    direction_label: Optional[str] = None
 
 
 class ScoredRoute(BaseModel):
@@ -420,6 +421,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         else:
             cand_name = VARIANT_NAME_TEMPLATES[variant].format(direction=direction)
 
+        direction_label = route_direction_label(plan.coords) if plan.coords else direction
         candidates.append(RouteCandidate(
             route_id=f"candidate-loop-{variant:02d}",
             name=cand_name,
@@ -430,6 +432,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
             route_source=plan.source,
             lap_count=getattr(plan, "lap_count", 1) or 1,
             lap_cycle_m=getattr(plan, "lap_cycle_m", None),
+            direction_label=direction_label,
             **_variant_profile(variant, req),
         ))
     return candidates
