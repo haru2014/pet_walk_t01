@@ -96,23 +96,20 @@ export function buildMapLibreHtml({
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; overflow: hidden; background-color: #E8F1EC; }
     .maplibregl-ctrl-bottom-left { transform: scale(0.85); transform-origin: bottom left; }
-    .maplibregl-ctrl-attrib { font-size: 8px; line-height: 10px; opacity: 0.65; }
-    .maplibregl-ctrl-attrib a { font-size: 8px; color: inherit; }
+    .maplibregl-ctrl-attrib { font-size: 10px; }
     
     /* 핀 및 마커 스타일 */
     .step-pin {
-      width: 32px; height: 32px; border-radius: 50%;
+      width: 30px; height: 30px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 15px;
+      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 18px; line-height: 20px;
       cursor: pointer; transition: transform 0.15s ease;
-      text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95);
     }
     .step-pin:active { transform: scale(1.2); }
     
     .start-marker {
-      background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 13px;
-      text-align: center; white-space: nowrap;
-      text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95);
+      background-color: transparent; color: #FFFFFF; font-weight: 900; font-size: 12px;
+      text-align: center;
     }
   </style>
 </head>
@@ -314,23 +311,7 @@ export function buildMapLibreHtml({
       function initMarkers(pins, routeData, colors) {
         markers.forEach(function(m) { m.remove(); });
         markers = [];
-        const textHalo = '0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing;
-
-        function getLargeArrowSvg(icon, color) {
-          if (icon === '↱') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 8 22 L 8 13 Q 8 8 13 8 L 15 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="13,2 26,8 13,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '↰') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 20 22 L 20 13 Q 20 8 15 8 L 13 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="15,2 2,8 15,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '↶') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 19 22 L 19 12 Q 19 6 13.5 6 Q 8 6 8 12 L 8 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="2,13 8,25 14,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '➤') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><polygon points="26,14 4,4 9,14 4,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          return null;
-        }
+        const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)';
 
         // 출발/도착 마커
         if (routeData && routeData.features && routeData.features.length > 0) {
@@ -340,6 +321,8 @@ export function buildMapLibreHtml({
             startEl.className = 'start-marker';
             startEl.innerText = '출발/도착 🐾';
             startEl.style.color = colors.startMarker;
+            startEl.style.fontSize = '12px';
+            startEl.style.fontWeight = '900';
             startEl.style.textShadow = textHalo;
             // 출발점에 겹친 안내 핀이 출발/도착 배지에 가려지지 않게 위쪽으로 분리합니다.
             const m = new maplibregl.Marker({ element: startEl, anchor: 'bottom', offset: [0, -20] })
@@ -357,8 +340,15 @@ export function buildMapLibreHtml({
             const pinColor = isCurrentLocation ? colors.startMarker
               : (pin.kind === 'caution' ? colors.caution : (pin.kind === 'safe' ? colors.safe : colors.normal));
             el.className = isCurrentLocation ? 'current-location-pin' : 'step-pin pin-' + pin.kind;
-            const iconStr = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
-            el.innerText = iconStr;
+            el.innerText = isCurrentLocation ? (pin.bearingDeg == null ? '●' : '➤') : (pin.icon || (pin.kind === 'caution' ? '!' : (pin.kind === 'safe' ? '🌿' : '➤')));
+            el.style.width = isCurrentLocation ? '30px' : '32px';
+            el.style.height = isCurrentLocation ? '30px' : '32px';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.fontSize = pin.title ? '10px' : (isCurrentLocation ? '16px' : '18px');
+            el.style.fontWeight = '900';
+            el.style.lineHeight = '20px';
             el.style.backgroundColor = 'transparent';
             el.style.border = 'none';
             el.style.boxShadow = 'none';
@@ -377,11 +367,6 @@ export function buildMapLibreHtml({
               el.style.justifyContent = 'center';
               el.style.fontSize = '16px';
               el.style.color = pinColor;
-            } else {
-              const arrowSvg = getLargeArrowSvg(iconStr, pinColor);
-              if (arrowSvg) {
-                el.innerHTML = arrowSvg;
-              }
             }
             if (pin.title) {
               el.innerText = '';
@@ -394,13 +379,8 @@ export function buildMapLibreHtml({
               el.style.gap = '2px';
               const iconEl = document.createElement('span');
               iconEl.innerText = pin.icon || '';
-              iconEl.style.fontSize = '14px';
               const titleEl = document.createElement('strong');
               titleEl.innerText = pin.title;
-              titleEl.style.color = pinColor;
-              titleEl.style.fontSize = '12px';
-              titleEl.style.fontWeight = '900';
-              titleEl.style.textShadow = textHalo;
               el.appendChild(iconEl);
               el.appendChild(titleEl);
               if (pin.detail) {
@@ -438,7 +418,6 @@ export function buildMapLibreHtml({
       function handleNativeMessage(event) {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.routeColors) payload.routeColors = msg.routeColors;
           if (msg.action === 'SET_STYLE' && msg.style) {
             currentRouteColors = msg.routeColors || currentRouteColors;
             currentRouteConditionColor = msg.routeConditionColor || currentRouteConditionColor;

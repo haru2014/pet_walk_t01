@@ -132,7 +132,7 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(html).toContain("const pinColor = isCurrentLocation ? colors.startMarker");
     expect(html).toContain("startEl.style.color = colors.startMarker");
     expect(html).toContain("el.style.textShadow = textHalo");
-    expect(html).toContain("0 0 2px ' + colors.casing + ', 0 0 5px ' + colors.casing");
+    expect(html).toContain("const textHalo = '0 0 1px ' + colors.casing + ', 0 1px 2px rgba(15, 23, 42, 0.9)'");
     expect(html).not.toContain('#ffffffed');
     expect(html).toContain("postToReactNative('PIN_SELECT'");
   });
@@ -151,10 +151,15 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     const [startMarker, turnMarker] = view.markers.slice(-2);
     expect(startMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.startMarker);
     expect(startMarker.element.style.backgroundColor).toBeUndefined();
+    expect(startMarker.element.style.fontSize).toBe('12px');
     expect(startMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
+    expect(startMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
     expect(turnMarker.element.style.color).toBe(THEME_MAP_ROUTE_COLORS.ocean.normal);
     expect(turnMarker.element.style.backgroundColor).toBe('transparent');
+    expect(turnMarker.element.style.fontSize).toBe('18px');
+    expect(turnMarker.element.style.fontWeight).toBe('900');
     expect(turnMarker.element.style.textShadow).toContain(THEME_MAP_ROUTE_COLORS.ocean.casing);
+    expect(turnMarker.element.style.textShadow).toContain('rgba(15, 23, 42, 0.9)');
   });
 
   it('정상 로드 시 MAP_LOADED를 1회 보내고 경로/마스킹 소스를 등록한다', () => {
@@ -255,17 +260,5 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
 
     view.send({ action: 'UPDATE_ROUTE', route, stepPins: [] });  // iOS 경로도 그대로 동작
     expect(view.setDataCalls).toEqual([secondCourse, route]);
-  });
-
-  it('출발/도착 마커 및 스텝 핀에 테마 고대비 주황색 안내 색상(mapGuidance)과 시인성 텍스트 그림자가 적용된다', () => {
-    const html = buildMapLibreHtml({
-      styleUrl: PRIMARY_STYLE,
-      route,
-      stepPins: [pin],
-      routeColors: THEME_MAP_ROUTE_COLORS.dusty_amber,
-    });
-    expect(html).toContain(`color: ${THEME_MAP_ROUTE_COLORS.dusty_amber.mapGuidance}`);
-    expect(html).toContain('text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
-    expect(html).toContain('font-weight: 900');
   });
 });

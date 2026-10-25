@@ -8,7 +8,7 @@
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { RemovableHandle } from './webMapLifecycle';
-import { getRouteStepPinIcon, getLargeArrowSvg } from './routeStepIcon';
+import { getRouteStepPinIcon } from './routeStepIcon';
 
 /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
 export interface MarkerLike extends RemovableHandle {
@@ -24,14 +24,10 @@ export type MarkerConstructor = new (options: {
 function createStartElement(colors: MapRouteColors): HTMLElement {
   const element = document.createElement('div');
   element.textContent = '출발/도착 🐾';
-  const textHalo = `0 0 2px ${colors.casing}, 0 0 5px ${colors.casing}`;
+  const textHalo = `0 0 1px ${colors.casing}, 0 1px 2px rgba(15, 23, 42, 0.9)`;
   Object.assign(element.style, {
     background: 'transparent',
-    border: 'none',
-    color: colors.startMarker,
-    textShadow: textHalo,
-    fontSize: '10px',
-    fontWeight: '800',
+    color: colors.startMarker, textShadow: textHalo, fontSize: '12px', fontWeight: '900',
     whiteSpace: 'nowrap',
   });
   return element;
@@ -44,7 +40,7 @@ function pinColor(pin: RouteStepPin, colors: MapRouteColors): string {
   return colors.normal;
 }
 
-function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: string, colors: MapRouteColors): void {
+function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: string): void {
   element.replaceChildren();
   element.style.display = 'grid';
   element.style.justifyItems = 'center';
@@ -54,7 +50,6 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: stri
   icon.style.textShadow = textHalo;
   const title = document.createElement('strong');
   title.textContent = pin.title ?? '';
-  title.style.color = pinColor(pin, colors);
   title.style.textShadow = textHalo;
   element.append(icon, title);
   if (!pin.detail) return;
@@ -64,54 +59,30 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: stri
   element.appendChild(detail);
 }
 
-function getPinLabel(pin: RouteStepPin, isCurrentLoc: boolean): string {
-  if (!isCurrentLoc) {
-    return getRouteStepPinIcon(pin);
-  }
-  return pin.bearingDeg == null ? '●' : '➤';
-}
-
 function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
-  const textHalo = `0 0 2px ${colors.casing}, 0 0 5px ${colors.casing}`;
+  const textHalo = `0 0 1px ${colors.casing}, 0 1px 2px rgba(15, 23, 42, 0.9)`;
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
-
-  const pinLabel = getPinLabel(pin, isCurrentLoc);
-  element.textContent = pinLabel;
-
-  const textColor = pinColor(pin, colors);
-
+  element.textContent = isCurrentLoc
+    ? (pin.bearingDeg == null ? '●' : '➤')
+    : getRouteStepPinIcon(pin);
   Object.assign(element.style, {
-    width: hasTitle ? 'auto' : '28px',
-    height: hasTitle ? 'auto' : '28px',
+    width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
     background: 'transparent',
-    border: 'none',
-    boxShadow: 'none',
-    color: textColor,
-    textShadow: textHalo,
-    fontWeight: '700',
-    cursor: 'pointer',
-    fontSize: hasTitle ? '10px' : '13px',
-    whiteSpace: 'nowrap',
-    textAlign: 'center',
+    border: 'none', boxShadow: 'none',
+    color: pinColor(pin, colors), textShadow: textHalo,
+    fontWeight: '900', cursor: 'pointer',
+    fontSize: hasTitle ? '10px' : '18px', lineHeight: '20px', whiteSpace: 'nowrap', textAlign: 'center',
+    display: hasTitle ? 'grid' : 'flex', alignItems: 'center', justifyContent: 'center',
   });
-
-  if (isCurrentLoc && !hasTitle) {
-    if (pin.bearingDeg != null) {
-      element.style.borderRadius = '50%';
-      element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
-    }
-  } else if (!hasTitle) {
-    const arrowSvg = getLargeArrowSvg(pinLabel, textColor);
-    if (arrowSvg && typeof document !== 'undefined' && 'innerHTML' in element) {
-      element.innerHTML = arrowSvg;
-    }
+  if (isCurrentLoc && pin.bearingDeg != null) {
+    element.style.borderRadius = '50%';
+    element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
   }
-
-  if (hasTitle) fillTitleLayout(element, pin, textHalo, colors);
+  if (hasTitle) fillTitleLayout(element, pin, textHalo);
   return element;
 }
 
