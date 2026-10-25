@@ -129,7 +129,7 @@ function calculateWalkQuotient(
     return {
       score: 38,
       statusLabel: '강설 주의',
-      statusTitle: '눈으로 노면이 미끄럽고 동상 위험이 있어요.',
+      statusTitle: '눈 때문에 길이 미끄러워요.',
       badgeBg: '#EFF6FF',
       badgeColor: '#1E40AF',
       ringColor: '#3B82F6',
@@ -141,7 +141,7 @@ function calculateWalkQuotient(
     return {
       score: 42,
       statusLabel: '우천 주의',
-      statusTitle: '비가 내려 노면이 젖어 있어요. 실내 놀이를 추천해요.',
+      statusTitle: '비가 와서 길이 젖어 있어요. 실내 놀이를 추천해요.',
       badgeBg: '#EFF6FF',
       badgeColor: '#1E40AF',
       ringColor: '#3B82F6',
@@ -153,7 +153,7 @@ function calculateWalkQuotient(
     return {
       score: 35,
       statusLabel: '고열 주의',
-      statusTitle: '한낮 지면열이 매우 높아요.',
+      statusTitle: '한낮에는 길바닥이 매우 뜨거워요.',
       badgeBg: '#FEE2E2',
       badgeColor: '#B91C1C',
       ringColor: '#EF4444',
@@ -286,37 +286,37 @@ function buildNoticeMessages(params: NoticeMessageParams): { subtitleText: strin
   }
   if (pty === 1 || pty === 4 || pty === 5 || condition === 'rainy') {
     return {
-      subtitleText: `현재 비가 내려 노면이 젖어 있어요. 우비 착용이나 실내 놀이를 권장해요.`,
+      subtitleText: `비가 내려 길이 젖어 있어요. 우비를 입거나 실내에서 놀기를 추천해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 우천 주의 (미끄럼 및 체온 관리)`,
     };
   }
   if (typeof pop === 'number' && pop >= 60) {
     return {
-      subtitleText: `비 예보(강수확률 ${pop}%)가 있어요. 외출 시 우산이나 우비를 꼭 챙겨주세요.`,
-      badgeNotice: customNotice ?? `현재 ${nowLabel} · 강수확률 ${pop}% (비 예보 주의)`,
+      subtitleText: `비가 올 확률이 ${pop}%예요. 외출할 때 우산이나 우비를 챙겨주세요.`,
+      badgeNotice: customNotice ?? `현재 ${nowLabel} · 비 올 확률 ${pop}% (우산 준비)`,
     };
   }
   if (typeof pop === 'number' && pop >= 40) {
     return {
-      subtitleText: `강수확률 ${pop}%로 비가 내릴 수 있어요. 가까운 공원 위주 산책을 추천해요.`,
-      badgeNotice: customNotice ?? `현재 ${nowLabel} · 강수확률 ${pop}% (우산 준비 권장)`,
+      subtitleText: `비가 올 확률이 ${pop}%예요. 가까운 공원에서 산책하는 걸 추천해요.`,
+      badgeNotice: customNotice ?? `현재 ${nowLabel} · 비 올 확률 ${pop}% (우산 준비)`,
     };
   }
   if (riskLevel === 'DANGER') {
     return {
-      subtitleText: `현재 지면열이 ${currentTemp.toFixed(1)}℃로 매우 뜨거워요. ${startDisplay} 이후 서늘한 산책을 추천해요.`,
+      subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃로 매우 뜨거워요. ${startDisplay} 이후 서늘한 시간에 산책해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ 고열 위험 · ${startDisplay} 권장`,
     };
   }
   if (riskLevel === 'CAUTION') {
     return {
-      subtitleText: `현재 지면온도 ${currentTemp.toFixed(1)}℃로 다소 높아요. 아스팔트 대신 그늘길 산책을 권장해요.`,
+      subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃로 조금 높아요. 아스팔트 대신 그늘길을 추천해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ (그늘길 위주 20분 내 산책)`,
     };
   }
   return {
-    subtitleText: `지면온도 ${currentTemp.toFixed(1)}℃로 발바닥이 편안하고 안전해요.`,
-    badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ (발바닥 안심 골든타임)`,
+    subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃예요. 발바닥이 편안하게 걸을 수 있어요.`,
+    badgeNotice: customNotice ?? `현재 ${nowLabel} · 길바닥 ${currentTemp.toFixed(1)}℃ (산책하기 좋은 시간)`,
   };
 }
 
@@ -367,22 +367,22 @@ function getSurfaceStatus(temp?: number): SurfaceStatusInfo {
 
 function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: boolean): string {
   if (isLoading || weather === null || weather === undefined) {
-    return '데이터 출처: 기상청 · 한국환경공단(에어코리아) 실시간 수신 중...';
+    return '기상청·에어코리아 정보를 불러오는 중이에요...';
   }
   const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
   if (isVirtual) {
-    return '데이터 출처: [가상 시뮬레이션 추정치] (실시간 네트워크 미연결 · 모의 데이터)';
+    return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
-  const base = '데이터 출처: 기상청 · 한국환경공단(에어코리아)';
+  const base = '정보 제공: 기상청·에어코리아';
   return weather?.attribution ? `${base} · ${weather.attribution}` : base;
 }
 
 function resolveModalAttributionText(weather?: HeatRiskResponse | null): string {
   const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
   if (isVirtual) {
-    return '데이터 출처: [가상 시뮬레이션 추정치] (실시간 네트워크 미연결 시 모의 추정 모델 적용)';
+    return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
-  const base = '데이터 출처: 기상청 단기예보 · 한국환경공단(에어코리아)';
+  const base = '정보 제공: 기상청·에어코리아';
   return weather?.attribution ? `${base} · ${weather.attribution}` : `${base} · Open-Meteo`;
 }
 
@@ -461,7 +461,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderTitleRow}>
               <Text style={styles.modalHeaderPaw}>🐾</Text>
-              <Text style={[styles.modalTitle, { color: colors.textMain }]}>오늘의 산책 날씨 리포트</Text>
+              <Text style={[styles.modalTitle, { color: colors.textMain }]}>오늘 산책 날씨</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
@@ -478,7 +478,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
             {isVirtual && (
               <View style={styles.modalVirtualNoticeBox}>
                 <Text style={styles.modalVirtualNoticeText}>
-                  ⚠️ [가상 시뮬레이션 데이터] 실시간 기상 서버에 연결되지 않아 KST 모의 추정 모델이 적용되었습니다.
+                  ⚠️ 실시간 날씨를 불러오지 못해 예상 정보를 보여드리고 있어요.
                 </Text>
               </View>
             )}
@@ -498,20 +498,20 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
             </View>
 
             {/* 4대 환경 상세 메트릭 카드 2x2 그리드 */}
-            <Text style={[styles.modalSectionTitle, { color: colors.textMain }]}>4대 환경 메트릭 상세 분석</Text>
+            <Text style={[styles.modalSectionTitle, { color: colors.textMain }]}>날씨와 산책 정보</Text>
             <View style={styles.modalMetricsGrid}>
               {/* 1. 기온 */}
               <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={styles.modalMetricEmoji}>🌡️</Text>
                 <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>현재 기온</Text>
                 <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{currentAirTemp}°C</Text>
-                <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>대기 관측 온도</Text>
+                <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>현재 기온</Text>
               </View>
 
               {/* 2. 발바닥 체감 지면온도 */}
               <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={styles.modalMetricEmoji}>🔥</Text>
-                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>체감 지면열</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>길바닥 체감 온도</Text>
                 <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
                 <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
                   {surfaceSubText}
@@ -521,7 +521,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               {/* 3. 강수확률 */}
               <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={styles.modalMetricEmoji}>🌧️</Text>
-                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>강수확률</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>비 올 확률</Text>
                 <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{popPercent}%</Text>
                 <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
                   {getPrecipitationSubText(popPercent)}
@@ -534,7 +534,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                 <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>미세먼지</Text>
                 <Text style={[styles.modalMetricValue, { color: airQualityColor }]}>{airQualityLabel}</Text>
                 <Text style={[styles.modalMetricSub, { color: colors.textMuted }]}>
-                  {airQuality?.station_name ? `${airQuality.station_name} 측정소` : '실시간 공공데이터'}
+                  {airQuality?.station_name ? `${airQuality.station_name} 주변 측정 정보` : '주변 대기 정보'}
                 </Text>
               </View>
             </View>
@@ -544,7 +544,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               <View style={[styles.modalSurfaceBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <View style={styles.modalSurfaceHeaderRow}>
                   <Text style={styles.modalSurfaceEmoji}>🐾</Text>
-                  <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>노면별 발바닥 체감온도 비교</Text>
+                  <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>길 종류별 발바닥 온도 예상</Text>
                 </View>
                 <View style={styles.modalSurfaceGrid}>
                   <View style={styles.modalSurfaceItem}>
@@ -573,7 +573,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                     <Text style={styles.modalSurfaceTipText}>
                       {grassDiff > 0
                         ? `💡 아스팔트 대비 잔디밭이 약 ${grassDiff}℃ 더 시원해요!`
-                        : '💡 직사광선이 없어 모든 노면이 시원하고 안전해요!'}
+                        : '💡 햇볕이 강하지 않아 길바닥이 시원하고 편안해요!'}
                     </Text>
                   </View>
                 )}
@@ -634,7 +634,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ colors, responsive }) => (
     </View>
     <View style={styles.headerTitleWrap}>
       <Text style={[styles.mainHeading, { color: colors.textMain, fontSize: responsive.weatherHeadingSize }]}>
-        오늘 강아지 산책지수
+        오늘 산책하기 어때요?
       </Text>
       <Text style={[styles.mainSubHeading, { color: colors.textMuted, fontSize: responsive.weatherSubHeadingSize }]}>
         더위·추위·대기질을 함께 봐요
@@ -672,7 +672,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
 }) => {
   const dayPrefix = isTomorrow ? '내일 ' : '오늘 ';
   const recommendTimeText = isLoading
-    ? '실시간 예보 분석 중'
+    ? '날씨 정보를 불러오는 중'
     : `${dayPrefix}${timeRangeDisplay}`;
 
   return (
@@ -680,7 +680,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
       activeOpacity={0.88}
       onPress={onOpenModal}
       accessibilityRole="button"
-      accessibilityLabel="산책지수 상세 날씨 모달 열기"
+      accessibilityLabel="오늘 날씨와 산책 정보 자세히 보기"
       style={[
         styles.scoreCard,
         {
@@ -735,7 +735,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
                     { color: isLoading ? '#4338CA' : quotient.badgeColor, fontSize: responsive.weatherStatusBadgeFont },
                   ]}
                 >
-                  {isLoading ? '✓ 실시간 분석 중' : `✓ ${quotient.statusLabel}`}
+                  {isLoading ? '✓ 날씨를 확인하고 있어요' : `✓ ${quotient.statusLabel}`}
                 </Text>
               </View>
               {!isLoading && isVirtual && (
@@ -789,7 +789,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
             ]}
             numberOfLines={1}
           >
-            {isLoading ? '기상청·에어코리아 실시간 지수 분석 중...' : quotient.statusTitle}
+            {isLoading ? '기상청·에어코리아 날씨 정보를 확인하는 중...' : quotient.statusTitle}
           </Text>
 
           {/* 하단: 추천 시간 & 상세보기 터치 힌트 */}
@@ -835,9 +835,9 @@ function renderSurfaceSummary(weather?: HeatRiskResponse | null): string {
   if (diff !== null) {
     diffNotice = diff > 0
       ? ` 아스팔트 대비 잔디밭이 약 ${diff}℃ 더 시원해요!`
-      : ' 직사광선이 없어 모든 노면이 시원하고 안전해요!';
+      : ' 직사광선이 없어 길바닥이 시원하고 편안해요!';
   }
-  return `노면별 발바닥 체감온도 비교: 아스팔트 ${asphalt}, 흙 ${dirt}, 잔디 ${grass}.${diffNotice}`;
+  return `길 종류별 발바닥 온도 예상: 아스팔트 ${asphalt}, 흙 ${dirt}, 잔디 ${grass}.${diffNotice}`;
 }
 
 const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({
@@ -1006,7 +1006,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   return (
     <View
       style={styles.container}
-      accessibilityLabel="산책하기 좋은 지면온도 시간"
+      accessibilityLabel="산책하기 좋은 길바닥 온도 시간"
     >
       {/* 1. 상단 타이틀 영역 (반응형 헤더) */}
       <TopHeader colors={colors} responsive={responsive} />

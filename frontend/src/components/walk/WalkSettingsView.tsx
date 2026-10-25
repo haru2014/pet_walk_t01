@@ -50,13 +50,13 @@ function getAiBannerTitle(
   currentParkShortName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkShortName} (공원 보행률 90% 이상)`;
+    return `${currentParkShortName} 산책길 위주로 찾아요`;
   }
   if (isLocating) {
     return '현재 GPS 위치 수신 중...';
   }
   if (userCoords) {
-    return `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`;
+    return '현재 위치를 확인했어요';
   }
   return '현재 위치 기준 실시간 안심 경로';
 }
@@ -69,18 +69,18 @@ function getAiBannerBody(
   currentParkName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkName}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`;
+    return `${currentParkName} 안의 산책길을 따라 편안한 순환 코스를 찾아요.`;
   }
   if (locationError) {
     return `⚠️ ${locationError}`;
   }
   if (isLocating) {
-    return '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...';
+    return 'GPS로 현재 위치를 확인하고 있어요. 잠시만 기다려 주세요...';
   }
   if (userCoords) {
-    return '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.';
+    return '현재 위치에서 출발하는 편안한 산책길을 찾아요.';
   }
-  return '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)';
+  return '현재 위치에서 출발해 계단이 적고 편안한 산책길을 찾아요. 코스를 공유할 때는 집 근처 위치를 보호해요.';
 }
 
 function buildAiNoticeSummary(
@@ -247,7 +247,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             {dog.name}와 어떤 산책을 할까요?
           </Text>
           <Text style={[styles.subTitle, { color: colors.textMuted }]}>
-            원하는 산책 조건을 알려주면 AI가 {dog.name}에게 맞는 안심 길을 찾아볼게요.
+            원하는 산책 조건을 알려주면 {dog.name}에게 맞는 편안한 길을 찾아볼게요.
           </Text>
         </View>
 
@@ -267,7 +267,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           <View style={styles.aiFeedbackCard}>
             <View style={styles.aiFeedbackTop}>
               <AppIcon name="sparkle" size={14} color="#4338CA" />
-              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : 'AI 맞춤 산책 조건 적용 완료'}</Text>
+              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : '말씀하신 산책 조건을 반영했어요'}</Text>
             </View>
             <Text style={styles.aiFeedbackSummary}>{aiNotice.summary}</Text>
             {aiNotice.briefing ? (
@@ -405,7 +405,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
             >
               <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
-                {showDetailedDuration ? '간편 설정 접기 ▲' : '상세 설정 (최대 2시간) ▼'}
+              {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '시간 직접 고르기 (최대 2시간) ▼'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -534,7 +534,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               <>
                 <AppIcon name="sparkle" size={18} color={colors.textWhite} />
                 <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
-                  AI 산책 코스 찾아보기
+                  맞춤 산책길 찾기
                 </Text>
               </>
             )}

@@ -97,7 +97,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
 
   const confirmDeleteDog = () => {
     const deleteDog = () => { void onDeleteDog?.(dog.id); };
-    const message = `${dog.name} 프로필과 이 기기에 저장된 해당 프로필이 삭제됩니다. 로그인 계정에 동기화된 프로필도 함께 삭제됩니다.`;
+    const message = `${dog.name} 프로필과 이 기기에 저장된 프로필이 삭제됩니다. 로그인한 계정에 저장된 프로필도 함께 삭제됩니다.`;
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       if (window.confirm(`${dog.name} 프로필을 삭제할까요?\n${message}`)) deleteDog();

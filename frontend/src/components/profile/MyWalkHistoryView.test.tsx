@@ -87,11 +87,11 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(html).toContain('산책 횟수');
     expect(html).toContain('총 거리');
     expect(html).toContain('총 시간');
-    expect(html).toContain('완만 노면율');
+    expect(html).toContain('편안한 길 비율');
     expect(html).toContain('총 배변');
 
     // 2. 누적 산책 기록 목록이 커뮤니티 피드와 일관된 형태로 렌더링되는지 확인
-    expect(html).toContain('1.8km · ⏱️ 30분 · 🌿 완만 90%');
+    expect(html).toContain('1.8km · ⏱️ 30분 · 🌿 편안한 길 90%');
     expect(html).toContain('⭐ 5.0');
     expect(html).toContain('아주 편안했어요');
     expect(html).toContain('🗺️ 경로 지도 보기');

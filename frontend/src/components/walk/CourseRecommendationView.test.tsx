@@ -162,7 +162,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
 
     // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
     expect(html).toContain('추천 산책 코스');
-    expect(html).toContain('안심 기본 코스');
+    expect(html).toContain('기본 안심 코스');
     // Option 2: 하단 액션 바에 다시 추천 버튼과 산책 시작 버튼이 공존
     expect(html).toContain('다시 추천');
     expect(html).toContain('이 코스로 산책 시작하기');

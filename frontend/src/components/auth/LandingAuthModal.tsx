@@ -218,14 +218,14 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
               )}
 
               <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
-                <Text style={styles.guestBtnText}>게스트 모드로 바로 둘러보기</Text>
+                <Text style={styles.guestBtnText}>회원가입 없이 둘러보기</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View>
               <View style={styles.header}>
                 <Text style={styles.title}>🐕 우리 강아지 등록하기 (pet-photos)</Text>
-                <Text style={styles.subtitle}>클라우드에 안전하게 보관됩니다.</Text>
+                <Text style={styles.subtitle}>계정에 안전하게 보관됩니다.</Text>
               </View>
 
               <Text style={styles.label}>반려견 이름</Text>

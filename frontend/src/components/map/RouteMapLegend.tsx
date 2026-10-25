@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
+import { TOKENS } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { getMapRouteColors } from '../../constants/mapStyles';
 import {
@@ -14,8 +14,8 @@ import {
 export type RouteMapLayer = 'course' | 'real_osm' | 'slope' | 'temperature';
 
 const COURSE_LEGEND = [
-  { type: 'safe', label: '완만/그늘' },
-  { type: 'normal', label: '일반 보도' },
+  { type: 'safe', label: '편안한 길' },
+  { type: 'normal', label: '보통 길' },
   { type: 'caution', label: '주의 구간' },
 ] as const;
 
@@ -35,10 +35,9 @@ export interface RouteMapLegendProps {
 }
 
 /**
- * 지도 바로 아래에 별도로 항상 표시되는 범례 영역 (사용자 조작 최소화)
- * - 코스 보행로(경로 선 색상 안내 - 지면온도 오인 방지)
- * - 지면온도 범례 (실측치 부재 시 '확인 불가' 안내)
- * - 경사도 범례 (실측치 부재 시 '확인 불가' 안내)
+ * 지도 바로 아래에 작게 표시하는 범례 영역 (지도 가림 최소화)
+ * - 산책길 색상 안내
+ * - 길바닥 온도와 오르막·내리막 범례
  */
 export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   mode = 'course',
@@ -51,17 +50,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
 
   return (
     <View style={[styles.legendContainer, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel="지도 범례">
-      <ScrollView
-        style={styles.legendScroll}
-        contentContainerStyle={styles.legendScrollContent}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.legendContent}>
         {/* 1. 코스 보행로 (경로 선 색상 - 온도 오인 방지) */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>코스 보행로</Text>
-            <Text style={[styles.sectionHint, { color: colors.textMuted }]}>경로 선 색상</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>길 종류</Text>
           </View>
           <View style={styles.itemsWrap}>
             {COURSE_LEGEND.map((item) => (
@@ -73,13 +66,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
           </View>
         </View>
 
-        <View style={styles.divider} />
-
-        {/* 2. 지면온도 범례 */}
+        {/* 2. 길바닥 온도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>지면온도</Text>
-            {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>길바닥 온도</Text>
+            {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>정보 없음</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {TEMP_ORDER.map((band) => {
@@ -109,13 +100,11 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
           </View>
         </View>
 
-        <View style={styles.divider} />
-
-        {/* 3. 경사도 범례 */}
+        {/* 3. 오르막·내리막 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>경사도</Text>
-            {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>데이터 없음 (확인 불가)</Text>}
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>오르막·내리막</Text>
+            {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>정보 없음</Text>}
           </View>
           <View style={styles.itemsWrap}>
             {SLOPE_ORDER.map((grade) => {
@@ -144,7 +133,7 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
             })}
           </View>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -152,71 +141,62 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
 const styles = StyleSheet.create({
   legendContainer: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 420,
     alignSelf: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
-  legendScroll: {
-    maxHeight: 140,
-  },
-  legendScrollContent: {
-    gap: 7,
-    paddingBottom: 2,
+  legendContent: {
+    gap: 3,
   },
   section: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 16,
     gap: 4,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    width: 112,
+    flexShrink: 0,
+    gap: 3,
   },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.label,
+    fontSize: 11,
     fontWeight: '700',
     color: TOKENS.colors.textMuted,
   },
-  sectionHint: {
-    fontSize: TYPOGRAPHY.label,
-    color: TOKENS.colors.textMuted,
-    fontWeight: '500',
-  },
   statusBadge: {
-    fontSize: TYPOGRAPHY.label,
+    fontSize: 8,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 6,
+    paddingHorizontal: 3,
     paddingVertical: 1,
     borderRadius: 4,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0F3F1',
-    marginVertical: 1,
-  },
   itemsWrap: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    alignItems: 'center',
+    columnGap: 6,
+    rowGap: 1,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingRight: 4,
+    gap: 3,
   },
   activeUnknownItem: {
     backgroundColor: '#F3F4F6',
@@ -229,18 +209,18 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMain,
   },
   legendBar: {
-    width: 14,
-    height: 4,
+    width: 12,
+    height: 3,
     borderRadius: 2,
   },
   legendSymbol: {
-    fontSize: TYPOGRAPHY.label,
+    fontSize: 11,
     fontWeight: '800',
-    minWidth: 14,
+    minWidth: 11,
     textAlign: 'center',
   },
   legendLabel: {
-    fontSize: TYPOGRAPHY.label,
+    fontSize: 10,
     color: TOKENS.colors.textMain,
     fontWeight: '500',
   },

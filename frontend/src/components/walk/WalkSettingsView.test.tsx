@@ -80,7 +80,7 @@ describe('WalkSettingsView 상세 시간 설정 아코디언', () => {
 
     const html = renderSettings(preferences);
 
-    expect(html).toContain('상세 설정 (최대 2시간)');
+    expect(html).toContain('시간 직접 고르기 (최대 2시간)');
     expect(html).not.toContain('DETAIL_DURATION_CONTENT');
   });
 });

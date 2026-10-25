@@ -59,6 +59,13 @@ function fillTitleLayout(element: HTMLElement, pin: RouteStepPin, textHalo: stri
   element.appendChild(detail);
 }
 
+function getPinTextContent(pin: RouteStepPin, isCurrentLoc: boolean): string {
+  if (isCurrentLoc) {
+    return pin.bearingDeg == null ? '●' : '➤';
+  }
+  return getRouteStepPinIcon(pin);
+}
+
 function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElement {
   const hasTitle = Boolean(pin.title);
   const isCurrentLoc = pin.id === 'current-location-pin' || pin.title === '현재 위치';
@@ -66,9 +73,7 @@ function createPinElement(pin: RouteStepPin, colors: MapRouteColors): HTMLElemen
   const element = document.createElement(hasTitle ? 'div' : 'button');
   if (!hasTitle) (element as HTMLButtonElement).type = 'button';
   element.setAttribute('aria-label', pin.instruction);
-  element.textContent = isCurrentLoc
-    ? (pin.bearingDeg == null ? '●' : '➤')
-    : getRouteStepPinIcon(pin);
+  element.textContent = getPinTextContent(pin, isCurrentLoc);
   Object.assign(element.style, {
     width: hasTitle ? 'auto' : '28px', height: hasTitle ? 'auto' : '28px',
     background: 'transparent',

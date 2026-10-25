@@ -134,11 +134,11 @@ export class WalkStatisticsService {
     let jointCareMessage = '이번 주 첫 산책을 시작해 보세요! 다리와 관절 부담 없는 안심 산책로를 추천해 드려요 🐾';
     if (totalWalks > 0) {
       if (safeSurfaceRatioPercent >= 85) {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 달성! 다리와 관절 부담을 줄인 안심 산책이었어요 🐾`;
+        jointCareMessage = `편안한 길 ${safeSurfaceRatioPercent}%로 걸었어요! 다리와 관절 부담을 줄인 산책이었어요 🐾`;
       } else if (safeSurfaceRatioPercent >= 70) {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 유지! 조금 더 부드러운 길 위주 산책을 권장해요.`;
+        jointCareMessage = `편안한 길이 ${safeSurfaceRatioPercent}%였어요. 다음에는 조금 더 부드러운 길을 걸어보세요.`;
       } else {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 기록! 다음 산책은 경사가 더 완만한 코스를 이용해 보세요.`;
+        jointCareMessage = `편안한 길이 ${safeSurfaceRatioPercent}%였어요. 다음에는 오르막이 적은 코스를 이용해 보세요.`;
       }
     }
 

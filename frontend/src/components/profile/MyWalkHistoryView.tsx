@@ -160,7 +160,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
           <View style={styles.titleLine}>
             <Text style={[styles.title, { color: colors.textMain }]}>🐾 나의 산책 기록 목록</Text>
             <View style={[styles.badge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
-              <Text style={[styles.badgeText, { color: colors.primaryDark }]}>클라우드 연동</Text>
+            <Text style={[styles.badgeText, { color: colors.primaryDark }]}>온라인 저장</Text>
             </View>
           </View>
         </View>
@@ -184,11 +184,11 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
             🐾 산책 통계 및 기록 ({periodStats.periodLabel} {filteredRecords.length}회)
           </Text>
           <View style={[styles.badge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
-            <Text style={[styles.badgeText, { color: colors.primaryDark }]}>DB 동기화</Text>
+            <Text style={[styles.badgeText, { color: colors.primaryDark }]}>계정에 저장</Text>
           </View>
         </View>
         <Text style={[styles.subDesc, { color: colors.textMuted }]}>
-          {dogName}와 함께 달성한 보행 지표 및 완주 기록이에요 (누적 {records.length}회)
+          {dogName}와 함께한 산책 정보와 완주 기록이에요 (누적 {records.length}회)
         </Text>
       </View>
 
@@ -243,7 +243,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryEmoji}>🌿</Text>
-          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>완만 노면율</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>편안한 길 비율</Text>
           <Text style={[styles.summaryValue, { color: colors.primaryDark }]}>
             {periodStats.averageSafeRatioPercent}%
           </Text>
@@ -323,7 +323,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
                 {/* 3. 보행 메타 수치 행 */}
                 <View style={styles.recordMetaRow}>
                   <Text style={styles.recordMetaText}>
-                    📏 {rec.totalDistanceKm.toFixed(1)}km · ⏱️ {rec.durationMinutes}분 · 🌿 완만 {Math.round(rec.safeSurfaceRatio * 100)}%
+                    📏 {rec.totalDistanceKm.toFixed(1)}km · ⏱️ {rec.durationMinutes}분 · 🌿 편안한 길 {Math.round(rec.safeSurfaceRatio * 100)}%
                   </Text>
                   <Text style={styles.recordRating}>
                     ⭐ {(rec.feedback?.comfortScore ?? 5.0).toFixed(1)}

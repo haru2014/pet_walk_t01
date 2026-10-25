@@ -154,7 +154,7 @@ describe('courseAdaptivePlanner', () => {
       // 모든 코스에 score가 매겨져 있고 reason에 AI 맞춤 점수가 포함되어야 함
       healthyCourses.forEach((c) => {
         expect(c.score).toBeDefined();
-        expect(c.reason).toContain('AI 맞춤 점수');
+        expect(c.reason).toContain('맞춤 점수');
       });
 
       // 경사 상한이 엄격한 노령견(상한 4%)은 경사가 있는 코스(Residential 3.2%, Park 2.8%)에서 감점 기준이 더 엄격함

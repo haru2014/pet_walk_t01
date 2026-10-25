@@ -80,7 +80,7 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>
-            {dogName}와의 오늘 산책은 어떠셨나요? 경사도 피드백이 다음 AI 코스에 자동 반영돼요.
+            {dogName}와의 오늘 산책은 어떠셨나요? 남겨 주신 의견을 다음 코스에 반영할게요.
           </Text>
 
           {/* 1. 보행 종합 만족도 */}
@@ -106,7 +106,7 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
 
           {/* 2. 📐 경사도 체감 세분화 평가 (복원) */}
           <Text style={[styles.sectionLabel, { marginTop: 14 }]}>
-            📐 코스 경사도 체감 (관절 안심 보정)
+            📐 오르막과 내리막은 어땠나요?
           </Text>
           <View style={styles.slopeRow}>
             {SLOPE_OPTIONS.map((opt) => {
@@ -131,7 +131,7 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
           </View>
 
           {/* 3. 웰니스 체감 태그 */}
-          <Text style={[styles.sectionLabel, { marginTop: 14 }]}>노면 및 환경 특징</Text>
+          <Text style={[styles.sectionLabel, { marginTop: 14 }]}>길과 주변 환경은 어땠나요?</Text>
           <View style={styles.tagWrap}>
             {FEEDBACK_TAGS.map((tag) => {
               const rawTag = tag.label;
@@ -163,7 +163,7 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
           />
 
           <TouchableOpacity activeOpacity={0.85} onPress={handleSubmit} style={styles.submitBtn}>
-            <Text style={styles.submitBtnText}>경사도 피드백 반영하기 ✓</Text>
+            <Text style={styles.submitBtnText}>의견 저장하기 ✓</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -67,7 +67,7 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
 
       {/* 실시간 실제 맵 뱃지 */}
       <View style={styles.topBadge} pointerEvents="none">
-        <Text style={styles.badgeText}>🗺️ OSM 실시간 실제 지도 (드래그/확대 가능)</Text>
+        <Text style={styles.badgeText}>🗺️ 실제 지도 (움직이거나 확대할 수 있어요)</Text>
       </View>
 
       {/* 새 창 크게보기 버튼 */}

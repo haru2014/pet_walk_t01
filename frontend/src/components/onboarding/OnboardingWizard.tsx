@@ -230,7 +230,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                   {privacyAgreed && <Text style={styles.checkIcon}>✓</Text>}
                 </View>
                 <Text style={styles.agreeText}>
-                  [필수] 개인정보 처리방침 (Local-First) 동의
+                  [필수] 개인정보 처리방침 동의
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => openLegalModal('privacy')} style={styles.viewLinkBtn}>
@@ -249,7 +249,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           <View style={styles.stepCard}>
             <Text style={styles.stepBadge}>Step 2. 반려견 프로필 등록</Text>
             <Text style={styles.stepTitle}>우리 강아지를 소개해 주세요 🐕</Text>
-            <Text style={styles.stepSubtitle}>체급과 보폭에 맞는 안심 산책로를 분석합니다.</Text>
+            <Text style={styles.stepSubtitle}>몸집과 걸음걸이에 맞는 편안한 산책길을 찾아드려요.</Text>
 
             <TextInput
               value={dogName}
@@ -302,7 +302,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
             <Text style={styles.stepBadge}>Step 3. 산책 시작 위치 동의</Text>
             <Text style={styles.stepTitle}>안심 보행로 위치 권한 📍</Text>
             <Text style={styles.stepSubtitle}>
-              내 위치 기반 지면온도와 계단 없는 맞춤 길을 실시간으로 안내합니다.
+              현재 위치의 길바닥 온도와 계단이 적은 산책길을 알려드려요.
             </Text>
 
             <View style={styles.privacyBox}>
@@ -324,7 +324,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 {locationAgreed && <Text style={styles.checkIcon}>✓</Text>}
               </View>
               <Text style={styles.agreeText}>
-                [필수] 실시간 보행 내비게이션 위치 정보 수집 동의
+                [필수] 산책 중 위치 정보 이용 동의
               </Text>
             </TouchableOpacity>
 

@@ -83,7 +83,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
       const title = hasStairs ? '계단 구간' : '경사 주의';
       const detail = hasStairs && hasSlopeWarning
         ? `경사 ${slopeText} · 계단`
-        : hasStairs ? '계단 포함' : `최대 경사 ${slopeText}`;
+        : hasStairs ? '계단 포함' : `오르막 ${slopeText}`;
       return [{
         id: `route-hazard-${index}`,
         kind: 'caution' as const,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center' },
+  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center', paddingTop: 3 },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,

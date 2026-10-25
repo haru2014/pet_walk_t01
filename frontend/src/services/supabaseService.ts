@@ -28,10 +28,10 @@ export type WalkShareResult =
 const WALK_SHARE_MESSAGES: Record<string, string> = {
   AUTH_REQUIRED: '로그인이 필요해요. 로그인한 뒤 다시 시도해 주세요.',
   AUTH_INVALID: '로그인 정보가 만료됐어요. 다시 로그인해 주세요.',
-  WALK_NOT_FOUND: '아직 클라우드에 저장되지 않은 기록이라 공개할 수 없어요.',
-  ROUTE_TOO_SHORT_TO_MASK: '경로가 너무 짧아요. 집 주변 200m를 가리면 보여 줄 경로가 남지 않아 공개할 수 없어요.',
+  WALK_NOT_FOUND: '계정에 아직 저장되지 않은 산책 기록이라 공개할 수 없어요.',
+  ROUTE_TOO_SHORT_TO_MASK: '산책길이 짧아 집 근처 위치를 보호하고 나면 공유할 길이 남지 않아요.',
   INVALID_ROUTE: '공개할 수 있는 경로가 아니에요.',
-  INVALID_WALK_ID: '기록 번호가 올바르지 않아 공개할 수 없어요.',
+  INVALID_WALK_ID: '산책 기록을 확인할 수 없어 공개하지 못했어요.',
   DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
   WALK_SHARE_DB_ERROR: '산책 기록을 커뮤니티에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
   WALK_SHARE_FAILED: '산책 기록을 공개하는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
@@ -128,11 +128,11 @@ class SupabaseServiceManager {
 
   getWalkShareAccess(): { readonly ok: true } | { readonly ok: false; readonly code: 'CLOUD_NOT_CONFIGURED' | 'AUTH_REQUIRED' | 'CLOUD_ACCOUNT_REQUIRED'; readonly message: string } {
     if (!this.client) {
-      return { ok: false, code: 'CLOUD_NOT_CONFIGURED', message: '이 앱 빌드에 클라우드 연결 정보가 없어 산책 기록을 공유할 수 없어요.' };
+      return { ok: false, code: 'CLOUD_NOT_CONFIGURED', message: '지금은 산책 기록을 공유할 수 없어요. 잠시 후 다시 시도해 주세요.' };
     }
     if (!this.currentSession || !this.hasCloudAuthSession) {
       if (this.currentSession && (!isUuid(this.currentSession.user.id) || this.currentSession.accessToken.startsWith('local_token_'))) {
-        return { ok: false, code: 'CLOUD_ACCOUNT_REQUIRED', message: '로컬 체험 계정으로 로그인되어 있어요. 실제 회원 계정으로 로그인한 뒤 다시 시도해 주세요.' };
+        return { ok: false, code: 'CLOUD_ACCOUNT_REQUIRED', message: '체험용 계정으로 이용 중이에요. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.' };
       }
       return { ok: false, code: 'AUTH_REQUIRED', message: '로그인이 필요해요. 회원 계정으로 로그인한 뒤 다시 시도해 주세요.' };
     }
@@ -397,7 +397,7 @@ class SupabaseServiceManager {
     if (existing.data?.id) {
       const existingId = String(existing.data.id);
       if (!isUuid(existingId)) {
-        throw new Error('클라우드 산책 기록 번호가 올바르지 않아 공개할 수 없어요.');
+        throw new Error('산책 기록을 확인할 수 없어 공개하지 못했어요.');
       }
       return existingId;
     }
@@ -443,11 +443,11 @@ class SupabaseServiceManager {
         if (inserted.error.code === '23503') {
           throw new Error('산책 기록과 연결된 반려견 정보를 확인하지 못했어요. 다시 시도해 주세요.');
         }
-        throw new Error(`산책 기록을 클라우드에 저장하지 못했어요 (${inserted.error.code ?? 'DB_ERROR'}). 잠시 후 다시 시도해 주세요.`);
+        throw new Error('산책 기록을 계정에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
       }
       const retryId = String(retry.data.id);
       if (!isUuid(retryId)) {
-        throw new Error('클라우드 산책 기록 번호가 올바르지 않아 공개할 수 없어요.');
+        throw new Error('산책 기록을 확인할 수 없어 공개하지 못했어요.');
       }
       return retryId;
     }

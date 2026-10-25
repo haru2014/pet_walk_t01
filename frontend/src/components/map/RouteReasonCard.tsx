@@ -84,7 +84,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
           <View style={styles.metricIcon}><AppIcon name="shade" size={20} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.metricLabel}>시원한 그늘</Text>
           <Text style={styles.metricValue}>{shadePercent}%</Text>
-          <Text style={styles.metricSub}>자외선 차단 및 저온 유지</Text>
+          <Text style={styles.metricSub}>햇볕을 피하며 걸을 수 있어요</Text>
         </View>
       </View>
 

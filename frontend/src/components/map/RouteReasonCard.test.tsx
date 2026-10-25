@@ -28,10 +28,10 @@ describe('RouteReasonCard (인포그래픽 카드 표시 검증)', () => {
       />
     );
 
-    expect(html).toContain('완만한 경사');
+    expect(html).toContain('오르막 경사');
     expect(html).toContain('최대 2.1%');
-    expect(html).toContain('DEM 고도 데이터 기준');
-    expect(html).toContain('폭신한 노면');
+    expect(html).toContain('지도에 표시된 높낮이를 기준으로 했어요');
+    expect(html).toContain('폭신한 길');
     expect(html).toContain('85%');
   });
 
@@ -45,9 +45,9 @@ describe('RouteReasonCard (인포그래픽 카드 표시 검증)', () => {
       />
     );
 
-    expect(html).toContain('예상 경사도');
+    expect(html).toContain('예상 오르막');
     expect(html).toContain('약 3.5%');
-    expect(html).toContain('지형 모델 기반 근사 계산');
+    expect(html).toContain('주변 지형을 바탕으로 예상했어요');
   });
 
   it('고도/경사도 또는 노면 데이터가 없을 때 0%나 임의 값 대신 "정보 없음"으로 표시한다', () => {
@@ -61,11 +61,11 @@ describe('RouteReasonCard (인포그래픽 카드 표시 검증)', () => {
       />
     );
 
-    expect(html).toContain('경사도');
+    expect(html).toContain('길의 높낮이');
     expect(html).toContain('정보 없음');
-    expect(html).toContain('고도 데이터 확인 불가');
-    expect(html).toContain('노면 정보');
-    expect(html).toContain('보행로 노면 태그 없음');
+    expect(html).toContain('길 높낮이를 아직 확인하지 못했어요');
+    expect(html).toContain('길 종류');
+    expect(html).toContain('산책길 종류를 아직 확인하지 못했어요');
     expect(html).not.toContain('0%');
     expect(html).not.toContain('평탄함');
     expect(html).not.toContain('undefined');
@@ -83,8 +83,8 @@ describe('RouteReasonCard (인포그래픽 카드 표시 검증)', () => {
       />
     );
 
-    expect(html).toContain('폭신한 노면');
+    expect(html).toContain('폭신한 길');
     expect(html).toContain('45%');
-    expect(html).toContain('확인 구간(60%) 기준');
+    expect(html).toContain('정보가 있는 길(60%) 기준');
   });
 });

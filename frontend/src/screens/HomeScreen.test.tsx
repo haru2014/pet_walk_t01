@@ -79,9 +79,9 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
     expect(html).toContain('시작 →');
 
     // 2. Trail info & 이번 주 산책 달성도 정보 카드
-    expect(html).toContain('Trail info');
+    expect(html).toContain('산책 정보');
     expect(html).toContain('이번 주 산책 달성도');
-    expect(html).toContain('골든타임');
+    expect(html).toContain('산책하기 좋은 시간');
   });
 
   it('다견 등록 시 현재 선택된 반려견 이름 뱃지가 메인 카드 헤더에 노출된다', () => {
