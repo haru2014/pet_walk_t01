@@ -32,10 +32,11 @@ export interface RouteMapLegendProps {
   onToggleTemperature?: () => void;
   onToggleSlope?: () => void;
   bottomOffset?: number;
+  isModalView?: boolean;
 }
 
 /**
- * 지도 바로 아래에 작게 표시하는 범례 영역 (지도 가림 최소화)
+ * 지도 범례 영역 (단독 표시 또는 모달 팝업 내부 렌더링 지원)
  * - 산책길 색상 안내
  * - 길바닥 온도와 오르막·내리막 범례
  */
@@ -43,13 +44,21 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   mode = 'course',
   hasTempData = false,
   hasSlopeData = false,
+  isModalView = false,
 }) => {
   const { theme, colors } = useAppTheme();
   const routeColors = getMapRouteColors(theme);
   if (mode !== 'course') return null;
 
   return (
-    <View style={[styles.legendContainer, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel="지도 범례">
+    <View
+      style={[
+        styles.legendContainer,
+        { backgroundColor: isModalView ? 'transparent' : colors.surface, borderColor: colors.border },
+        isModalView && styles.modalLegendContainer,
+      ]}
+      accessibilityLabel="지도 범례"
+    >
       <View style={styles.legendContent}>
         {/* 1. 코스 보행로 (경로 선 색상 - 온도 오인 방지) */}
         <View style={styles.section}>
@@ -154,6 +163,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
+  },
+  modalLegendContainer: {
+    borderWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    maxWidth: '100%',
   },
   legendContent: {
     gap: 3,

@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
@@ -37,6 +37,8 @@ export interface RouteMapViewProps {
   readonly maskingCenter?: LonLat;
   /** 3색 세그먼트 범례 오버레이 표시 여부 (자유 산책은 기본 false) */
   readonly showLegend?: boolean;
+  /** 테스트 및 초기 모달 상태 제어용 */
+  readonly defaultLegendOpen?: boolean;
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -51,10 +53,12 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   fillContainer = false,
   maskingCenter,
   showLegend = true,
+  defaultLegendOpen = false,
 }) => {
   const { colors } = useAppTheme();
   const mapHeight = customMapHeight ?? MAP_HEIGHT;
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [isLegendOpen, setIsLegendOpen] = useState(defaultLegendOpen);
 
   const allCoords = useMemo<LonLat[]>(
     () => route.features.flatMap((f: RouteSegmentFeature) => [...f.geometry.coordinates]),
@@ -138,6 +142,66 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             </Text>
           </View>
         )}
+
+        {/* 지도 우측 하단 미니멀 플로팅 범례 버튼 (지도 가림 최소화 & 네이버/카카오맵 표준 UX) */}
+        {showLegend && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setIsLegendOpen(true)}
+            style={[
+              styles.floatingLegendBtn,
+              selectedPin ? styles.floatingLegendBtnRaised : undefined,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="지도 범례 안내 보기"
+          >
+            <Text style={styles.floatingLegendIcon}>🎨</Text>
+            <Text style={[styles.floatingLegendText, { color: colors.textMain }]}>범례</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 지도 범례 팝업 오버레이 (지도 내부 캔버스 위에 뜨는 레이어 팝업 UX) */}
+        {showLegend && isLegendOpen && (
+          <View style={styles.legendOverlayBackdrop}>
+            <TouchableOpacity
+              style={styles.legendOverlayDismissArea}
+              activeOpacity={1}
+              onPress={() => setIsLegendOpen(false)}
+            />
+            <View
+              style={[
+                styles.modalCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderTitleRow}>
+                  <Text style={styles.modalHeaderIcon}>🗺️</Text>
+                  <Text style={[styles.modalHeaderTitle, { color: colors.textMain }]}>지도 안내 범례</Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsLegendOpen(false)}
+                  style={[styles.modalCloseBtn, { backgroundColor: colors.background }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="범례 닫기"
+                >
+                  <Text style={[styles.modalCloseText, { color: colors.textMuted }]}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
+
+              <RouteMapLegend
+                hasTempData={hasTempData}
+                hasSlopeData={hasSlopeData}
+                isModalView
+              />
+            </View>
+          </View>
+        )}
+
         {selectedPin && (
           <View
             style={[
@@ -149,12 +213,6 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           </View>
         )}
       </View>
-
-      {showLegend && (
-        <View style={styles.legendWrapper}>
-          <RouteMapLegend hasTempData={hasTempData} hasSlopeData={hasSlopeData} />
-        </View>
-      )}
 
       {showSummaryCard && (
         <View style={styles.summaryWrapper}>
@@ -176,7 +234,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  legendWrapper: { width: MAP_WIDTH, alignSelf: 'center', paddingTop: 3 },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,
@@ -188,6 +245,34 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   stairsOverlayText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
+  floatingLegendBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    zIndex: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  floatingLegendBtnRaised: {
+    bottom: 56,
+  },
+  floatingLegendIcon: {
+    fontSize: 12,
+  },
+  floatingLegendText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   briefingBanner: {
     position: 'absolute', bottom: 10, left: 10, right: 10,
     borderRadius: 12,
@@ -200,4 +285,69 @@ const styles = StyleSheet.create({
   },
   briefingText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', textAlign: 'center' },
   summaryWrapper: { marginTop: 12, width: MAP_WIDTH },
+  legendOverlayBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  legendOverlayDismissArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 11,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+  },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalHeaderIcon: {
+    fontSize: 15,
+  },
+  modalHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalCloseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalDivider: {
+    height: 1,
+    marginVertical: 8,
+  },
 });

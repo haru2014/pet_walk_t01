@@ -73,7 +73,7 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     },
   ];
 
-  it('MapLibre 캔버스와 코스 범례를 렌더링한다', () => {
+  it('MapLibre 캔버스와 플로팅 범례 버튼을 렌더링한다', () => {
     // React DOM 서버 렌더러(renderToStaticMarkup)를 통해 브라우저 HTML SVG 렌더링 파이프라인 검증
     expect(() => {
       const html = renderToStaticMarkup(
@@ -84,22 +84,24 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
         />
       );
       expect(html).toContain('width:100%;height:100%');
-      expect(html).toContain('길바닥 온도');
-      expect(html).toContain('오르막·내리막');
-      expect(html).toContain('아직 정보가 없어요');
+      expect(html).toContain('범례');
+      expect(html).toContain('지도 범례 안내 보기');
     }).not.toThrow();
   });
 
-  it('MapLibre 컨테이너와 지도 범례를 렌더링한다', () => {
+  it('범례 팝업이 활성화되었을 때 상세 범례 항목(길바닥 온도, 오르막·내리막)을 렌더링한다', () => {
     const html = renderToStaticMarkup(
       <RouteMapView
         route={mockRoute}
         stepPins={mockPins}
         speedKmH={2.8}
+        defaultLegendOpen
       />
     );
     expect(html).toContain('width:100%;height:100%');
-      expect(html).toContain('길바닥 온도');
+    expect(html).toContain('지도 안내 범례');
+    expect(html).toContain('길바닥 온도');
     expect(html).toContain('오르막·내리막');
+    expect(html).toContain('아직 정보가 없어요');
   });
 });
