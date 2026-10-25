@@ -540,7 +540,7 @@ export default function App() {
         )}
         {subScreen === 'report' && completedRecord && (
           <WalkReportScreen
-            record={completedRecord} dogName={activeDog.name} bookmarkCandidate={walkBookmark}
+            record={completedRecord} dogName={activeDog.name} dogPhotoUri={activeDog.photoUri} bookmarkCandidate={walkBookmark}
             onSaveFeedback={handleSaveReportFeedback} onGoHome={() => { setSubScreen('main'); setActiveTab('홈'); }}
             onGoToCommunity={() => { setSubScreen('main'); setActiveTab('커뮤니티'); }}
             onOpenAuthModal={handleOpenAuthModal}
