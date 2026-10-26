@@ -27,6 +27,8 @@ import {
   WeatherDetailModal,
   computeWeatherModalProps,
 } from '../components/home/GoldenTimeWidget';
+import { HomeNotificationModal } from '../components/home/HomeNotificationModal';
+import { getNearbyHazardReports, NearbyHazardReport } from '../services/hazardApi';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -60,6 +62,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
   const [weatherModalVisible, setWeatherModalVisible] = useState(false);
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
+  const [nearbyHazards, setNearbyHazards] = useState<NearbyHazardReport[]>([]);
   const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
 
   useEffect(() => {
@@ -87,6 +92,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const lat = userCoords?.lat ?? 36.3628;
+    const lon = userCoords?.lon ?? 127.3592;
+    void getNearbyHazardReports(lat, lon, 300)
+      .then((reports) => {
+        if (isMounted) setNearbyHazards(reports);
+      })
+      .catch(() => {
+        // 네트워크 장애 시 빈 제보 목록 유지
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [userCoords?.lat, userCoords?.lon]);
+
   const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
 
   useEffect(() => {
@@ -100,6 +121,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
   }, [dog.id]);
 
+  const handlePressNotification = () => {
+    setHasUnreadNotification(false);
+    setNotificationModalVisible(true);
+    onOpenNotification?.();
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. 상단 테마 메인 배경 영역 (마스코트 및 메인 카드) */}
@@ -109,7 +136,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           dogs={dogs}
           onSelectDog={onSelectDog}
           onPressProfile={onPressProfile}
-          onPressNotification={onOpenNotification}
+          onPressNotification={handlePressNotification}
+          hasUnreadNotification={hasUnreadNotification}
           onStartWalk={onStartWalk}
           courseName="바로 산책하기"
           userCoords={userCoords}
@@ -145,6 +173,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         isTomorrow={modalProps.isTomorrow}
         timeRangeDisplay={modalProps.timeRangeDisplay}
         weather={weather}
+      />
+
+      {/* 4. 종 아이콘(🔔) 터치 시 열리는 안심 산책 스마트 알림 센터 모달 */}
+      <HomeNotificationModal
+        visible={notificationModalVisible}
+        onClose={() => setNotificationModalVisible(false)}
+        weather={weather}
+        dog={dog}
+        weeklyStats={weeklyStats}
+        nearbyHazards={nearbyHazards}
+        onOpenWeatherModal={() => {
+          setNotificationModalVisible(false);
+          setWeatherModalVisible(true);
+        }}
+        onStartWalk={onStartWalk}
+        onOpenPlanner={onOpenPlanner}
       />
     </View>
   );
