@@ -21,24 +21,36 @@ const mockDog: DogProfile = {
   breed: '푸들',
   weightKg: 5.5,
   ageYears: 4,
-  jointCareLevel: 'caution',
+  jointCareLevel: 1,
   speedKmH: 3.5,
+  createdAt: '2026-10-26T00:00:00.000Z',
+  updatedAt: '2026-10-26T00:00:00.000Z',
 };
 
 const mockSafeWeather: HeatRiskResponse = {
-  air_temp_c: 24,
-  surface_temperature_c: 27.5,
-  risk_level: '안전',
-  golden_time_recommendation: '현재 산책하기 아주 좋은 날씨입니다.',
+  isLiveServer: true,
+  current_hour: 14,
+  current_air_temp: 24,
+  current_surface_temp: 27.5,
+  current_risk_level: 'SAFE',
+  is_current_golden: true,
+  golden_time_window: '현재 산책 적합',
   hourly_forecast: [],
+  notice: '',
+  fetched_at: '2026-10-26T00:00:00.000Z',
 };
 
 const mockHotWeather: HeatRiskResponse = {
-  air_temp_c: 32,
-  surface_temperature_c: 41.2,
-  risk_level: '위험',
-  golden_time_recommendation: '18시 이후 그늘길 산책을 권장합니다.',
+  isLiveServer: true,
+  current_hour: 14,
+  current_air_temp: 32,
+  current_surface_temp: 41.2,
+  current_risk_level: 'DANGER',
+  is_current_golden: false,
+  golden_time_window: '18시 이후 그늘길 산책을 권장합니다.',
   hourly_forecast: [],
+  notice: '',
+  fetched_at: '2026-10-26T00:00:00.000Z',
 };
 
 const mockWeeklyStatsNoWalk: WeeklyWalkStats = {
@@ -47,8 +59,11 @@ const mockWeeklyStatsNoWalk: WeeklyWalkStats = {
   targetDays: 5,
   completionRatePercent: 0,
   totalDistanceKm: 0,
-  totalDurationMinutes: 0,
+  totalWalks: 0,
   safeSurfaceRatioPercent: 0,
+  totalDurationMinutes: 0,
+  totalPoopCount: 0,
+  jointCareMessage: '',
   dailyStats: [
     {
       dateStr: '2026-10-26',
@@ -56,6 +71,9 @@ const mockWeeklyStatsNoWalk: WeeklyWalkStats = {
       walkCount: 0,
       targetCount: 1,
       achievementRatePercent: 0,
+      distanceKm: 0,
+      durationMinutes: 0,
+      hasWalked: false,
       isToday: true,
     },
   ],
@@ -65,6 +83,7 @@ const mockWeeklyStatsWithWalk: WeeklyWalkStats = {
   ...mockWeeklyStatsNoWalk,
   completedDays: 1,
   completionRatePercent: 20,
+  totalWalks: 2,
   dailyStats: [
     {
       dateStr: '2026-10-26',
@@ -72,6 +91,9 @@ const mockWeeklyStatsWithWalk: WeeklyWalkStats = {
       walkCount: 2,
       targetCount: 1,
       achievementRatePercent: 200,
+      distanceKm: 2.5,
+      durationMinutes: 30,
+      hasWalked: true,
       isToday: true,
     },
   ],
@@ -80,15 +102,12 @@ const mockWeeklyStatsWithWalk: WeeklyWalkStats = {
 const mockHazards: NearbyHazardReport[] = [
   {
     report_id: 'hz_1',
-    user_id: 'user_1',
     lat: 36.363,
     lon: 127.36,
     distance_m: 85,
     hazard_type: 'broken_glass',
     severity: 'danger',
     description: '공원 입구 보도블록 깨진 유리 조각',
-    photo_url: undefined,
-    created_at: new Date().toISOString(),
   },
 ];
 

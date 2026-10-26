@@ -62,20 +62,22 @@ export const HomeNotificationModal: React.FC<HomeNotificationModalProps> = ({
   onStartWalk,
   onOpenPlanner,
 }) => {
-  const { colors, isDark } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
 
   const notifications = useMemo<SmartNotificationItem[]>(() => {
     const list: SmartNotificationItem[] = [];
 
     // 1. 지면열 골든타임 알림
     if (weather) {
-      const surfaceTemp = Math.round(weather.surface_temperature_c);
-      const isHighRisk = weather.risk_level === '위험' || weather.risk_level === '주의';
+      const surfaceTemp = Math.round(weather.current_surface_temp);
+      const isHighRisk = weather.current_risk_level === 'DANGER' || weather.current_risk_level === 'CAUTION';
+      const riskLevelKo = weather.current_risk_level === 'DANGER' ? '위험' : weather.current_risk_level === 'CAUTION' ? '주의' : '안전';
       list.push({
         id: 'noti_thermal',
         type: 'thermal',
         icon: isHighRisk ? '🔥' : '🌿',
-        badgeText: `지면열 ${weather.risk_level}`,
+        badgeText: `지면열 ${riskLevelKo}`,
         badgeBg: isHighRisk ? '#FEE2E2' : '#DCFCE7',
         badgeColor: isHighRisk ? '#DC2626' : '#166534',
         title: isHighRisk
@@ -151,7 +153,7 @@ export const HomeNotificationModal: React.FC<HomeNotificationModalProps> = ({
     }
 
     // 4. 관절 안심 케어 맞춤 팁
-    const isCareDog = dog.jointCareLevel === 'caution' || dog.jointCareLevel === 'strict';
+    const isCareDog = dog.jointCareLevel >= 1;
     list.push({
       id: 'noti_joint_tip',
       type: 'joint_tip',
