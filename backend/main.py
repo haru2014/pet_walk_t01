@@ -781,10 +781,12 @@ def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any
         return
     longest = max(int(c.estimated_duration_minutes) for c in candidates)
     notice = f"이 공원은 산책로가 짧아 최대 약 {longest}분 코스예요. 더 걷고 싶다면 같은 길을 한 바퀴 더 돌아보세요."
+    # 앱 카드는 공간이 좁아 한 줄(20자 안팎)로 보여 줄 짧은 문구를 notice 로 따로 보낸다 (#263).
+    short_notice = f"산책로가 짧아 최대 약 {longest}분이에요"
     for course, cand in zip(courses, candidates):
         repeat_desc = _lap_description(getattr(cand, "lap_count", 1) or 1, getattr(cand, "lap_cycle_m", None))
         course["reason"] = f"{notice}\n{repeat_desc}" if repeat_desc else notice
-        _append_notice(course, notice)
+        _append_notice(course, short_notice)
 
 
 def _append_notice(course: Dict[str, Any], text: str) -> None:
