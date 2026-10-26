@@ -193,23 +193,28 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                         stepPins={bm.stepPins}
                         speedKmH={dogSpeedKmH}
                       />
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => setModalBookmark(bm)}
+                        style={styles.mapExpandBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel="코스 지도 크게 보기"
+                      >
+                        <Text style={styles.mapExpandIcon}>⤢</Text>
+                        <Text style={styles.mapExpandText}>크게 보기</Text>
+                      </TouchableOpacity>
                     </View>
 
-                    {/* 정돈된 액션 버튼 그룹 (중복 없이 1세트 제공) */}
+                    {/* 정돈된 액션 버튼 그룹 */}
                     <View style={styles.actionButtonGroup}>
                       <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={() => onStartBookmark(bm)}
                         style={styles.startWalkButton}
+                        accessibilityRole="button"
+                        accessibilityLabel="이 코스로 바로 산책 시작하기"
                       >
                         <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => setModalBookmark(bm)}
-                        style={styles.fullScreenButton}
-                      >
-                        <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -427,20 +432,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
     backgroundColor: TOKENS.colors.background,
+    position: 'relative',
+  },
+  mapExpandBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    backgroundColor: TOKENS.colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  mapExpandIcon: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+  },
+  mapExpandText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: TOKENS.colors.textMain,
   },
 
   actionButtonGroup: {
-    flexDirection: 'row',
-    gap: 8,
+    width: '100%',
     marginTop: 10,
   },
   startWalkButton: {
-    flex: 1.5,
+    width: '100%',
     backgroundColor: TOKENS.colors.primary,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   startWalkButtonText: {
     color: '#FFFFFF',
