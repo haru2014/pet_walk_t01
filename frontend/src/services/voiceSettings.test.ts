@@ -40,6 +40,16 @@ describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () =>
     expect(ids).toContain('calm_male');
     expect(ids).toContain('friendly_male');
 
+    const calmMale = VOICE_PROFILES.find((p) => p.id === 'calm_male')!;
+    expect(calmMale.label).toBe('안정적인 남성 톤');
+    expect(calmMale.pitch).toBe(0.82);
+    expect(calmMale.rate).toBe(0.90);
+
+    const friendlyMale = VOICE_PROFILES.find((p) => p.id === 'friendly_male')!;
+    expect(friendlyMale.label).toBe('친근한 남성 톤');
+    expect(friendlyMale.pitch).toBe(0.92);
+    expect(friendlyMale.rate).toBe(0.96);
+
     for (const profile of VOICE_PROFILES) {
       expect(profile.pitch).toBeGreaterThanOrEqual(0.5);
       expect(profile.pitch).toBeLessThanOrEqual(1.5);
@@ -165,7 +175,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
       expect(femaleVoice).toBe('ko-kr-x-kfb-local');
     });
 
-    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 저음 피치(0.70)가 발화 옵션에 적용되어야 한다', async () => {
+    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 안정적인 남성 톤 피치(0.82)가 발화 옵션에 적용되어야 한다', async () => {
       const mockVoices: any[] = [
         { identifier: 'ko-kr-x-kfb-local', name: 'ko-female', language: 'ko-KR' },
         { identifier: 'ko-kr-x-ism-local', name: 'ko-male', language: 'ko-KR' },
@@ -181,13 +191,13 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         expect.objectContaining({
           language: 'ko-KR',
           voice: 'ko-kr-x-ism-local',
-          pitch: 0.50,
-          rate: 0.92,
+          pitch: 0.82,
+          rate: 0.90,
         })
       );
     });
 
-    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.50/0.58)로 발화되어야 한다', async () => {
+    it('기기에 별도 남성 보이스가 없는 환경에서도 친근한 남성 톤 피치(0.92) 및 속도(0.96)로 발화되어야 한다', async () => {
       TTSNavigationService.setCachedVoicesForTesting([]); // 보이스 없음
 
       await TTSNavigationService.setProfile('friendly_male');
@@ -198,8 +208,8 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         '잠시 벤치에서 쉬어가요',
         expect.objectContaining({
           language: 'ko-KR',
-          pitch: 0.58,
-          rate: 0.95,
+          pitch: 0.92,
+          rate: 0.96,
         })
       );
     });
