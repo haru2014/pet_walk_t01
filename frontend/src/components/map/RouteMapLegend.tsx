@@ -32,7 +32,7 @@ export interface RouteMapLegendProps {
 /**
  * 지도 범례 영역 (단독 표시 또는 모달 팝업 내부 렌더링 지원)
  * - 산책길 색상 안내
- * - 길바닥 온도와 오르막·내리막 범례
+ * - 노면 온도와 경사도 범례
  */
 export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
   mode = 'course',
@@ -57,7 +57,7 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
         {/* 1. 코스 보행로 (경로 선 색상 - 온도 오인 방지) */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>길 종류</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>노면 종류</Text>
           </View>
           <View style={styles.itemsWrap}>
             {COURSE_LEGEND.map((item) => (
@@ -69,10 +69,10 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
           </View>
         </View>
 
-        {/* 2. 길바닥 온도 범례 */}
+        {/* 2. 노면 온도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>길바닥 온도</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>노면 온도</Text>
             {!hasTempData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>정보 없음</Text>}
           </View>
           <View style={styles.itemsWrap}>
@@ -103,10 +103,10 @@ export const RouteMapLegend: React.FC<RouteMapLegendProps> = ({
           </View>
         </View>
 
-        {/* 3. 오르막·내리막 범례 */}
+        {/* 3. 경사도 범례 */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>오르막·내리막</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>경사도</Text>
             {!hasSlopeData && <Text style={[styles.statusBadge, { color: colors.textMuted }]}>정보 없음</Text>}
           </View>
           <View style={styles.itemsWrap}>

@@ -89,7 +89,7 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     }).not.toThrow();
   });
 
-  it('범례 팝업이 활성화되었을 때 상세 범례 항목(길바닥 온도, 오르막·내리막)을 렌더링한다', () => {
+  it('범례 팝업이 활성화되었을 때 상세 범례 항목(노면 온도, 경사도)을 렌더링한다', () => {
     const html = renderToStaticMarkup(
       <RouteMapView
         route={mockRoute}
@@ -100,8 +100,8 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     );
     expect(html).toContain('width:100%;height:100%');
     expect(html).toContain('지도 안내 범례');
-    expect(html).toContain('길바닥 온도');
-    expect(html).toContain('오르막·내리막');
+    expect(html).toContain('노면 온도');
+    expect(html).toContain('경사도');
     expect(html).toContain('아직 정보가 없어요');
   });
 });

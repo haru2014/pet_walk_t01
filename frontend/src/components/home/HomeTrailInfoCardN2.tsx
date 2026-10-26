@@ -50,8 +50,8 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   const surfaceTemp = weather?.current_surface_temp ?? 24.8;
   const isGolden = weather?.is_current_golden ?? true;
   const weatherNotice = isGolden
-    ? `길바닥 온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n산책하기 좋은 시간이에요.`
-    : `길바닥 온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
+    ? `노면 온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n산책하기 좋은 시간이에요.`
+    : `노면 온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
 
   const walkIndex = computeWalkIndex(weather);
 

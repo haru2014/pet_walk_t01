@@ -81,6 +81,29 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 돌아가기 테�
       expect(res.ok).toBe(true);
       expect(res.message).toContain('오프라인');
     });
+
+    it('dog_danger 위험 종류를 construction으로 치환하지 않고 그대로 전송한다 (#228)', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'success' }),
+      } as any);
+
+      const res = await reportHazard({
+        lat: 36.35,
+        lon: 127.38,
+        hazardType: 'dog_danger',
+        severity: 'danger',
+        description: '공격적인 들개 출몰',
+      });
+
+      expect(res.ok).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/hazards',
+        expect.objectContaining({
+          body: expect.stringContaining('"hazard_type":"dog_danger"'),
+        })
+      );
+    });
   });
 
   describe('generateLocalDetourRoute', () => {
@@ -188,6 +211,53 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 돌아가기 테�
       expect(result.voiceAlert).toContain(HAZARD_TYPE_LABELS.broken_glass);
       expect(result.newRoute.features[0].geometry.coordinates.length).toBeGreaterThanOrEqual(3);
       expect(result.hazardClearanceM).toBe(80.0);
+    });
+
+    it('dog_danger 위험 종류 우회 요청 시 construction으로 치환하지 않고 dog_danger로 요청한다 (#228)', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'REROUTED',
+          voice_alert: '전방 들개/맹견 출몰 구간을 우회하여 새로운 경로를 안내합니다.',
+          new_distance_m: 650,
+          hazard_clearance_m: 60.0,
+          geojson: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { segmentType: 'safe' },
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [127.382, 36.374],
+                    [127.383, 36.376],
+                    [127.382, 36.378],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      } as any);
+
+      const result = await requestRerouteAroundHazard({
+        currentLat: 36.374,
+        currentLon: 127.382,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        hazardLat: 36.376,
+        hazardLon: 127.382,
+        hazardType: 'dog_danger',
+      });
+
+      expect(result.status).toBe('REROUTED');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/walk/reroute',
+        expect.objectContaining({
+          body: expect.stringContaining('"hazard_type":"dog_danger"'),
+        })
+      );
     });
   });
 

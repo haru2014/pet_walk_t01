@@ -187,7 +187,7 @@ export async function reportHazard(payload: HazardReportPayload): Promise<{ ok: 
         user_id: payload.userId ?? 'anonymous_user',
         lat: payload.lat,
         lon: payload.lon,
-        hazard_type: payload.hazardType === 'dog_danger' ? 'construction' : payload.hazardType,
+        hazard_type: payload.hazardType,
         severity: payload.severity,
         description: payload.description,
         photo_url: payload.photoUrl ?? null,
@@ -274,7 +274,7 @@ export function generateLocalDetourRoute(
  */
 export async function requestRerouteAroundHazard(payload: RerouteRequestPayload): Promise<RerouteResult> {
   const label = HAZARD_TYPE_LABELS[payload.hazardType ?? 'construction'];
-  const hazardTypeForBackend = payload.hazardType === 'dog_danger' ? 'construction' : (payload.hazardType ?? 'high_curb');
+  const hazardTypeForBackend = payload.hazardType ?? 'high_curb';
 
   try {
     const res = await fetchWithServerFallback('/api/v1/walk/reroute', {

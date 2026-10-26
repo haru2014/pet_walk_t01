@@ -153,7 +153,7 @@ function calculateWalkQuotient(
     return {
       score: 35,
       statusLabel: '고열 주의',
-      statusTitle: '한낮에는 길바닥이 매우 뜨거워요.',
+      statusTitle: '한낮에는 노면이 매우 뜨거워요.',
       badgeBg: '#FEE2E2',
       badgeColor: '#B91C1C',
       ringColor: '#EF4444',
@@ -304,19 +304,19 @@ function buildNoticeMessages(params: NoticeMessageParams): { subtitleText: strin
   }
   if (riskLevel === 'DANGER') {
     return {
-      subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃로 매우 뜨거워요. ${startDisplay} 이후 서늘한 시간에 산책해요.`,
+      subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃로 매우 뜨거워요. ${startDisplay} 이후 서늘한 시간에 산책해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ 고열 위험 · ${startDisplay} 권장`,
     };
   }
   if (riskLevel === 'CAUTION') {
     return {
-      subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃로 조금 높아요. 아스팔트 대신 그늘길을 추천해요.`,
+      subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃로 조금 높아요. 아스팔트 대신 그늘길을 추천해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ (그늘길 위주 20분 내 산책)`,
     };
   }
   return {
-    subtitleText: `길바닥 온도가 ${currentTemp.toFixed(1)}℃예요. 발바닥이 편안하게 걸을 수 있어요.`,
-    badgeNotice: customNotice ?? `현재 ${nowLabel} · 길바닥 ${currentTemp.toFixed(1)}℃ (산책하기 좋은 시간)`,
+    subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃예요. 발바닥이 편안하게 걸을 수 있어요.`,
+    badgeNotice: customNotice ?? `현재 ${nowLabel} · 노면 ${currentTemp.toFixed(1)}℃ (산책하기 좋은 시간)`,
   };
 }
 
@@ -511,7 +511,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               {/* 2. 발바닥 체감 지면온도 */}
               <View style={[styles.modalMetricCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={styles.modalMetricEmoji}>🔥</Text>
-                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>길바닥 체감 온도</Text>
+                <Text style={[styles.modalMetricTitle, { color: colors.textMuted }]}>노면 체감 온도</Text>
                 <Text style={[styles.modalMetricValue, { color: colors.textMain }]}>{roundedSurfaceTemp}°C</Text>
                 <Text style={[styles.modalMetricSub, { color: riskLevel === 'SAFE' ? '#059669' : '#B45309' }]}>
                   {surfaceSubText}
@@ -544,7 +544,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               <View style={[styles.modalSurfaceBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <View style={styles.modalSurfaceHeaderRow}>
                   <Text style={styles.modalSurfaceEmoji}>🐾</Text>
-                  <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>길 종류별 발바닥 온도 예상</Text>
+                  <Text style={[styles.modalSurfaceTitle, { color: colors.textMain }]}>노면 종류별 발바닥 온도 예상</Text>
                 </View>
                 <View style={styles.modalSurfaceGrid}>
                   <View style={styles.modalSurfaceItem}>
@@ -573,7 +573,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                     <Text style={styles.modalSurfaceTipText}>
                       {grassDiff > 0
                         ? `💡 아스팔트 대비 잔디밭이 약 ${grassDiff}℃ 더 시원해요!`
-                        : '💡 햇볕이 강하지 않아 길바닥이 시원하고 편안해요!'}
+                        : '💡 햇볕이 강하지 않아 노면이 시원하고 편안해요!'}
                     </Text>
                   </View>
                 )}
@@ -835,9 +835,9 @@ function renderSurfaceSummary(weather?: HeatRiskResponse | null): string {
   if (diff !== null) {
     diffNotice = diff > 0
       ? ` 아스팔트 대비 잔디밭이 약 ${diff}℃ 더 시원해요!`
-      : ' 직사광선이 없어 길바닥이 시원하고 편안해요!';
+      : ' 직사광선이 없어 노면이 시원하고 편안해요!';
   }
-  return `길 종류별 발바닥 온도 예상: 아스팔트 ${asphalt}, 흙 ${dirt}, 잔디 ${grass}.${diffNotice}`;
+  return `노면 종류별 발바닥 온도 예상: 아스팔트 ${asphalt}, 흙 ${dirt}, 잔디 ${grass}.${diffNotice}`;
 }
 
 const HiddenMetaArea: React.FC<HiddenMetaAreaProps> = ({
@@ -1006,7 +1006,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
   return (
     <View
       style={styles.container}
-      accessibilityLabel="산책하기 좋은 길바닥 온도 시간"
+      accessibilityLabel="산책하기 좋은 노면 온도 시간"
     >
       {/* 1. 상단 타이틀 영역 (반응형 헤더) */}
       <TopHeader colors={colors} responsive={responsive} />

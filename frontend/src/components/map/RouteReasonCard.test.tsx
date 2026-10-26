@@ -64,8 +64,8 @@ describe('RouteReasonCard (인포그래픽 카드 표시 검증)', () => {
     expect(html).toContain('길의 높낮이');
     expect(html).toContain('정보 없음');
     expect(html).toContain('길 높낮이를 아직 확인하지 못했어요');
-    expect(html).toContain('길 종류');
-    expect(html).toContain('산책길 종류를 아직 확인하지 못했어요');
+    expect(html).toContain('노면 종류');
+    expect(html).toContain('산책노면 종류를 아직 확인하지 못했어요');
     expect(html).not.toContain('0%');
     expect(html).not.toContain('평탄함');
     expect(html).not.toContain('undefined');

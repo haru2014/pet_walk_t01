@@ -412,7 +412,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 <Text style={[styles.previewNotice, { color: colors.textMuted }]}>
-                  🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길)
+                  🗺️ 안심 코스 미리보기 (초록: 완만길 · 파랑: 보통길)
                 </Text>
 
                 <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -421,35 +421,38 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                     stepPins={feedPins}
                     speedKmH={dogSpeedKmH}
                   />
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setModalFeed(feed)}
+                    style={[
+                      styles.mapExpandBtn,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="코스 지도 크게 보기"
+                  >
+                    <Text style={[styles.mapExpandIcon, { color: colors.textMain }]}>⤢</Text>
+                    <Text style={[styles.mapExpandText, { color: colors.textMain }]}>크게 보기</Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* 2번 방안 혼합: 바로 산책 시작 및 큰 화면 모달 버튼 */}
-                <View style={styles.actionButtonGroup}>
-                  {onStartCommunityWalk && (
+                {/* 하단 단일 Primary 산책 시작 버튼 (100% Full Width) */}
+                {onStartCommunityWalk && (
+                  <View style={styles.actionButtonGroup}>
                     <TouchableOpacity
-                      activeOpacity={0.8}
+                      activeOpacity={0.85}
                       onPress={() => handleStartWalkFromFeed(feed)}
                       style={[styles.startWalkButton, { paddingVertical: community.actionBtnPaddingV, backgroundColor: colors.primary }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="이 코스로 바로 산책 시작하기"
                     >
                       <Text style={[styles.startWalkButtonText, { color: colors.textWhite }]}>🐾 이 코스로 바로 산책 시작</Text>
                     </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setModalFeed(feed)}
-                    style={[
-                      styles.fullScreenButton,
-                      {
-                        paddingVertical: community.actionBtnPaddingV,
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        borderWidth: 1,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.fullScreenButtonText, { color: colors.textMain }]}>🔍 큰 화면으로 확인</Text>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                )}
               </View>
             )}
           </CardWrapper>
@@ -635,15 +638,48 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.border,
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    paddingVertical: 4,
+    position: 'relative',
   },
-  actionButtonGroup: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  mapExpandBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  mapExpandIcon: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  mapExpandText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  actionButtonGroup: { width: '100%', marginTop: 12 },
   startWalkButton: {
-    flex: 2,
+    width: '100%',
     backgroundColor: TOKENS.colors.primary,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: TOKENS.borderRadius.button,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   startWalkButtonText: { color: '#FFFFFF', fontSize: TYPOGRAPHY.button, fontWeight: '700' },
   fullScreenButton: {
