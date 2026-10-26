@@ -78,7 +78,7 @@ export const OSM_SURFACE_KOREAN_MAP: Record<string, string> = {
  */
 export function resolveSurfaceName(surfaceTag?: string | null): string {
   if (!surfaceTag || surfaceTag === 'unknown') {
-    return '길 종류 정보가 없어요';
+    return '노면 종류 정보가 없어요';
   }
   return OSM_SURFACE_KOREAN_MAP[surfaceTag.toLowerCase()] ?? surfaceTag;
 }
@@ -130,7 +130,7 @@ export function formatSlopeDisplay(
 
   if (isInvalidNumeric || isExplicitUnknown) {
     return {
-      text: '오르막·내리막 정보가 없어요',
+      text: '경사도 정보가 없어요',
       label: '길의 높낮이',
       valueText: '정보 없음',
       subText: '길 높낮이를 아직 확인하지 못했어요',
@@ -205,9 +205,9 @@ export function formatSurfaceDisplay(
     if (isFullyUnknown) {
       return {
         text: '길 정보가 없어요',
-        label: '길 종류',
+        label: '노면 종류',
         valueText: '정보 없음',
-        subText: '산책길 종류를 아직 확인하지 못했어요',
+        subText: '산책노면 종류를 아직 확인하지 못했어요',
         isUnknown: true,
         isPartial: false,
         knownRatio: 0,
@@ -263,9 +263,9 @@ export function formatSurfaceDisplay(
   if (isUnknownStr) {
     return {
       text: '길 정보가 없어요',
-      label: '길 종류',
+      label: '노면 종류',
       valueText: '정보 없음',
-      subText: '산책길 종류를 아직 확인하지 못했어요',
+      subText: '산책노면 종류를 아직 확인하지 못했어요',
       isUnknown: true,
       isPartial: false,
       knownRatio: null,

@@ -302,7 +302,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
             <Text style={styles.stepBadge}>Step 3. 산책 시작 위치 동의</Text>
             <Text style={styles.stepTitle}>안심 보행로 위치 권한 📍</Text>
             <Text style={styles.stepSubtitle}>
-              현재 위치의 길바닥 온도와 계단이 적은 산책길을 알려드려요.
+              현재 위치의 노면 온도와 계단이 적은 산책길을 알려드려요.
             </Text>
 
             <View style={styles.privacyBox}>

@@ -39,18 +39,18 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
     it('3) 경사도 미확인 상태 표시 (null, undefined, NaN, unknown)', () => {
       const nullResult = formatSlopeDisplay(null, null);
       expect(nullResult.isUnknown).toBe(true);
-      expect(nullResult.text).toBe('오르막·내리막 정보가 없어요');
+      expect(nullResult.text).toBe('경사도 정보가 없어요');
       expect(nullResult.valueText).toBe('정보 없음');
       expect(nullResult.label).toBe('길의 높낮이');
       expect(nullResult.numericValue).toBeNull();
 
       const nanResult = formatSlopeDisplay(NaN, 'dem');
       expect(nanResult.isUnknown).toBe(true);
-      expect(nanResult.text).toBe('오르막·내리막 정보가 없어요');
+      expect(nanResult.text).toBe('경사도 정보가 없어요');
 
       const explicitUnknown = formatSlopeDisplay(0, 'unknown');
       expect(explicitUnknown.isUnknown).toBe(true);
-      expect(explicitUnknown.text).toBe('오르막·내리막 정보가 없어요');
+      expect(explicitUnknown.text).toBe('경사도 정보가 없어요');
       expect(explicitUnknown.text).not.toContain('0%');
       expect(explicitUnknown.text).not.toContain('평탄함');
     });
@@ -68,7 +68,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
         expect(s.text).not.toContain('NaN');
         expect(s.text).not.toContain('0%');
         expect(s.text).not.toContain('평탄함');
-        expect(s.text).toBe('오르막·내리막 정보가 없어요');
+        expect(s.text).toBe('경사도 정보가 없어요');
       }
     });
   });
@@ -212,7 +212,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
 
       const slope = formatCourseSlope(emptyCourse);
       expect(slope.isUnknown).toBe(true);
-      expect(slope.text).toBe('오르막·내리막 정보가 없어요');
+      expect(slope.text).toBe('경사도 정보가 없어요');
 
       const surface = formatCourseSurface(emptyCourse);
       expect(surface.isUnknown).toBe(true);
@@ -227,8 +227,8 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       expect(resolveSurfaceName('asphalt')).toBe('아스팔트');
       expect(resolveSurfaceName('paved')).toBe('포장도로');
       expect(resolveSurfaceName('wood')).toBe('목재 데크');
-      expect(resolveSurfaceName('unknown')).toBe('길 종류 정보가 없어요');
-      expect(resolveSurfaceName(null)).toBe('길 종류 정보가 없어요');
+      expect(resolveSurfaceName('unknown')).toBe('노면 종류 정보가 없어요');
+      expect(resolveSurfaceName(null)).toBe('노면 종류 정보가 없어요');
     });
 
     it('dominantSurfaceType 추출 검증', () => {

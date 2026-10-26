@@ -121,7 +121,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
 
     // 크래시 없이 렌더링되고 progress는 0%
     expect(html).toContain('width:0%');
-    expect(html).toContain('산책하기 좋은 길바닥 온도 시간');
+    expect(html).toContain('산책하기 좋은 노면 온도 시간');
   });
 
   it('golden_time_window_day === "today"인 경우 정상적으로 당일 시간대로 표출되어야 한다', () => {
@@ -193,7 +193,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
     it('weather가 null이어도 오류 없이 안전하게 렌더링되어야 한다', () => {
       const html = renderToStaticMarkup(<GoldenTimeWidget weather={null} />);
 
-      expect(html).toContain('산책하기 좋은 길바닥 온도 시간');
+      expect(html).toContain('산책하기 좋은 노면 온도 시간');
       expect(html).not.toContain('Weather data by Open-Meteo.com');
     });
 
@@ -221,7 +221,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
 
       const html = renderToStaticMarkup(<GoldenTimeWidget weather={weatherWithSurface} />);
 
-      expect(html).toContain('길 종류별 발바닥 온도 예상');
+      expect(html).toContain('노면 종류별 발바닥 온도 예상');
       expect(html).toContain('아스팔트');
       expect(html).toContain('41°C');
       expect(html).toContain('흙');
@@ -268,7 +268,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
             statusLabel: '좋음',
             statusTitle: '산책하기 편한 시간이 있어요.',
           }}
-          subtitleText="길바닥 온도 22.1℃로 발바닥이 편안하고 안전해요."
+          subtitleText="노면 온도 22.1℃로 발바닥이 편안하고 안전해요."
           currentAirTemp={22.1}
           roundedSurfaceTemp={22.1}
           riskLevel="SAFE"
@@ -281,10 +281,10 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
         />
       );
 
-      expect(html).toContain('길 종류별 발바닥 온도 예상');
+      expect(html).toContain('노면 종류별 발바닥 온도 예상');
       expect(html).toContain('22.1°C');
       expect(html).toContain('🌱 시원·안전');
-      expect(html).toContain('햇볕이 강하지 않아 길바닥이 시원하고 편안해요!');
+      expect(html).toContain('햇볕이 강하지 않아 노면이 시원하고 편안해요!');
       expect(html).toContain('비 예보 · 우산 필수');
       // 22.1도인데 아스팔트에 '고열 주의'가 붙지 않아야 함
       expect(html).not.toContain('🔥 고열 주의');
@@ -371,7 +371,7 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
 
       expect(html).toContain('38');
       expect(html).toContain('✓ 강설 주의');
-    expect(html).toContain('눈 때문에 길이 미끄러워요');
+      expect(html).toContain('눈 때문에 길이 미끄러워요');
     });
   });
 });
