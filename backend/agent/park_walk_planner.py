@@ -6,6 +6,7 @@
 - 다른 순환로가 부족한 작은 공원은 같은 길의 반대 방향으로 채운다 (방향 표시로 구분된다)
 """
 import math
+import threading
 from typing import Any, Optional, Tuple
 
 import networkx as nx
@@ -21,6 +22,7 @@ MAX_LAP_REPEATS = 4
 SAME_PATH_TOLERANCE_M = 20.0  # 두 코스의 선이 이 거리 안에 붙어 있으면 같은 길로 본다 (나란한 보행로·잘게 쪼개진 간선 대비)
 _CANDIDATE_CACHE: dict = {}
 _CANDIDATE_CACHE_MAX = 256
+_CACHE_LOCK = threading.Lock()
 # cycle_basis 는 그래프의 "기본 순환"만 준다(송강 11개, 가장 긴 것 410m). 공원 바깥쪽을 크게 도는 길은
 # 기본 순환들을 합친 모양이라 후보에 들어오지 않아, 작은 공원은 공원 일부만 도는 짧은 코스가 나왔다.
 # 갈림길끼리 잇는 구간 그래프에서 단순 순환을 더 찾는다 (송강 591개 전부, 가장 긴 것 699m).
@@ -410,14 +412,15 @@ def plan_park_walk_candidates(
     # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
     start, approach = resolve_park_start(graph, park_id, (origin_lon, origin_lat))
     key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1))
-    cached = _CANDIDATE_CACHE.get(key)
-    if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
-        pool = cached[1]
-    else:
-        pool = _select_distinct(_compute_candidates(graph, start, target_distance_m), pool_size=10)
-        if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
-            _CANDIDATE_CACHE.clear()
-        _CANDIDATE_CACHE[key] = (graph, pool)
+    with _CACHE_LOCK:
+        cached = _CANDIDATE_CACHE.get(key)
+        if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
+            pool = list(cached[1])
+        else:
+            pool = _select_distinct(_compute_candidates(graph, start, target_distance_m), pool_size=10)
+            if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
+                _CANDIDATE_CACHE.clear()
+            _CANDIDATE_CACHE[key] = (graph, list(pool))
 
     while len(pool) < CANDIDATE_COUNT:
         pool.append(pool[0])

@@ -46,8 +46,28 @@ def _edge_tags(park_id: str) -> Dict[FrozenSet[Point], Dict[str, str]]:
     return edges
 
 
+_PROFILE_CACHE: dict = {}
+_PROFILE_CACHE_MAX = 256
+
+
 def measure_route_profile(coords: Sequence[Sequence[float]], park_id: Optional[str] = None) -> Dict[str, Any]:
     """경로 좌표열([경도, 위도] 목록)의 실측 지표. park_id 를 주면 그 공원 보행망 태그로 노면·계단을 계산한다."""
+    if len(coords) < 2:
+        source = elevation_source()
+        return {
+            "distance_m": 0.0, "max_slope_percent": 0.0, "avg_slope_percent": 0.0,
+            "slope_source": "dem" if source else "approximation",
+            "elevation_source": source["name"] if source else None,
+            "surface_breakdown": None, "surface_known_ratio": None, "soft_surface_ratio": None,
+            "stairs_count": None, "stairs_source": None, "shade_ratio": None, "shade_source": None,
+            "basis": f"park_network:{park_id}" if park_id else "no_osm_tags",
+        }
+
+    cache_key = (park_id, tuple((round(c[0], 6), round(c[1], 6)) for c in coords))
+    cached = _PROFILE_CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+
     source = elevation_source()
     profile: Dict[str, Any] = {
         "distance_m": 0.0, "max_slope_percent": 0.0, "avg_slope_percent": 0.0,
@@ -57,8 +77,6 @@ def measure_route_profile(coords: Sequence[Sequence[float]], park_id: Optional[s
         "stairs_count": None, "stairs_source": None, "shade_ratio": None, "shade_source": None,
         "basis": f"park_network:{park_id}" if park_id else "no_osm_tags",
     }
-    if len(coords) < 2:
-        return profile
 
     edges = _edge_tags(park_id) if park_id else {}
     total = weighted = max_slope = 0.0
@@ -96,4 +114,8 @@ def measure_route_profile(coords: Sequence[Sequence[float]], park_id: Optional[s
         shade = near_tree_ratio(coords)
         if shade is not None:
             profile.update(shade_ratio=shade, shade_source=LANDCOVER_SOURCE)
+
+    if len(_PROFILE_CACHE) >= _PROFILE_CACHE_MAX:
+        _PROFILE_CACHE.clear()
+    _PROFILE_CACHE[cache_key] = dict(profile)
     return profile

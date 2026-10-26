@@ -48,7 +48,7 @@ def count_route_steps(coords: Sequence[Sequence[float]]) -> Optional[int]:
     (south, west, north, east), lines, tree = loaded
     if not all(west <= c[0] <= east and south <= c[1] <= north for c in coords):
         return None
-    corridor = LineString(_project(coords)).buffer(ON_ROUTE_TOLERANCE_M)
+    corridor = LineString(_project(coords)).buffer(ON_ROUTE_TOLERANCE_M, quad_segs=2)
     count = 0
     for index in tree.query(corridor):
         step = lines[int(index)]
