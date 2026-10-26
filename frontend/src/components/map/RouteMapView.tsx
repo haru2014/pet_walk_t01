@@ -113,7 +113,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           styles.mapCanvas,
           fillContainer
             ? { width: '100%', height: '100%', flex: 1, borderRadius: 0 }
-            : { width: MAP_WIDTH, height: mapHeight },
+            : { width: '100%', maxWidth: MAP_WIDTH, height: mapHeight },
         ]}
       >
         <MapLibreMapView
@@ -224,10 +224,11 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'column', alignItems: 'center' },
+  container: { width: '100%', flexDirection: 'column', alignItems: 'center' },
   fillContainer: { flex: 1, width: '100%', height: '100%' },
   mapCanvas: {
-    width: MAP_WIDTH,
+    width: '100%',
+    maxWidth: MAP_WIDTH,
     height: MAP_HEIGHT,
     borderRadius: TOKENS.borderRadius.card,
     overflow: 'hidden',
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   floatingLegendBtn: {
     position: 'absolute',
     bottom: 26,
-    right: 12,
+    right: 28,
     zIndex: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   briefingText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', textAlign: 'center' },
-  summaryWrapper: { marginTop: 12, width: MAP_WIDTH },
+  summaryWrapper: { marginTop: 12, width: '100%', maxWidth: MAP_WIDTH },
   legendOverlayBackdrop: {
     position: 'absolute',
     top: 0,
