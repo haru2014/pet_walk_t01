@@ -238,6 +238,45 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(html).toContain('💡 산책로가 짧아 최대 약 60분 코스예요');
   });
 
+  it('lapInfo가 null이어도 notice가 주어지면 reason 블록에 💡 안내 문구가 함께 렌더링된다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 60,
+      environments: ['soft'],
+      requestText: '',
+    };
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+      {
+        id: 'c_test_no_lap',
+        name: '송강근린공원 코스',
+        distanceKm: '2.5 km',
+        estimatedMinutes: 45,
+        softRatio: '80%',
+        shadeLevel: '보통',
+        stairsCount: '계단 0개',
+        shadePercent: 50,
+        reason: '공원 순환로를 중심으로 구성된 추천 경로입니다.',
+        lapCount: 8,
+        lapCycleMeters: 450,
+        notice: '산책로가 짧아 최대 약 60분 코스예요',
+      },
+    ]);
+    vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce(null);
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('순환로(약 450m)를 8바퀴 반복하는 코스입니다.');
+    expect(html).toContain('💡 산책로가 짧아 최대 약 60분 코스예요');
+  });
+
   it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
     expect(formatCourseDisplayName('🏞️ 세종호수공원 내부 보행로 · 1안 반시계 방향 1.9km')).toBe(
       '🏞️ 세종호수공원 순환로 · 반시계 방향'
