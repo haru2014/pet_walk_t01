@@ -87,6 +87,8 @@ class LoopPlan:
     source: str
     lap_count: int = 1
     lap_cycle_m: Optional[float] = None
+    loop_entry: Optional[List[float]] = None
+    approach_m: Optional[float] = None
 
 
 def build_loop_waypoints(
@@ -245,6 +247,8 @@ def _to_plan(
     source: str,
     lap_count: int = 1,
     lap_cycle_m: Optional[float] = None,
+    loop_entry: Optional[List[float]] = None,
+    approach_m: Optional[float] = None,
 ) -> LoopPlan:
     return LoopPlan(
         coords=coords,
@@ -253,6 +257,8 @@ def _to_plan(
         source=source,
         lap_count=lap_count,
         lap_cycle_m=lap_cycle_m,
+        loop_entry=loop_entry,
+        approach_m=approach_m,
     )
 
 
@@ -273,7 +279,14 @@ def _plan_static_pilot_park(
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
     lap_count = getattr(coords, "lap_count", 1) or 1
     lap_cycle_m = getattr(coords, "lap_cycle_m", None)
-    return _to_plan(coords, f"park_graph_{park_key}", lap_count=lap_count, lap_cycle_m=lap_cycle_m)
+    return _to_plan(
+        coords,
+        f"park_graph_{park_key}",
+        lap_count=lap_count,
+        lap_cycle_m=lap_cycle_m,
+        loop_entry=getattr(coords, "loop_entry", None),
+        approach_m=getattr(coords, "approach_m", None),
+    )
 
 
 def _plan_static_seoul(

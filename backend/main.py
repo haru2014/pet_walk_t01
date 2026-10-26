@@ -379,6 +379,11 @@ def _build_candidate_course(cand: Any, score: Optional[float] = None, fallback_r
     direction = getattr(cand, "direction_label", None)
     if direction:
         course["differenceTag"] = direction
+    # 앱이 좌표를 되짚지 않고 순환 시작 핀·바퀴 요약을 그릴 수 있게 순환 진입점과 거기까지의 거리를 보낸다 (#263).
+    loop_entry = getattr(cand, "loop_entry", None)
+    if loop_entry:
+        course["loop_entry_point"] = list(loop_entry)
+        course["approach_distance_m"] = round(getattr(cand, "approach_m", None) or 0.0, 1)
     if profile:
         _apply_profile_to_course(course, profile)
     return course
