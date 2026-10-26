@@ -487,6 +487,24 @@ const CourseReasonAndLapSection: React.FC<CourseReasonAndLapSectionProps> = ({
   colors,
   courseRecommend,
 }) => {
+  const noticeCaption = currentCourse.notice ? (
+    <Text
+      numberOfLines={1}
+      ellipsizeMode="tail"
+      style={[
+        styles.reasonText,
+        {
+          color: lapInfo ? colors.primaryDark : colors.textMain,
+          fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
+          opacity: 0.9,
+          marginTop: lapInfo || currentCourse.reason ? 3 : 0,
+        },
+      ]}
+    >
+      {`💡 ${currentCourse.notice}`}
+    </Text>
+  ) : null;
+
   if (lapInfo) {
     return (
       <View
@@ -505,23 +523,7 @@ const CourseReasonAndLapSection: React.FC<CourseReasonAndLapSectionProps> = ({
         >
           {`🔄 ${formatCourseLapSummary(lapInfo)}`}
         </Text>
-        {currentCourse.notice ? (
-          <Text
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={[
-              styles.reasonText,
-              {
-                color: colors.primaryDark,
-                fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
-                opacity: 0.9,
-                marginTop: 3,
-              },
-            ]}
-          >
-            {`💡 ${currentCourse.notice}`}
-          </Text>
-        ) : null}
+        {noticeCaption}
       </View>
     );
   }
@@ -542,6 +544,15 @@ const CourseReasonAndLapSection: React.FC<CourseReasonAndLapSectionProps> = ({
         >
           💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name, currentCourse.lapCount, currentCourse.lapCycleMeters)}
         </Text>
+        {noticeCaption}
+      </View>
+    );
+  }
+
+  if (noticeCaption) {
+    return (
+      <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        {noticeCaption}
       </View>
     );
   }
