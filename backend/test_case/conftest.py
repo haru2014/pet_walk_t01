@@ -24,6 +24,15 @@ def _no_osrm_pacing(monkeypatch):
     monkeypatch.setattr(rnr, "OSRM_MIN_INTERVAL_S", 0.0)
 
 
+@pytest.fixture(autouse=True)
+def _clear_caches():
+    """테스트 간 캐시 격리: route_profile 캐시 초기화."""
+    from services.route_profile import clear_route_profile_cache
+    clear_route_profile_cache()
+    yield
+    clear_route_profile_cache()
+
+
 @pytest.fixture
 def sample_dog_profiles() -> Dict[str, Dict[str, Any]]:
     """5인 CBT 시나리오 테스터용 반려견 프로필 Fixture (Local-First AsyncStorage 호환)."""
