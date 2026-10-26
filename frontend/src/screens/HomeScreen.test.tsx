@@ -141,4 +141,22 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
 
     expect(html).toContain('알림');
   });
+
+  it('HomeNotificationModal 컴포넌트가 HomeScreen 내에 정상 배치되어 있다', () => {
+    const html = renderToStaticMarkup(
+      <HomeScreen
+        dog={mockDog}
+        dogs={DEFAULT_DOGS}
+        selectedDogId={mockDog.id}
+        onSelectDog={vi.fn()}
+        onAddDog={vi.fn()}
+        feedbackSummary={null}
+        onPressProfile={vi.fn()}
+        onStartWalk={vi.fn()}
+        onOpenPlanner={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('aria-label="알림"');
+  });
 });

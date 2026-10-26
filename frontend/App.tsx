@@ -671,7 +671,6 @@ export default function App() {
                       setMyProfileSubTab('walk_records');
                       setActiveTab('마이');
                     }}
-                    onOpenNotification={() => Alert.alert('알림', '새로운 산책 알림이 없습니다.')}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (

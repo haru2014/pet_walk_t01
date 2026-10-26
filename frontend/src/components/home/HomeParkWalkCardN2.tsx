@@ -38,6 +38,7 @@ export interface HomeParkWalkCardN2Props {
   distanceKm?: string;
   courseName?: string;
   userCoords?: { lon: number; lat: number } | null;
+  hasUnreadNotification?: boolean;
 }
 
 function resolveCardTextColor(isDark: boolean, theme: string, textMain: string): string {
@@ -66,6 +67,7 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
   distanceKm,
   courseName = '바로 산책하기',
   userCoords,
+  hasUnreadNotification = true,
 }) => {
   const { theme, colors } = useAppTheme();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -157,6 +159,14 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
               accessibilityRole="button"
             >
               <Image source={bellIconImg} style={styles.bellIcon} resizeMode="contain" />
+              {hasUnreadNotification && (
+                <View
+                  style={[
+                    styles.unreadDot,
+                    { backgroundColor: colors.accent ?? '#EF4444' },
+                  ]}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -279,6 +289,16 @@ const styles = StyleSheet.create({
   dogSwitchChevron: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', flexShrink: 0 },
   bellButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   bellIcon: { width: 42, height: 42 },
+  unreadDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
   mapFrame: { flex: 1, width: '100%', minHeight: 120, borderRadius: 18, overflow: 'hidden', backgroundColor: '#F5EFE0' },
   gpsLoadingContainer: {
     flex: 1,
