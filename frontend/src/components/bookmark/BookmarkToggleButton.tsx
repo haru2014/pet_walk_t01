@@ -1,3 +1,4 @@
+import { TYPOGRAPHY } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 안심 코스 즐겨찾기 토글 버튼 (US-29)
@@ -6,8 +7,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { useAppTheme } from '../../theme/themeManager';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { BookmarkService } from '../../services/bookmarkService';
 import { hapticLight, hapticSuccess } from '../../services/haptics';
@@ -15,9 +17,11 @@ import { AppIcon } from '../common/AppIcon';
 
 export interface BookmarkToggleButtonProps {
   readonly bookmark: BookmarkedRoute | null;
+  readonly style?: StyleProp<ViewStyle>;
 }
 
-export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ bookmark }) => {
+export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ bookmark, style }) => {
+  const { colors } = useAppTheme();
   const [saved, setSaved] = useState(false);
   const bookmarkId = bookmark?.id;
 
@@ -49,11 +53,30 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
       onPress={() => void handleToggle()}
       accessibilityRole="button"
       accessibilityLabel={isSaved ? '즐겨찾기 해제' : '즐겨찾기 저장'}
-      style={[styles.button, isSaved && styles.buttonSaved]}
+      style={[
+        styles.button,
+        {
+          borderColor: isSaved ? colors.primaryMint : colors.border,
+          backgroundColor: isSaved ? colors.primaryWash : colors.background,
+        },
+        style,
+      ]}
     >
       <View style={styles.content}>
-        <AppIcon name="heart" size={14} color={isSaved ? TOKENS.colors.primary : TOKENS.colors.textMuted} filled={isSaved} />
-        <Text style={[styles.text, isSaved && styles.textSaved]}>{isSaved ? '저장됨' : '찜하기'}</Text>
+        <AppIcon
+          name="heart"
+          size={14}
+          color={isSaved ? colors.primaryDark : colors.textMuted}
+          filled={isSaved}
+        />
+        <Text
+          style={[
+            styles.text,
+            { color: isSaved ? colors.primaryDark : colors.textMain },
+          ]}
+        >
+          {isSaved ? '저장됨' : '찜하기'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -61,15 +84,13 @@ export const BookmarkToggleButton: React.FC<BookmarkToggleButtonProps> = ({ book
 
 const styles = StyleSheet.create({
   button: {
+    height: 32,
     paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: TOKENS.colors.border,
-    backgroundColor: TOKENS.colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buttonSaved: { borderColor: TOKENS.colors.primaryMint, backgroundColor: TOKENS.colors.primaryLight },
-  text: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMuted },
-  textSaved: { color: TOKENS.colors.primaryDark },
+  text: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   content: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

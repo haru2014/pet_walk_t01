@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 from services import voice_intent_service as service
+from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from services.voice_intent_contract import VoiceWalkIntentPayload
 
 
@@ -24,8 +25,8 @@ def test_aliases_keep_existing_response_names():
 
 
 @pytest.mark.parametrize("values", [
-    {"duration_minutes": "30"}, {"duration_minutes": 100},
-    {"duration_minutes": 5}, {"prefer_shade": "false"},
+    {"duration_minutes": "30"}, {"duration_minutes": MAX_WALK_MINUTES + 1},  # 한도 초과 (한도: agent/walk_limits.py, 이슈 #125)
+    {"duration_minutes": MIN_WALK_MINUTES - 1}, {"prefer_shade": "false"},
 ])
 def test_invalid_contract_is_rejected(values):
     with pytest.raises(ValidationError):

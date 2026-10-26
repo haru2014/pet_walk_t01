@@ -10,14 +10,19 @@
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { prepareBackgroundSpeech, processBackgroundGuidancePoint } from './backgroundWalkGuidance';
 
 export const WALK_LOCATION_TASK = 'PETWALK_BACKGROUND_LOCATION';
+const WALK_TRACK_KEY = '@편안하개:active_walk_track';
 
 export interface GpsPoint {
   readonly latitude: number;
   readonly longitude: number;
   readonly timestamp: number;
   readonly speedMps: number | null;
+  readonly headingDeg?: number | null;
+  readonly accuracyM?: number | null;
 }
 
 export type TrackingMode = 'background' | 'foreground';
@@ -36,6 +41,44 @@ export interface CurrentLocationResult {
   readonly errorMessage?: string;
 }
 
+function getLocationErrorDetails(error: unknown): {
+  reason: NonNullable<CurrentLocationResult['reason']>;
+  errorMessage: string;
+} {
+  let message = '';
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  }
+
+  if (/GPS_TIMEOUT/i.test(message)) {
+    return {
+      reason: 'timeout',
+      errorMessage: 'GPS 신호 수신 시간이 초과되었습니다. 실외에서 다시 시도해 주세요.',
+    };
+  }
+
+  if (/location services? (?:are )?disabled|location provider (?:is )?unavailable|location is unavailable|current location is unavailable|unsatisfied device settings|cannot obtain current location/i.test(message)) {
+    return {
+      reason: 'service_disabled',
+      errorMessage: '기기의 위치 서비스를 사용할 수 없습니다. 위치 설정을 켜고 다시 시도해 주세요.',
+    };
+  }
+
+  if (/permission.*(?:required|denied)|not authorized/i.test(message)) {
+    return {
+      reason: 'permission_denied',
+      errorMessage: '위치 권한이 허용되지 않았습니다. 단말기 설정에서 위치 권한을 허용해 주세요.',
+    };
+  }
+
+  return {
+    reason: 'error',
+    errorMessage: '현재 위치를 확인할 수 없습니다. GPS와 위치 설정을 확인한 뒤 다시 시도해 주세요.',
+  };
+}
+
 type PointListener = (point: GpsPoint) => void;
 
 const buffer: GpsPoint[] = [];
@@ -48,14 +91,42 @@ function toGpsPoint(location: Location.LocationObject): GpsPoint {
     longitude: location.coords.longitude,
     timestamp: location.timestamp,
     speedMps: location.coords.speed ?? null,
+    headingDeg: location.coords.heading != null && location.coords.heading >= 0
+      ? location.coords.heading
+      : null,
+    accuracyM: location.coords.accuracy ?? null,
   };
 }
 
-function pushLocations(locations: readonly Location.LocationObject[]): void {
+let persistQueue: Promise<void> = Promise.resolve();
+
+function persistPoint(point: GpsPoint): void {
+  if (Platform.OS === 'web') return;
+  persistQueue = persistQueue.then(async () => {
+    const current = JSON.parse((await AsyncStorage.getItem(WALK_TRACK_KEY)) ?? '[]') as GpsPoint[];
+    current.push(point);
+    await AsyncStorage.setItem(WALK_TRACK_KEY, JSON.stringify(current));
+  }).catch((error) => {
+    console.warn('[locationService] GPS 좌표 영구 저장 실패:', error);
+  });
+}
+
+async function pushLocations(locations: readonly Location.LocationObject[]): Promise<void> {
+  const points: GpsPoint[] = [];
   for (const location of locations) {
     const point = toGpsPoint(location);
     buffer.push(point);
+    persistPoint(point);
     listeners.forEach((listener) => listener(point));
+    points.push(point);
+  }
+
+  // 화면 훅이 없는 headless TaskManager 실행에서도 회전 안내를 평가한다.
+  if (listeners.size === 0 && Platform.OS !== 'web') {
+    await points.reduce<Promise<void>>(
+      (chain, point) => chain.then(() => processBackgroundGuidancePoint(point)),
+      Promise.resolve()
+    );
   }
 }
 
@@ -65,8 +136,7 @@ TaskManager.defineTask(WALK_LOCATION_TASK, ({ data, error }) => {
     return Promise.resolve();
   }
   const { locations } = (data ?? { locations: [] }) as { locations: Location.LocationObject[] };
-  pushLocations(locations);
-  return Promise.resolve();
+  return pushLocations(locations);
 });
 
 const TRACKING_OPTIONS = {
@@ -110,7 +180,7 @@ function startWebSimulation(): void {
     },
     timestamp: Date.now(),
   };
-  pushLocations([initialLocation]);
+  void pushLocations([initialLocation]);
 
   webSimulationTimer = setInterval(() => {
     step += 1;
@@ -126,7 +196,7 @@ function startWebSimulation(): void {
       },
       timestamp: Date.now(),
     };
-    pushLocations([simulated]);
+    void pushLocations([simulated]);
   }, 3000);
 }
 
@@ -140,6 +210,8 @@ async function startForeground(): Promise<void> {
 export async function startWalkTracking(): Promise<StartTrackingResult> {
   try {
     buffer.length = 0;
+    persistQueue = Promise.resolve();
+    if (Platform.OS !== 'web') await AsyncStorage.setItem(WALK_TRACK_KEY, '[]');
 
     // 🌐 웹 브라우저 환경: 브라우저 위치 권한을 시도하되, GPS 하드웨어 부재나 권한 거부 시에도 웹 보행 세션으로 안전하게 시작
     if (Platform.OS === 'web') {
@@ -162,11 +234,11 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
 
     const background = await Location.requestBackgroundPermissionsAsync();
     if (background.status === 'granted') {
+      await prepareBackgroundSpeech();
       await startBackground();
       return { ok: true, mode: 'background' };
     }
-    await startForeground();
-    return { ok: true, mode: 'foreground' };
+    return { ok: false, reason: 'permission_denied' };
   } catch (error) {
     console.warn('[locationService] 추적 시작 실패:', error);
     if (Platform.OS === 'web') {
@@ -185,6 +257,7 @@ export async function stopWalkTracking(): Promise<void> {
   }
   foregroundSubscription?.remove();
   foregroundSubscription = null;
+  await persistQueue;
   try {
     if (Platform.OS !== 'web' && (await Location.hasStartedLocationUpdatesAsync(WALK_LOCATION_TASK))) {
       await Location.stopLocationUpdatesAsync(WALK_LOCATION_TASK);
@@ -192,6 +265,14 @@ export async function stopWalkTracking(): Promise<void> {
   } catch (error) {
     console.warn('[locationService] 추적 종료 실패:', error);
   }
+  if (Platform.OS !== 'web') {
+    try {
+      await AsyncStorage.removeItem(WALK_TRACK_KEY);
+    } catch (error) {
+      console.warn('[locationService] 임시 GPS 궤적 정리 실패:', error);
+    }
+  }
+  buffer.length = 0;
 }
 
 /**
@@ -227,6 +308,18 @@ export function subscribeToGps(listener: PointListener): () => void {
 /** 현재까지 수집된 궤적 사본 */
 export function getTrackBuffer(): readonly GpsPoint[] {
   return [...buffer];
+}
+
+/** 화면이 없는 동안 기록된 GPS 좌표까지 포함해 현재 산책 궤적을 반환한다. */
+export async function getPersistedTrackBuffer(): Promise<readonly GpsPoint[]> {
+  await persistQueue;
+  if (Platform.OS === 'web') return getTrackBuffer();
+  try {
+    const saved = JSON.parse((await AsyncStorage.getItem(WALK_TRACK_KEY)) ?? '[]') as GpsPoint[];
+    return saved.length >= buffer.length ? saved : getTrackBuffer();
+  } catch {
+    return getTrackBuffer();
+  }
 }
 
 /**
@@ -280,11 +373,17 @@ export async function getCurrentLocationCoords(timeoutMs = 5000): Promise<Curren
     const positionPromise = Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced ?? 3,
     });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('GPS_TIMEOUT')), timeoutMs)
-    );
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('GPS_TIMEOUT')), timeoutMs);
+    });
 
-    const loc = (await Promise.race([positionPromise, timeoutPromise])) as Location.LocationObject;
+    let loc: Location.LocationObject;
+    try {
+      loc = (await Promise.race([positionPromise, timeoutPromise])) as Location.LocationObject;
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
 
     return {
       ok: true,
@@ -294,19 +393,12 @@ export async function getCurrentLocationCoords(timeoutMs = 5000): Promise<Curren
         accuracy: loc.coords.accuracy,
       },
     };
-  } catch (err: any) {
-    if (err?.message === 'GPS_TIMEOUT') {
-      return {
-        ok: false,
-        reason: 'timeout',
-        errorMessage: 'GPS 신호 수신 시간이 초과되었습니다. 실외에서 다시 시도해 주세요.',
-      };
-    }
-    console.warn('[locationService] getCurrentLocationCoords 오류:', err);
+  } catch (error) {
+    console.warn('[locationService] getCurrentLocationCoords 오류:', error);
+    const details = getLocationErrorDetails(error);
     return {
       ok: false,
-      reason: 'error',
-      errorMessage: err?.message || '현재 위치를 확인할 수 없습니다.',
+      ...details,
     };
   }
 }

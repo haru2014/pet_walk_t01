@@ -8,9 +8,10 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { LonLat, RouteFeatureCollection, RouteStepPin } from '../../types/route';
-import { TOKENS } from '../../theme/tokens';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { GradientButton } from '../common/GradientButton';
 import { MapLibreMapView } from '../map/MapLibreMapView';
@@ -122,7 +123,7 @@ export const NearbyExploreMapView: React.FC<NearbyExploreMapViewProps> = ({
       <View style={styles.privacyNoticeBar}>
         <AppIcon name="map" size={14} color={TOKENS.colors.primaryDark} />
         <Text style={styles.privacyNoticeText}>
-          지도와 산책견 핀은 실제 위치가 아닌 데모 데이터입니다.
+          예시 지도예요. 실제 위치를 표시하지 않습니다.
         </Text>
       </View>
 
@@ -162,13 +163,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   briefingTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.sectionTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.3,
   },
   briefingDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
   },
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   privacyNoticeText: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
     flex: 1,

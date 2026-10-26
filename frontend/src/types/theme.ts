@@ -1,9 +1,9 @@
 /**
  * [편안하개 - PetWalk]
- * 멀티 테마 정의 (숲길 그린, 비비드 바이올렛(app_design1.jpg), 다크 포켓)
+ * 앱에서 선택할 수 있는 컬러 테마 정의
  */
 
-export type ThemeId = 'dusty_amber' | 'forest' | 'vivid_violet' | 'dark';
+export type ThemeId = 'dusty_amber' | 'forest' | 'vivid_violet' | 'dark' | 'ocean' | 'coral';
 
 export interface ThemeMeta {
   readonly id: ThemeId;
@@ -19,11 +19,11 @@ export const THEME_LIST: readonly ThemeMeta[] = [
   {
     id: 'dusty_amber',
     name: '더스티 앰버 & 세이지 그린',
-    description: '디자인 시안 02번: 따뜻하고 자연 친화적인 세이지 그린 & 앰버 테마',
+    description: '따뜻하고 자연 친화적인 세이지 그린과 앰버 테마',
     previewPrimary: '#5A7361',
     previewBackground: '#F5EFE0',
     previewAccent: '#CFA052',
-    badgeText: '디자인 02번',
+    badgeText: '앰버 & 세이지',
   },
   {
     id: 'forest',
@@ -32,16 +32,16 @@ export const THEME_LIST: readonly ThemeMeta[] = [
     previewPrimary: '#10B981',
     previewBackground: '#F8FAF9',
     previewAccent: '#F59E0B',
-    badgeText: '기본 숲길',
+    badgeText: '숲길',
   },
   {
     id: 'vivid_violet',
     name: '비비드 바이올렛',
-    description: '생동감 넘치는 보라 & 네온 옐로우 지지(zlzl) 디자인',
+    description: '생동감 있는 보라색과 밝은 노란색 테마',
     previewPrimary: '#7C3AED',
     previewBackground: '#F5F3FF',
     previewAccent: '#FACC15',
-    badgeText: 'app_design1',
+    badgeText: '바이올렛',
   },
   {
     id: 'dark',
@@ -50,6 +50,24 @@ export const THEME_LIST: readonly ThemeMeta[] = [
     previewPrimary: '#34D399',
     previewBackground: '#0F172A',
     previewAccent: '#38BDF8',
-    badgeText: '야간 다크',
+    badgeText: '야간',
+  },
+  {
+    id: 'ocean',
+    name: '바다',
+    description: '시원하고 차분한 블루 오션 테마',
+    previewPrimary: '#2563EB',
+    previewBackground: '#EFF6FF',
+    previewAccent: '#0EA5E9',
+    badgeText: '바다',
+  },
+  {
+    id: 'coral',
+    name: '코랄',
+    description: '따뜻하고 생기 있는 코랄 테마',
+    previewPrimary: '#F97316',
+    previewBackground: '#FFF7ED',
+    previewAccent: '#FB923C',
+    badgeText: '코랄',
   },
 ];

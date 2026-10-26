@@ -24,20 +24,14 @@ logger = logging.getLogger(__name__)
 # 대전·세종 4대 거점 공원 랜드마크 매핑 테이블 (송강공원, 세종호수공원, 도안호수공원(갑천생태공원), 유림공원)
 LANDMARK_TO_PARK_ID = {
     "유림공원": "yurim",
-    "유림": "yurim",
-    "갑천": "yurim",
     "세종호수공원": "sejong",
-    "세종호수": "sejong",
-    "호수공원": "sejong",
     "송강공원": "songgang",
     "송강근린공원": "songgang",
-    "송강": "songgang",
     "도안공원": "doan",
     "도안호수공원": "doan",
     "갑천생태공원": "doan",
     "갑천생태호수공원": "doan",
     "도안호수공원(갑천생태공원)": "doan",
-    "도안": "doan",
 }
 
 DEFAULT_GEMINI_CANDIDATES = [
@@ -57,14 +51,11 @@ GEMINI_BUDGET_MS = 2400
 
 
 def resolve_landmark_park_id(landmark: Optional[str]) -> Optional[str]:
-    """자연어 발화에서 추출된 랜드마크 명칭을 4대 거점 공원 ID로 정규화."""
+    """명시적인 공원 이름만 4대 거점 공원 ID로 정규화한다."""
     if not landmark:
         return None
     cleaned = landmark.strip()
-    named_park = re.search(r"([가-힣A-Za-z]+공원)", cleaned)
-    if named_park:
-        return LANDMARK_TO_PARK_ID.get(named_park.group(1))
-    for key in sorted(LANDMARK_TO_PARK_ID.keys(), key=len, reverse=True):
+    for key in sorted(LANDMARK_TO_PARK_ID, key=len, reverse=True):
         if key in cleaned:
             return LANDMARK_TO_PARK_ID[key]
     return None
@@ -84,12 +75,14 @@ def _extract_duration(text: str) -> int:
 
 
 def _extract_destination(text: str) -> Optional[str]:
-    named_park = re.search(r"([가-힣A-Za-z]+공원)(?:에서|으로|에|을|를|\s|$)", text)
+    named_park = re.search(
+        r"([가-힣A-Za-z]+공원)(?=$|[\s,!?()\.]|에서|으로|에|을|를|가|은|는|도|만|랑|이랑|까지|근처)",
+        text,
+    )
     if named_park:
-        return named_park.group(1)
-    for key in sorted(LANDMARK_TO_PARK_ID.keys(), key=len, reverse=True):
-        if key in text:
-            return key if "공원" in key else f"{key}공원"
+        candidate = named_park.group(1)
+        if candidate != "호수공원":
+            return candidate
     return None
 
 
@@ -139,7 +132,7 @@ def _build_system_prompt(dog_name: Optional[str]) -> str:
 3. 대상 반려견 이름: {name}
 
 [추출 규칙]
-- target_duration_minutes: 10~90분 사이 정수 (미언급 시 30)
+- target_duration_minutes: 10~120분 사이 정수 (미언급 시 30)
 - prefer_shade: 그늘길/시원한 길 선호 여부 (날씨가 덥거나 그늘 요청 시 true)
 - prefer_cushion: 흙길/잔디/폭신한 길 선호 여부 (기본 true)
 - avoid_stairs: 계단 회피 여부 (기본 true)
@@ -206,6 +199,8 @@ def parse_voice_walk_intent(
                 if response and response.text:
                     parsed_dict = json.loads(response.text)
                     payload = VoiceWalkIntentPayload(**parsed_dict)
+                    # Gemini 결과는 발화 원문에 명시된 공원 명칭으로 제한한다.
+                    payload.destination_landmark = _extract_destination(cleaned_text)
                     return payload, model_name, "gemini_live"
             except Exception as model_err:
                 logger.warning("Gemini 모델 %s 호출 실패 (%s), 다음 후보 모델 시도", model_name, type(model_err).__name__)

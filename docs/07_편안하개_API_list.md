@@ -1,8 +1,10 @@
 # 🐾 [편안하개 - PetWalk] 전체 API 정의 및 구현 현황 목록 (API Specification & Status)
 
-> **문서 번호**: docs/07_편한하개_API_list.md  
-> **최종 갱신 일자**: 2026년 10월 18일  
-> **문서 버전**: v1.4 (기상청·에어코리아 실시간 지면열·대기질 캐시 최적화, 타임아웃 캡, 프론트엔드 15초 상향 및 507/269 테스트 통과 반영판)  
+> **2026-10-25 코드 기준 보완:** 이 문서는 기존 API 예시와 당시 구현·테스트 기록을 보존합니다. 현행 라우트 목록은 [현재 코드 기준 상태 보고서](reports/2026-10-25_현재_코드_기준_상태.md)의 요약 표를, 실제 요청 필드와 응답 DTO는 `backend/main.py` 및 `backend/agent/` 구현을 기준으로 확인하세요. 본 갱신에서는 API 테스트를 실행하지 않았습니다.
+
+> **문서 번호**: ~~docs/07_편한하개_API_list.md~~ `docs/07_편안하개_API_list.md`
+> **기존 최종 갱신 일자**: ~~2026년 10월 18일~~ (아래 2026-10-25 코드 기준 보완 참조)
+> **기존 문서 버전**: ~~v1.4 (기상청·에어코리아 실시간 지면열·대기질 캐시 최적화, 타임아웃 캡, 프론트엔드 15초 상향 및 507/269 테스트 통과 반영판)~~
 > **기준 코드베이스**:
 > - 백엔드 엔트리포인트: [`backend/main.py`](/backend/main.py)
 > - 백엔드 서비스: [`backend/services/kma_weather_client.py`](/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](/backend/services/kma_grid_converter.py), [`backend/services/weather_context.py`](/backend/services/weather_context.py), [`backend/services/airkorea_client.py`](/backend/services/airkorea_client.py)
@@ -91,6 +93,21 @@ flowchart TB
 | **15** | `POST/GET`| `/api/v1/dogs/me` | 내 반려견 프로필 관리 | US-G2, US-A2 | ➖ 서버 API 미작성 (앱이 Supabase에 직접 저장, RLS로 보호) | 3번 노희선 | 4번 김승현 |
 | **16** | `POST/GET`| `/api/v1/walks` & `/walks/me` | 산책 완주 기록 & 내 목록 | US-G2, Phase 5 | ➖ 서버 API 미작성 (앱이 Supabase에 직접 저장, RLS로 보호) | 3번 노희선 | 4번 김승현 |
 
+### 2.1 2026-10-25 코드 기준 추가·갱신 사항
+
+아래는 `backend/main.py`의 라우트 등록 기준입니다. 표의 기존 과거 구현 상태를 삭제하지 않고 보존하며, 현재 코드에 존재하는 경로를 추가로 기록합니다. 요청/응답 상세는 아래 도메인 명세와 백엔드 DTO를 기준으로 합니다.
+
+| Method | 코드에 등록된 경로 | 기능 |
+|---|---|---|
+| `GET` | `/health/walk-share` | 산책 기록 공유 상태 확인 |
+| `POST` | `/api/v1/voice/transcribe`, `/api/v1/voice/tts`, `/api/v1/voice/intent` | 음성 전사, TTS, 음성 의도 분석 |
+| `POST` | `/api/v1/walk/forward-safety` | 산책 중 전방 안전 정보 확인 |
+| `POST` | `/api/v1/walks/{walk_id}/share`, `/api/v1/walks/{walk_id}/unshare` | 산책 기록 공개 및 공개 해제 |
+
+`POST /api/v1/walk/plan` 요청은 `regenerate_nonce`로 재생성 회차를 전달할 수 있습니다. 공원 모드 구현은 1번 추천을 유지하고 2·3번 대안에서 이전 경로와 겹침이 50% 미만인 후보를 우선하며, 부족할 때 반대 방향·다른 후보로 보충합니다. 후보 풀의 실제 구성에 따라 이전 코스와 비슷한 거리·시간이 나올 수 있으며, 이 필드는 거리 차이를 일정 폭으로 보장하지 않습니다.
+
+인증 경로는 구분해서 봐야 합니다. `/api/v1/community/share`는 요청 본문의 `user_id`를 피드에 저장하지만 로그인 토큰으로 이를 검증하지 않습니다. `/api/v1/walks/{walk_id}/share`와 `/unshare`는 Bearer 토큰을 확인하고, 본인 산책 기록인지 검증하는 별도 경로입니다.
+
 ---
 
 ## 🔍 3. 도메인별 상세 API 명세
@@ -125,6 +142,7 @@ flowchart TB
   "speed_kmh": 2.8,
   "joint_care_level": 1,
   "target_duration_minutes": 30,
+  "regenerate_nonce": 0,
   "avoid_stairs": true,
   "prefer_shade": true,
   "prefer_cushion": true,

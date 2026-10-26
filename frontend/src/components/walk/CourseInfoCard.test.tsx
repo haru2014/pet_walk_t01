@@ -111,7 +111,7 @@ describe('CourseInfoCard (노면 및 경사도 표시 검증)', () => {
     );
 
     expect(html).toContain('세종호수 은빛해변길');
-    expect(html).toContain('AI 맞춤 93점');
+    expect(html).toContain('맞춤 점수 93점');
     expect(html).toContain('은빛해변 광폭 보행데크 중심의 계단 0개 평지 코스예요');
   });
 
@@ -136,5 +136,31 @@ describe('CourseInfoCard (노면 및 경사도 표시 검증)', () => {
 
     expect(html).toContain('도안 안심 산책길');
     expect(html).toContain('확인된 계단 0회');
+  });
+
+  it('그늘 단계와 계단 횟수가 없으면 각각 정보 없음으로 표시한다 (Issue #144)', () => {
+    const unknownCourse: RecommendedCourse = {
+      id: 'c5',
+      name: '실측 정보가 없는 코스',
+      distanceKm: '2.0 km',
+      estimatedMinutes: 30,
+      softRatio: '정보 없음',
+      shadeLevel: null,
+      stairsCount: '정보 없음',
+      maxSlopePercent: 1.5,
+      shadePercent: null,
+      softSurfacePercent: null,
+      reason: '테스트',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseInfoCard course={unknownCourse} summary={mockSummary} rank={1} bookmark={null} />
+    );
+
+    expect(html).toContain('그늘 구간');
+    expect(html).toContain('계단');
+    expect(html.match(/정보 없음/g)).toHaveLength(3);
+    expect(html).not.toContain('null');
+    expect(html).not.toContain('undefined');
   });
 });

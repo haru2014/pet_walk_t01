@@ -78,7 +78,7 @@ export const OSM_SURFACE_KOREAN_MAP: Record<string, string> = {
  */
 export function resolveSurfaceName(surfaceTag?: string | null): string {
   if (!surfaceTag || surfaceTag === 'unknown') {
-    return '노면 정보 없음';
+    return '노면 종류 정보가 없어요';
   }
   return OSM_SURFACE_KOREAN_MAP[surfaceTag.toLowerCase()] ?? surfaceTag;
 }
@@ -130,10 +130,10 @@ export function formatSlopeDisplay(
 
   if (isInvalidNumeric || isExplicitUnknown) {
     return {
-      text: '경사도 정보 없음',
-      label: '경사도',
+      text: '경사도 정보가 없어요',
+      label: '길의 높낮이',
       valueText: '정보 없음',
-      subText: '고도 데이터 확인 불가',
+      subText: '길 높낮이를 아직 확인하지 못했어요',
       source: 'unknown',
       isUnknown: true,
       isApproximation: false,
@@ -146,13 +146,13 @@ export function formatSlopeDisplay(
 
   if (isApprox) {
     const text = options?.verbose
-      ? `예상 경사도 약 ${rounded}%`
+      ? `예상 오르막 약 ${rounded}%`
       : `예상 약 ${rounded}%`;
     return {
       text,
-      label: '예상 경사도',
+      label: '예상 오르막',
       valueText: `약 ${rounded}%`,
-      subText: '지형 모델 기반 근사 계산',
+      subText: '주변 지형을 바탕으로 예상했어요',
       source: 'approximation',
       isUnknown: false,
       isApproximation: true,
@@ -165,9 +165,9 @@ export function formatSlopeDisplay(
 
   return {
     text,
-    label: '완만한 경사',
+    label: '오르막 경사',
     valueText: `최대 ${rounded}%`,
-    subText: 'DEM 고도 데이터 기준',
+    subText: '지도에 표시된 높낮이를 기준으로 했어요',
     source: 'dem',
     isUnknown: false,
     isApproximation: false,
@@ -204,10 +204,10 @@ export function formatSurfaceDisplay(
 
     if (isFullyUnknown) {
       return {
-        text: '노면 정보 없음',
-        label: '노면 정보',
+        text: '길 정보가 없어요',
+        label: '노면 종류',
         valueText: '정보 없음',
-        subText: '보행로 노면 태그 없음',
+        subText: '산책노면 종류를 아직 확인하지 못했어요',
         isUnknown: true,
         isPartial: false,
         knownRatio: 0,
@@ -224,9 +224,9 @@ export function formatSurfaceDisplay(
     if (knownRatio < 0.9) {
       return {
         text: `${softPercent}% (확인 ${knownPercent}%)`,
-        label: '폭신한 노면',
+        label: '폭신한 길',
         valueText: `${softPercent}%`,
-        subText: `확인 구간(${knownPercent}%) 기준`,
+        subText: `정보가 있는 길(${knownPercent}%) 기준`,
         isUnknown: false,
         isPartial: true,
         knownRatio,
@@ -239,7 +239,7 @@ export function formatSurfaceDisplay(
     const subText = dominant ? `${dominant} 등 발바닥 안심` : '흙길·잔디로 발바닥 안심';
     return {
       text: `${softPercent}%`,
-      label: '폭신한 노면',
+      label: '폭신한 길',
       valueText: `${softPercent}%`,
       subText,
       isUnknown: false,
@@ -262,10 +262,10 @@ export function formatSurfaceDisplay(
 
   if (isUnknownStr) {
     return {
-      text: '노면 정보 없음',
-      label: '노면 정보',
+      text: '길 정보가 없어요',
+      label: '노면 종류',
       valueText: '정보 없음',
-      subText: '보행로 노면 태그 없음',
+      subText: '산책노면 종류를 아직 확인하지 못했어요',
       isUnknown: true,
       isPartial: false,
       knownRatio: null,
@@ -276,7 +276,7 @@ export function formatSurfaceDisplay(
 
   return {
     text: rawStr,
-    label: '폭신한 노면',
+    label: '폭신한 길',
     valueText: rawStr,
     subText: '흙길·잔디로 발바닥 안심',
     isUnknown: false,

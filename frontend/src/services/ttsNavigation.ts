@@ -7,6 +7,7 @@
 
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
+import { setAudioModeAsync } from 'expo-audio';
 import {
   DEFAULT_SOUND_SETTINGS,
   SoundSettings,
@@ -22,6 +23,7 @@ interface QueuedUtterance {
   readonly message: string;
   readonly profileId?: VoiceProfileId;
   readonly priority: SpeakPriority;
+  readonly category?: 'turn';
 }
 
 /** 대기열 최대 길이: 오래된 일반 안내는 버려 지나간 안내가 뒤늦게 나오지 않게 한다. */
@@ -39,6 +41,21 @@ export class TTSNavigationService {
   private static isBusy = false;
   private static utteranceId = 0;
   private static watchdog: ReturnType<typeof setTimeout> | null = null;
+
+  /** 잠금 화면에서 expo-speech가 앱 오디오 세션을 사용하도록 준비한다. */
+  static async prepareForBackgroundSpeech(): Promise<void> {
+    try {
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        allowsRecording: false,
+        shouldPlayInBackground: true,
+        shouldRouteThroughEarpiece: false,
+      });
+    } catch (error) {
+      console.warn('[TTSNavigationService] 백그라운드 오디오 설정 실패:', error);
+    }
+  }
 
   /** 기기에 설치된 TTS 보이스 목록을 비동기 조회하여 캐싱한다. */
   static async loadAvailableVoices(): Promise<Speech.Voice[]> {
@@ -226,7 +243,7 @@ export class TTSNavigationService {
       self.queue = [];
       self.utteranceId += 1; // 이전 발화의 콜백 무효화
       self.clearWatchdog();
-      void Speech.stop().catch(() => {});
+      void self.stopCurrentOutput();
       self.utter({ message, profileId: overrideProfileId, priority });
       return;
     }
@@ -237,6 +254,17 @@ export class TTSNavigationService {
     else self.queue.push(item);
     self.trimQueue();
 
+    if (!self.isBusy) self.playNext();
+  }
+
+  /** 대기 중인 이전 회전 지시는 버리고 최신 회전 안내만 유지한다. */
+  static speakTurn(message: string): void {
+    const self = TTSNavigationService;
+    if (self.settings.isMuted || self.settings.volume <= 0 || self.isBarkMuted) return;
+    if (self.queue.some((item) => item.category === 'turn' && item.message === message)) return;
+    self.queue = self.queue.filter((item) => item.category !== 'turn');
+    self.queue.push({ message, priority: 'normal', category: 'turn' });
+    self.trimQueue();
     if (!self.isBusy) self.playNext();
   }
 
@@ -254,6 +282,12 @@ export class TTSNavigationService {
       clearTimeout(self.watchdog);
       self.watchdog = null;
     }
+  }
+
+  /** 재생이 시작된 뒤에만 문장 길이에 따른 완료 안전 타이머를 적용한다. */
+  private static startPlaybackWatchdog(message: string, finish: () => void): void {
+    this.clearWatchdog();
+    this.watchdog = setTimeout(finish, Math.min(45000, 8000 + message.length * 500));
   }
 
   private static playNext(): void {
@@ -290,6 +324,8 @@ export class TTSNavigationService {
       pitch: profile.pitch,
       rate: profile.rate,
       volume: self.settings.volume,
+      // iOS AVSpeechSynthesizer가 expo-audio에서 활성화한 앱 오디오 세션을 사용한다.
+      useApplicationAudioSession: true,
       ...(matchedVoice ? { voice: matchedVoice } : {}),
       onStart: () => {
         self.isSpeaking = true;
@@ -306,18 +342,25 @@ export class TTSNavigationService {
       },
     };
 
-    // 종료 콜백이 오지 않는 환경에서도 대기열이 멈추지 않도록 문장 길이 기반 안전 타이머를 둔다.
+    // 재생 시작 직후 안전 타이머를 설정해 완료 콜백이 누락되어도 큐가 멈추지 않게 한다.
     self.clearWatchdog();
-    self.watchdog = setTimeout(finish, Math.min(20000, 3000 + message.length * 350));
-
+    self.startPlaybackWatchdog(message, finish);
     try {
       Speech.speak(message, speechOptions);
-    } catch (e) {
-      if (Platform.OS !== 'web') {
-        console.warn('[TTSNavigationService] TTS 미지원 환경:', e);
-      }
+    } catch (error) {
+      if (Platform.OS !== 'web') console.warn('[TTSNavigationService] TTS 미지원 환경:', error);
       finish();
     }
+  }
+
+  private static async stopCurrentOutput(): Promise<void> {
+    let speechStop: Promise<void>;
+    try {
+      speechStop = Speech.stop();
+    } catch {
+      speechStop = Promise.resolve();
+    }
+    await speechStop.catch(() => {});
   }
 
   /** 진행 중인 발화를 멈추고 대기열을 비운다. */
@@ -327,11 +370,7 @@ export class TTSNavigationService {
     self.isBusy = false;
     self.utteranceId += 1;
     self.clearWatchdog();
-    try {
-      await Speech.stop();
-    } catch {
-      // 정지 실패는 무시
-    }
+    await self.stopCurrentOutput();
     self.isSpeaking = false;
   }
 

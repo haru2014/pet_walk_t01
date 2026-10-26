@@ -5,12 +5,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { DogProfile, DEFAULT_DOGS } from '../types/dogProfile';
-import { WalkPreferences } from '../types/walkSettings';
+import { DEFAULT_RECOMMENDED_COURSES, WalkPreferences } from '../types/walkSettings';
 import {
   generateAdaptiveCourses,
   generateAdaptiveBriefing,
   buildAdaptiveConditionLabels,
   extractCourseScore,
+  calculateAdaptiveCourseScore,
 } from './courseAdaptivePlanner';
 
 const TEST_DOG: DogProfile = {
@@ -37,13 +38,13 @@ describe('courseAdaptivePlanner', () => {
     expect(courses[0].distanceKm).toBe('0.9 km');
     expect(courses[0].reason).toContain('20분');
 
-    // 코스 2 (약 90% 가벼운 순환)
-    expect(courses[1].estimatedMinutes).toBe(18);
+    // 코스 2 (약 -15% 가벼운 순환: 20 * 0.85 = 17분)
+    expect(courses[1].estimatedMinutes).toBe(17);
     expect(courses[1].distanceKm).toBe('0.8 km');
 
-    // 코스 3 (약 110% 여유 순환)
-    expect(courses[2].estimatedMinutes).toBe(22);
-    expect(courses[2].distanceKm).toBe('1.0 km');
+    // 코스 3 (약 +15% 여유 순환: 20 * 1.15 = 23분)
+    expect(courses[2].estimatedMinutes).toBe(23);
+    expect(courses[2].distanceKm).toBe('1.1 km');
   });
 
   it('사용자가 60분을 선택했을 때 1시간 분량의 코스가 산출되어야 한다', () => {
@@ -153,7 +154,7 @@ describe('courseAdaptivePlanner', () => {
       // 모든 코스에 score가 매겨져 있고 reason에 AI 맞춤 점수가 포함되어야 함
       healthyCourses.forEach((c) => {
         expect(c.score).toBeDefined();
-        expect(c.reason).toContain('AI 맞춤 점수');
+        expect(c.reason).toContain('맞춤 점수');
       });
 
       // 경사 상한이 엄격한 노령견(상한 4%)은 경사가 있는 코스(Residential 3.2%, Park 2.8%)에서 감점 기준이 더 엄격함
@@ -202,6 +203,44 @@ describe('courseAdaptivePlanner', () => {
       // score 필드가 없더라도 reason 문자열에서 안전하게 파싱
       const noScoreField = { ...testCourse, score: undefined };
       expect(extractCourseScore(noScoreField)).toBe(94);
+    });
+
+    it('그늘 자료가 없는 코스도 유효한 중립 점수로 평가한다', () => {
+      const unknownShadeCourse = {
+        ...DEFAULT_RECOMMENDED_COURSES[0],
+        shadeLevel: null,
+        shadePercent: null,
+      };
+
+      const score = calculateAdaptiveCourseScore(unknownShadeCourse, TEST_DOG, {
+        durationMinutes: 30,
+        environments: ['shade'],
+        requestText: '',
+      });
+
+      expect(Number.isFinite(score)).toBe(true);
+    });
+
+    it('재생성 시(regenerateNonce > 0) 1위 추천 코스는 유지하고 2·3위 대안 코스는 기존과 다른 코스로 제공해야 한다', () => {
+      const prefs: WalkPreferences = {
+        durationMinutes: 30,
+        environments: ['soft', 'shade'],
+        requestText: '',
+      };
+
+      const initialCourses = generateAdaptiveCourses(TEST_DOG, prefs, null, 0);
+      const regeneratedCourses1 = generateAdaptiveCourses(TEST_DOG, prefs, null, 1);
+      const regeneratedCourses2 = generateAdaptiveCourses(TEST_DOG, prefs, null, 2);
+
+      // 1위 추천 코스는 동일하게 유지
+      expect(regeneratedCourses1[0].id).toBe(initialCourses[0].id);
+      expect(regeneratedCourses2[0].id).toBe(initialCourses[0].id);
+
+      // 2번, 3번 대안 코스는 기존 2·3번과 중복/유사하지 않은 새로운 경로
+      expect(regeneratedCourses1[1].id).not.toBe(initialCourses[1].id);
+      expect(regeneratedCourses1[2].id).not.toBe(initialCourses[2].id);
+      expect(regeneratedCourses2[1].id).not.toBe(regeneratedCourses1[1].id);
+      expect(regeneratedCourses2[2].id).not.toBe(regeneratedCourses1[2].id);
     });
   });
 });

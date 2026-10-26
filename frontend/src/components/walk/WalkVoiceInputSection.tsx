@@ -2,29 +2,20 @@
  * [편안하개 - PetWalk]
  * 자연어 및 음성 발화 산책 조건 입력 섹션 컴포넌트 (US-A1, 영역 1 & 2)
  *
- * docs/implementation_plan/gemini_api_적용_계획.md:
- * - 웹 표준 Web Speech API (SpeechRecognition / webkitSpeechRecognition) 실시간 한국어 음성 인식
- * - 음성 텍스트 획득 즉시 Gemini API (POST /api/v1/voice/intent) 구조화 의도 분석
- * - STT 미지원 환경 시 원터치 음성 예시 시나리오 모달 제공
- * - 분석 결과(시간, 그늘, 흙길, 계단, 거점 랜드마크) 시각 뱃지 피드백 및 상위 폼 자동 반영
+ * - expo-audio 녹음과 Gemini Transcribe 음성 텍스트 변환
+ * - 산책 조건 해석과 화면 반영은 프론트엔드 규칙 엔진에서 처리
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Modal,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Platform, View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { TTSNavigationService } from '../../services/ttsNavigation';
-import { createVoiceTranscriptHandlers } from '../../services/voiceTranscript';
 import {
-  analyzeVoiceIntent,
+  extractLocalVoiceIntent,
+  transcribeVoiceCommand,
   VoiceIntentResult,
 } from '../../services/voiceIntentApi';
 
@@ -44,110 +35,118 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
   requestText,
   onChangeText,
   onIntentParsed,
-  coords,
   onFindRouteDirectly,
   hideResultBadge = false,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<VoiceIntentResult | null>(null);
-  const [showScenarioModal, setShowScenarioModal] = useState(false);
-
-  const recognitionRef = useRef<any>(null);
-
-  // 음성 인식 Web Speech API 브라우저/웹뷰 가용 여부 확인
-  const isSpeechSupported =
-    typeof window !== 'undefined' &&
-    (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
+  const [recordingError, setRecordingError] = useState('');
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const listeningRef = useRef(false);
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const MAX_RECORDING_SECONDS = 15;
 
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
+      if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+      if (listeningRef.current) {
+        listeningRef.current = false;
+        void recorder.stop().catch(() => undefined);
       }
     };
-  }, []);
+  }, [recorder]);
 
-  const runAnalysis = async (textToAnalyze: string) => {
+  const applyTextIntent = (textToAnalyze: string) => {
     if (!textToAnalyze.trim()) return;
-    setIsAnalyzing(true);
+    const result = extractLocalVoiceIntent(textToAnalyze, dogName);
+    setAnalysisResult(result);
+    onIntentParsed?.(result);
+    if (result.intent.briefing_message) TTSNavigationService.speak(result.intent.briefing_message);
+  };
+
+  const stopAndTranscribe = async () => {
+    if (!listeningRef.current) return;
+    listeningRef.current = false;
+    setIsListening(false);
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+
     try {
-      const result = await analyzeVoiceIntent(textToAnalyze, dogName, coords);
+      setIsAnalyzing(true);
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      const uri = recorder.uri;
+      if (!uri) throw new Error('녹음 파일을 찾지 못했어요. 다시 말씀해 주세요.');
+
+      const isWebRecording = Platform.OS === 'web';
+      const mimeType = isWebRecording ? 'audio/webm' : 'audio/m4a';
+      const recordingBlob = isWebRecording
+        ? await (await fetch(uri)).blob()
+        : await (async () => {
+            const { File } = await import('expo-file-system');
+            return new File(uri);
+          })();
+      const transcript = await transcribeVoiceCommand(
+        recordingBlob,
+        isWebRecording ? 'walk-command.webm' : 'walk-command.m4a',
+        mimeType,
+        dogName
+      );
+      onChangeText(transcript);
+
+      // Gemini is used only to recognize the spoken words. Command parsing stays in the app.
+      const localResult = extractLocalVoiceIntent(transcript, dogName);
+      const result: VoiceIntentResult = {
+        ...localResult,
+        model_used: 'gemini-3.5-transcribe',
+        data_source: 'gemini_transcription',
+      };
       setAnalysisResult(result);
       onIntentParsed?.(result);
-      if (result.intent.briefing_message) {
-        TTSNavigationService.speak(result.intent.briefing_message);
-      }
-    } catch (err) {
-      console.warn('[WalkVoiceInputSection] Gemini 분석 오류:', err);
+      if (result.intent.briefing_message) TTSNavigationService.speak(result.intent.briefing_message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      console.warn('[WalkVoiceInputSection] 음성 인식 요청 실패:', error);
+      setRecordingError(message.startsWith('[apiClient]')
+        ? '말씀을 확인하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
+        : message || '음성 인식에 실패했어요. 다시 말씀해 주세요.');
     } finally {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
       setIsAnalyzing(false);
     }
   };
 
-  const startBrowserListening = () => {
+  const startListening = async () => {
+    setRecordingError('');
     try {
-      const SpeechRecognitionClass =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognitionClass();
-      recognition.lang = 'ko-KR';
-      recognition.interimResults = true;
-      recognition.continuous = false;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        TTSNavigationService.speak('원하시는 산책 조건을 말씀해주세요.');
-      };
-
-      const transcriptHandlers = createVoiceTranscriptHandlers(onChangeText, (transcript) => {
-        setIsListening(false);
-        if (transcript) void runAnalysis(transcript);
-      });
-      recognition.onresult = transcriptHandlers.onresult;
-      recognition.onend = transcriptHandlers.onend;
-
-      recognition.onerror = () => {
-        setIsListening(false);
-        setShowScenarioModal(true);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        throw new Error('음성 명령을 사용하려면 마이크 권한을 허용해 주세요.');
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      listeningRef.current = true;
+      setIsListening(true);
+      recordingTimeoutRef.current = setTimeout(() => {
+        void stopAndTranscribe();
+      }, MAX_RECORDING_SECONDS * 1000);
+    } catch (error) {
+      listeningRef.current = false;
       setIsListening(false);
-      setShowScenarioModal(true);
+      setRecordingError(error instanceof Error ? error.message : '마이크를 시작하지 못했어요.');
     }
   };
 
   const handleToggleVoiceInput = () => {
     if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-      setIsListening(false);
+      void stopAndTranscribe();
       return;
     }
-
-    if (isSpeechSupported) {
-      startBrowserListening();
-    } else {
-      // Web Speech 미지원 환경 시 친절한 대화형 음성 시나리오 모달 표시
-      setShowScenarioModal(true);
-    }
-  };
-
-  const handleSelectScenario = (scenarioText: string) => {
-    setShowScenarioModal(false);
-    onChangeText(scenarioText);
-    void runAnalysis(scenarioText);
+    void startListening();
   };
 
   return (
@@ -157,7 +156,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
         {isAnalyzing && (
           <View style={styles.analyzingPill}>
             <ActivityIndicator size="small" color="#4F46E5" />
-            <Text style={styles.analyzingText}>Gemini AI 의도 분석 중...</Text>
+            <Text style={styles.analyzingText}>말씀하신 내용을 확인하고 있어요...</Text>
           </View>
         )}
       </View>
@@ -166,7 +165,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
         <TextInput
           value={requestText}
           onChangeText={onChangeText}
-          onSubmitEditing={() => runAnalysis(requestText)}
+          onSubmitEditing={() => applyTextIntent(requestText)}
           multiline
           placeholder={`예) ${dogName}랑 25분만 그늘진 흙길로 유림공원 한 바퀴 돌고 싶어.`}
           placeholderTextColor="#9CA3AF"
@@ -176,18 +175,19 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
           {requestText.trim().length > 0 && !isAnalyzing && (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => runAnalysis(requestText)}
+              onPress={() => applyTextIntent(requestText)}
               style={styles.analyzeBtn}
             >
               <AppIcon name="sparkle" size={13} color="#4F46E5" />
-              <Text style={styles.analyzeBtnText}>AI 분석</Text>
+              <Text style={styles.analyzeBtnText}>조건 적용</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleToggleVoiceInput}
             accessibilityRole="button"
-            accessibilityLabel="음성으로 산책 조건 말하기"
+            accessibilityLabel={isListening ? '음성 녹음 마치기' : '음성으로 산책 조건 말하기'}
+            disabled={isAnalyzing}
             style={[styles.micButton, isListening && styles.micButtonActive]}
           >
             <AppIcon
@@ -202,17 +202,18 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
       {isListening && (
         <View style={styles.listeningNoticeBox}>
           <View style={styles.pulsingDot} />
-          <Text style={styles.listeningNotice}>말씀해주세요. 듣고 있어요...</Text>
+          <Text style={styles.listeningNotice}>말씀해주세요. 누르면 녹음이 끝나요. (최대 15초)</Text>
         </View>
       )}
+      {!!recordingError && <Text accessibilityRole="alert" style={styles.recordingError}>{recordingError}</Text>}
 
-      {/* Gemini AI 분석 결과 피드백 뱃지 (부모 컴포넌트에서 자체 피드백 카드를 표시하지 않을 때만 렌더링) */}
+      {/* 음성 인식 및 앱 명령 분석 결과 (부모 컴포넌트에서 자체 피드백 카드를 표시하지 않을 때만 렌더링) */}
       {analysisResult && !isAnalyzing && !hideResultBadge && (
         <View style={styles.analysisBadge}>
           <View style={styles.badgeTop}>
             <AppIcon name="sparkle" size={14} color="#4F46E5" />
             <Text style={styles.badgeTitle}>
-              {analysisResult.data_source === 'local_fallback' ? '[로컬 가상/규칙 대체]' : 'Gemini AI'} 맞춤 코스 설정 완료 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단피하기 · ' : ''}{analysisResult.intent.destination_landmark ?? '자유루프'})
+              말씀하신 조건으로 산책을 설정했어요 ({analysisResult.intent.target_duration_minutes}분 · {analysisResult.intent.prefer_shade ? '그늘길 · ' : ''}{analysisResult.intent.prefer_cushion ? '흙길 · ' : ''}{analysisResult.intent.avoid_stairs ? '계단 적은 길 · ' : ''}{analysisResult.intent.destination_landmark ?? '주변 산책길'})
             </Text>
           </View>
           {analysisResult.intent.briefing_message && (
@@ -227,56 +228,12 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
               style={styles.directFindBtn}
             >
               <AppIcon name="sparkle" size={13} color="#FFFFFF" />
-              <Text style={styles.directFindBtnText}>✨ 이 AI 맞춤 조건으로 산책로 바로 찾기</Text>
+              <Text style={styles.directFindBtnText}>✨ 이 조건으로 산책길 찾기</Text>
             </TouchableOpacity>
           )}
         </View>
       )}
 
-      {/* 음성 발화 빠른 예시 모달 */}
-      <Modal
-        visible={showScenarioModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowScenarioModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleRow}>
-                <AppIcon name="mic" size={20} color="#4F46E5" />
-                <Text style={styles.modalTitle}>원하는 산책을 말씀해주세요</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowScenarioModal(false)}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalSub}>
-              터치하시면 하단 설정(시간·공원·환경)에 즉시 반영되며 AI가 맞춤 산책로를 준비합니다.
-            </Text>
-
-            <View style={styles.scenarioList}>
-              {[
-                { id: 'sc-shade-yurim', text: `날씨가 더우니까 ${dogName}랑 25분만 그늘진 흙길로 유림공원 한 바퀴 돌고 싶어` },
-                { id: 'sc-stairs-lawn', text: '30분 동안 계단 없이 시원하고 폭신한 잔디길로 천천히 걸을래' },
-                { id: 'sc-sejong-lake', text: '세종호수공원에서 40분 동안 완만한 길로 신나게 산책하자' },
-                { id: 'sc-joint-care', text: '유림공원 30분 관절에 무리 없는 그늘길 코스 찾아줘' },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectScenario(item.text)}
-                  style={styles.scenarioChip}
-                >
-                  <AppIcon name="sparkle" size={12} color="#6366F1" />
-                  <Text style={styles.scenarioChipText}>{item.text}</Text>
-                  <Text style={styles.scenarioSelectLabel}>선택</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -289,7 +246,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   analyzingPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,7 +256,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 12,
   },
-  analyzingText: { fontSize: 11, color: '#4F46E5', fontWeight: '600' },
+  analyzingText: { fontSize: TYPOGRAPHY.caption, color: '#4F46E5', fontWeight: '600' },
   textInputBox: {
     backgroundColor: TOKENS.colors.surface,
     borderRadius: 14,
@@ -311,7 +268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   textArea: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
     lineHeight: 18,
     minHeight: 38,
@@ -336,7 +293,7 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
   },
   analyzeBtnText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.button,
     color: '#4F46E5',
     fontWeight: '700',
   },
@@ -357,6 +314,11 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 6,
   },
+  recordingError: {
+    color: '#B42318',
+    fontSize: TYPOGRAPHY.label,
+    marginTop: 6,
+  },
   pulsingDot: {
     width: 8,
     height: 8,
@@ -364,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   listeningNotice: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.support,
     color: '#DC2626',
     fontWeight: '600',
   },
@@ -384,89 +346,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badgeTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#4F46E5',
   },
   briefingText: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#5B21B6',
     lineHeight: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  closeBtn: {
-    fontSize: 18,
-    color: '#94A3B8',
-    padding: 4,
-  },
-  modalSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 6,
-    marginBottom: 14,
-    lineHeight: 17,
-  },
-  scenarioList: {
-    gap: 8,
-  },
-  scenarioChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  scenarioChipText: {
-    flex: 1,
-    fontSize: 12.5,
-    color: '#334155',
-    lineHeight: 18,
-  },
-  scenarioSelectLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6366F1',
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
   },
   directFindBtn: {
     marginTop: 8,
@@ -480,7 +367,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   directFindBtnText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },

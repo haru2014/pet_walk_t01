@@ -18,6 +18,7 @@ import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { warmupBackendServer } from '../services/apiClient';
+import { getCurrentLocationCoords } from '../services/locationService';
 import { useAppTheme } from '../theme/themeManager';
 
 import { HomeParkWalkCardN2 } from '../components/home/HomeParkWalkCardN2';
@@ -59,10 +60,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
   const [weatherModalVisible, setWeatherModalVisible] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
 
   useEffect(() => {
     warmupBackendServer();
     let isMounted = true;
+    void getCurrentLocationCoords(4000).then((res) => {
+      if (isMounted && res.ok && res.coords) {
+        setUserCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+      }
+    });
     void fetchHeatRiskForecast(36.3628, 127.3592)
       .then((res) => {
         if (isMounted) {
@@ -75,11 +82,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           setIsLoadingWeather(false);
         }
       });
-    void LocalStorageService.getWalkHistory().then((history) => {
-      if (isMounted) {
-        setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
-      }
-    });
     return () => {
       isMounted = false;
     };
@@ -87,10 +89,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
 
+  useEffect(() => {
+    let isMounted = true;
+    void LocalStorageService.getWalkHistory().then((history) => {
+      if (!isMounted) return;
+      setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [dog.id]);
+
   return (
-    <View style={styles.container}>
-      {/* 1. 상단 Sage Green 배경 영역 (마스코트 및 메인 카드) */}
-      <View style={styles.topSageSection}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 1. 상단 테마 메인 배경 영역 (마스코트 및 메인 카드) */}
+      <View style={[styles.topSageSection, { backgroundColor: colors.primaryDark }]}>
         <HomeParkWalkCardN2
           dog={dog}
           dogs={dogs}
@@ -98,13 +111,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           onPressProfile={onPressProfile}
           onPressNotification={onOpenNotification}
           onStartWalk={onStartWalk}
-          estimatedMinutes={30}
-          distanceKm="2.1 km"
           courseName="바로 산책하기"
+          userCoords={userCoords}
         />
       </View>
 
-      {/* 2. 하단 Soft Cream 시트 영역 (Trail info + Leaf Green 안심 지표) */}
+      {/* 2. 하단 시트 영역 (Trail info + Leaf Green 안심 지표) */}
       <HomeTrailInfoCardN2
         weather={weather}
         isLoadingWeather={isLoadingWeather}
@@ -141,11 +153,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5EFE0', // Soft Cream
   },
   topSageSection: {
     flex: 1,
-    backgroundColor: '#5A7361', // Sage Green 메인 배경
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingHorizontal: 16,

@@ -17,8 +17,8 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       expect(result.isApproximation).toBe(false);
       expect(result.text).toBe('최대 2.1%');
       expect(result.valueText).toBe('최대 2.1%');
-      expect(result.label).toBe('완만한 경사');
-      expect(result.subText).toContain('DEM');
+      expect(result.label).toBe('오르막 경사');
+      expect(result.subText).toContain('지도에 표시된 높낮이');
       expect(result.numericValue).toBe(2.1);
     });
 
@@ -28,29 +28,29 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       expect(result.isApproximation).toBe(true);
       expect(result.text).toBe('예상 약 7%');
       expect(result.valueText).toBe('약 7%');
-      expect(result.label).toBe('예상 경사도');
-      expect(result.subText).toContain('근사');
+      expect(result.label).toBe('예상 오르막');
+      expect(result.subText).toContain('예상했어요');
 
       // verbose 옵션 테스트
       const verboseResult = formatSlopeDisplay(7.0, 'approximation', { verbose: true });
-      expect(verboseResult.text).toBe('예상 경사도 약 7%');
+      expect(verboseResult.text).toBe('예상 오르막 약 7%');
     });
 
     it('3) 경사도 미확인 상태 표시 (null, undefined, NaN, unknown)', () => {
       const nullResult = formatSlopeDisplay(null, null);
       expect(nullResult.isUnknown).toBe(true);
-      expect(nullResult.text).toBe('경사도 정보 없음');
+      expect(nullResult.text).toBe('경사도 정보가 없어요');
       expect(nullResult.valueText).toBe('정보 없음');
-      expect(nullResult.label).toBe('경사도');
+      expect(nullResult.label).toBe('길의 높낮이');
       expect(nullResult.numericValue).toBeNull();
 
       const nanResult = formatSlopeDisplay(NaN, 'dem');
       expect(nanResult.isUnknown).toBe(true);
-      expect(nanResult.text).toBe('경사도 정보 없음');
+      expect(nanResult.text).toBe('경사도 정보가 없어요');
 
       const explicitUnknown = formatSlopeDisplay(0, 'unknown');
       expect(explicitUnknown.isUnknown).toBe(true);
-      expect(explicitUnknown.text).toBe('경사도 정보 없음');
+      expect(explicitUnknown.text).toBe('경사도 정보가 없어요');
       expect(explicitUnknown.text).not.toContain('0%');
       expect(explicitUnknown.text).not.toContain('평탄함');
     });
@@ -68,7 +68,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
         expect(s.text).not.toContain('NaN');
         expect(s.text).not.toContain('0%');
         expect(s.text).not.toContain('평탄함');
-        expect(s.text).toBe('경사도 정보 없음');
+        expect(s.text).toBe('경사도 정보가 없어요');
       }
     });
   });
@@ -103,7 +103,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       };
       const songgangResult = formatSurfaceDisplay(songgangProfile);
       expect(songgangResult.isUnknown).toBe(true);
-      expect(songgangResult.text).toBe('노면 정보 없음');
+      expect(songgangResult.text).toBe('길 정보가 없어요');
       expect(songgangResult.valueText).toBe('정보 없음');
       expect(songgangResult.dominantSurfaceType).toBeNull();
 
@@ -115,12 +115,12 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       };
       const outsideResult = formatSurfaceDisplay(outsideProfile);
       expect(outsideResult.isUnknown).toBe(true);
-      expect(outsideResult.text).toBe('노면 정보 없음');
+      expect(outsideResult.text).toBe('길 정보가 없어요');
 
       // 케이스 C: fallback 문자열이 '알 수 없음'인 경우
       const fallbackUnknown = formatSurfaceDisplay(null, '알 수 없음');
       expect(fallbackUnknown.isUnknown).toBe(true);
-      expect(fallbackUnknown.text).toBe('노면 정보 없음');
+      expect(fallbackUnknown.text).toBe('길 정보가 없어요');
     });
 
     it('6-2) 미확인 노면에서 undefined, NaN, 임의 노면 유형으로 왜곡되지 않음', () => {
@@ -136,7 +136,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
         expect(s.text).not.toContain('NaN');
         expect(s.text).not.toContain('포장도로');
         expect(s.text).not.toContain('흙길');
-        expect(s.text).toBe('노면 정보 없음');
+        expect(s.text).toBe('길 정보가 없어요');
       }
     });
 
@@ -156,7 +156,7 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       expect(result.isPartial).toBe(true);
       expect(result.text).toBe('45% (확인 60%)');
       expect(result.valueText).toBe('45%');
-      expect(result.subText).toBe('확인 구간(60%) 기준');
+      expect(result.subText).toBe('정보가 있는 길(60%) 기준');
       expect(result.dominantSurfaceType).toBe('흙길');
     });
   });
@@ -212,11 +212,11 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
 
       const slope = formatCourseSlope(emptyCourse);
       expect(slope.isUnknown).toBe(true);
-      expect(slope.text).toBe('경사도 정보 없음');
+      expect(slope.text).toBe('경사도 정보가 없어요');
 
       const surface = formatCourseSurface(emptyCourse);
       expect(surface.isUnknown).toBe(true);
-      expect(surface.text).toBe('노면 정보 없음');
+      expect(surface.text).toBe('길 정보가 없어요');
     });
   });
 
@@ -227,8 +227,8 @@ describe('routeProfileFormatter (경사도·노면 알 수 없음 처리)', () =
       expect(resolveSurfaceName('asphalt')).toBe('아스팔트');
       expect(resolveSurfaceName('paved')).toBe('포장도로');
       expect(resolveSurfaceName('wood')).toBe('목재 데크');
-      expect(resolveSurfaceName('unknown')).toBe('노면 정보 없음');
-      expect(resolveSurfaceName(null)).toBe('노면 정보 없음');
+      expect(resolveSurfaceName('unknown')).toBe('노면 종류 정보가 없어요');
+      expect(resolveSurfaceName(null)).toBe('노면 종류 정보가 없어요');
     });
 
     it('dominantSurfaceType 추출 검증', () => {

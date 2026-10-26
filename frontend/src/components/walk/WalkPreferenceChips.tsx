@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { EnvironmentId, WALK_ENVIRONMENTS } from '../../types/walkSettings';
 
@@ -62,8 +63,8 @@ export const WalkPreferenceChips: React.FC<WalkPreferenceChipsProps> = ({
 const styles = StyleSheet.create({
   container: { marginBottom: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: TOKENS.colors.textMain },
-  sectionHint: { fontSize: 12, color: TOKENS.colors.textMuted },
+  sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain },
+  sectionHint: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted },
   envGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   envCard: {
     width: '48.4%',
@@ -83,8 +84,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  envCheckMark: { color: TOKENS.colors.textWhite, fontSize: 12, fontWeight: '800' },
-  envLabel: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
+  envCheckMark: { color: TOKENS.colors.textWhite, fontSize: TYPOGRAPHY.label, fontWeight: '800' },
+  envLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
   envLabelSelected: { color: TOKENS.colors.primaryDark },
-  envDetail: { fontSize: 11, color: TOKENS.colors.textMuted, lineHeight: 15 },
+  envDetail: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
 });

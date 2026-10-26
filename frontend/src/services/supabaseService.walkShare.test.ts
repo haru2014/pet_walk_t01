@@ -30,6 +30,15 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
     expect(auth).toContain(SupabaseService.getSession()!.accessToken);
   });
 
+  it('UUID가 아닌 로컬 기록 ID는 서버에 보내지 않는다', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    const result = await SupabaseService.setWalkRecordPublic('walk_1729000000', true);
+
+    expect(result).toMatchObject({ ok: false, code: 'INVALID_WALK_ID' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('해제: /unshare 를 호출한다', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(200, { walk_id: WALK_ID, is_public: false }));
     expect(await SupabaseService.setWalkRecordPublic(WALK_ID, false)).toEqual({ ok: true });
@@ -40,14 +49,14 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(404, { detail: { code: 'WALK_NOT_FOUND', message: 'x' } }));
     const result = await SupabaseService.setWalkRecordPublic(WALK_ID, true);
     expect(result).toMatchObject({ ok: false, code: 'WALK_NOT_FOUND' });
-    expect((result as { message: string }).message).toContain('클라우드');
+    expect((result as { message: string }).message).toContain('계정에 아직 저장되지 않은 산책 기록');
   });
 
   it('경로가 너무 짧아 가릴 수 없으면(422) 공개하지 않고 이유를 알려 준다', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(422, { detail: { code: 'ROUTE_TOO_SHORT_TO_MASK', message: 'x' } }));
     const result = await SupabaseService.setWalkRecordPublic(WALK_ID, true);
     expect(result).toMatchObject({ ok: false, code: 'ROUTE_TOO_SHORT_TO_MASK' });
-    expect((result as { message: string }).message).toContain('200m');
+    expect((result as { message: string }).message).toContain('집 근처 위치를 보호하고 나면');
   });
 
   it('로그인 만료(401)를 알려 준다', async () => {
@@ -62,8 +71,22 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
   });
 
   it('알 수 없는 서버 오류도 실패로 알린다', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(500, {}));
-    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({ ok: false, code: 'HTTP_500' });
+    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({
+      ok: false,
+      code: 'HTTP_500',
+      message: expect.stringContaining('서버가 산책 기록 공개 요청을 처리하지 못했어요'),
+    });
+  });
+
+  it('서버가 공유 처리 오류 코드를 반환하면 원인 구분이 가능한 안내를 표시한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(503, { detail: { code: 'WALK_SHARE_FAILED' } }));
+    expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({
+      ok: false,
+      code: 'WALK_SHARE_FAILED',
+      message: expect.stringContaining('공개하는 중 오류'),
+    });
   });
 
   it('로그인하지 않았으면 서버를 부르지 않고 로그인이 필요하다고 알린다', async () => {

@@ -19,6 +19,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['./vitest.setup.mjs'],
+    pool: 'threads',
     server: {
       deps: {
         inline: ['react-native-web', 'react-native-svg'],

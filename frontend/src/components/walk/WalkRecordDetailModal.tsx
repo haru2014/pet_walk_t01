@@ -9,16 +9,9 @@
  */
 
 import React, { useMemo } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Modal, View, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { WalkRecord, PoopEvent } from '../../types/storage';
 import { LonLat, RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapLibreMapView } from '../map/MapLibreMapView';
@@ -273,7 +266,7 @@ export const WalkRecordDetailModal: React.FC<WalkRecordDetailModalProps> = ({
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statEmoji}>🌿</Text>
-                <Text style={styles.statLabel}>완만 노면율</Text>
+                <Text style={styles.statLabel}>편안한 길 비율</Text>
                 <Text style={[styles.statValue, { color: TOKENS.colors.primaryDark }]}>
                   {safeRatioPercent}<Text style={styles.statUnit}>%</Text>
                 </Text>
@@ -380,12 +373,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   titleText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
   dateSubtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
   },
@@ -398,7 +391,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeButtonText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -430,7 +423,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   legendChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
@@ -454,18 +447,18 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     marginBottom: 2,
   },
   statValue: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
   statUnit: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
   },
   detailCard: {
@@ -480,12 +473,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dogNameText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   dogDescText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     marginTop: 1,
   },
@@ -501,12 +494,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   feedbackLabel: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
   feedbackStars: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#D97706',
   },
@@ -523,12 +516,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagBadgeText: {
-    fontSize: 10.5,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   commentText: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
     fontStyle: 'italic',
     marginTop: 6,
@@ -548,7 +541,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneBtnText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },

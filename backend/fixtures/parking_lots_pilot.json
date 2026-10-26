@@ -89,7 +89,8 @@
       "park_link_verified": false,
       "park_link_basis": "도안동 소재 공영주차장. 갑천 생태호수공원 대표점(OSM relation 19159630)에서 2588m로 멀어 연계 확인 불가",
       "official_id": "185-2-000076",
-      "parking_type": "노외"
+      "parking_type": "노외",
+      "data_issue": "갑천 생태호수공원 경계에서 약 1.9km 떨어져 공원 주차장으로 보기 어려움. 공원 경로 출발 불가 (#183)"
     },
     {
       "parking_id": "std_185-2-000045",
@@ -108,7 +109,9 @@
       "park_link_verified": false,
       "park_link_basis": "도안동 소재 공영주차장. 갑천 생태호수공원 대표점(OSM relation 19159630)에서 564m로 300m 초과, 연계 확인 불가",
       "official_id": "185-2-000045",
-      "parking_type": "노외"
+      "parking_type": "노외",
+      "coordinate_basis": "공공데이터 좌표 그대로. 카카오맵 장소 ID 1246329479(공한지공영주차장, 도안동 1088)와 위치 일치 확인 (좌표·주소는 저장하지 않음). OSM 주차장 도형 없음",
+      "data_issue": "공원과의 사이에 도안동로가 있고 OSM 에 건너는 보행로가 없어, 주택가·큰 도로를 포함해도 공원 보행망까지 600m 안에 진입로를 만들 수 없음. 공원 경로 출발 불가 (#183)"
     },
     {
       "parking_id": "opr_doan_a",
@@ -185,7 +188,9 @@
       "park_link_verified": false,
       "park_link_basis": "세종호수공원(OSM 중심)에서 약 950m. 이름 연계 없음",
       "official_id": "413-2-000001",
-      "parking_type": "노외"
+      "parking_type": "노외",
+      "coordinate_basis": "공공데이터 좌표가 OSM 주차장 도형 way/1443446174 (amenity=parking, v1, 약 5,800㎡) 안에 있음",
+      "data_issue": "세종호수공원 보행망까지 주택가 도로를 포함해도 약 1.1km 라 진입로 상한(600m)을 넘음. 공원 경로 출발 불가 (#183)"
     },
     {
       "parking_id": "pkg_yurim_01",
@@ -370,7 +375,7 @@
       "park_link_basis": "공원 관리기관(세종특별자치시시설관리공단) 공식 안내의 호수공원 주차장",
       "parking_type": "노외",
       "coordinate_basis": "OSM way/468776753 (amenity=parking, v2). 지도 검색 위치가 도형 안에 있음, 면적 8,087㎡. 좌표는 도형 꼭짓점 중 공원 보행망에 가장 가까운 점. 카카오맵 장소 ID 1026839073 (위치 대조만 하고 좌표·주소는 저장하지 않음)",
-      "data_issue": "공원 경계 밖이고, 주차장 100m 안에 공원으로 이어지는 보행 전용 길(OSM)이 없어 공원 경로 출발 불가 (#160). 진입로는 차도 옆 인도 자료가 생기면 다시 만든다"
+      "data_issue": "공원 경계 밖이고, 주택가 도로까지 포함해도 공원 보행망까지 진입로가 600m 를 넘어(약 900m) 공원 경로 출발 불가 (#160, #183). 바로 옆 제1·2주차장 이용"
     },
     {
       "parking_id": "pkg_sejong_04",

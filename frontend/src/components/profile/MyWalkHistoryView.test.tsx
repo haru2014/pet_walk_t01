@@ -40,12 +40,15 @@ vi.mock('../walk/WalkRecordDetailModal', () => ({
   })),
 }));
 
+// '최근 7일' 필터에 걸리도록 기록 시각은 고정 날짜가 아니라 지금 기준으로 만든다 (고정 날짜는 7일이 지나면 테스트가 깨진다).
+const mockWalkStartedAt = Date.now() - 2 * 60 * 60 * 1000;
+
 const mockRecords: WalkRecord[] = [
   {
     id: 'walk-1',
     dogId: 'dog-1',
-    startedAt: '2026-10-18T10:00:00.000Z',
-    completedAt: '2026-10-18T10:30:00.000Z',
+    startedAt: new Date(mockWalkStartedAt).toISOString(),
+    completedAt: new Date(mockWalkStartedAt + 30 * 60 * 1000).toISOString(),
     durationMinutes: 30,
     totalDistanceKm: 1.8,
     averageSpeedKmH: 3.6,
@@ -87,11 +90,11 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
     expect(html).toContain('산책 횟수');
     expect(html).toContain('총 거리');
     expect(html).toContain('총 시간');
-    expect(html).toContain('완만 노면율');
+    expect(html).toContain('편안한 길 비율');
     expect(html).toContain('총 배변');
 
     // 2. 누적 산책 기록 목록이 커뮤니티 피드와 일관된 형태로 렌더링되는지 확인
-    expect(html).toContain('1.8km · ⏱️ 30분 · 🌿 완만 90%');
+    expect(html).toContain('1.8km · ⏱️ 30분 · 🌿 편안한 길 90%');
     expect(html).toContain('⭐ 5.0');
     expect(html).toContain('아주 편안했어요');
     expect(html).toContain('🗺️ 경로 지도 보기');
@@ -99,12 +102,7 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
   });
 
 
-  it('WalkStatisticsService의 CSV/JSON 내보내기 기능이 온전하게 동작한다', () => {
-    const csv = WalkStatisticsService.exportWalkRecordsToCsv(mockRecords, '초코');
-    expect(csv).toContain('산책일시,반려견이름,소요시간(분),산책거리(km)');
-    expect(csv).toContain('"초코"');
-    expect(csv).toContain('1.80');
-
+  it('WalkStatisticsService의 JSON 내보내기 기능이 온전하게 동작한다', () => {
     const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(mockRecords, '초코');
     const parsed = JSON.parse(jsonStr);
     expect(parsed.dogName).toBe('초코');

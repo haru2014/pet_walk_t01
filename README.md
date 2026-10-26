@@ -2,18 +2,20 @@
 > **AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼**  
 > *"견주에게는 시선과 두 손의 자유를, 반려견에게는 관절 안심 발걸음을"*
 
+> **현재 코드 기준 (2026-10-25):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시할 수 있습니다. 실제 배포 상태와 테스트 통과 수는 이 갱신에서 확인하지 않았으므로 아래의 배포 링크와 누적 테스트 수는 **마지막 기록값**으로 봐 주세요. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 실행·배포 안내는 [백엔드 가이드](docs/09_백엔드_서버_실행_배포_가이드.md)를 참고하세요.
+
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-507%2F507%20Passed-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-358%2F358%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-796%20passed%2C%205%20skipped-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-406%2F406%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 ## 테스트용 앱 다운로드 주소
-https://expo.dev/artifacts/eas/2A18sId6Vp93m7KNSPMLt79cQjtZ0o7tTYjGgu1dVmM.apk
+https://expo.dev/artifacts/eas/VBEa7RZrgonb30FUxB63-3YPJXY6IOlySrvw32uJJrg.apk
 
 
 ## 웹 서비스 운영 서버 주소
@@ -131,14 +133,14 @@ open mockup/index.html
 
 ### 4️⃣ 🧪 종합 TDD & 단위 테스트 전수 검증
 
-백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.
+~~백엔드와 프론트엔드 모두 100% 통과하는 강력한 품질 가드레일을 갖추고 있습니다.~~ 테스트 실행 안내와 아래 숫자는 과거 실행 기록이며, 현재 HEAD의 결과는 이 갱신에서 재확인하지 않았습니다.
 
 ```bash
-# 1. 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
+# 1. 백엔드 Pytest 마지막 기록 (801개 수집, 796개 통과, 5개 건너뜀; 현재 HEAD에서는 재실행하지 않음)
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
+# 2. 프론트엔드 Vitest 마지막 기록 (70개 파일, 406개 통과; 현재 HEAD에서는 재실행하지 않음)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -160,7 +162,7 @@ cd frontend && npm run check
 6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
    - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
    - [6.2 프로젝트 주요 마일스톤 (수행계획서 정합)](#62-프로젝트-주요-마일스톤-수행계획서-정합)
-   - [6.3 📊 현재 프로젝트 개발 및 구현 현황 (Current Implementation Status)](#63-📊-현재-프로젝트-개발-및-구현-현황-current-implementation-status)
+   - [6.3 📊 2026-10-21 구현 현황 기록](#63-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
 7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
    - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
    - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
@@ -354,19 +356,19 @@ graph LR
 
 ---
 
-### 6.3 📊 현재 프로젝트 개발 및 구현 현황 (Current Implementation Status)
+### 6.3 📊 ~~현재 프로젝트 개발 및 구현 현황~~ (2026-10-21 기록)
 
 본 프로젝트는 핵심 사용자 여정 및 Phase 2 프론트엔드 단독 완결형 스토리를 100% 완료하고 엄격한 품질 가드레일을 통과한 안정화 상태입니다.
 
 #### 1) 종합 품질 검증 지표
 | 구분 | 검증 항목 | 달성 지표 | 상태 | 세부 내용 |
 | :--- | :--- | :---: | :---: | :--- |
-| **Backend** | Pytest TDD 스위트 | **507 / 507** | `PASS` | LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 전수 통과 |
-| **Frontend** | Vitest 단위 테스트 | **358 / 358** | `PASS` | 62개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임, 커뮤니티/마이페이지) |
+| **Backend** | Pytest TDD 스위트 | **796 passed / 5 skipped** | `PASS` | 801개 수집, LangGraph ReAct, KMA 실시간 예보, 지면열 캐시, 5대 공원 라우팅, 200m 마스킹 검증 |
+| **Frontend** | Vitest 단위 테스트 | **406 / 406** | `PASS` | 70개 테스트 파일 전원 통과 (소음감지, 음성설정, 4단계 온보딩, 북마크, 배변마킹, 골든타임, 커뮤니티/마이페이지) |
 | **Frontend** | TypeScript 컴파일 검사 | **0 Errors** | `PASS` | `tsc --noEmit` 완벽 무결성 통과 (Strict Mode) |
 | **Code Quality** | SonarLint 단일 파일 줄수 | **100% 준수** | `PASS` | 모든 신규/수정 파일 250줄 이하 가드레일 엄수 (`App.tsx` 249줄) |
 | **UX & Copy** | 전문 용어 순화 가드레일 | **100% 완료** | `PASS` | 스토리 번호(`US-xx`) 및 개발자 용어 전면 배제, 웰니스 어휘 적용 |
-| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (507) + `mobile-app-ci` (358) 통과 시 자동 머지 파이프라인 |
+| **CI/CD** | GitHub Actions Pipeline | **Auto-Merge** | `PASS` | `backend-test` (796 passed, 5 skipped) + `mobile-app-ci` (406) 통과 시 자동 머지 파이프라인 |
 
 #### 2) 최근 완성된 주요 기능 구현 내용
 1. **대전 3대 공원 & 세종 2대 공원 5대 파일럿 실증 거점 연동**:
@@ -408,62 +410,63 @@ graph LR
 15. **다견 가정 맞춤형 강아지 프로필 관리 및 직관적 추가 플로우 (Issue #127, US-A2)**:
     - 상단 등록된 다견 선택 칩 바(`[🐾 초코] [🐾 콩이 ✓] [+ 새 강아지 추가]`), 강아지별 대표 사진 및 맞춤 체중/나이/관절 케어 레벨 독립 관리 모달 지원.
 
+### 6.4 2026-10-23 저장소 코드 기준 현황 보완
+
+아래 내용은 기존 구현 현황과 테스트 기록을 삭제하지 않고, 저장소에서 확인되는 화면·서비스·API 연결을 덧붙인 갱신이다. 기능 코드의 존재는 모든 인수 조건의 통과나 실기기·운영 환경 검증을 의미하지 않는다.
+
+| 영역 | 저장소에서 확인되는 구현 | 주요 코드 위치 |
+|---|---|---|
+| 앱 화면 | 홈, 산책/코스 탐색, 다크 포켓 산책 진행, 완주 리포트, 커뮤니티, 마이페이지 | `frontend/src/screens/`, `frontend/App.tsx` |
+| 개인화·저장 | 다견 프로필, 온보딩·동의, 로컬 산책 이력, 피드백·통계, JSON 백업, 코스 북마크 | `frontend/src/services/`, `frontend/src/components/profile/` |
+| 산책 진행·안전 | 백그라운드 GPS, TTS 안내, 음성 설정·소음 감지, 배변/소변 마킹, 지도 보기, 위험 제보·우회·돌아가기 | `frontend/src/screens/DarkPocketScreen.tsx`, `frontend/src/services/locationService.ts`, `frontend/src/services/hazardApi.ts` |
+| 경로·외부 정보 | 자연어/음성 조건 입력, 현 위치/지정 공원 경로 계획, 지면온도·기상, 공영주차장 검색 | `backend/agent/`, `backend/services/`, `backend/main.py` |
+| 커뮤니티 | 코스 피드·공유, 인증 연계, 공유 위치 마스킹 | `frontend/src/services/communityApi.ts`, `backend/agent/spatial_masking.py`, `backend/main.py` |
+
+백엔드 라우트 코드에서 산책 계획(`/api/v1/walk/plan`), 경로 재탐색(`/api/v1/walk/reroute`), 현장 안전(`/api/v1/surface/inspect`, `/api/v1/hazards`, `/api/v1/walk/forward-safety`), 커뮤니티(`/api/v1/community/feed`, `/api/v1/community/share`), 기상(`/api/v1/weather/heat-risk`), 주차장(`/api/v1/parking/nearby`) 엔드포인트를 확인했다.
+
+#### 검증 범위 및 변경 이력
+
+- 화면·서비스·백엔드 라우트의 구현 연결을 소스 코드로 확인했다. 이번 갱신에서 전체 Vitest/Pytest를 실행하지 않았으므로 기존 테스트 통과 수는 이전 기록으로 유지한다.
+- `cd frontend && npm run check`의 TypeScript 검사(`tsc --noEmit`)는 통과했다.
+- 기존 문서에는 MVP 15개와 README 일부의 18개 핵심 스토리 등 서로 다른 집계가 남아 있다. 원래 내용을 유지하며 숫자를 임의로 통일하지 않았고, 범위별 집계 및 완료 판정은 정합성 확인 대상으로 남겼다. 상세 매핑은 [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)의 5절을 참조한다.
+- 변경 이력: 2026-10-23자 보완 절을 추가했으며, 기존 README 내용의 삭제·축약·대체는 없고 삭제된 항목도 없다.
+
+### 6.5 2026-10-25 최신 코드 현황
+
+2026-10-25 저장소 코드에서 확인한 업데이트입니다. 아래는 코드 정적 확인 결과이며, 새로 테스트하거나 운영 서버에 배포해 확인한 결과는 아닙니다.
+
+| 영역 | 현재 코드에서 확인한 내용 |
+|---|---|
+| 산책 코스 재생성 | `regenerate_nonce`를 산책 계획 요청에 전달합니다. 공원 모드에서는 1번 코스를 유지하고 2·3번은 이전 대안과의 경로 겹침이 50% 미만인 새 후보를 우선하며, 후보가 부족하면 반대 방향 등을 보충합니다. 일반 경로의 재생성은 별도 처리이므로 공원 모드와 동일한 다양성을 보장한다고 단정할 수 없습니다. |
+| 코스 길이·시간 | 목표 시간과 속도로 목표 거리를 계산하고, 카드의 거리는 0.1km 단위, 시간은 분 단위로 표시합니다. 표기값이 같거나 비슷해도 내부 수치는 다를 수 있습니다. 재생성 대안이 반드시 목표 대비 ±10~20%가 된다는 보장은 코드상 확인되지 않았습니다. |
+| 순환 안내 | 지정 공원 코스의 순환 진입점·한 바퀴 길이·바퀴 수를 추정해 추천 화면과 산책 안내에 반영하는 코드가 추가되었습니다. |
+| 현장 안전 | 위험 제보, 전방 안전 확인, 경로 우회 API가 포함되어 있습니다. |
+| 검증 범위 | 이번 문서 갱신에서는 테스트를 실행하지 않았습니다. 기존 테스트 수 표기는 과거 실행 기록이며 현 HEAD 통과를 의미하지 않습니다. |
+
+최근 관련 변경은 `d66661c`(순환 구간·바퀴 안내)와 `fdbe678`(2·3번 대안 코스 재생성)입니다.
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)
 
-본 프로젝트는 **TDD(Test-Driven Development) 및 ATDD(인수 테스트 주도 개발)**를 기반으로 구축되었으며, 18개 핵심 스토리 및 Phase 2 확장 백로그의 모든 인수 조건(Acceptance Criteria)과 완료 정의(DoD)를 테스트 코드로 100% 사전 검증합니다. (상세 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
+~~본 프로젝트는 TDD/ATDD를 기반으로 구축되었으며, 모든 인수 조건과 DoD를 테스트 코드로 100% 사전 검증합니다.~~ 아래 테스트 수와 PASS 표시는 과거 실행 결과로 보존합니다. 현재 코드 현황은 §6.5의 정적 검토를 참고하세요. (테스트 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
 
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
 ```bash
-# 전체 백엔드 TDD 테스트 스위트 실행 (507개 테스트 100% Pass)
+# 전체 백엔드 TDD 테스트 스위트 실행
 python -m pytest
 # 또는: cd backend && pytest test_case/ -v
 ```
 
 ```text
 ============================= test session starts =============================
-platform win32 -- Python 3.14.x / pytest-9.x
-rootdir: d:\코디세이\pet_walk_t01\backend, configfile: pytest.ini
-collected 507 items / 1 skipped
-
-test_case\test_airkorea_client.py ....                                   [  0%]
-test_case\test_api_contracts.py ...                                      [  1%]
-test_case\test_building_avoidance.py .....                               [  2%]
-test_case\test_kma_grid_converter.py ................................... [  9%]
-test_case\test_kma_weather_client.py ................................... [ 16%]
-test_case\test_langgraph_walk_agent.py ..............                    [ 21%]
-test_case\test_loop_target_duration.py ............                      [ 24%]
-test_case\test_mobile_and_voice_navigation.py ........                   [ 25%]
-test_case\test_open_meteo_client.py .................................... [ 32%]
-test_case\test_origin_mode.py ........                                   [ 35%]
-test_case\test_park_route_guardrail.py ................................. [ 41%]
-test_case\test_parking_endpoint_wiring.py ...                            [ 42%]
-test_case\test_parking_lots.py ......................................... [ 50%]
-test_case\test_parking_pnr_convergence.py ..........                     [ 55%]
-test_case\test_phase2_extended_features.py ..........                    [ 57%]
-test_case\test_rest_api_v1_endpoints.py ..................               [ 61%]
-test_case\test_route_geometry_validation.py .............                [ 63%]
-test_case\test_spatial_masking.py ...                                    [ 64%]
-test_case\test_supabase_repository.py ...                                [ 64%]
-test_case\test_surface_cost_model.py ....................                [ 68%]
-test_case\test_surface_slope_evaluation.py ......................        [ 73%]
-test_case\test_thermal_and_parking.py ......                             [ 74%]
-test_case\test_vision_safety_inspector.py .............                  [ 76%]
-test_case\test_voice_intent_service.py .....                             [ 77%]
-test_case\test_walk_agent_weather_binding.py ...                         [ 78%]
-test_case\test_walk_plan_agent_schema.py .............                   [ 81%]
-test_case\test_walk_plan_latency.py ..............                       [ 83%]
-test_case\test_walk_tracking_and_feedback.py .........                   [ 85%]
-test_case\test_weather_context.py ...................................... [ 93%]
-test_case\test_weather_endpoint_wiring.py .........                      [100%]
-
-======================= 507 passed, 1 skipped in 17.70s =======================
+collected 801 items
+==================== 796 passed, 5 skipped in 122.71s ====================
 ```
 
 ```bash
-# 모바일 프론트엔드 Vitest 단위 테스트 실행 (62개 파일, 358개 테스트 100% Pass)
+# 모바일 프론트엔드 Vitest 단위 테스트 실행 (70개 파일, 406개 통과)
 cd frontend && npm test
 ```
 
@@ -488,7 +491,9 @@ cd frontend && npm test
 | [`docs/04_ai_problem_definition.md`](docs/04_ai_problem_definition.md) | AI 문제 정의서 (아키텍처, 5대 핵심 문제, 성공 지표 및 평가 기준) | AI 문제 정의 |
 | [`docs/05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md) | 프로젝트 전체 일정, 주차별 R&R, 간트 차트 및 4단계 마일스톤 수행계획 | 마일스톤 / 일정 |
 | [`docs/06_편안하개_Project_Proposal.md`](docs/06_편안하개_Project_Proposal.md) | 편안하개 프로젝트 제안서 및 핵심 솔루션 개요 | 프로젝트 제안 |
-| [`docs/07_편한하개_API_list.md`](docs/07_편한하개_API_list.md) | 전체 REST API 및 Supabase 엔드포인트 규격, 실데이터 명세서 | API 규격서 |
+| ~~[`docs/07_편한하개_API_list.md`](docs/07_편한하개_API_list.md)~~ [`docs/07_편안하개_API_list.md`](docs/07_편안하개_API_list.md) | 전체 REST API 및 Supabase 엔드포인트 규격, 실데이터 명세서 | API 규격서 |
+| [`docs/README.md`](docs/README.md) | 현재 기준 문서와 과거 기획·보고 자료의 구분 | 문서 안내 |
+| [`docs/reports/2026-10-25_현재_코드_기준_상태.md`](docs/reports/2026-10-25_현재_코드_기준_상태.md) | 현재 코드에서 확인한 기능·라우트·검증 범위 | 현재 상태 |
 | [`docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md`](docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md) | OpenFreeMap + MapLibre 고정밀 벡터 배경 지도 도입 계획서 | 지도 엔진 계획 |
 | [`docs/reports/10월13일_작업결과보고서.md`](docs/reports/10월13일_작업결과보고서.md) | 10월 13일 핵심 엔지니어링 및 기능 구현 결과보고서 | 진척 결과보고서 |
 | [`docs/reports/구현현황보고서.md`](docs/reports/구현현황보고서.md) | 편안하개 실데이터 기반 스프린트 진척 및 종합 현황 분석 보고서 | 진척 현황분석 |
@@ -514,7 +519,7 @@ pet_walk_t01/
 │   ├── 04_ai_problem_definition.md            # AI 문제 정의서 (아키텍처, 5대 문제, 성공 지표)
 │   ├── 05_편안하개_프로젝트_수행계획서_일정.md # 프로젝트 수행 기간, 간트 차트 및 마일스톤
 │   ├── 06_편안하개_Project_Proposal.md         # 프로젝트 제안서
-│   ├── 07_편한하개_API_list.md                 # 전체 REST API 규격서 및 구현 현황
+│   ├── ~~07_편한하개_API_list.md~~ 07_편안하개_API_list.md # 전체 REST API 규격서 및 구현 현황
 │   ├── 08_OpenFreeMap_MapLibre_배경지도_구현계획서.md # OpenFreeMap+MapLibre 벡터 지도 계획
 │   ├── reports/                               # 📊 프로젝트 공식 현황 및 작업 결과 보고서
 │   │   ├── 10월13일_작업결과보고서.md            # 10월 13일 핵심 구현 작업 결과보고서
@@ -548,7 +553,7 @@ pet_walk_t01/
 │   │   ├── kma_grid_converter.py              # 위경도 <-> 기상청 격자(X, Y) 양방향 변환기
 │   │   └── kma_weather_client.py              # 기상청 단기예보 실시간 수집 및 캐시 클라이언트
 │   ├── fixtures/                              # 테스트용 서울시 건물 외곽선 GeoJSON
-│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (507개 Pytest 전수 Pass)
+│   └── test_case/                             # 🧪 TDD 종합 테스트 스위트 (796개 통과, 5개 건너뜀)
 ├── frontend/                                  # 📱 [Expo 모바일 앱 & 웹] React Native / Expo SDK 57
 │   ├── README.md                              # 프론트엔드 모바일 아키텍처 및 실행 가이드
 │   ├── App.tsx                                # 메인 애플리케이션 (Screen 01~05 통합 라우팅)
@@ -557,7 +562,7 @@ pet_walk_t01/
 │   ├── package.json                           # React Native, Expo, Vitest 의존성
 │   └── src/                                   # components, screens, services, theme, hooks, types
 └── .github/workflows/                         # GitHub Actions CI 파이프라인
-    └── ci.yml                                 # pytest(507개) + mobile vitest(358개) & tsc 자동 머지
+    └── ci.yml                                 # pytest(796 통과, 5 건너뜀) + mobile vitest(406) & tsc 자동 머지
 ```
 
 ---
@@ -592,7 +597,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 # 5. 브라우저에서 Swagger UI 접속하여 실시간 API 테스트
 # URL: http://localhost:8000/docs
 
-# 6. 백엔드 507개 전수 단위 테스트 실행
+# 6. 백엔드 단위 테스트 실행
 pytest test_case/ -v
 ```
 
@@ -630,14 +635,14 @@ npm run ota:update
 ### 9.4 의존성 설치 및 TDD/단위 테스트 실행
 
 ```bash
-# 백엔드 Pytest 전수 검증 (507개 테스트 100% Pass)
+# 백엔드 Pytest 전수 검증 (801개 수집, 796개 통과, 5개 건너뜀)
 # 방법 1) 루트에서 바로 실행 (pytest.ini 기반 backend/test_case 자동 탐색)
 python -m pytest
 
 # 방법 2) backend 폴더로 이동 후 실행
 cd backend && pytest test_case/ -v
 
-# 프론트엔드 Vitest 단위 테스트 (62개 파일, 358개 테스트 100% Pass)
+# 프론트엔드 Vitest 단위 테스트 (70개 파일, 406개 통과)
 cd frontend && npm test
 
 # 프론트엔드 TypeScript 무결성 검증 (0 Errors)

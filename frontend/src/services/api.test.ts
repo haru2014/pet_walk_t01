@@ -48,7 +48,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
 
   it('서버가 정상 응답할 경우 Live 데이터 결과를 반환해야 한다', async () => {
     const mockApiResponse = {
-      courses: [{ id: 'live_1', name: '실시간 생성 코스', durationMinutes: 25, distanceKm: 1.5, safeRatio: 90, slopePercent: 2.0, shadowPercent: 80, tags: ['안심'] }],
+      courses: [{ id: 'live_1', name: '실시간 생성 코스', durationMinutes: 25, distanceKm: 1.5, safeRatio: 90, slopePercent: 2.0, shadowPercent: 80, tags: ['안심'], notice: '산책로가 짧아 최대 약 60분 코스예요' }],
       briefing: '실시간 AI 코스가 생성되었습니다.',
       validated_park_id: 'yurim',
       route_validation: { live_1: { passed: true, park_id: 'yurim' } },
@@ -71,6 +71,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
 
     expect(result.isLiveServer).toBe(true);
     expect(result.courses[0].name).toBe('실시간 생성 코스');
+    expect(result.courses[0].notice).toBe('산책로가 짧아 최대 약 60분 코스예요');
     expect(result.briefingMessage).toBe('실시간 AI 코스가 생성되었습니다.');
     expect(result.coursePlans?.live_1).toBeDefined();
     expect(result.elevationAttribution).toBe('produced using Copernicus WorldDEM-30 © DLR e.V.');
@@ -175,11 +176,13 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
   });
 
   it('검증된 코스와 검증되지 않은 대안 코스가 섞인 응답을 거부한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({
-      validated_park_id: 'yurim', courses: [{ id: 'safe' }, { id: 'unsafe' }],
-      geojson: { features: [{}] }, route_validation: { safe: { passed: true, park_id: 'yurim' } },
-      course_plans: { safe: { route: { features: [{}] } }, unsafe: { route: { features: [{}] } } },
-    }) } as Response);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({
+        validated_park_id: 'yurim', courses: [{ id: 'safe' }, { id: 'unsafe' }],
+        geojson: { features: [{}] }, route_validation: { safe: { passed: true, park_id: 'yurim' } },
+        course_plans: { safe: { route: { features: [{}] } }, unsafe: { route: { features: [{}] } } },
+      })
+    } as Response);
     await expect(requestWalkPlan(dummyDog)).rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED' });
   });
 

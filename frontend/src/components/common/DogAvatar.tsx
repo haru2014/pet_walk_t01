@@ -8,7 +8,8 @@
  */
 
 import React from 'react';
-import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Image, StyleSheet, ViewStyle } from 'react-native';
+import { AppText as Text } from './AppText';
 import { TOKENS } from '../../theme/tokens';
 import { AppIcon } from './AppIcon';
 import { DOG_AVATAR_PRESETS } from '../../services/photoPickerService';

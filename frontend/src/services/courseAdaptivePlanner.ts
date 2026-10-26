@@ -97,10 +97,10 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
   };
 }
 
-/** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 90%) */
+/** 코스 2: 공원 및 쉼터 중심의 가벼운 수변 코스 (목표 시간 약 -15% 완만 산책) */
 function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
   const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
-  const minutes = Math.max(10, Math.round(targetMinutes * 0.9));
+  const minutes = Math.max(10, Math.round(targetMinutes * 0.85));
   const features: string[] = [];
   if (envs.includes('rest')) features.push('쉬어갈 벤치');
   if (envs.includes('shade')) features.push('풍부한 그늘');
@@ -127,13 +127,14 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     shadePercent: 55,
     softSurfacePercent: 75,
     reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
+    differenceTag: '가벼운 여유 코스 (-15%)',
   };
 }
 
-/** 코스 3: 조용한 주택가 및 골목 안심 코스 (목표 시간 약 110%) */
+/** 코스 3: 조용한 주택가 및 외곽 집중 코스 (목표 시간 약 +15% 운동 산책) */
 function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
   const { targetMinutes, speed, envs, feedback, pilotParkId } = ctx;
-  const minutes = Math.round(targetMinutes * 1.1);
+  const minutes = Math.round(targetMinutes * 1.15);
   const hasQuiet = envs.includes('quiet');
   const features: string[] = [];
   if (envs.includes('traffic')) features.push('차량 통행이 적은 골목길');
@@ -163,6 +164,7 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     shadePercent: 42,
     softSurfacePercent: 62,
     reason: `${detail}를 따라 복잡하지 않고 평온하게 걸을 수 있어요.`,
+    differenceTag: '충분한 운동 코스 (+15%)',
   };
 }
 
@@ -175,6 +177,45 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
  * - 선호 적합도 15점: 그늘 우선 시 그늘 가중 70%, 흙길 우선 시 폭신 가중 70%
  * - 거리/시간 적합도 15점: 목표 시간과의 일치율
  */
+function computeStairsScore(stairsCount?: string, avoidStairs = false): number {
+  const stairsMatch = stairsCount ? /\d+/.exec(stairsCount) : null;
+  let stairsNum = 0;
+  if (stairsMatch) {
+    stairsNum = Number.parseInt(stairsMatch[0], 10);
+  } else if (stairsCount === '계단 있음') {
+    stairsNum = 1;
+  }
+
+  if (stairsNum === 0) {
+    return 25.0;
+  }
+  if (avoidStairs) {
+    return 0.0;
+  }
+  return 15.0;
+}
+
+function computeSlopeScore(
+  courseSlope?: number | null,
+  jointCareLevel = 1,
+  feedback?: FeedbackSummaryPayload | null
+): number {
+  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
+  let slopeLimit = jointLimits[jointCareLevel] ?? 5.0;
+  if (feedback && feedback.recommended_max_slope_offset < 0) {
+    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
+    slopeLimit = Math.min(slopeLimit, feedbackLimit);
+  }
+  const slope = courseSlope ?? 3.0;
+  if (slope <= slopeLimit) {
+    return 25.0;
+  }
+  if (slope <= slopeLimit * 1.5) {
+    return 12.0;
+  }
+  return 0.0;
+}
+
 export function calculateAdaptiveCourseScore(
   course: RecommendedCourse,
   dog: DogProfile,
@@ -188,42 +229,16 @@ export function calculateAdaptiveCourseScore(
   const targetMinutes = preferences?.durationMinutes ?? 30;
 
   // 1. 계단 (25점)
-  const stairsMatch = course.stairsCount ? /\d+/.exec(course.stairsCount) : null;
-  let stairsNum = 0;
-  if (stairsMatch) {
-    stairsNum = Number.parseInt(stairsMatch[0], 10);
-  } else if (course.stairsCount === '계단 있음') {
-    stairsNum = 1;
-  }
-
-  let stairsScore: number;
-  if (stairsNum === 0) {
-    stairsScore = 25.0;
-  } else if (avoidStairs) {
-    stairsScore = 0.0;
-  } else {
-    stairsScore = 15.0;
-  }
+  const stairsScore = computeStairsScore(course.stairsCount, avoidStairs);
 
   // 2. 경사 (25점)
-  const jointLimits: Record<number, number> = { 0: 8.0, 1: 6.0, 2: 5.0, 3: 4.0, 4: 4.0 };
-  let slopeLimit = jointLimits[dog.jointCareLevel] ?? 5.0;
-  if (feedback && feedback.recommended_max_slope_offset < 0) {
-    const feedbackLimit = Math.max(2.0, slopeLimit + feedback.recommended_max_slope_offset);
-    slopeLimit = Math.min(slopeLimit, feedbackLimit);
-  }
-  const courseSlope = course.maxSlopePercent ?? 3.0;
-  let slopeScore: number;
-  if (courseSlope <= slopeLimit) {
-    slopeScore = 25.0;
-  } else if (courseSlope <= slopeLimit * 1.5) {
-    slopeScore = 12.0;
-  } else {
-    slopeScore = 0.0;
-  }
+  const slopeScore = computeSlopeScore(course.maxSlopePercent, dog.jointCareLevel, feedback);
 
   // 3. 지면온도 / 그늘 (20점)
-  const shadeRatio = Math.max(0, Math.min(1.0, course.shadePercent / 100));
+  // 자료가 없을 때 중립값을 사용해 NaN 점수나 그늘 선호 편향을 만들지 않는다.
+  const shadeRatio = course.shadePercent == null
+    ? 0.5
+    : Math.max(0, Math.min(1.0, course.shadePercent / 100));
   const thermalScore = Math.round(10.0 + shadeRatio * 10.0);
 
   // 4. 선호 적합도 (15점)
@@ -266,6 +281,7 @@ export function generateAdaptiveCourses(
   dog: DogProfile,
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
+  regenerateNonce?: number,
 ): readonly RecommendedCourse[] {
   const targetMinutes = preferences?.durationMinutes ?? 30;
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
@@ -286,11 +302,31 @@ export function generateAdaptiveCourses(
     return {
       ...c,
       score,
-      reason: c.reason.includes('맞춤 점수') ? c.reason : `AI 맞춤 점수 ${score}점: ${c.reason}`,
+      reason: c.reason.includes('맞춤 점수') ? c.reason : `맞춤 점수 ${score}점: ${c.reason}`,
     };
-  });
+  }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
-  return scoredCourses.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  if (!regenerateNonce || regenerateNonce <= 0) {
+    return scoredCourses;
+  }
+
+  // 재생성 시: 1번 추천 코스는 유지하고, 2번과 3번 대안 코스를 기존 2·3번과 중복/유사하지 않은 새로운 대안으로 제공
+  const bestCourse = scoredCourses[0];
+  const alt1 = {
+    ...scoredCourses[1],
+    id: `${scoredCourses[1].id}-alt-${regenerateNonce}-a`,
+    name: `🌿 ${dog.name}를 위한 대안 안심 순환로 ${regenerateNonce}안`,
+    reason: `기존 경로와 다른 새로운 보행 환경 코스입니다.\n${scoredCourses[1].reason}`,
+    differenceTag: '새로운 대안 동선',
+  };
+  const alt2 = {
+    ...scoredCourses[2],
+    id: `${scoredCourses[2].id}-alt-${regenerateNonce}-b`,
+    name: `🚶 ${dog.name}와 걷는 새로운 순환 코스 ${regenerateNonce}안`,
+    reason: `기존 경로와 다른 완만한 대체 산책로입니다.\n${scoredCourses[2].reason}`,
+    differenceTag: '반대 방향·외곽 순환',
+  };
+  return [bestCourse, alt1, alt2];
 }
 
 /** 사용자 조건에 맞춤형 브리핑 문구를 반환한다. */

@@ -7,12 +7,44 @@ import {
   requestDeviationReroute,
   generateLocalDeviationReroute,
   HAZARD_TYPE_LABELS,
+  getForwardHazardReports,
+  getNearbyHazardReports,
 } from './hazardApi';
 import * as apiClient from './apiClient';
 
-describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테스트', () => {
+describe('hazardApi - 현장 위험 제보 및 안전 우회 / 돌아가기 테스트', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('자유 산책 전방 위험 조회', () => {
+    it('위치 기반 제보를 조회하고 이동 방향 앞에 있는 제보만 가까운 순으로 반환한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          reports: [
+            { report_id: 'ahead', lat: 0, lon: 0.001, hazard_type: 'stairs', severity: 'danger', distance_m: 111 },
+            { report_id: 'behind', lat: 0, lon: -0.001, hazard_type: 'construction', severity: 'warning', distance_m: 111 },
+            { report_id: 'side', lat: 0.001, lon: 0, hazard_type: 'high_curb', severity: 'warning', distance_m: 111 },
+          ]
+        }),
+      } as any);
+
+      const reports = await getNearbyHazardReports(0, 0);
+      const ahead = getForwardHazardReports(reports, 0, 0, 90);
+
+      expect(apiClient.fetchWithServerFallback).toHaveBeenCalledWith(expect.stringContaining('/api/v1/hazards?'));
+      expect(ahead.map((report) => report.report_id)).toEqual(['ahead']);
+    });
+
+    it('조회 응답 형식이 잘못되면 위험 없음으로 취급하지 않고 실패 처리한다', async () => {
+      vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ reports: null }),
+      } as any);
+
+      await expect(getNearbyHazardReports(0, 0)).rejects.toThrow('응답 형식');
+    });
   });
 
   describe('reportHazard', () => {
@@ -48,6 +80,29 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(res.ok).toBe(true);
       expect(res.message).toContain('오프라인');
+    });
+
+    it('dog_danger 위험 종류를 construction으로 치환하지 않고 그대로 전송한다 (#228)', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'success' }),
+      } as any);
+
+      const res = await reportHazard({
+        lat: 36.35,
+        lon: 127.38,
+        hazardType: 'dog_danger',
+        severity: 'danger',
+        description: '공격적인 들개 출몰',
+      });
+
+      expect(res.ok).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/hazards',
+        expect.objectContaining({
+          body: expect.stringContaining('"hazard_type":"dog_danger"'),
+        })
+      );
     });
   });
 
@@ -157,10 +212,57 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
       expect(result.newRoute.features[0].geometry.coordinates.length).toBeGreaterThanOrEqual(3);
       expect(result.hazardClearanceM).toBe(80.0);
     });
+
+    it('dog_danger 위험 종류 우회 요청 시 construction으로 치환하지 않고 dog_danger로 요청한다 (#228)', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'REROUTED',
+          voice_alert: '전방 들개/맹견 출몰 구간을 우회하여 새로운 경로를 안내합니다.',
+          new_distance_m: 650,
+          hazard_clearance_m: 60.0,
+          geojson: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { segmentType: 'safe' },
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [127.382, 36.374],
+                    [127.383, 36.376],
+                    [127.382, 36.378],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      } as any);
+
+      const result = await requestRerouteAroundHazard({
+        currentLat: 36.374,
+        currentLon: 127.382,
+        destinationLat: 36.378,
+        destinationLon: 127.382,
+        hazardLat: 36.376,
+        hazardLon: 127.382,
+        hazardType: 'dog_danger',
+      });
+
+      expect(result.status).toBe('REROUTED');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/walk/reroute',
+        expect.objectContaining({
+          body: expect.stringContaining('"hazard_type":"dog_danger"'),
+        })
+      );
+    });
   });
 
   describe('createEmergencyReturnRoute', () => {
-    it('출발지로의 긴급 복귀 경로와 음성 안내를 생성한다', () => {
+    it('출발지로의 돌아가기 경로와 음성 안내를 생성한다', () => {
       const currentLat = 36.376;
       const currentLon = 127.385;
       const startLat = 36.370;
@@ -232,7 +334,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
-      expect(result.voiceAlert).toContain('재탐색');
+      expect(result.voiceAlert).toContain('현재 위치에서');
+      expect(result.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       expect(result.newRoute.features[0].geometry.coordinates[0]).toEqual([127.3825, 36.3745]);
       expect(result.stepPins.length).toBeGreaterThanOrEqual(2);
     });
@@ -256,7 +359,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(result.status).toBe('REROUTED');
       expect(result.needsReroute).toBe(true);
-      expect(result.voiceAlert).toContain('재탐색');
+      expect(result.voiceAlert).toContain('현재 위치에서');
+      expect(result.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       const coords = result.newRoute.features[0].geometry.coordinates;
       expect(coords[0]).toEqual([127.3825, 36.3745]);
       expect(coords[coords.length - 1]).toEqual([127.382, 36.378]);
@@ -277,7 +381,8 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 긴급 복귀 테
 
       expect(local.status).toBe('REROUTED');
       expect(local.needsReroute).toBe(true);
-      expect(local.voiceAlert).toContain('재탐색');
+      expect(local.voiceAlert).toContain('현재 위치에서');
+      expect(local.voiceAlert).toContain('미터 이동해 기존 산책 경로에 다시 합류');
       expect(local.newRoute.features[0].geometry.coordinates[0]).toEqual([127.383, 36.375]);
       expect(local.stepPins).toHaveLength(2);
     });

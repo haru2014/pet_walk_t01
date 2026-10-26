@@ -6,17 +6,9 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  TextInput,
-  Alert,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { AppScreenHeader } from '../common/AppScreenHeader';
 import { DogProfile, JointCareLevel, calculateRecommendedSpeedKmH } from '../../types/dogProfile';
@@ -283,7 +275,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.3,
@@ -300,21 +292,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   mainTitle: {
-    fontSize: 22,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   subTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
   },
   listSection: {
     marginBottom: 16,
   },
   sectionHeading: {
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 12,
@@ -322,8 +314,8 @@ const styles = StyleSheet.create({
   emptyProfilesMessage: {
     marginBottom: 12,
     color: TOKENS.colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   dogCard: {
     backgroundColor: TOKENS.colors.surface,
@@ -362,13 +354,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dogName: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 2,
   },
   dogMeta: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginBottom: 6,
   },
@@ -380,7 +372,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   preferenceChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
@@ -401,7 +393,7 @@ const styles = StyleSheet.create({
   },
   checkMark: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
   },
   addDogButton: {
@@ -422,7 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addDogText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -455,7 +447,7 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -478,7 +470,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
@@ -488,7 +480,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMain,
     marginBottom: 4,
@@ -500,7 +492,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMain,
   },
   levelChip: {
@@ -517,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
   },
   levelChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '500',
     color: TOKENS.colors.textMuted,
   },
@@ -535,7 +527,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 });

@@ -4,10 +4,9 @@
  *
  * 1. 이번 주 산책 달성도 & 관절 안심 통계 집계
  * 2. 기간별(주간, 월간, 전체) 산책 헬스케어 통계 집계
- * 3. 산책 기록 CSV / JSON 내보내기 (수술/진료 제출용 엑셀 호환 CSV)
+ * 3. 산책 기록 JSON 내보내기
  */
 
-import { Platform } from 'react-native';
 import { WalkRecord } from '../types/storage';
 
 export interface DailyWalkStat {
@@ -26,7 +25,8 @@ export interface WeeklyWalkStats {
   weekRangeLabel: string; // '10.08 ~ 10.14'
   totalDistanceKm: number;
   totalWalks: number;
-  targetWalks: number;    // 기본 권장 5회
+  completedDays: number;
+  targetDays: number;
   completionRatePercent: number; // 0 ~ 100%
   safeSurfaceRatioPercent: number; // 완만 노면율 (%)
   totalDurationMinutes: number;
@@ -125,19 +125,20 @@ export class WalkStatisticsService {
     });
 
     const totalWalks = thisWeekRecords.length;
-    const targetWalks = 5;
-    const completionRatePercent = Math.min(100, Math.round((totalWalks / targetWalks) * 100));
+    const completedDays = dailyStats.filter((day) => day.hasWalked).length;
+    const targetDays = dailyStats.length;
+    const completionRatePercent = Math.min(100, Math.round((completedDays / targetDays) * 100));
     const safeSurfaceRatioPercent =
       totalWalks > 0 ? Math.round((totalSafeRatioSum / totalWalks) * 100) : 0;
 
     let jointCareMessage = '이번 주 첫 산책을 시작해 보세요! 다리와 관절 부담 없는 안심 산책로를 추천해 드려요 🐾';
     if (totalWalks > 0) {
       if (safeSurfaceRatioPercent >= 85) {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 달성! 다리와 관절 부담을 줄인 안심 산책이었어요 🐾`;
+        jointCareMessage = `편안한 길 ${safeSurfaceRatioPercent}%로 걸었어요! 다리와 관절 부담을 줄인 산책이었어요 🐾`;
       } else if (safeSurfaceRatioPercent >= 70) {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 유지! 조금 더 부드러운 길 위주 산책을 권장해요.`;
+        jointCareMessage = `편안한 길이 ${safeSurfaceRatioPercent}%였어요. 다음에는 조금 더 부드러운 길을 걸어보세요.`;
       } else {
-        jointCareMessage = `완만 노면 ${safeSurfaceRatioPercent}% 기록! 다음 산책은 경사가 더 완만한 코스를 이용해 보세요.`;
+        jointCareMessage = `편안한 길이 ${safeSurfaceRatioPercent}%였어요. 다음에는 오르막이 적은 코스를 이용해 보세요.`;
       }
     }
 
@@ -145,7 +146,8 @@ export class WalkStatisticsService {
       weekRangeLabel,
       totalDistanceKm: Math.round(totalDist * 10) / 10,
       totalWalks,
-      targetWalks,
+      completedDays,
+      targetDays,
       completionRatePercent,
       safeSurfaceRatioPercent,
       totalDurationMinutes: totalDur,
@@ -232,81 +234,6 @@ export class WalkStatisticsService {
       totalPoopCount: poopSum,
       averageComfortScore: scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 10) / 10 : 5.0,
     };
-  }
-
-  /**
-   * 동물병원 진료 및 엑셀 확인용 CSV 문자열 생성 (한글 깨짐 방지 UTF-8 BOM 포함)
-   */
-  static exportWalkRecordsToCsv(records: WalkRecord[], dogName: string): string {
-    const BOM = '\uFEFF';
-    const headers = [
-      '산책일시',
-      '반려견이름',
-      '소요시간(분)',
-      '산책거리(km)',
-      '평균속도(km/h)',
-      '완만노면율(%)',
-      '배변횟수',
-      '만족도(5점만점)',
-      '피드백태그',
-      '보호자한줄평',
-    ];
-
-    const rows = records.map((r) => {
-      const date = new Date(r.completedAt);
-      const dateFormatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-      const name = r.dogSummary?.name || dogName || '반려견';
-      const duration = r.durationMinutes;
-      const dist = (r.totalDistanceKm || 0).toFixed(2);
-      const speed = (r.averageSpeedKmH || 0).toFixed(1);
-      const safeRatio = Math.round((r.safeSurfaceRatio || 0) * 100);
-      const poop = r.poopCount || (r.poopEvents ? r.poopEvents.length : 0);
-      const score = r.feedback?.comfortScore ?? 5;
-      const tags = (r.feedback?.tags || []).join('; ');
-      const comment = (r.feedback?.comment || '').replace(/"/g, '""');
-
-      return [
-        `"${dateFormatted}"`,
-        `"${name}"`,
-        duration,
-        dist,
-        speed,
-        `${safeRatio}%`,
-        poop,
-        score,
-        `"${tags}"`,
-        `"${comment}"`,
-      ].join(',');
-    });
-
-    return BOM + [headers.join(','), ...rows].join('\r\n');
-  }
-
-  /**
-   * 브라우저 환경에서 CSV 파일 다운로드 실행
-   */
-  static downloadCsvFile(records: WalkRecord[], dogName: string): boolean {
-    if (typeof window === 'undefined' || Platform.OS !== 'web') {
-      return false;
-    }
-
-    try {
-      const csv = this.exportWalkRecordsToCsv(records, dogName);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const today = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.setAttribute('download', `편안하개_산책통계_${dogName}_${today}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      return true;
-    } catch (e) {
-      console.warn('[WalkStatisticsService] CSV 다운로드 실패:', e);
-      return false;
-    }
   }
 
   /**

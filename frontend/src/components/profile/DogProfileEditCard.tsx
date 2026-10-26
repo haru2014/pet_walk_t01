@@ -8,18 +8,10 @@
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  Modal,
-  Platform,
-} from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, Platform } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 import {
   DogProfile,
   JointCareLevel,
@@ -49,6 +41,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
   onSaveDog,
   onDeleteDog,
 }) => {
+  const { colors } = useAppTheme();
   const [pickerVisible, setPickerVisible] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -104,7 +97,7 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
 
   const confirmDeleteDog = () => {
     const deleteDog = () => { void onDeleteDog?.(dog.id); };
-    const message = `${dog.name} 프로필과 이 기기에 저장된 해당 프로필이 삭제됩니다. 로그인 계정에 동기화된 프로필도 함께 삭제됩니다.`;
+    const message = `${dog.name} 프로필과 이 기기에 저장된 프로필이 삭제됩니다. 로그인한 계정에 저장된 프로필도 함께 삭제됩니다.`;
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       if (window.confirm(`${dog.name} 프로필을 삭제할까요?\n${message}`)) deleteDog();
@@ -122,8 +115,8 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
       {/* 1. 상단 다견 선택 칩 바 및 새 강아지 추가 버튼 */}
       <View style={styles.dogChipSection}>
         <View style={styles.chipHeaderRow}>
-          <Text style={styles.dogChipSectionTitle}>반려견 선택</Text>
-          <Text style={styles.dogChipCountText}>{dogList.length}마리 등록됨</Text>
+          <Text style={[styles.dogChipSectionTitle, { color: colors.textMain }]}>반려견 선택</Text>
+          <Text style={[styles.dogChipCountText, { color: colors.textMuted }]}>{dogList.length}마리 등록됨</Text>
         </View>
 
         <ScrollView
@@ -140,19 +133,23 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
                 onPress={() => onSelectDog?.(item.id)}
                 style={[
                   styles.dogChip,
-                  isCurrent ? styles.dogChipActive : styles.dogChipInactive,
+                  {
+                    backgroundColor: isCurrent ? colors.primaryLight : colors.surface,
+                    borderColor: isCurrent ? colors.primary : colors.border,
+                  },
                 ]}
               >
                 <DogAvatar photoUri={item.photoUri} size={22} />
                 <Text
                   style={[
                     styles.dogChipText,
-                    isCurrent ? styles.dogChipTextActive : styles.dogChipTextInactive,
+                    { color: isCurrent ? colors.primaryDark : colors.textMuted },
+                    isCurrent && { fontWeight: '800' },
                   ]}
                 >
                   {item.name}
                 </Text>
-                {isCurrent && <Text style={styles.checkMark}>✓</Text>}
+                {isCurrent && <Text style={[styles.checkMark, { color: colors.primary }]}>✓</Text>}
               </TouchableOpacity>
             );
           })}
@@ -160,36 +157,39 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => setShowAddModal(true)}
-            style={styles.addDogChip}
+            style={[
+              styles.addDogChip,
+              { backgroundColor: colors.primaryWash, borderColor: colors.primary },
+            ]}
           >
-            <Text style={styles.addDogChipText}>＋ 새 강아지 추가</Text>
+            <Text style={[styles.addDogChipText, { color: colors.primaryDark }]}>＋ 새 강아지 추가</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       {/* 2. 반려견 대표 사진 & 변경 영역 */}
-      <View style={styles.photoRow}>
+      <View style={[styles.photoRow, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => setPickerVisible(true)}
           style={styles.avatarTouchArea}
         >
           <DogAvatar photoUri={dog.photoUri} size={60} />
-          <View style={styles.cameraBadge}>
+          <View style={[styles.cameraBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={styles.cameraIcon}>📷</Text>
           </View>
         </TouchableOpacity>
         <View style={styles.photoInfoArea}>
-          <Text style={styles.photoTitle}>우리 강아지 대표 사진</Text>
-          <Text style={styles.photoSub}>
+          <Text style={[styles.photoTitle, { color: colors.textMain }]}>우리 강아지 대표 사진</Text>
+          <Text style={[styles.photoSub, { color: colors.textMuted }]}>
             {dog.photoUri ? '대표 사진이 등록되어 있습니다' : '사진을 등록해주세요'}
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => setPickerVisible(true)}
-            style={styles.changePhotoBtn}
+            style={[styles.changePhotoBtn, { backgroundColor: colors.primaryLight }]}
           >
-            <Text style={styles.changePhotoText}>
+            <Text style={[styles.changePhotoText, { color: colors.primaryDark }]}>
               {dog.photoUri ? '사진/캐릭터 변경' : '대표 사진 등록'}
             </Text>
           </TouchableOpacity>
@@ -197,35 +197,35 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
       </View>
 
       {/* 3. 반려견 상세 정보 폼 */}
-      <Text style={styles.fieldLabel}>이름</Text>
+      <Text style={[styles.fieldLabel, { color: colors.textMain }]}>이름</Text>
       <TextInput
         value={dog.name}
         onChangeText={(text) => onSaveDog({ name: text })}
-        style={styles.input}
+        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
       />
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.fieldLabel}>나이 (세)</Text>
+          <Text style={[styles.fieldLabel, { color: colors.textMain }]}>나이 (세)</Text>
           <TextInput
             value={String(dog.ageYears)}
             keyboardType="numeric"
             onChangeText={(text) => onSaveDog({ ageYears: Number(text) || 0 })}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.fieldLabel}>체중 (kg)</Text>
+          <Text style={[styles.fieldLabel, { color: colors.textMain }]}>체중 (kg)</Text>
           <TextInput
             value={String(dog.weightKg)}
             keyboardType="numeric"
             onChangeText={(text) => onSaveDog({ weightKg: Number(text) || 0 })}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
           />
         </View>
       </View>
 
-      <Text style={[styles.fieldLabel, { marginTop: 12 }]}>관절 안심 케어 수준</Text>
+      <Text style={[styles.fieldLabel, { color: colors.textMain, marginTop: 12 }]}>관절 안심 케어 수준</Text>
       <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
         {[0, 1, 2].map((lvl) => {
           const isSelected = dog.jointCareLevel === lvl;
@@ -234,9 +234,21 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
             <TouchableOpacity
               key={lvl}
               onPress={() => onSaveDog({ jointCareLevel: lvl as JointCareLevel })}
-              style={[styles.levelChip, isSelected && styles.levelChipSelected]}
+              style={[
+                styles.levelChip,
+                {
+                  backgroundColor: isSelected ? colors.primaryLight : colors.background,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}
             >
-              <Text style={[styles.levelChipText, isSelected && styles.levelChipTextSelected]}>
+              <Text
+                style={[
+                  styles.levelChipText,
+                  { color: isSelected ? colors.primaryDark : colors.textMuted },
+                  isSelected && { fontWeight: '700' },
+                ]}
+              >
                 {labels[lvl]}
               </Text>
             </TouchableOpacity>
@@ -278,14 +290,14 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>새로운 반려견 등록 🐾</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.textMain }]}>새로운 반려견 등록 🐾</Text>
               <TouchableOpacity
                 onPress={() => setShowAddModal(false)}
                 style={styles.modalCloseBtn}
               >
-                <Text style={styles.modalCloseText}>✕</Text>
+                <Text style={[styles.modalCloseText, { color: colors.textMuted }]}>✕</Text>
               </TouchableOpacity>
             </View>
 
@@ -298,58 +310,58 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
                   style={styles.avatarTouchArea}
                 >
                   <DogAvatar photoUri={newPhotoUri} size={64} />
-                  <View style={styles.cameraBadge}>
+                  <View style={[styles.cameraBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.cameraIcon}>📷</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setNewPhotoPickerVisible(true)}
-                  style={[styles.changePhotoBtn, { marginTop: 8 }]}
+                  style={[styles.changePhotoBtn, { backgroundColor: colors.primaryLight, marginTop: 8 }]}
                 >
-                  <Text style={styles.changePhotoText}>대표 사진 / 캐릭터 선택</Text>
+                  <Text style={[styles.changePhotoText, { color: colors.primaryDark }]}>대표 사진 / 캐릭터 선택</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.fieldLabel}>이름 *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMain }]}>이름 *</Text>
               <TextInput
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="예: 초코, 콩이"
-                placeholderTextColor={TOKENS.colors.textMuted}
-                style={styles.input}
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
               />
 
-              <Text style={[styles.fieldLabel, { marginTop: 10 }]}>견종</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMain, marginTop: 10 }]}>견종</Text>
               <TextInput
                 value={newBreed}
                 onChangeText={setNewBreed}
                 placeholder="예: 말티즈, 푸들, 골든 리트리버"
-                placeholderTextColor={TOKENS.colors.textMuted}
-                style={styles.input}
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
               />
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>나이 (세)</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textMain }]}>나이 (세)</Text>
                   <TextInput
                     value={newAge}
                     keyboardType="numeric"
                     onChangeText={setNewAge}
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>체중 (kg)</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textMain }]}>체중 (kg)</Text>
                   <TextInput
                     value={newWeight}
                     keyboardType="numeric"
                     onChangeText={setNewWeight}
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textMain }]}
                   />
                 </View>
               </View>
 
-              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>관절 안심 케어 수준</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMain, marginTop: 12 }]}>관절 안심 케어 수준</Text>
               <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                 {[0, 1, 2].map((lvl) => {
                   const isSelected = newJointLevel === lvl;
@@ -358,9 +370,21 @@ export const DogProfileEditCard: React.FC<DogProfileEditCardProps> = ({
                     <TouchableOpacity
                       key={lvl}
                       onPress={() => setNewJointLevel(lvl as JointCareLevel)}
-                      style={[styles.levelChip, isSelected && styles.levelChipSelected]}
+                      style={[
+                        styles.levelChip,
+                        {
+                          backgroundColor: isSelected ? colors.primaryLight : colors.background,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
                     >
-                      <Text style={[styles.levelChipText, isSelected && styles.levelChipTextSelected]}>
+                      <Text
+                        style={[
+                          styles.levelChipText,
+                          { color: isSelected ? colors.primaryDark : colors.textMuted },
+                          isSelected && { fontWeight: '700' },
+                        ]}
+                      >
                         {labels[lvl]}
                       </Text>
                     </TouchableOpacity>
@@ -411,7 +435,7 @@ const styles = StyleSheet.create({
   },
   deleteDogButtonText: {
     color: '#B42318',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   chipHeaderRow: {
@@ -421,12 +445,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dogChipSectionTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   dogChipCountText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
   },
   dogChipScrollRow: {
@@ -452,7 +476,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.border,
   },
   dogChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   dogChipTextActive: {
@@ -463,7 +487,7 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.textMuted,
   },
   checkMark: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '900',
     color: TOKENS.colors.primary,
   },
@@ -479,7 +503,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
   },
   addDogChipText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -517,12 +541,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   photoTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
   },
   photoSub: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
     marginTop: 2,
     marginBottom: 4,
@@ -535,11 +559,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   changePhotoText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
-  fieldLabel: { fontSize: 11.5, fontWeight: '600', color: TOKENS.colors.textMain, marginBottom: 2 },
+  fieldLabel: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.textMain, marginBottom: 2 },
   input: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
@@ -547,7 +571,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    fontSize: 13.5,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
   },
   levelChip: {
@@ -560,7 +584,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.background,
   },
   levelChipSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  levelChipText: { fontSize: 11.5, fontWeight: '500', color: TOKENS.colors.textMuted },
+  levelChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '500', color: TOKENS.colors.textMuted },
   levelChipTextSelected: { color: TOKENS.colors.primaryDark, fontWeight: '700' },
 
   // 모달 스타일
@@ -593,7 +617,7 @@ const styles = StyleSheet.create({
     borderBottomColor: TOKENS.colors.border,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -601,7 +625,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalCloseText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMuted,
     fontWeight: '700',
   },

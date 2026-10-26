@@ -1,11 +1,12 @@
 /**
  * [편안하개 - PetWalk]
- * 위치 정보 수집 동의 및 Local-First 투명 고지 팝업 모달 (US-23)
+ * 위치 정보 이용 동의 및 보관 안내 팝업 모달 (US-23)
  */
 
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Modal, View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { AppText as Text } from './AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon, AppIconName } from './AppIcon';
 import { LocationConsentController } from '../../hooks/useLocationConsent';
 
@@ -32,8 +33,8 @@ const NOTICES: NoticeItem[] = [
   },
   {
     icon: 'shield',
-    title: '출발·도착지 200m 안심 마스킹',
-    desc: '이웃과 추천 코스를 공유할 때도 자택 위치 보호를 위해 출발지와 도착지 200m 반경이 자동 블러링됩니다.',
+    title: '집 근처 위치 보호',
+    desc: '이웃과 코스를 공유할 때 집 근처 200m 위치는 보이지 않도록 처리해요.',
   },
 ];
 
@@ -140,12 +141,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   title: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     textAlign: 'center',
@@ -153,10 +154,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   noticeList: {
     gap: 12,
@@ -184,15 +185,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   noticeTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 2,
   },
   noticeDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.surface,
   },
   cancelText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: TOKENS.colors.surface,
   },

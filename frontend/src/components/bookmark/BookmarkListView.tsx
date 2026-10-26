@@ -9,9 +9,11 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Modal, Platform, StyleSheet, TouchableOpacity, View, ScrollView } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { BookmarkedRoute } from '../../types/bookmark';
+import { formatShadePercentLabel } from '../../types/walkSettings';
 import { BookmarkService } from '../../services/bookmarkService';
 import { CardWrapper } from '../common/CardWrapper';
 import { AppIcon } from '../common/AppIcon';
@@ -68,7 +70,7 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
         <Text style={styles.title}>내가 찜한 안심 코스 ({bookmarks.length})</Text>
       </View>
       <Text style={styles.desc}>
-        오프라인에서도 열람할 수 있고, 지도를 펼쳐 확인한 뒤 바로 산책을 시작해요.
+        인터넷이 연결되지 않아도 볼 수 있어요. 지도를 확인한 뒤 바로 산책을 시작해요.
       </Text>
 
       {!isLoading && bookmarks.length === 0 && (
@@ -149,7 +151,9 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                     </View>
                     <View style={styles.metaItem}>
                       <AppIcon name="shade" size={13} color={TOKENS.colors.textMuted} />
-                      <Text style={styles.meta}>그늘 {bm.shadePercent}%</Text>
+                      <Text style={styles.meta}>
+                        {formatShadePercentLabel(bm.shadePercent)}
+                      </Text>
                     </View>
                   </View>
 
@@ -180,7 +184,7 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                     <View style={styles.divider} />
 
                     <Text style={styles.previewNotice}>
-                      🗺️ 3색 안심 도로망 미리보기 (초록: 완만길 / 파랑: 보통길 / 주황: 주의길)
+                      🗺️ 산책길 미리보기 (초록: 편안한 길 / 파랑: 보통 길 / 주황: 주의 구간)
                     </Text>
 
                     <View style={styles.miniMapContainer}>
@@ -189,23 +193,28 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
                         stepPins={bm.stepPins}
                         speedKmH={dogSpeedKmH}
                       />
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => setModalBookmark(bm)}
+                        style={styles.mapExpandBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel="코스 지도 크게 보기"
+                      >
+                        <Text style={styles.mapExpandIcon}>⤢</Text>
+                        <Text style={styles.mapExpandText}>크게 보기</Text>
+                      </TouchableOpacity>
                     </View>
 
-                    {/* 정돈된 액션 버튼 그룹 (중복 없이 1세트 제공) */}
+                    {/* 정돈된 액션 버튼 그룹 */}
                     <View style={styles.actionButtonGroup}>
                       <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={() => onStartBookmark(bm)}
                         style={styles.startWalkButton}
+                        accessibilityRole="button"
+                        accessibilityLabel="이 코스로 바로 산책 시작하기"
                       >
                         <Text style={styles.startWalkButtonText}>🐾 이 코스로 바로 산책 시작</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => setModalBookmark(bm)}
-                        style={styles.fullScreenButton}
-                      >
-                        <Text style={styles.fullScreenButtonText}>🔍 큰 화면으로 확인</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -283,10 +292,10 @@ export const BookmarkListView: React.FC<BookmarkListViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  title: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  desc: { fontSize: 12, color: TOKENS.colors.textMuted, lineHeight: 16, marginTop: 4 },
-  empty: { fontSize: 12, color: TOKENS.colors.primaryDark, marginTop: 12, textAlign: 'center' },
+  desc: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginTop: 4 },
+  empty: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, marginTop: 12, textAlign: 'center' },
   scrollArea: {
     maxHeight: 520,
     marginTop: 8,
@@ -329,7 +338,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.3,
@@ -341,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   expandTagText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -349,7 +358,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   removeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -367,7 +376,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   meta: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
   },
 
@@ -384,7 +393,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primaryDark,
   },
@@ -399,7 +408,7 @@ const styles = StyleSheet.create({
   },
   collapsedStartBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
 
@@ -412,7 +421,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   previewNotice: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     marginBottom: 8,
@@ -423,24 +432,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
     backgroundColor: TOKENS.colors.background,
+    position: 'relative',
+  },
+  mapExpandBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: TOKENS.colors.border,
+    backgroundColor: TOKENS.colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  mapExpandIcon: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TOKENS.colors.textMain,
+  },
+  mapExpandText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    color: TOKENS.colors.textMain,
   },
 
   actionButtonGroup: {
-    flexDirection: 'row',
-    gap: 8,
+    width: '100%',
     marginTop: 10,
   },
   startWalkButton: {
-    flex: 1.5,
+    width: '100%',
     backgroundColor: TOKENS.colors.primary,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   startWalkButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   fullScreenButton: {
@@ -455,7 +500,7 @@ const styles = StyleSheet.create({
   },
   fullScreenButtonText: {
     color: TOKENS.colors.textMain,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
   },
 
@@ -491,13 +536,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.primaryDark,
     fontWeight: '700',
     marginBottom: 2,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
   },
@@ -505,7 +550,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   closeBtnText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.button,
     color: TOKENS.colors.textMuted,
     fontWeight: '700',
   },
@@ -520,12 +565,12 @@ const styles = StyleSheet.create({
     borderBottomColor: TOKENS.colors.border,
   },
   modalMetaItem: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
   modalProtectedBadge: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: '#065F46',
     backgroundColor: '#ECFDF5',
@@ -555,7 +600,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.surface,
   },
   modalCancelText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
   },
@@ -567,7 +612,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalConfirmText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -588,7 +633,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dogSummaryText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },

@@ -4,12 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 import { SoundSettings } from '../../types/voiceSettings';
 import { TTSNavigationService } from '../../services/ttsNavigation';
 import { VoiceSettingModal } from './VoiceSettingModal';
+
+import { useAppTheme } from '../../theme/themeManager';
 
 export interface VoiceQuickControlBarProps {
   compact?: boolean;
@@ -21,43 +24,47 @@ interface VoiceBarControlProps {
   readonly isMuted: boolean;
   readonly volume: number;
   readonly onToggleMute: () => void;
-  readonly onOpenSettings: () => void;
+  readonly onOpenSettings?: () => void;
   readonly style?: StyleProp<ViewStyle>;
+  readonly compact?: boolean;
 }
 
 const CompactVoiceBar: React.FC<VoiceBarControlProps> = ({
   isMuted,
   volume,
   onToggleMute,
-  onOpenSettings,
   style,
 }) => {
+  const { colors } = useAppTheme();
   const muteText = isMuted ? '음소거' : `${Math.round(volume * 100)}%`;
-  const iconColor = isMuted ? '#F59E0B' : TOKENS.colors.pocketHud;
+  const iconColor = isMuted ? colors.warning : colors.primaryDark;
 
   return (
     <View style={[styles.compactContainer, style]}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggleMute}
-        style={[styles.compactMuteBtn, isMuted ? styles.compactMuteBtnActive : null]}
+        style={[
+          styles.compactMuteBtn,
+          {
+            backgroundColor: isMuted ? 'rgba(245, 158, 11, 0.15)' : colors.primaryLight,
+            borderColor: isMuted ? colors.warning : colors.primary,
+          },
+        ]}
       >
         <AppIcon
           name={isMuted ? 'volumeMute' : 'volume'}
-          size={18}
+          size={14}
           color={iconColor}
         />
-        <Text style={[styles.compactMuteText, isMuted ? styles.compactMuteTextActive : null]}>
+        <Text
+          style={[
+            styles.compactMuteText,
+            { color: isMuted ? colors.warning : colors.primaryDark },
+          ]}
+        >
           {muteText}
         </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onOpenSettings}
-        style={styles.compactSettingsBtn}
-      >
-        <AppIcon name="sparkle" size={16} color={TOKENS.colors.pocketHud} />
       </TouchableOpacity>
     </View>
   );
@@ -69,6 +76,7 @@ const EmergencyVoiceBar: React.FC<VoiceBarControlProps> = ({
   onToggleMute,
   onOpenSettings,
   style,
+  compact = false,
 }) => {
   const percentText = `${Math.round(volume * 100)}%`;
   const mainTitle = isMuted ? '음소거 켜짐 (발화 즉시 중단됨)' : `긴급 원터치 음소거 (${percentText})`;
@@ -76,11 +84,11 @@ const EmergencyVoiceBar: React.FC<VoiceBarControlProps> = ({
   const iconColor = isMuted ? '#F59E0B' : TOKENS.colors.pocketHud;
 
   return (
-    <View style={[styles.emergencyContainer, style]}>
+    <View style={[styles.emergencyContainer, compact && styles.emergencyContainerCompact, style]}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggleMute}
-        style={[styles.emergencyMuteBtn, isMuted ? styles.emergencyMuteBtnActive : null]}
+        style={[styles.emergencyMuteBtn, compact && styles.emergencyMuteBtnCompact, isMuted ? styles.emergencyMuteBtnActive : null]}
       >
         <View style={[styles.emergencyIconCircle, isMuted ? styles.emergencyIconCircleActive : null]}>
           <AppIcon
@@ -102,7 +110,7 @@ const EmergencyVoiceBar: React.FC<VoiceBarControlProps> = ({
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onOpenSettings}
-        style={styles.emergencySettingBtn}
+        style={[styles.emergencySettingBtn, compact && styles.emergencySettingBtnCompact]}
       >
         <AppIcon name="sparkle" size={20} color={TOKENS.colors.pocketHud} />
         <Text style={styles.emergencySettingLabel}>보이스</Text>
@@ -195,6 +203,7 @@ export const VoiceQuickControlBar: React.FC<VoiceQuickControlBarProps> = ({
           volume={settings.volume}
           onToggleMute={handleToggleMute}
           onOpenSettings={() => setModalVisible(true)}
+          compact={compact}
           style={style}
         />
       )}
@@ -246,9 +255,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxActive: { backgroundColor: '#FDE68A' },
-  statusTitle: { fontSize: 13, fontWeight: '700', color: TOKENS.colors.textMain },
+  statusTitle: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   statusTitleActive: { color: '#B45309' },
-  statusDesc: { fontSize: 10, color: TOKENS.colors.textMuted, marginTop: 1 },
+  statusDesc: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, marginTop: 1 },
   actionTag: {
     backgroundColor: TOKENS.colors.background,
     paddingHorizontal: 8,
@@ -258,7 +267,7 @@ const styles = StyleSheet.create({
     borderColor: TOKENS.colors.border,
   },
   actionTagActive: { backgroundColor: '#F59E0B', borderColor: '#D97706' },
-  actionTagText: { fontSize: 11, fontWeight: '700', color: TOKENS.colors.textMain },
+  actionTagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain },
   actionTagTextActive: { color: TOKENS.colors.textWhite },
   settingTriggerBtn: {
     paddingHorizontal: 10,
@@ -271,30 +280,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  settingTriggerText: { fontSize: 10, fontWeight: '700', color: TOKENS.colors.primaryDark },
-  compactContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', marginTop: 10 },
+  settingTriggerText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700', color: TOKENS.colors.primaryDark },
+  compactContainer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: 0 },
   compactMuteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    gap: 4,
     borderWidth: 1,
-    borderColor: TOKENS.colors.pocketHud,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  compactMuteBtnActive: { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderColor: '#F59E0B' },
-  compactMuteText: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.pocketHud },
-  compactMuteTextActive: { color: '#F59E0B' },
-  compactSettingsBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
+  compactMuteText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   emergencyContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -302,6 +299,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginVertical: 12,
   },
+  emergencyContainerCompact: { marginVertical: 2, gap: 6 },
   emergencyMuteBtn: {
     flex: 1,
     height: 56,
@@ -314,6 +312,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 12,
   },
+  emergencyMuteBtnCompact: { height: 48, paddingHorizontal: 10, gap: 8 },
   emergencyMuteBtnActive: {
     backgroundColor: 'rgba(245, 158, 11, 0.22)',
     borderColor: '#F59E0B',
@@ -334,7 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emergencyMainText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     color: TOKENS.colors.pocketHud,
     letterSpacing: -0.3,
@@ -343,7 +342,7 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
   },
   emergencySubHint: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.pocketHudSubtle,
     marginTop: 1,
     opacity: 0.85,
@@ -362,8 +361,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
+  emergencySettingBtnCompact: { width: 48, height: 48, borderRadius: 24 },
   emergencySettingLabel: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.pocketHud,
   },

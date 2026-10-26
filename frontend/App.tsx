@@ -8,8 +8,10 @@
  * - Phase 5: 완주 기록 영구 저장 (100회 FIFO) & 3초 인포그래픽 리포트
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFonts } from 'expo-font';
+import { View, StyleSheet, TouchableOpacity, Alert, StatusBar, Platform, Linking } from 'react-native';
+import { AppText as Text } from './src/components/common/AppText';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TOKENS } from './src/theme/tokens';
 import { themeManager, useAppTheme } from './src/theme/themeManager';
@@ -20,9 +22,7 @@ import { LocalStorageService } from './src/services/storage';
 import { FeedbackContextService, FeedbackSummaryPayload } from './src/services/feedbackContext';
 import { STORAGE_KEYS, WalkRecord, WalkFeedback } from './src/types/storage';
 import { TTSNavigationService } from './src/services/ttsNavigation';
-import { SAMPLE_ROUTE, SAMPLE_STEP_PINS, getCoursePlanById, getCoursePlanByParkId } from './src/services/sampleRoute';
-import { requestWalkPlan } from './src/services/api';
-import { generateAdaptiveCourses } from './src/services/courseAdaptivePlanner';
+import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from './src/services/sampleRoute';
 import { useWalkGuidance } from './src/hooks/useWalkGuidance';
 import { BookmarkedRoute, CoursePlan } from './src/types/bookmark';
 import { RouteFeatureCollection, RouteStepPin } from './src/types/route';
@@ -36,6 +36,8 @@ import { OnboardingWizard } from './src/components/onboarding/OnboardingWizard';
 import { SupabaseService } from './src/services/supabaseService';
 import { LandingAuthModal } from './src/components/auth/LandingAuthModal';
 import { useAppBackHandler } from './src/hooks/useAppBackHandler';
+import { generateUuid } from './src/utils/uuid';
+import { calculateAverageSpeedKmH } from './src/services/walkFormat';
 
 import { HomeScreen } from './src/screens/HomeScreen';
 import { WalkTabScreen } from './src/screens/WalkTabScreen';
@@ -47,15 +49,118 @@ import { DogSelectionView } from './src/components/profile/DogSelectionView';
 import { WalkSettingsView } from './src/components/walk/WalkSettingsView';
 import { CourseRecommendationView } from './src/components/walk/CourseRecommendationView';
 import { AppScreenHeader } from './src/components/common/AppScreenHeader';
-import { AppIcon } from './src/components/common/AppIcon';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
+import { SplashScreen } from './src/components/common/SplashScreen';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
+const EMPTY_WALK_ROUTE: RouteFeatureCollection = { type: 'FeatureCollection', features: [] };
+
+async function loadStartupDogProfiles(): Promise<{
+  dogs: DogProfile[];
+  selectedDogId: string;
+  needsSelection: boolean;
+}> {
+  const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
+  if (savedProfiles !== null && Array.isArray(savedProfiles)) {
+    const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+    const initialDog = savedProfiles.find((dog) => dog.id === savedProfile?.id) ?? savedProfiles[0];
+    return {
+      dogs: savedProfiles,
+      selectedDogId: initialDog?.id ?? '',
+      needsSelection: !initialDog,
+    };
+  }
+
+  // Migrate the previous single-profile key while retaining the app's sample profiles.
+  const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+  let migratedDogs: DogProfile[];
+  if (savedProfile) {
+    const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
+    migratedDogs = exists
+      ? DEFAULT_DOGS.map((dog) => (dog.id === savedProfile.id ? savedProfile : dog))
+      : [savedProfile, ...DEFAULT_DOGS];
+  } else {
+    migratedDogs = [...DEFAULT_DOGS];
+  }
+
+  await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
+  if (!savedProfile) {
+    await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, migratedDogs[0]);
+  }
+  return {
+    dogs: migratedDogs,
+    selectedDogId: savedProfile?.id ?? migratedDogs[0].id,
+    needsSelection: false,
+  };
+}
+
+function showPermissionDeniedAlert(): void {
+  const msg = '화면이 꺼진 상태에서도 경로를 기록하고 음성 안내를 하려면 위치 권한을 “항상 허용”으로 설정해 주세요.';
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert(`[위치 권한 필요] ${msg}`);
+    return;
+  }
+  Alert.alert(
+    '위치 권한 필요',
+    `${msg}\n\n지금 설정 화면으로 이동하여 권한을 변경하시겠습니까?`,
+    [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '설정으로 이동',
+        onPress: () => {
+          void Linking.openSettings();
+        },
+      },
+    ],
+  );
+}
+
+function showStartFailureAlert(): void {
+  const msg = '산책을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.';
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert(`[안내] ${msg}`);
+    return;
+  }
+  Alert.alert('안내', msg);
+}
+
+function resolveInitialCourse(
+  plan: CoursePlan | undefined,
+  mode: 'route' | 'free',
+): { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] } {
+  if (plan) {
+    return { route: plan.route, stepPins: plan.stepPins };
+  }
+  if (mode === 'free') {
+    return { route: EMPTY_WALK_ROUTE, stepPins: [] };
+  }
+  return { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS };
+}
+
+function getWalkStartAnnouncement(dogName: string, title: string): string {
+  const suffix = title.includes('산책') ? '을 시작합니다.' : ' 산책을 시작합니다.';
+  return `${dogName}와 ${title}${suffix}`;
+}
+
 export default function App() {
+  useFonts({
+    'Pretendard-Regular': require('./assets/fonts/pretendard/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('./assets/fonts/pretendard/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('./assets/fonts/pretendard/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold': require('./assets/fonts/pretendard/Pretendard-Bold.otf'),
+    'Pretendard-ExtraBold': require('./assets/fonts/pretendard/Pretendard-ExtraBold.otf'),
+    'Pretendard-Black': require('./assets/fonts/pretendard/Pretendard-Black.otf'),
+  });
+
   const { theme, colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('홈');
   const [subScreen, setSubScreen] = useState<AppSubScreen>('main');
+  const [pocketMapVisible, setPocketMapVisible] = useState(false);
+  const [startupReady, setStartupReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [startupAttempt, setStartupAttempt] = useState(0);
+  const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
   const [dogs, setDogs] = useState<DogProfile[]>([...DEFAULT_DOGS]);
   const [selectedDogId, setSelectedDogId] = useState<string>('dog_choco');
   const activeDog = dogs.find((d) => d.id === selectedDogId) ?? dogs[0] ?? DEFAULT_DOGS[0];
@@ -75,38 +180,33 @@ export default function App() {
   const consent = useLocationConsent();
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
-      void themeManager.init();
-      void SupabaseService.initSession();
-      const savedProfiles = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
-      if (savedProfiles !== null && Array.isArray(savedProfiles)) {
-        setDogs(savedProfiles);
-        const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        const initialDog = savedProfiles.find((dog) => dog.id === savedProfile?.id) ?? savedProfiles[0];
-        setSelectedDogId(initialDog?.id ?? '');
-        if (!initialDog) setSubScreen('dog_selection');
-      } else {
-        // Migrate the previous single-profile key while retaining the app's sample profiles.
-        const savedProfile = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
-        let migratedDogs: DogProfile[];
-        if (savedProfile) {
-          const exists = DEFAULT_DOGS.some((dog) => dog.id === savedProfile.id);
-          migratedDogs = exists
-            ? DEFAULT_DOGS.map((dog) => dog.id === savedProfile.id ? savedProfile : dog)
-            : [savedProfile, ...DEFAULT_DOGS];
-        } else {
-          migratedDogs = [...DEFAULT_DOGS];
+      setStartupError(null);
+      try {
+        await themeManager.init();
+        await SupabaseService.initSession();
+        const profileData = await loadStartupDogProfiles();
+        setDogs(profileData.dogs);
+        setSelectedDogId(profileData.selectedDogId);
+        if (profileData.needsSelection) setSubScreen('dog_selection');
+
+        setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
+        if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
+        if (isMounted) setStartupReady(true);
+      } catch (error) {
+        console.error('[App] 시작 데이터 초기화 실패:', error);
+        if (isMounted) {
+          setStartupError('앱을 시작하는 데 필요한 정보를 불러오지 못했어요. 다시 시도해 주세요.');
         }
-        setDogs(migratedDogs);
-        setSelectedDogId(savedProfile?.id ?? migratedDogs[0].id);
-        await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, migratedDogs);
-        if (!savedProfile) await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, migratedDogs[0]);
       }
-      setFeedbackSummary(await FeedbackContextService.buildRecentFeedbackContext());
-      if (!(await OnboardingService.hasSeenOnboarding())) setSubScreen('onboarding');
     }
     void loadData();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [startupAttempt]);
 
   const handleSaveActiveDog = async (fields: Partial<DogProfile>) => {
     const updated = { ...activeDog, ...fields, updatedAt: new Date().toISOString() };
@@ -118,7 +218,10 @@ export default function App() {
   };
 
   const handleAddDog = async (newDog: DogProfile) => {
-    const updatedDogs = [...dogs, newDog];
+    const alreadyRegistered = dogs.some((dog) => dog.id === newDog.id);
+    const updatedDogs = alreadyRegistered
+      ? dogs.map((dog) => dog.id === newDog.id ? { ...dog, ...newDog } : dog)
+      : [...dogs, newDog];
     setDogs(updatedDogs); setSelectedDogId(newDog.id);
     await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILES, updatedDogs);
     await LocalStorageService.setItem(STORAGE_KEYS.DOG_PROFILE, newDog);
@@ -172,33 +275,41 @@ export default function App() {
     setAuthModalVisible(true);
   };
 
-  const beginWalk = async (title: string, plan: CoursePlan | undefined, bookmark: BookmarkedRoute | null) => {
+  const handleSplashAnimationComplete = useCallback(() => {
+    setSplashAnimationComplete(true);
+  }, []);
+
+  const beginWalk = async (
+    title: string,
+    plan: CoursePlan | undefined,
+    bookmark: BookmarkedRoute | null,
+    mode: 'route' | 'free' = 'route',
+  ) => {
     try {
       const agreed = await consent.ensureConsent();
       if (!agreed) return;
 
-      if (plan) walk.loadCourse(plan.route, plan.stepPins);
-      const status = await walk.start();
+      const initialCourse = resolveInitialCourse(plan, mode);
+      walk.loadCourse(initialCourse.route, initialCourse.stepPins);
+
+      setPreferences((prev) => ({
+        ...prev,
+        isFreeWalk: mode === 'free',
+        ...(mode === 'free' ? { durationMinutes: null } : {}),
+      }));
+
+      const status = await walk.start(mode);
       if (status === 'permission_denied') {
-        const msg = '안심 산책을 위해 위치 권한을 허용해 주세요.';
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert(`[위치 권한 필요] ${msg}`);
-        } else {
-          Alert.alert('위치 권한 필요', msg);
-        }
+        showPermissionDeniedAlert();
         return;
       }
       if (status !== 'running') {
-        const msg = '산책을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.';
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.alert(`[안내] ${msg}`);
-        } else {
-          Alert.alert('안내', msg);
-        }
+        showStartFailureAlert();
         return;
       }
+
       setWalkBookmark(bookmark);
-      TTSNavigationService.speak(`${activeDog.name}와 ${title} 산책을 시작합니다.`);
+      TTSNavigationService.speak(getWalkStartAnnouncement(activeDog.name, title));
       setSubScreen('pocket');
     } catch (err) {
       console.warn('[App] beginWalk 실행 중 예외 처리:', err);
@@ -215,35 +326,11 @@ export default function App() {
     );
 
   /**
-   * 1. 홈 화면 "산책 시작" 버튼 클릭 시:
-   * AI가 생성한 추천 경로 1에 따라 즉시 산책을 시작 (Screen-04 거치지 않고 직행)
+   * 홈 화면 "바로 산책하기" 클릭 시:
+   * 사전에 추천 경로를 생성하지 않고, 실제 GPS 트래킹을 수행하는 자유 산책 모드로 즉시 진입
    */
-  const handleStartTopCourse = async () => {
-    try {
-      const planRes = await requestWalkPlan(activeDog, preferences, feedbackSummary);
-      const courses = planRes.courses.length > 0
-        ? planRes.courses
-        : generateAdaptiveCourses(activeDog, preferences, feedbackSummary);
-      const topCourse = courses[0];
-      const candidatePlan = topCourse?.id ? planRes.coursePlans?.[topCourse.id] : undefined;
-      const plan: CoursePlan = candidatePlan
-        ?? (planRes.isLiveServer ? { route: planRes.route, stepPins: planRes.stepPins } : undefined)
-        ?? getCoursePlanById(topCourse?.id, getCoursePlanByParkId(preferences?.pilotParkId));
-
-      handleStartWalk(topCourse, plan);
-    } catch (err) {
-      if ((preferences.originMode ?? 'park') !== 'current_location') {
-        const message = err instanceof Error ? err.message : '공원 내부 경로를 생성하지 못했습니다.';
-        if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(message);
-        else Alert.alert('산책 경로 확인 필요', message);
-        return;
-      }
-      console.warn('[App] 실시간 AI 추천 코스 생성 중 오류 발생, 로컬 안전 코스로 즉시 폴백합니다:', err);
-      const fallbackCourses = generateAdaptiveCourses(activeDog, preferences, feedbackSummary);
-      const topCourse = fallbackCourses[0];
-      const plan = getCoursePlanById(topCourse?.id, getCoursePlanByParkId(preferences?.pilotParkId));
-      handleStartWalk(topCourse, plan);
-    }
+  const handleStartFreeWalk = async () => {
+    await beginWalk('자유 산책', undefined, null, 'free');
   };
 
   /** US-29: 즐겨찾기 코스를 서버 재탐색 없이 저장된 경로로 즉시 산책 시작 */
@@ -259,9 +346,17 @@ export default function App() {
     void beginWalk(title, { route, stepPins: [...stepPins] }, null);
   };
 
-  const handleStopWalkAndReport = useCallback(async () => {
+  const handleStopWalkAndReport = useCallback(async (saveRecord = true) => {
+    if (!saveRecord) {
+      await walk.stop();
+      setCompletedRecord(null);
+      setSubScreen('main');
+      setActiveTab('산책');
+      return;
+    }
+
     const distKm = walk.stats.distanceKm;
-    const gpsTrack = walk.getTrackBuffer().map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const gpsTrack = (await walk.getPersistedTrackBuffer()).map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
@@ -272,14 +367,18 @@ export default function App() {
     }
 
     const newRecord: WalkRecord = {
-      id: `walk_${Date.now()}`,
+      id: generateUuid(),
       dogId: activeDog.id,
       dogSummary: toWalkDogSummary(activeDog),
       startedAt: new Date(Date.now() - walk.stats.elapsedSec * 1000).toISOString(),
       completedAt: new Date().toISOString(),
       durationMinutes: Math.max(1, Math.round(walk.stats.elapsedSec / 60)),
       totalDistanceKm: finalDistanceKm,
-      averageSpeedKmH: walk.stats.speedKmH > 0 ? walk.stats.speedKmH : activeDog.speedKmH,
+      averageSpeedKmH: calculateAverageSpeedKmH(
+        finalDistanceKm,
+        walk.stats.elapsedSec,
+        activeDog.speedKmH,
+      ),
       safeSurfaceRatio: calculatedSafeRatio,
       gpsTrack,
       poopCount: walk.poopCount,
@@ -293,6 +392,7 @@ export default function App() {
       ended_at: newRecord.completedAt,
       distance_m: newRecord.totalDistanceKm * 1000,
       duration_min: newRecord.durationMinutes,
+      route_coords: gpsTrack.map(({ lat, lon }) => [lon, lat] as [number, number]),
       is_public: false,
     });
     await walk.stop();
@@ -308,6 +408,7 @@ export default function App() {
 
   const handleResetAllData = async () => {
     await ConsentService.resetAllLocalData();
+    await themeManager.init();
     setDogs([...DEFAULT_DOGS]); setSelectedDogId(DEFAULT_DOGS[0].id);
     setFeedbackSummary(null); setCompletedRecord(null); setWalkBookmark(null);
   };
@@ -332,10 +433,7 @@ export default function App() {
     Alert.alert('산책을 종료할까요?', '지도를 확인하거나 산책을 마칠 수 있어요.', [
       {
         text: '지도 보기',
-        onPress: () => {
-          setSubScreen('main');
-          setActiveTab('산책');
-        },
+        onPress: () => setPocketMapVisible(true),
       },
       { text: '산책 종료', onPress: () => void handleStopWalkAndReport() },
     ]);
@@ -395,6 +493,52 @@ export default function App() {
     }
   };
 
+  const walkTrack = walk.getTrackBuffer();
+  const recordedCoords = walkTrack.map((point) => [point.longitude, point.latitude] as const);
+  const trackingFeature = recordedCoords.length > 1
+    ? [{
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 0, shaded: false },
+        geometry: { type: 'LineString', coordinates: recordedCoords },
+      } as const]
+    : [];
+  const pocketMapRoute: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [...walk.route.features, ...trackingFeature],
+  };
+
+  const pocketStartCoords = useMemo(() => {
+    if (walkTrack[0]) {
+      return {
+        lat: walkTrack[0].latitude,
+        lon: walkTrack[0].longitude,
+      };
+    }
+    const firstCoord = walk.route.features[0]?.geometry?.coordinates[0];
+    if (firstCoord) {
+      return {
+        lat: firstCoord[1],
+        lon: firstCoord[0],
+      };
+    }
+    return null;
+  }, [walkTrack, walk.route]);
+
+  if (!startupReady || !splashAnimationComplete) {
+    return (
+      <SafeAreaProvider>
+        <SplashScreen
+          onAnimationComplete={handleSplashAnimationComplete}
+          initializationError={startupError}
+          onRetry={() => {
+            setStartupReady(false);
+            setStartupAttempt((attempt) => attempt + 1);
+          }}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <SafeAreaView
@@ -415,30 +559,31 @@ export default function App() {
             dogName={activeDog.name}
             stats={walk.stats}
             targetMinutes={preferences.durationMinutes}
-            isFreeWalk={preferences.isFreeWalk}
-            onUnlock={handlePocketUnlock}
+            isFreeWalk={walk.mode === 'free'}
+            freeWalkSafety={walk.freeWalkSafety}
+            guidanceMessage={walk.guidanceMessage}
+            onFinishWalk={(saveRecord) => void handleStopWalkAndReport(saveRecord)}
+            mapVisible={pocketMapVisible}
+            onMapVisibleChange={setPocketMapVisible}
             onMarkPoop={walk.markPoop}
             poopCount={walk.poopCount}
-            currentCoords={walk.getTrackBuffer().length > 0 ? {
-              lat: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].latitude,
-              lon: walk.getTrackBuffer()[walk.getTrackBuffer().length - 1].longitude,
+            currentCoords={walk.currentPoint ? {
+              lat: walk.currentPoint.latitude,
+              lon: walk.currentPoint.longitude,
             } : null}
-            startCoords={walk.route.features[0]?.geometry?.coordinates[0] ? {
-              lat: walk.route.features[0].geometry.coordinates[0][1],
-              lon: walk.route.features[0].geometry.coordinates[0][0],
-            } : null}
+            startCoords={pocketStartCoords}
             routeCoords={walk.route.features[0]?.geometry?.coordinates as any}
+            walkedCoords={recordedCoords}
+            mapRoute={pocketMapRoute}
+            mapPins={walk.activePins}
             onReroute={(res) => {
-              walk.applyReroute(res.newRoute);
-              if (res.voiceAlert) {
-                TTSNavigationService.speak(res.voiceAlert);
-              }
+              walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);
             }}
           />
         )}
         {subScreen === 'report' && completedRecord && (
           <WalkReportScreen
-            record={completedRecord} dogName={activeDog.name} bookmarkCandidate={walkBookmark}
+            record={completedRecord} dogName={activeDog.name} dogPhotoUri={activeDog.photoUri} bookmarkCandidate={walkBookmark}
             onSaveFeedback={handleSaveReportFeedback} onGoHome={() => { setSubScreen('main'); setActiveTab('홈'); }}
             onGoToCommunity={() => { setSubScreen('main'); setActiveTab('커뮤니티'); }}
             onOpenAuthModal={handleOpenAuthModal}
@@ -519,7 +664,7 @@ export default function App() {
                     onAddDog={() => setSubScreen('dog_selection')}
                     feedbackSummary={feedbackSummary}
                     onPressProfile={() => setSubScreen('dog_selection')}
-                    onStartWalk={handleStartTopCourse}
+                    onStartWalk={handleStartFreeWalk}
                     onOpenPlanner={() => setActiveTab('산책')}
                     onOpenStats={() => {
                       if (subScreen !== 'main') setSubScreen('main');

@@ -1,15 +1,16 @@
 /**
  * [편안하개 - PetWalk]
- * OpenFreeMap & MapLibre 벡터 지도 스타일 정의 및 3대 테마 실시간 동기화 모듈
+ * OpenFreeMap & MapLibre 벡터 지도 스타일 정의 및 앱 테마 실시간 동기화 모듈
  * (T-OFM-2, docs/08_OpenFreeMap_MapLibre_배경지도_구현계획서.md)
  *
  * 1. OpenFreeMap 공식 3대 벡터 타일 스타일 엔드포인트 정의 (Liberty, Bright, Dark)
- * 2. 편안하개 3대 앱 테마(숲길 그린, 비비드 바이올렛, 다크 포켓)와의 1:1 매핑
+ * 2. 앱 테마별 OpenFreeMap 스타일과 경로 팔레트 매핑
  * 3. MapLibre 벡터 레이어용 경로 세그먼트(3색 안심 보행로), 마스킹 원, 마커 컬러 팔레트 제공
  */
 
 import { ThemeId } from '../types/theme';
 import { useAppTheme } from '../theme/themeManager';
+import { THEME_PALETTES } from '../theme/tokens';
 
 export type OpenFreeMapStyleKey = 'liberty' | 'bright' | 'dark';
 
@@ -33,6 +34,8 @@ export const THEME_TO_MAP_STYLE: Record<ThemeId, OpenFreeMapStyleKey> = {
   forest: 'liberty',
   vivid_violet: 'bright',
   dark: 'dark',
+  ocean: 'bright',
+  coral: 'bright',
 } as const;
 
 /**
@@ -45,45 +48,71 @@ export interface MapRouteColors {
   readonly casing: string;     // 도로 라인 외곽 테두리 (가독성용 흰색/다크 외곽선)
   readonly maskCircle: string; // 200m 안심 마스킹 원 색상
   readonly maskBorder: string; // 200m 안심 마스킹 테두리 색상
-  readonly startMarker: string;// 출발점 마커 색상
+  readonly startMarker: string;// 출발점 마커 색상 (레거시 호환)
+  readonly mapGuidance?: string;// 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 고대비 색상
 }
 
 export const THEME_MAP_ROUTE_COLORS: Record<ThemeId, MapRouteColors> = {
   dusty_amber: {
-    safe: '#5A7361',       // 세이지 그린
-    normal: '#B59C5E',     // 올리브 오커
-    caution: '#CFA052',    // 더스티 앰버
+    safe: THEME_PALETTES.dusty_amber.routeSafe,
+    normal: THEME_PALETTES.dusty_amber.routeNormal,
+    caution: THEME_PALETTES.dusty_amber.routeCaution,
     casing: '#FDFAF4',
     maskCircle: 'rgba(90, 115, 97, 0.18)',
     maskBorder: '#3E5244',
-    startMarker: '#5A7361',
+    startMarker: THEME_PALETTES.dusty_amber.mapGuidance,
+    mapGuidance: THEME_PALETTES.dusty_amber.mapGuidance,
   },
   forest: {
-    safe: '#10B981',       // 에메랄드 그린
-    normal: '#3B82F6',     // 소프트 블루
-    caution: '#F59E0B',    // 앰버 오렌지
+    safe: THEME_PALETTES.forest.routeSafe,
+    normal: THEME_PALETTES.forest.routeNormal,
+    caution: THEME_PALETTES.forest.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(16, 185, 129, 0.18)',
     maskBorder: '#059669',
-    startMarker: '#059669',
+    startMarker: THEME_PALETTES.forest.mapGuidance,
+    mapGuidance: THEME_PALETTES.forest.mapGuidance,
   },
   vivid_violet: {
-    safe: '#10B981',       // 산뜻한 그린
-    normal: '#7C3AED',     // 비비드 바이올렛
-    caution: '#F59E0B',    // 앰버 오렌지
+    safe: THEME_PALETTES.vivid_violet.routeSafe,
+    normal: THEME_PALETTES.vivid_violet.routeNormal,
+    caution: THEME_PALETTES.vivid_violet.routeCaution,
     casing: '#FFFFFF',
     maskCircle: 'rgba(124, 58, 237, 0.18)',
     maskBorder: '#6D28D9',
-    startMarker: '#7C3AED',
+    startMarker: THEME_PALETTES.vivid_violet.mapGuidance,
+    mapGuidance: THEME_PALETTES.vivid_violet.mapGuidance,
   },
   dark: {
-    safe: '#34D399',       // 네온 민트 (야간 고시인성)
-    normal: '#60A5FA',     // 스카이 블루
-    caution: '#FBBF24',    // 네온 옐로우
+    safe: THEME_PALETTES.dark.routeSafe,
+    normal: THEME_PALETTES.dark.routeNormal,
+    caution: THEME_PALETTES.dark.routeCaution,
     casing: '#0F172A',     // 다크 배경 대비선
     maskCircle: 'rgba(52, 211, 153, 0.22)',
     maskBorder: '#34D399',
-    startMarker: '#34D399',
+    startMarker: THEME_PALETTES.dark.mapGuidance,
+    mapGuidance: THEME_PALETTES.dark.mapGuidance,
+  },
+
+  ocean: {
+    safe: THEME_PALETTES.ocean.routeSafe,
+    normal: THEME_PALETTES.ocean.routeNormal,
+    caution: THEME_PALETTES.ocean.routeCaution,
+    casing: '#FFFFFF',
+    maskCircle: 'rgba(37, 99, 235, 0.18)',
+    maskBorder: '#1D4ED8',
+    startMarker: THEME_PALETTES.ocean.mapGuidance,
+    mapGuidance: THEME_PALETTES.ocean.mapGuidance,
+  },
+  coral: {
+    safe: THEME_PALETTES.coral.routeSafe,
+    normal: THEME_PALETTES.coral.routeNormal,
+    caution: THEME_PALETTES.coral.routeCaution,
+    casing: '#FFFFFF',
+    maskCircle: 'rgba(249, 115, 22, 0.18)',
+    maskBorder: '#C2410C',
+    startMarker: THEME_PALETTES.coral.mapGuidance,
+    mapGuidance: THEME_PALETTES.coral.mapGuidance,
   },
 } as const;
 

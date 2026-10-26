@@ -161,6 +161,37 @@ describe('듬성듬성한 GPS에서도 선분 기준으로 핀 안내', () => {
   });
 });
 
+describe('회전 안내는 다음 방향 전환을 경로상 거리로 묶는다', () => {
+  const route: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { segmentType: 'safe', maxSlopePercent: 1, shaded: false },
+      geometry: { type: 'LineString', coordinates: [[127, 0], [127.001, 0]] },
+    }],
+  };
+  const pins: RouteStepPin[] = [
+    { id: 'turn-left', kind: 'turn', position: [127.0003, 0], instruction: '좌회전하여 보행로를 따라 이동하세요.' },
+    { id: 'turn-right', kind: 'turn', position: [127.00033, 0], instruction: '우회전하여 보행로를 따라 이동하세요.' },
+    { id: 'turn-u', kind: 'turn', position: [127.00045, 0], instruction: '유턴하여 반대 방향으로 이동하세요.' },
+  ];
+
+  it('5m 안에 이어지는 방향 전환은 한 번의 순서 안내로 묶는다', () => {
+    const result = evaluateGuidance([127.00026, 0], route, pins, STARTED_STATE);
+    const turnEvent = result.events.find((event) => event.category === 'turn');
+
+    expect(turnEvent?.message).toBe('5미터 전방에서 좌회전하십시오. 이어서 우회전하십시오.');
+    expect(turnEvent?.pinIds).toEqual(['turn-left', 'turn-right']);
+    expect(result.nextState.announcedPinIds).toContain('turn-right');
+    expect(result.nextState.announcedPinIds).not.toContain('turn-u');
+  });
+
+  it('아직 5m보다 멀리 있는 다음 회전은 미리 안내하지 않는다', () => {
+    const result = evaluateGuidance([127.0001, 0], route, pins, STARTED_STATE);
+    expect(result.events.filter((event) => event.category === 'turn')).toHaveLength(0);
+  });
+});
+
 describe('핀이 없어도 일정 거리마다 진행 안내', () => {
   it('약 200m를 걸으면 경로를 잘 따라가고 있다고 안내하고 이후 다시 누적한다', () => {
     const { events } = walkSteps(0, 8, NORTH_ROUTE, [], INITIAL_GUIDANCE_STATE);
@@ -227,5 +258,22 @@ describe('우회 경로 교체 시 안내 상태', () => {
     expect(reset.offRouteActive).toBe(false);
     expect(reset.arrived).toBe(false);
     expect(reset.startChecked).toBe(true);
+  });
+});
+
+describe('코스 진행 거리 추적 (이탈 후 합류 지점 선택용)', () => {
+  it('코스 위에 있으면 진행 거리를 갱신하고, 이탈 중에는 마지막 진행 거리를 유지한다', () => {
+    const start = evaluateGuidance(ON_ROUTE_START, SAMPLE_ROUTE, [], STARTED_STATE);
+    expect(start.nextState.routeProgressM).toBeDefined();
+    expect(start.nextState.routeProgressM!).toBeLessThan(5);
+
+    const away = evaluateGuidance(FAR_AWAY, SAMPLE_ROUTE, [], start.nextState);
+    expect(away.nextState.offRouteActive).toBe(true);
+    expect(away.nextState.routeProgressM).toBe(start.nextState.routeProgressM);
+  });
+
+  it('새 경로로 교체하면 진행 거리는 초기화된다', () => {
+    const start = evaluateGuidance(ON_ROUTE_START, SAMPLE_ROUTE, [], STARTED_STATE);
+    expect(resetGuidanceForNewRoute(start.nextState).routeProgressM).toBeUndefined();
   });
 });

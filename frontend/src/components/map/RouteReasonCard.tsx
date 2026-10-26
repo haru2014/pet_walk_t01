@@ -8,8 +8,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 
 import { formatSlopeDisplay, formatSurfaceDisplay } from '../../services/routeProfileFormatter';
@@ -83,7 +84,7 @@ export const RouteReasonCard: React.FC<RouteReasonCardProps> = ({
           <View style={styles.metricIcon}><AppIcon name="shade" size={20} color={TOKENS.colors.primaryDark} /></View>
           <Text style={styles.metricLabel}>시원한 그늘</Text>
           <Text style={styles.metricValue}>{shadePercent}%</Text>
-          <Text style={styles.metricSub}>자외선 차단 및 저온 유지</Text>
+          <Text style={styles.metricSub}>햇볕을 피하며 걸을 수 있어요</Text>
         </View>
       </View>
 
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -138,19 +139,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.textMuted,
     marginBottom: 2,
   },
   metricValue: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
     color: TOKENS.colors.primaryDark,
     marginBottom: 2,
   },
   metricSub: {
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
     textAlign: 'center',
   },
@@ -161,9 +162,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   reasonText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMain,
-    lineHeight: 18,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     fontWeight: '500',
   },
 });

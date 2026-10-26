@@ -8,6 +8,8 @@ Supabase PostgreSQL 영속 저장소 및 로컬 인메모리 자동 폴백 리�
 
 import os
 import logging
+import math
+from datetime import date, datetime
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("petwalk.supabase")
@@ -82,6 +84,50 @@ _DEFAULT_LOCAL_FEEDS: List[Dict[str, Any]] = [
 _memory_feeds: List[Dict[str, Any]] = list(_DEFAULT_LOCAL_FEEDS)
 
 
+def _public_walk_to_feed(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """공개 후기 뷰의 허용된 정보만 기존 커뮤니티 피드 형식으로 변환한다."""
+    coords = record.get("public_route_coords")
+    if not isinstance(coords, list) or len(coords) < 2:
+        return None
+    if any(
+        not isinstance(point, (list, tuple))
+        or len(point) < 2
+        or not all(
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            for value in point[:2]
+        )
+        or not (-180 <= point[0] <= 180 and -90 <= point[1] <= 90)
+        for point in coords
+    ):
+        return None
+
+    walk_id = record.get("id")
+    if not walk_id:
+        return None
+    note = record.get("note")
+    title = note.strip()[:50] if isinstance(note, str) and note.strip() else "이웃 산책 기록"
+    walked_on = record.get("walked_on")
+    created_at = walked_on.isoformat() if isinstance(walked_on, (date, datetime)) else walked_on
+
+    return {
+        "course_id": f"walk_{walk_id}",
+        "title": title,
+        "masked_polyline": [list(point[:2]) for point in coords],
+        "distance_m": float(record.get("distance_m") or 0),
+        "duration_min": int(record.get("duration_min") or 0),
+        "rating": float(record.get("rating") or 5),
+        "is_origin_masked": True,
+        "created_at": created_at,
+    }
+
+
+def _feed_sort_timestamp(feed: Dict[str, Any]) -> str:
+    value = feed.get("created_at")
+    return value.isoformat() if isinstance(value, (date, datetime)) else str(value or "")
+
+
 class SupabaseCommunityRepository:
     def __init__(self):
         self._client = None
@@ -108,18 +154,54 @@ class SupabaseCommunityRepository:
         return self._client is not None
 
     def raw_client(self):
-        """서비스 키로 만든 Supabase 클라이언트(미연결이면 None). 서버 전용 — 앱에 노출하지 않는다."""
+        """공개 설정 API 전용 클라이언트. anon 키로 보호 필드를 쓰지 않도록 service role만 허용한다."""
+        if not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+            return None
         return self._client
 
+    def walk_share_storage_ready(self) -> bool:
+        """공유 API에 필요한 칼럼과 공개 피드 view가 실제 DB에 준비됐는지 확인한다."""
+        client = self.raw_client()
+        if client is None:
+            return False
+        try:
+            client.table("walk_records").select(
+                "id,user_id,route_coords,is_public,public_route_coords"
+            ).limit(0).execute()
+            client.table("public_walk_reviews_v").select("id").limit(0).execute()
+            return True
+        except Exception:
+            logger.exception("산책 기록 공개 스키마 확인 실패")
+            return False
+
     def get_feeds(self) -> List[Dict[str, Any]]:
-        """커뮤니티 피드 목록 조회 (Supabase DB 우선, 실패 시 인메모리)."""
+        """기존 공유 코스와 공개 산책 후기를 합쳐 커뮤니티 피드를 조회한다."""
         if self._client:
+            courses = None
+            public_walks: List[Dict[str, Any]] = []
             try:
                 res = self._client.table("community_courses").select("*").order("created_at", desc=True).limit(50).execute()
-                if res and res.data:
-                    return res.data
+                courses = res.data if res else []
             except Exception as e:
-                logger.warning(f"[Supabase] 피드 조회 실패, 로컬 메모리 폴백: {e}")
+                logger.warning(f"[Supabase] 커뮤니티 코스 조회 실패: {e}")
+
+            try:
+                res = self._client.table("public_walk_reviews_v").select(
+                    "id,course_id,distance_m,duration_min,rating,note,public_route_coords,walked_on"
+                ).order("walked_on", desc=True).limit(50).execute()
+                public_walks = [
+                    feed
+                    for record in (res.data if res and res.data else [])
+                    if (feed := _public_walk_to_feed(record)) is not None
+                ]
+            except Exception as e:
+                logger.warning(f"[Supabase] 공개 산책 후기 조회 실패: {e}")
+
+            if courses is not None or public_walks:
+                feeds = list(courses or []) + public_walks
+                feeds.sort(key=_feed_sort_timestamp, reverse=True)
+                if feeds:
+                    return feeds[:50]
 
         return list(_memory_feeds)
 

@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 
 export interface WalkConditionsSummaryProps {
   labels: string[];
@@ -30,7 +31,7 @@ export const WalkConditionsSummary: React.FC<WalkConditionsSummaryProps> = ({ la
 
 const styles = StyleSheet.create({
   container: { marginBottom: 16 },
-  summaryTitle: { fontSize: 13, fontWeight: '600', color: TOKENS.colors.textMuted, marginBottom: 8 },
+  summaryTitle: { fontSize: TYPOGRAPHY.support, fontWeight: '600', color: TOKENS.colors.textMuted, marginBottom: 8 },
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   summaryTag: {
     backgroundColor: TOKENS.colors.background,
@@ -38,5 +39,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  summaryTagText: { fontSize: 12, color: TOKENS.colors.textMuted, fontWeight: '500' },
+  summaryTagText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.textMuted, fontWeight: '500' },
 });

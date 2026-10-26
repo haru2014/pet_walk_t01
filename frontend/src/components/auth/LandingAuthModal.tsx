@@ -4,12 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { GradientButton } from '../common/GradientButton';
 import { AppIcon } from '../common/AppIcon';
 import { SupabaseService } from '../../services/supabaseService';
 import { DogProfile } from '../../types/dogProfile';
+import { STORAGE_KEYS } from '../../types/storage';
+import { LocalStorageService } from '../../services/storage';
+import { DogProfileRemote } from '../../types/auth';
 import { LegalTermsModal, LegalTabType } from '../common/LegalTermsModal';
 import { DogAvatar } from '../common/DogAvatar';
 import { PhotoPickerModal } from '../profile/PhotoPickerModal';
@@ -62,6 +66,46 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
 
     const uid = res.user?.id ?? 'user_' + Date.now();
     setUserId(uid);
+
+    if (!isSignUp) {
+      let cloudDogs: DogProfileRemote[];
+      try {
+        cloudDogs = await SupabaseService.getDogProfiles();
+      } catch (error) {
+        Alert.alert(
+          '프로필을 확인하지 못했어요',
+          error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+        );
+        return;
+      }
+
+      const localDogs = await LocalStorageService.getItem<DogProfile[]>(STORAGE_KEYS.DOG_PROFILES);
+      const localDog = await LocalStorageService.getItem<DogProfile>(STORAGE_KEYS.DOG_PROFILE);
+      if (!localDogs?.length && !localDog && cloudDogs.length > 0) {
+        const existing = cloudDogs[0];
+        const now = new Date().toISOString();
+        const careLevel = Math.max(0, Math.min(3, existing.joint_care_level ?? 1)) as DogProfile['jointCareLevel'];
+        onFinish({
+          id: existing.id,
+          name: existing.name,
+          breed: existing.breed ?? '견종 미상',
+          ageYears: existing.age_years ?? 3,
+          weightKg: existing.weight_kg ?? 5.5,
+          jointCareLevel: careLevel,
+          speedKmH: existing.speed_kmh ?? 2.8,
+          photoUri: existing.photo_path,
+          createdAt: existing.created_at ?? now,
+          updatedAt: existing.updated_at ?? now,
+        });
+        handleClose();
+        return;
+      }
+      if (localDogs?.length || localDog || cloudDogs.length > 0) {
+        handleClose();
+        return;
+      }
+    }
+
     setStep('dog');
   };
 
@@ -174,14 +218,14 @@ export const LandingAuthModal: React.FC<LandingAuthModalProps> = ({ visible, onC
               )}
 
               <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
-                <Text style={styles.guestBtnText}>게스트 모드로 바로 둘러보기</Text>
+                <Text style={styles.guestBtnText}>회원가입 없이 둘러보기</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View>
               <View style={styles.header}>
                 <Text style={styles.title}>🐕 우리 강아지 등록하기 (pet-photos)</Text>
-                <Text style={styles.subtitle}>Supabase 클라우드에 안전하게 보관됩니다.</Text>
+                <Text style={styles.subtitle}>계정에 안전하게 보관됩니다.</Text>
               </View>
 
               <Text style={styles.label}>반려견 이름</Text>
@@ -253,9 +297,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   container: { backgroundColor: TOKENS.colors.surface, borderRadius: 20, padding: 22 },
   header: { marginBottom: 14 },
-  title: { fontSize: 17, fontWeight: '800', color: TOKENS.colors.textMain },
-  subtitle: { fontSize: 12, color: TOKENS.colors.textMuted, marginTop: 2 },
-  label: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
+  title: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: TOKENS.colors.textMain },
+  subtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2 },
+  label: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 4 },
   input: {
     backgroundColor: TOKENS.colors.background,
     borderWidth: 1,
@@ -263,11 +307,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMain,
   },
   switchRow: { alignItems: 'center', marginTop: 12 },
-  switchText: { fontSize: 12, color: TOKENS.colors.primaryDark, fontWeight: '600' },
+  switchText: { fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, fontWeight: '600' },
   legalNoticeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -276,10 +320,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 10,
   },
-  legalNoticeText: { fontSize: 11, color: TOKENS.colors.textMuted },
-  legalLink: { fontSize: 11, color: TOKENS.colors.primaryDark, fontWeight: '700' },
+  legalNoticeText: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
+  legalLink: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.primaryDark, fontWeight: '700' },
   guestBtn: { alignItems: 'center', marginTop: 10, paddingVertical: 6 },
-  guestBtnText: { fontSize: 12, color: TOKENS.colors.textMuted, textDecorationLine: 'underline' },
+  guestBtnText: { fontSize: TYPOGRAPHY.button, color: TOKENS.colors.textMuted, textDecorationLine: 'underline' },
   photoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   photoCardSelected: { borderColor: '#10B981', backgroundColor: '#ECFDF5' },
-  photoTitle: { fontSize: 13, color: TOKENS.colors.textMain, fontWeight: '700' },
+  photoTitle: { fontSize: TYPOGRAPHY.cardTitle, color: TOKENS.colors.textMain, fontWeight: '700' },
   photoTitleSelected: { color: '#065F46', fontWeight: '800' },
-  photoSubtitle: { fontSize: 11, color: TOKENS.colors.textMuted, marginTop: 2 },
+  photoSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginTop: 2 },
 });

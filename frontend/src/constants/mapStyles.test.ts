@@ -1,13 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   OPENFREEMAP_STYLES,
-  THEME_TO_MAP_STYLE,
-  getMapStyleUrl,
   getMapStyleKeyForTheme,
   getMapStyleForTheme,
   getMapRouteColors,
 } from './mapStyles';
 import { ThemeId } from '../types/theme';
+import { THEME_PALETTES } from '../theme/tokens';
 
 describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
   it('OpenFreeMap 공식 3대 스타일 엔드포인트가 정의되어 있어야 한다', () => {
@@ -16,18 +15,19 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
     expect(OPENFREEMAP_STYLES.dark).toBe('https://tiles.openfreemap.org/styles/dark');
   });
 
-  it('편안하개 3대 테마가 각각 적절한 OpenFreeMap 스타일에 매핑되어야 한다', () => {
-    // 1. 숲길 그린 -> 녹지/자연 디테일이 강조된 liberty
+  it('앱 테마가 적절한 OpenFreeMap 스타일에 매핑되어야 한다', () => {
+    // Forest-like themes use liberty for its natural details.
     expect(getMapStyleKeyForTheme('forest')).toBe('liberty');
     expect(getMapStyleForTheme('forest')).toBe(OPENFREEMAP_STYLES.liberty);
 
-    // 2. 비비드 바이올렛 -> 밝고 고대비 도심 보행로 bright
+    // High-contrast palettes use bright urban walking styles.
     expect(getMapStyleKeyForTheme('vivid_violet')).toBe('bright');
     expect(getMapStyleForTheme('vivid_violet')).toBe(OPENFREEMAP_STYLES.bright);
 
-    // 3. 다크 포켓 -> 야간 OLED 저전력 다크 스타일 dark
     expect(getMapStyleKeyForTheme('dark')).toBe('dark');
     expect(getMapStyleForTheme('dark')).toBe(OPENFREEMAP_STYLES.dark);
+    expect(getMapStyleKeyForTheme('ocean')).toBe('bright');
+    expect(getMapStyleKeyForTheme('coral')).toBe('bright');
   });
 
   it('정의되지 않은 비정상 테마가 전달될 경우 기본값인 liberty로 안전하게 폴백되어야 한다', () => {
@@ -38,9 +38,9 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
   it('각 테마별 보행로 3색(safe/normal/caution) 및 마스킹 원 색상을 올바르게 반환해야 한다', () => {
     const forestColors = getMapRouteColors('forest');
-    expect(forestColors.safe).toBe('#10B981');
-    expect(forestColors.normal).toBe('#3B82F6');
-    expect(forestColors.caution).toBe('#F59E0B');
+    expect(forestColors.safe).toBe('#047857');
+    expect(forestColors.normal).toBe('#2563EB');
+    expect(forestColors.caution).toBe('#C2410C');
     expect(forestColors.maskCircle).toContain('rgba(');
 
     const vividColors = getMapRouteColors('vivid_violet');
@@ -48,6 +48,34 @@ describe('OpenFreeMap & MapLibre 스타일 및 테마 매핑 (T-OFM-2)', () => {
 
     const darkColors = getMapRouteColors('dark');
     expect(darkColors.safe).toBe('#34D399');   // 야간 고시인성 네온 민트
+    expect(darkColors.normal).toBe('#60A5FA');
+    expect(darkColors.caution).toBe('#FB923C');
     expect(darkColors.casing).toBe('#0F172A'); // 다크 테두리
+
+    expect(getMapRouteColors('ocean').normal).toBe('#2563EB');
+    expect(getMapRouteColors('coral').normal).toBe('#2563EB');
+  });
+
+  it('uses three distinct route colors in every theme, matching its theme tokens', () => {
+    const themes: ThemeId[] = [
+      'dusty_amber',
+      'forest',
+      'vivid_violet',
+      'dark',
+      'ocean',
+      'coral',
+    ];
+
+    themes.forEach((theme) => {
+      const routeColors = getMapRouteColors(theme);
+      expect(routeColors.safe).toBe(THEME_PALETTES[theme].routeSafe);
+      expect(routeColors.normal).toBe(THEME_PALETTES[theme].routeNormal);
+      expect(routeColors.caution).toBe(THEME_PALETTES[theme].routeCaution);
+      expect(new Set([routeColors.safe, routeColors.normal, routeColors.caution]).size).toBe(3);
+    });
+    expect(THEME_PALETTES.dusty_amber.routeNormal).toBe('#49657A');
+    expect(THEME_PALETTES.dusty_amber.routeCaution).toBe('#C2410C');
+    expect(THEME_PALETTES.coral.routeNormal).toBe('#2563EB');
+    expect(THEME_PALETTES.coral.routeCaution).toBe('#C2410C');
   });
 });

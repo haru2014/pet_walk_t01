@@ -6,8 +6,9 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Animated, PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { Animated, PanResponder, Platform, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from './AppIcon';
 
 const HANDLE_SIZE = 56;
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignSelf: 'center',
     color: TOKENS.colors.pocketHudSubtle,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   handle: {

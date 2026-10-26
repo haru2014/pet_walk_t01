@@ -79,7 +79,8 @@ export async function fetchWithServerFallback(
   endpoint: string,
   init?: RequestInit,
   primaryTimeoutMs = 15000,
-  fallbackTimeoutMs = 2000
+  fallbackTimeoutMs = 2000,
+  allowLocalFallback = true
 ): Promise<Response> {
   const primaryBase = getPrimaryApiBaseUrl();
   const fallbackBase = getFallbackApiBaseUrl();
@@ -95,6 +96,7 @@ export async function fetchWithServerFallback(
     // 500~504 등 서버 오류 또는 게이트웨이 다운 상태일 때는 2순위 로컬 백엔드로 시도 허용
     if (res && res.status >= 500 && res.status <= 504 && fallbackBase) {
       primaryFailed = true;
+      primaryResponse = res;
     } else if (res) {
       return res;
     } else {
@@ -105,7 +107,7 @@ export async function fetchWithServerFallback(
   }
 
   // 1순위 실패이고 2순위 로컬 백엔드가 설정되어 있는 경우 시도
-  if (primaryFailed && fallbackBase) {
+  if (primaryFailed && fallbackBase && allowLocalFallback) {
     try {
       const fbRes = await fetchWithTimeout(`${fallbackBase}${cleanEndpoint}`, init, fallbackTimeoutMs);
       if (fbRes) {
@@ -116,9 +118,12 @@ export async function fetchWithServerFallback(
     }
   }
 
+  // 로컬 폴백도 실패했으면 실제 서버 응답을 호출자에게 돌려준다.
+  // 서버의 5xx를 네트워크 단절로 잘못 표시하지 않도록 한다.
   if (primaryResponse) {
     return primaryResponse;
   }
 
-  throw new Error(`[apiClient] All API endpoints failed: primary(${primaryBase}), fallback(${fallbackBase ?? 'none'})`);
+  const attemptedFallback = allowLocalFallback ? fallbackBase ?? 'none' : 'disabled';
+  throw new Error(`[apiClient] All API endpoints failed: primary(${primaryBase}), fallback(${attemptedFallback})`);
 }

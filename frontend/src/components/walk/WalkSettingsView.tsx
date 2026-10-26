@@ -1,3 +1,4 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 모바일 산책 조건 설정 화면 (Screen-03, docs/screenshots/03_walk_settings.png 원형 복원 및 스크롤 방지 최적화)
@@ -11,7 +12,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { AppScreenHeader } from '../common/AppScreenHeader';
@@ -48,13 +50,13 @@ function getAiBannerTitle(
   currentParkShortName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkShortName} (공원 보행률 90% 이상)`;
+    return `${currentParkShortName} 산책길 위주로 찾아요`;
   }
   if (isLocating) {
     return '현재 GPS 위치 수신 중...';
   }
   if (userCoords) {
-    return `현위치 확인 완료 (위도 ${userCoords.lat.toFixed(4)}, 경도 ${userCoords.lon.toFixed(4)})`;
+    return '현재 위치를 확인했어요';
   }
   return '현재 위치 기준 실시간 안심 경로';
 }
@@ -67,18 +69,18 @@ function getAiBannerBody(
   currentParkName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkName}의 실제 OSM 보행로를 100% 추종하여 쾌적한 공원 순환 코스를 생성해요.`;
+    return `${currentParkName} 안의 산책길을 따라 편안한 순환 코스를 찾아요.`;
   }
   if (locationError) {
     return `⚠️ ${locationError}`;
   }
   if (isLocating) {
-    return '단말기 GPS 신호를 확인하고 있어요. 잠시만 기다려 주세요...';
+    return 'GPS로 현재 위치를 확인하고 있어요. 잠시만 기다려 주세요...';
   }
   if (userCoords) {
-    return '단말기 실제 위치를 출발점으로 하여 완만한 산책로를 탐색합니다.';
+    return '현재 위치에서 출발하는 편안한 산책길을 찾아요.';
   }
-  return '단말기 현위치를 출발점으로 하여 계단 없는 완만 보행로를 AI가 탐색해요. (200m 안심 가림 보호)';
+  return '현재 위치에서 출발해 계단이 적고 편안한 산책길을 찾아요. 코스를 공유할 때는 집 근처 위치를 보호해요.';
 }
 
 function buildAiNoticeSummary(
@@ -115,12 +117,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const [isFreeWalk, setIsFreeWalk] = useState<boolean>(
     initialPreferences?.isFreeWalk ?? false
   );
-  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(
-    Boolean(
-      initialPreferences?.isFreeWalk ||
-      (initialPreferences?.durationMinutes && ![20, 30, 40, 60].includes(initialPreferences.durationMinutes))
-    )
-  );
+  const [showDetailedDuration, setShowDetailedDuration] = useState<boolean>(false);
   const [environments, setEnvironments] = useState<EnvironmentId[]>(
     initialPreferences?.environments ?? ['soft', 'shade', 'stairs']
   );
@@ -188,16 +185,22 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     }
     if (parkId) {
       resolvedParkId = parkId;
-      setOriginMode('park');
+      // 장소 언급은 출발 위치 선택이 아니다. 공원 모드는 사용자가 직접 선택한다.
+      setOriginMode('current_location');
       setPilotParkId(resolvedParkId);
     }
 
     // 4. AI 맞춤 설정 알림 요약
     const parkObj = getPilotParkById(resolvedParkId);
-    setAiNotice({
-      summary: buildAiNoticeSummary(resolvedDuration, parkObj?.name, intent),
-      briefing: intent.briefing_message || undefined,
-    });
+    setAiNotice(parkId
+      ? {
+        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+        briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
+      }
+      : {
+        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+        briefing: intent.briefing_message || undefined,
+      });
   };
 
   const currentPark = getPilotParkById(pilotParkId);
@@ -244,7 +247,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             {dog.name}와 어떤 산책을 할까요?
           </Text>
           <Text style={[styles.subTitle, { color: colors.textMuted }]}>
-            원하는 산책 조건을 알려주면 AI가 {dog.name}에게 맞는 안심 길을 찾아볼게요.
+            원하는 산책 조건을 알려주면 {dog.name}에게 맞는 편안한 길을 찾아볼게요.
           </Text>
         </View>
 
@@ -264,7 +267,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           <View style={styles.aiFeedbackCard}>
             <View style={styles.aiFeedbackTop}>
               <AppIcon name="sparkle" size={14} color="#4338CA" />
-              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : 'AI 맞춤 산책 조건 적용 완료'}</Text>
+              <Text style={styles.aiFeedbackTitle}>{unsupportedLandmark ? '지원 공원을 선택해 주세요' : '말씀하신 산책 조건을 반영했어요'}</Text>
             </View>
             <Text style={styles.aiFeedbackSummary}>{aiNotice.summary}</Text>
             {aiNotice.briefing ? (
@@ -381,7 +384,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
         </View>
 
         {/* 5. 섹션 1: 얼마나 걸을까요? (빠른 프리셋 + 상세 설정 & 2시간 확장 복원 - US-A3, #38) */}
-        <View style={[styles.sectionBlock, { marginBottom: walkSettings.sectionGap }]}>
+        <View
+          style={[
+            styles.sectionBlock,
+            { marginTop: walkSettings.sectionGap, marginBottom: walkSettings.sectionGap },
+          ]}
+        >
           <View style={styles.sectionHeaderRow}>
             <View style={styles.durationTitleRow}>
               <Text style={[styles.sectionTitle, { color: colors.textMain }]}>얼마나 걸을까요?</Text>
@@ -397,7 +405,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
             >
               <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
-                {showDetailedDuration ? '간편 설정 접기 ▲' : '상세 설정 (최대 2시간) ▼'}
+                {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '맞춤 설정 (최대 2시간) ▼'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -526,7 +534,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               <>
                 <AppIcon name="sparkle" size={18} color={colors.textWhite} />
                 <Text style={[styles.submitButtonText, { fontSize: walkSettings.findButtonFontSize, color: colors.textWhite }]}>
-                  AI 산책 코스 찾아보기
+                  맞춤 산책길 찾기
                 </Text>
               </>
             )}
@@ -550,7 +558,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
+  headerTitle: { fontSize: TYPOGRAPHY.screenTitle, fontWeight: '700', letterSpacing: -0.3 },
   headerPlaceholder: { width: 32 },
   contentScroll: {
     flex: 1,
@@ -577,21 +585,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   originModeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   originModeTextActive: {
     fontWeight: '800',
   },
   mainTitle: {
-    fontSize: 19,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     letterSpacing: -0.4,
     marginBottom: 2,
   },
   subTitle: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   aiBanner: {
     borderRadius: 12,
@@ -605,12 +613,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   aiBannerTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
   },
   aiBannerBody: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 6,
   },
   parkScrollRow: {
@@ -624,7 +632,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   parkChipText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
   },
   sectionBlock: {
     marginTop: 2,
@@ -647,7 +655,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   durationBadgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
   },
   detailToggleBtn: {
@@ -658,17 +666,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   detailToggleText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.sectionTitle,
     fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 6,
   },
   sectionSubGuide: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
   },
   durationChipRow: {
     flexDirection: 'row',
@@ -683,7 +691,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   durationChipText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
   },
   envGrid: {
     flexDirection: 'row',
@@ -710,7 +718,7 @@ const styles = StyleSheet.create({
   },
   checkText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '900',
     lineHeight: 12,
   },
@@ -721,12 +729,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   envLabel: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     marginBottom: 1,
   },
   envDetail: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.support,
   },
   bottomBar: {
     paddingHorizontal: 16,
@@ -745,7 +753,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitButtonText: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -764,18 +772,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   aiFeedbackTitle: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: '#4338CA',
   },
   aiFeedbackSummary: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '600',
     color: '#312E81',
     marginBottom: 4,
   },
   aiFeedbackBriefing: {
-    fontSize: 11.5,
+    fontSize: TYPOGRAPHY.label,
     color: '#475569',
     lineHeight: 16,
     marginBottom: 8,
@@ -790,7 +798,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   aiFeedbackQuickBtnText: {
-    fontSize: 12.5,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: '#FFFFFF',
   },

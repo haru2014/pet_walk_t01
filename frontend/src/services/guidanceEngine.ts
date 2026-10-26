@@ -3,7 +3,8 @@
  * 시선 해방(Eyes-Free) 음성 안내 판정 엔진 (US-C2, US-D2, Phase 4)
  *
  * 순수 함수 모음: GPS 좌표와 경로/스텝 핀을 비교해 발화 이벤트를 결정한다.
- * - 스텝 핀 30m 전 사전 브리핑 (직전 GPS 점과 현재 점을 잇는 선분 기준이라 측정이 듬성듬성해도 놓치지 않음)
+ * - 회전 핀은 5m 전, 일반 스텝 핀은 30m 전 사전 브리핑
+ *   (직전 GPS 점과 현재 점을 잇는 선분 기준이라 측정이 듬성듬성해도 놓치지 않음)
  * - 첫 GPS 수신 시 출발지에서 멀면 "출발지로 이동" 안내
  * - 경로 40m 이상 이탈 경고 (재진입 시 해제)
  * - 핀이 적어도 일정 걸음 거리마다 "경로를 잘 따라가고 있어요" 주기 안내
@@ -13,8 +14,10 @@
 
 import { LonLat, RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { haversineMeters, polylineLengthMeters } from './routeGeometry';
+import { collectRouteProjections, selectRouteProjection } from './routeRejoin';
 
 export const PRE_BRIEF_DISTANCE_M = 30;
+export const TURN_PRE_BRIEF_DISTANCE_M = 5;
 export const OFF_ROUTE_DISTANCE_M = 40;
 /** 첫 GPS 수신 시 경로 시작점에서 이 거리보다 멀면 출발지 이동을 안내한다. */
 export const START_FAR_DISTANCE_M = 30;
@@ -38,6 +41,8 @@ export interface GuidanceEvent {
   readonly kind: GuidanceEventKind;
   readonly message: string;
   readonly pinId?: string;
+  readonly pinIds?: readonly string[];
+  readonly category?: 'turn';
 }
 
 export interface GuidanceState {
@@ -52,6 +57,11 @@ export interface GuidanceState {
   /** 첫 GPS 수신 시 출발지 거리 점검을 이미 마쳤는지 */
   readonly startChecked: boolean;
   readonly arrived: boolean;
+  /**
+   * 마지막으로 코스 위에 있던 지점의 진행 거리(m).
+   * 이탈 재탐색 때 순환 코스의 앞쪽 합류 지점을 고르는 기준으로 쓴다.
+   */
+  readonly routeProgressM?: number;
 }
 
 export const INITIAL_GUIDANCE_STATE: GuidanceState = {
@@ -135,16 +145,159 @@ function passedWithin(target: LonLat, prev: LonLat | null, current: LonLat, radi
   return distanceToSegmentMeters(target, prev ?? current, current) <= radiusM;
 }
 
+interface RouteProjection {
+  readonly progressM: number;
+  readonly distanceM: number;
+}
+
+/** 경로 전체에서 가장 가까운 점과 출발점부터의 진행 거리를 계산한다. */
+function projectOntoRoute(position: LonLat, route: RouteFeatureCollection): RouteProjection | null {
+  let traversedM = 0;
+  let closest: RouteProjection | null = null;
+
+  for (const feature of route.features) {
+    const coords = feature.geometry.coordinates;
+    for (let index = 1; index < coords.length; index += 1) {
+      const start = coords[index - 1];
+      const end = coords[index];
+      const [ax, ay] = toLocalMeters(position, start);
+      const [bx, by] = toLocalMeters(position, end);
+      const dx = bx - ax;
+      const dy = by - ay;
+      const lengthSq = dx * dx + dy * dy;
+      const ratio = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSq));
+      const segmentLengthM = haversineMeters(start, end);
+      const projection = {
+        progressM: traversedM + ratio * segmentLengthM,
+        distanceM: Math.hypot(ax + ratio * dx, ay + ratio * dy),
+      };
+      if (!closest || projection.distanceM < closest.distanceM) closest = projection;
+      traversedM += segmentLengthM;
+    }
+  }
+
+  return closest;
+}
+
+const TURN_PATTERN = /유턴|(?:크게\s*)?(?:좌회전|우회전)/;
+
+function turnInstruction(instruction: string): string | null {
+  const match = TURN_PATTERN.exec(instruction);
+  return match?.[0] ?? null;
+}
+
+function formatTurnBriefing(turns: readonly string[]): string {
+  const [first, ...following] = turns;
+  const firstInstruction = `${first}하십시오.`;
+  if (following.length === 0) return `${TURN_PRE_BRIEF_DISTANCE_M}미터 전방에서 ${firstInstruction}`;
+  const followingText = following.map((turn) => `${turn}하십시오.`).join(' ');
+  return `${TURN_PRE_BRIEF_DISTANCE_M}미터 전방에서 ${firstInstruction} 이어서 ${followingText}`;
+}
+
+interface CollectedPreBriefs {
+  readonly events: GuidanceEvent[];
+  readonly consumedPinIds: string[];
+}
+
+interface TurnCandidate {
+  pin: RouteStepPin;
+  turn: string;
+  progressM: number;
+}
+
+function shouldTriggerTurnBrief(
+  position: LonLat,
+  prev: LonLat | null,
+  route: RouteFeatureCollection,
+  turn: TurnCandidate,
+  routeProgress: number | undefined,
+): boolean {
+  const distanceToTurnM = routeProgress == null
+    ? haversineMeters(position, turn.pin.position)
+    : turn.progressM - routeProgress;
+  const crossedTurnSincePreviousFix = routeProgress != null && prev != null
+    ? (projectOntoRoute(prev, route)?.progressM ?? routeProgress) < turn.progressM
+      && routeProgress >= turn.progressM - TURN_PRE_BRIEF_DISTANCE_M
+    : false;
+  const closeToTurn = passedWithin(turn.pin.position, prev, position, TURN_PRE_BRIEF_DISTANCE_M);
+
+  return distanceToTurnM <= TURN_PRE_BRIEF_DISTANCE_M
+    && distanceToTurnM >= -TURN_PRE_BRIEF_DISTANCE_M
+    && (distanceToTurnM >= 0 || crossedTurnSincePreviousFix || closeToTurn);
+}
+
+function collectTurnPreBriefEvent(
+  position: LonLat,
+  prev: LonLat | null,
+  route: RouteFeatureCollection,
+  turnPins: TurnCandidate[],
+  consumedPinIds: string[],
+  routeProgress: number | undefined,
+): GuidanceEvent | null {
+  const nextTurnIndex = turnPins.findIndex(({ pin, progressM }) =>
+    !consumedPinIds.includes(pin.id) && (routeProgress == null || progressM >= routeProgress - TURN_PRE_BRIEF_DISTANCE_M));
+  if (nextTurnIndex < 0) return null;
+
+  const nextTurns = [turnPins[nextTurnIndex]];
+  for (let index = nextTurnIndex + 1; index < turnPins.length; index += 1) {
+    if (turnPins[index].progressM - nextTurns[0].progressM > TURN_PRE_BRIEF_DISTANCE_M) break;
+    nextTurns.push(turnPins[index]);
+  }
+
+  const firstTurn = nextTurns[0];
+  if (!shouldTriggerTurnBrief(position, prev, route, firstTurn, routeProgress)) {
+    return null;
+  }
+
+  const groupedIds = nextTurns.map(({ pin }) => pin.id);
+  consumedPinIds.push(...groupedIds);
+  return {
+    kind: 'pre_brief',
+    category: 'turn',
+    message: formatTurnBriefing(nextTurns.map(({ turn }) => turn)),
+    pinId: firstTurn.pin.id,
+    pinIds: groupedIds,
+  };
+}
+
 function collectPreBriefEvents(
   position: LonLat,
   prev: LonLat | null,
+  route: RouteFeatureCollection,
   pins: readonly RouteStepPin[],
   announced: readonly string[],
-): GuidanceEvent[] {
-  return pins
-    .filter((pin) => !announced.includes(pin.id))
-    .filter((pin) => passedWithin(pin.position, prev, position, PRE_BRIEF_DISTANCE_M))
-    .map((pin) => ({ kind: 'pre_brief', message: pin.instruction, pinId: pin.id }));
+): CollectedPreBriefs {
+  const events: GuidanceEvent[] = [];
+  const consumedPinIds: string[] = [];
+  const routeProgress = projectOntoRoute(position, route)?.progressM;
+  const turnPins: TurnCandidate[] = pins.flatMap((pin) => {
+    const turn = turnInstruction(pin.instruction);
+    if (!turn || announced.includes(pin.id)) return [];
+    const projection = projectOntoRoute(pin.position, route);
+    return projection ? [{ pin, turn, progressM: projection.progressM }] : [];
+  }).sort((left, right) => left.progressM - right.progressM);
+
+  // 지난 회전 핀은 소비 처리해 GPS가 흔들려도 뒤늦게 다시 안내하지 않는다.
+  if (routeProgress != null) {
+    turnPins.forEach(({ pin, progressM }) => {
+      if (routeProgress - progressM > TURN_PRE_BRIEF_DISTANCE_M) consumedPinIds.push(pin.id);
+    });
+  }
+
+  const turnEvent = collectTurnPreBriefEvent(position, prev, route, turnPins, consumedPinIds, routeProgress);
+  if (turnEvent) {
+    events.push(turnEvent);
+  }
+
+  pins.forEach((pin) => {
+    if (announced.includes(pin.id) || consumedPinIds.includes(pin.id) || turnInstruction(pin.instruction)) return;
+    if (passedWithin(pin.position, prev, position, PRE_BRIEF_DISTANCE_M)) {
+      events.push({ kind: 'pre_brief', message: pin.instruction, pinId: pin.id });
+      consumedPinIds.push(pin.id);
+    }
+  });
+
+  return { events, consumedPinIds };
 }
 
 function formatWalked(meters: number): string {
@@ -210,14 +363,24 @@ export function evaluateGuidance(
   const movedM = stepM >= MIN_STEP_M ? stepM : 0;
   const walkedM = state.walkedM + movedM;
 
-  const events: GuidanceEvent[] = collectPreBriefEvents(position, prev, pins, state.announcedPinIds);
+  const preBriefs = collectPreBriefEvents(position, prev, route, pins, state.announcedPinIds);
+  const events: GuidanceEvent[] = [...preBriefs.events];
   const announcedPinIds = [
     ...state.announcedPinIds,
-    ...events.map((event) => event.pinId as string),
+    ...preBriefs.consumedPinIds,
   ];
 
   const distance = distanceToRouteMeters(position, route);
   const isOffRoute = Number.isFinite(distance) && distance > OFF_ROUTE_DISTANCE_M;
+
+  let routeProgressM = state.routeProgressM;
+  if (!isOffRoute && Number.isFinite(distance)) {
+    const onRoute = selectRouteProjection(
+      collectRouteProjections(route.features.map((feature) => feature.geometry.coordinates), position),
+      routeProgressM,
+    );
+    if (onRoute) routeProgressM = onRoute.progressM;
+  }
 
   const startCheck = checkStartFarDeparture(position, route, state.startChecked);
   if (startCheck.event) {
@@ -254,6 +417,7 @@ export function evaluateGuidance(
       sinceCueM,
       startChecked: true,
       arrived: arrivalCheck.arrived,
+      routeProgressM,
     },
   };
 }

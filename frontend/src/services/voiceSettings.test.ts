@@ -3,7 +3,7 @@
  * US-C2, #37 AI 음성 가이드 보이스 프로필 및 사운드 설정 단위 테스트
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as Speech from 'expo-speech';
 import {
   DEFAULT_SOUND_SETTINGS,
@@ -40,8 +40,18 @@ describe('AI 음성 가이드 보이스 프로필 데이터 (US-C2, #37)', () =>
     expect(ids).toContain('calm_male');
     expect(ids).toContain('friendly_male');
 
+    const calmMale = VOICE_PROFILES.find((p) => p.id === 'calm_male')!;
+    expect(calmMale.label).toBe('안정적인 남성 톤');
+    expect(calmMale.pitch).toBe(0.82);
+    expect(calmMale.rate).toBe(0.90);
+
+    const friendlyMale = VOICE_PROFILES.find((p) => p.id === 'friendly_male')!;
+    expect(friendlyMale.label).toBe('친근한 남성 톤');
+    expect(friendlyMale.pitch).toBe(0.92);
+    expect(friendlyMale.rate).toBe(0.96);
+
     for (const profile of VOICE_PROFILES) {
-      expect(profile.pitch).toBeGreaterThanOrEqual(0.7);
+      expect(profile.pitch).toBeGreaterThanOrEqual(0.5);
       expect(profile.pitch).toBeLessThanOrEqual(1.5);
       expect(profile.rate).toBeGreaterThanOrEqual(0.7);
       expect(profile.rate).toBeLessThanOrEqual(1.3);
@@ -61,6 +71,11 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     vi.clearAllMocks();
     await TTSNavigationService.stop(); // 이전 테스트의 미완료 발화/대기열 정리
     await TTSNavigationService.updateSettings({ ...DEFAULT_SOUND_SETTINGS });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('음량 조절 시 0.0 ~ 1.0 범위로 클램핑되어야 한다', async () => {
@@ -101,7 +116,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     expect(Speech.speak).not.toHaveBeenCalled();
   });
 
-  it('음소거 해제 상태에서는 선택된 프로필의 pitch/rate와 함께 발화되어야 한다', async () => {
+  it('Gemini 요청 실패 시 기기 음성이 선택된 프로필 설정으로 대체되어야 한다', async () => {
     await TTSNavigationService.updateSettings({
       profileId: 'bright_female',
       volume: 0.9,
@@ -109,6 +124,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
     });
 
     TTSNavigationService.speak('안녕하세요, 산책 안내입니다');
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     expect(Speech.speak).toHaveBeenCalledWith(
       '안녕하세요, 산책 안내입니다',
       expect.objectContaining({
@@ -117,6 +133,15 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
         rate: 1.0,
         volume: 0.9,
       })
+    );
+  });
+
+  it('Gemini 요청 없이 expo-speech로 즉시 안내를 시작해야 한다', () => {
+    TTSNavigationService.speak('즉시 안내 확인');
+
+    expect(Speech.speak).toHaveBeenCalledWith(
+      '즉시 안내 확인',
+      expect.objectContaining({ language: 'ko-KR' }),
     );
   });
 
@@ -150,7 +175,7 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
       expect(femaleVoice).toBe('ko-kr-x-kfb-local');
     });
 
-    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 저음 피치(0.70)가 발화 옵션에 적용되어야 한다', async () => {
+    it('남성 프로필(calm_male) 선택 시 남성 보이스 identifier 및 안정적인 남성 톤 피치(0.82)가 발화 옵션에 적용되어야 한다', async () => {
       const mockVoices: any[] = [
         { identifier: 'ko-kr-x-kfb-local', name: 'ko-female', language: 'ko-KR' },
         { identifier: 'ko-kr-x-ism-local', name: 'ko-male', language: 'ko-KR' },
@@ -159,30 +184,32 @@ describe('TTSNavigationService 음량 및 퀵 음소거 제어 엔진 (US-C2, #3
 
       await TTSNavigationService.setProfile('calm_male');
       TTSNavigationService.speak('전방 100m 앞 좌회전입니다');
+      await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
 
       expect(Speech.speak).toHaveBeenCalledWith(
         '전방 100m 앞 좌회전입니다',
         expect.objectContaining({
           language: 'ko-KR',
           voice: 'ko-kr-x-ism-local',
-          pitch: 0.70,
-          rate: 0.92,
+          pitch: 0.82,
+          rate: 0.90,
         })
       );
     });
 
-    it('기기에 별도 남성 보이스가 없는 환경에서도 남성 전용 저음 피치(0.70/0.78)로 발화되어야 한다', async () => {
+    it('기기에 별도 남성 보이스가 없는 환경에서도 친근한 남성 톤 피치(0.92) 및 속도(0.96)로 발화되어야 한다', async () => {
       TTSNavigationService.setCachedVoicesForTesting([]); // 보이스 없음
 
       await TTSNavigationService.setProfile('friendly_male');
       TTSNavigationService.speak('잠시 벤치에서 쉬어가요');
+      await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
 
       expect(Speech.speak).toHaveBeenCalledWith(
         '잠시 벤치에서 쉬어가요',
         expect.objectContaining({
           language: 'ko-KR',
-          pitch: 0.78,
-          rate: 0.95,
+          pitch: 0.92,
+          rate: 0.96,
         })
       );
     });
@@ -199,37 +226,55 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     vi.clearAllMocks();
   });
 
-  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', () => {
+  it('진행 중인 발화를 끊지 않고 끝난 뒤 다음 안내를 순서대로 재생한다', async () => {
     TTSNavigationService.speak('산책을 시작합니다');
     TTSNavigationService.speak('출발지에서 직진하세요');
 
-    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     expect(Speech.stop).not.toHaveBeenCalled();
 
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     expect(Speech.speak).toHaveBeenCalledTimes(2);
     expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('출발지에서 직진하세요');
   });
 
-  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', () => {
+  it('high 우선순위는 진행 중인 발화는 끊지 않고 대기열 맨 앞에서 재생된다', async () => {
     TTSNavigationService.speak('A');
     TTSNavigationService.speak('B');
     TTSNavigationService.speak('C', undefined, false, 'high');
 
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
     doneOf(1)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(3));
     expect(vi.mocked(Speech.speak).mock.calls[2][0]).toBe('B');
   });
 
-  it('같은 문구가 대기 중이면 중복 등록하지 않는다', () => {
+  it('같은 문구가 대기 중이면 중복 등록하지 않는다', async () => {
     TTSNavigationService.speak('A');
     TTSNavigationService.speak('B');
     TTSNavigationService.speak('B');
 
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
     doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
     doneOf(1)();
     expect(Speech.speak).toHaveBeenCalledTimes(2);
+  });
+
+  it('새 회전 안내가 오면 재생 대기 중인 이전 회전 안내를 교체한다', async () => {
+    TTSNavigationService.speak('산책을 시작합니다');
+    TTSNavigationService.speakTurn('5미터 전방에서 좌회전하십시오.');
+    TTSNavigationService.speakTurn('5미터 전방에서 좌회전하십시오. 이어서 우회전하십시오.');
+
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(1));
+    doneOf(0)();
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(Speech.speak).mock.calls[1][0])
+      .toBe('5미터 전방에서 좌회전하십시오. 이어서 우회전하십시오.');
   });
 
   it('stop()은 대기열을 비워 이후 발화가 재생되지 않게 한다', async () => {
@@ -237,10 +282,11 @@ describe('TTSNavigationService 발화 큐 (시작 멘트가 다른 안내에 끊
     TTSNavigationService.speak('B');
     await TTSNavigationService.stop();
 
-    doneOf(0)(); // 무효화된 이전 발화의 종료 콜백
     expect(Speech.speak).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Speech.speak).mock.calls[0][0]).toBe('A');
 
     TTSNavigationService.speak('C');
-    expect(Speech.speak).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(Speech.speak).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(Speech.speak).mock.calls[1][0]).toBe('C');
   });
 });

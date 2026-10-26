@@ -2,12 +2,44 @@
  * [편안하개 - PetWalk]
  * React Native 모바일 디자인 토큰 (Design Tokens)
  *
- * 1. 숲길 그린 (기본 에메랄드 & 민트)
- * 2. 비비드 바이올렛 (error/app_design1.jpg 디자인 언어: 보라, 네온 옐로우, 파스텔 라일락)
- * 3. 다크 포켓 (야간 OLED 다크 테마)
+ * Upstream: dusty amber, forest, violet, and dark palettes
+ * PR #202: ocean and coral palettes
  */
 
 import { ThemeId } from '../types/theme';
+
+export const ROUTE_CAUTION_COLOR = '#C2410C';
+export const DARK_ROUTE_CAUTION_COLOR = '#FB923C';
+export const CORAL_ROUTE_CAUTION_COLOR = ROUTE_CAUTION_COLOR;
+
+/** 앱 전역 텍스트 역할별 크기. 화면 크기와 무관하게 같은 역할은 같은 크기를 사용한다. */
+export const TYPOGRAPHY = {
+  screenTitle: 22,
+  sectionTitle: 20,
+  cardTitle: 18,
+  body: 16,
+  support: 14,
+  label: 14,
+  button: 16,
+  caption: 12,
+  micro: 11,
+  metricValue: 20,
+  displayValue: 32,
+} as const;
+
+export const TYPOGRAPHY_LINE_HEIGHT = {
+  screenTitle: 28,
+  sectionTitle: 26,
+  cardTitle: 24,
+  body: 24,
+  support: 21,
+  label: 20,
+  button: 20,
+  caption: 18,
+  micro: 16,
+  metricValue: 24,
+  displayValue: 38,
+} as const;
 
 export interface ThemeColors {
   background: string;
@@ -37,6 +69,7 @@ export interface ThemeColors {
   mapRoad: string;
   mapRoadEdge: string;
   mapLabel: string;
+  mapGuidance: string; // 맵 위에 표시되는 안내 정보(출발/도착, 스텝 핀) 테마 대비 색상
 
   pocketBg: string;
   pocketHud: string;
@@ -49,7 +82,9 @@ export interface ThemeColors {
   accentLight: string;
 }
 
-export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
+type LegacyThemeId = Exclude<ThemeId, 'ocean' | 'coral'>;
+
+const BASE_THEME_PALETTES: Record<LegacyThemeId, ThemeColors> = {
   // 🐶 0. 더스티 앰버 & 세이지 그린 (02번 디자인 시안 - docs/reference/UI개선/app_design_n2-1.png)
   dusty_amber: {
     background: '#F5EFE0', // Soft Cream
@@ -66,12 +101,12 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#D6E3D8',
 
     textMain: '#2D3A31',   // 딥 세이지 차콜 텍스트
-    textMuted: '#758579',  // 세이지 그레이 뮤트 텍스트
+    textMuted: '#566659',  // 세이지 차콜 뮤트 텍스트 (명도 대비 강화: 4.8:1 이상)
     textWhite: '#FFFFFF',
 
     routeSafe: '#5A7361',  // 세이지 그린 안심길
-    routeNormal: '#B59C5E',// 올리브 오커 일반길
-    routeCaution: '#CFA052',// 더스티 앰버 주의길
+    routeNormal: '#49657A',// 슬레이트 블루 일반길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5EFE0',
     mapPark: '#E2ECE3',
@@ -79,6 +114,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E3DBC7',
     mapLabel: '#5A7361',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#1E2520',
     pocketHud: '#CFA052',
@@ -107,12 +143,12 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     primarySubtle: '#D1FAE5',
 
     textMain: '#17211C',
-    textMuted: '#6B756F',
+    textMuted: '#4E5853',  // 차콜 뮤트 텍스트 (명도 대비 강화: 5.5:1 이상)
     textWhite: '#FFFFFF',
 
-    routeSafe: '#10B981',
-    routeNormal: '#3B82F6',
-    routeCaution: '#F97316',
+    routeSafe: '#047857',
+    routeNormal: '#2563EB',
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F2F5F0',
     mapPark: '#DAECD9',
@@ -120,6 +156,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#E7EBE7',
     mapLabel: '#799084',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -151,9 +188,9 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     textMuted: '#7C3AED',  // 퍼플 액센트 뮤트
     textWhite: '#FFFFFF',
 
-    routeSafe: '#8B5CF6',  // 바이올렛 안심길
-    routeNormal: '#06B6D4',// 민트/시안 일반길
-    routeCaution: '#F59E0B',// 옐로우 주의길
+    routeSafe: '#15803D',  // 선명한 그린 안심길
+    routeNormal: '#7C3AED',// 비비드 바이올렛 일반길
+    routeCaution: ROUTE_CAUTION_COLOR,
 
     mapGround: '#F5F3FF',
     mapPark: '#EDE9FE',
@@ -161,6 +198,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapRoad: '#FFFFFF',
     mapRoadEdge: '#DDD6FE',
     mapLabel: '#6D28D9',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
 
     pocketBg: '#1E1B4B',   // 딥 인디고 포켓 배경
     pocketHud: '#A78BFA',  // 네온 바이올렛 HUD
@@ -192,9 +230,9 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     textMuted: '#94A3B8',  // 슬레이트 그레이 텍스트
     textWhite: '#FFFFFF',
 
-    routeSafe: '#10B981',
-    routeNormal: '#38BDF8',
-    routeCaution: '#FB923C',
+    routeSafe: '#34D399',
+    routeNormal: '#60A5FA',
+    routeCaution: DARK_ROUTE_CAUTION_COLOR,
 
     mapGround: '#0F172A',
     mapPark: '#1E293B',
@@ -202,6 +240,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     mapRoad: '#334155',
     mapRoadEdge: '#475569',
     mapLabel: '#94A3B8',
+    mapGuidance: '#FB923C', // 브라이트 오렌지 (다크 모드 및 네온 민트 대비 주황색 안내)
 
     pocketBg: '#000000',
     pocketHud: '#10B981',
@@ -212,6 +251,65 @@ export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
     error: '#F87171',
     accent: '#38BDF8',    // 네온 블루
     accentLight: '#0369A1',
+  },
+};
+
+export const THEME_PALETTES: Record<ThemeId, ThemeColors> = {
+  ...BASE_THEME_PALETTES,
+
+  ocean: {
+    ...BASE_THEME_PALETTES.forest,
+    background: '#EFF6FF',
+    surface: '#FFFFFF',
+    border: '#DBEAFE',
+    borderSoft: '#EFF6FF',
+    borderSubtle: '#BFDBFE',
+    primary: '#2563EB',
+    primaryDark: '#1D4ED8',
+    primaryLight: '#DBEAFE',
+    primaryWash: 'rgba(37, 99, 235, 0.14)',
+    primaryMint: '#93C5FD',
+    primarySubtle: '#DBEAFE',
+    textMain: '#1E3A8A',
+    textMuted: '#475569',
+    routeSafe: '#15803D',
+    routeNormal: '#2563EB',
+    mapGround: '#EFF6FF',
+    mapPark: '#DBEAFE',
+    mapWater: '#E0F2FE',
+    mapRoadEdge: '#BFDBFE',
+    mapLabel: '#1D4ED8',
+    mapGuidance: '#EA580C', // 코랄 오렌지 (오션 블루 보행로 보색 대비)
+    accent: '#0EA5E9',
+    accentLight: '#DBEAFE',
+  },
+  coral: {
+    ...BASE_THEME_PALETTES.forest,
+    background: '#FFF7ED',
+    surface: '#FFFCF8',
+    border: '#FED7AA',
+    borderSoft: '#FFF7ED',
+    borderSubtle: '#FDBA74',
+    primary: '#F97316',
+    primaryDark: '#C2410C',
+    primaryLight: '#FFEDD5',
+    primaryWash: 'rgba(249, 115, 22, 0.14)',
+    primaryMint: '#FDBA74',
+    primarySubtle: '#FFEDD5',
+    textMain: '#431407',
+    textMuted: '#7C2D12',
+    routeSafe: '#15803D',
+    routeNormal: '#2563EB',
+    routeCaution: CORAL_ROUTE_CAUTION_COLOR,
+    mapGround: '#FFF7ED',
+    mapPark: '#FFEDD5',
+    mapRoadEdge: '#FED7AA',
+    mapLabel: '#C2410C',
+    mapGuidance: '#EA580C', // 비비드 오렌지 (지도 위 고시인성 안내 정보)
+    success: '#16A34A',
+    warning: '#F97316',
+    accent: '#FB923C',
+    accentLight: '#FFEDD5',
   },
 };
 
@@ -228,13 +326,13 @@ export const TOKENS = {
   },
 
   fontSize: {
-    xs: 11,
-    sm: 12,
-    base: 13,
-    md: 14,
-    lg: 16,
-    xl: 18,
-    title: 22,
+    xs: TYPOGRAPHY.caption,
+    sm: TYPOGRAPHY.caption,
+    base: TYPOGRAPHY.label,
+    md: TYPOGRAPHY.support,
+    lg: TYPOGRAPHY.body,
+    xl: TYPOGRAPHY.cardTitle,
+    title: TYPOGRAPHY.screenTitle,
   },
 };
 

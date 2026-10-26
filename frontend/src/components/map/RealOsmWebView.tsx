@@ -7,8 +7,9 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, Linking, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { LonLat } from '../../types/route';
 
 export interface RealOsmWebViewProps {
@@ -66,7 +67,7 @@ export const RealOsmWebView: React.FC<RealOsmWebViewProps> = ({
 
       {/* 실시간 실제 맵 뱃지 */}
       <View style={styles.topBadge} pointerEvents="none">
-        <Text style={styles.badgeText}>🗺️ OSM 실시간 실제 지도 (드래그/확대 가능)</Text>
+        <Text style={styles.badgeText}>🗺️ 실제 지도 (움직이거나 확대할 수 있어요)</Text>
       </View>
 
       {/* 새 창 크게보기 버튼 */}
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   openExternalText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '600',
     color: '#FFFFFF',
   },

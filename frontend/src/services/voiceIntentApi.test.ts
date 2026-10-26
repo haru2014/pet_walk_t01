@@ -47,7 +47,7 @@ describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)'
     expect(normalizeToFrontendParkId('daejeon_yulim')).toBe('yurim');
     expect(normalizeToFrontendParkId('yurim')).toBe('yurim');
     expect(normalizeToFrontendParkId('유림공원')).toBe('yurim');
-    expect(normalizeToFrontendParkId('갑천')).toBe('yurim');
+    expect(normalizeToFrontendParkId('갑천')).toBeNull();
     expect(normalizeToFrontendParkId('sejong_lake')).toBe('sejong');
     expect(normalizeToFrontendParkId('세종호수공원')).toBe('sejong');
     expect(normalizeToFrontendParkId('daejeon_songgang')).toBe('songgang');
@@ -57,6 +57,18 @@ describe('voiceIntentApi (docs/implementation_plan/gemini_api_적용_계획.md)'
     expect(normalizeToFrontendParkId('갑천생태공원')).toBe('doan');
     expect(normalizeToFrontendParkId('송강공원')).toBe('songgang');
     expect(normalizeToFrontendParkId(null)).toBeNull();
+  });
+
+  it.each([
+    ['호수공원 30분', null],
+    ['갑천 따라 산책', null],
+    ['송강이랑 30분 산책', null],
+    ['도안동 사는데 산책', null],
+    ['유림동 근처', null],
+    ['유림공원에서 30분 산책', '유림공원'],
+    ['도안호수공원(갑천생태공원) 30분 산책', '도안호수공원'],
+  ])('extracts only an explicit park name from %s', (speech, expected) => {
+    expect(extractLocalVoiceIntent(speech, '송강').intent.destination_landmark).toBe(expected);
   });
 
   it('preserves unsupported park names and announces selection instead of a prepared course', () => {

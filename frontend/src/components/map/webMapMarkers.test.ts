@@ -42,6 +42,7 @@ class FakeMarker {
 const colors: MapRouteColors = {
   safe: '#10B981', normal: '#3B82F6', caution: '#F59E0B', casing: '#FFFFFF',
   maskCircle: 'rgba(16, 185, 129, 0.18)', maskBorder: '#059669', startMarker: '#059669',
+  mapGuidance: '#EA580C',
 };
 
 const route: RouteFeatureCollection = {
@@ -82,19 +83,42 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     expect(FakeMarker.created[1].lngLat).toEqual([127.381, 36.43]);
   });
 
-  it('핀 종류별 색상과 기본 아이콘을 적용하고 제목이 있으면 하단 앵커를 사용한다', () => {
+  it('마커 배경을 투명하게 유지하고 아이콘과 제목 마커 앵커를 적용한다', () => {
     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
-    const [, turn, caution, titled] = FakeMarker.created;
+    const [start, turn, caution, titled] = FakeMarker.created;
 
-    expect(turn.options.element.style.background).toBe(colors.normal);
+    expect(start.options.element.style.background).toBe('transparent');
+    expect(start.options.element.style.border).toBe('transparent');
+    expect(start.options.element.style.color).toBe(colors.mapGuidance);
+    expect(turn.options.element.style.background).toBe('transparent');
+    expect(turn.options.element.style.border).toBe('transparent');
+    expect(turn.options.element.style.color).toBe(colors.mapGuidance);
     expect(turn.options.element.textContent).toBe('↱');
     expect(turn.options.anchor).toBe('center');
     expect(turn.options.element.tagName).toBe('button');
     expect(turn.options.element.type).toBe('button');
-    expect(caution.options.element.style.background).toBe(colors.caution);
+    expect(caution.options.element.style.background).toBe('transparent');
+    expect(caution.options.element.style.border).toBe('transparent');
     expect(caution.options.element.textContent).toBe('!');
     expect(titled.options.anchor).toBe('bottom');
     expect(titled.options.element.tagName).toBe('div');
+    expect(titled.options.element.style.background).toBe('transparent');
+    expect(titled.options.element.style.border).toBe('transparent');
+    expect(titled.options.element.style.boxShadow).toBe('none');
+  });
+
+  it('회전 핀은 안내 문구의 좌회전·우회전·유턴 방향에 맞는 아이콘을 사용한다', () => {
+    const turnPins: RouteStepPin[] = [
+      { id: 'left', kind: 'turn', position: [127.381, 36.43], instruction: '좌회전하세요' },
+      { id: 'right', kind: 'turn', position: [127.382, 36.43], instruction: '우회전하세요' },
+      { id: 'uturn', kind: 'turn', position: [127.383, 36.43], instruction: '유턴하여 반대 방향으로 이동하세요' },
+      { id: 'unspecified', kind: 'turn', position: [127.384, 36.43], instruction: '다음 보행로로 이동하세요' },
+    ];
+
+    renderWebMarkers({}, MarkerClass, route, turnPins, colors, vi.fn());
+
+    expect(FakeMarker.created.slice(1).map((marker) => marker.options.element.textContent))
+      .toEqual(['↰', '↱', '↶', '➤']);
   });
 
   it('제목형 핀은 아이콘/제목/상세 문구를 자식 요소로 구성한다', () => {

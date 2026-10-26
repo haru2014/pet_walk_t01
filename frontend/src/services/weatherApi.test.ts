@@ -13,7 +13,6 @@ import {
   computeFocusedGoldenWindow,
   computeGoldenWindowDay,
   NO_SUN_SURFACE_OFFSET_C,
-  SAFE_MAX_SURFACE_TEMP,
 } from './weatherApi';
 
 describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () => {
@@ -36,7 +35,7 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
 
       expect(fallback.isLiveServer).toBe(false);
       expect(fallback.hourly_forecast).toHaveLength(24);
-      expect(fallback.notice).toContain('[가상 시뮬레이션 추정치]');
+      expect(fallback.notice).toContain('예상 정보를 보여드려요');
       expect(fallback.golden_time_window).toBeTruthy();
     });
 
@@ -169,13 +168,13 @@ describe('weatherApi - US-F1 지면열 추정 및 골든타임 서비스', () =>
     });
 
     it('서버 통신 실패/에러 발생 시에도 예외 없이 안전한 폴백을 반환해야 한다', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
       const result = await fetchHeatRiskForecast(SEOUL_LAT, SEOUL_LON);
 
       expect(result.isLiveServer).toBe(false);
       expect(result.hourly_forecast).toHaveLength(24);
-      expect(result.notice).toContain('[가상 시뮬레이션 추정치]');
+      expect(result.notice).toContain('예상 정보를 보여드려요');
     });
 
     it('1시간 TTL 메모리 캐싱으로 동일 위치 재호출 시 네트워크를 중복 요청하지 않아야 한다', async () => {

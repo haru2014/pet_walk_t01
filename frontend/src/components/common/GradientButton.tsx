@@ -4,7 +4,8 @@
  */
 
 import React, { ReactNode } from 'react';
-import { Text, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { AppText as Text } from './AppText';
 import { TOKENS } from '../../theme/tokens';
 
 export interface GradientButtonProps {

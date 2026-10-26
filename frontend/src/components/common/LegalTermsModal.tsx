@@ -1,17 +1,12 @@
+import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 /**
  * [편안하개 - PetWalk]
  * 회원가입약관 및 개인정보보호정책 열람 모달 컴포넌트
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from './AppIcon';
 import { TERMS_OF_SERVICE, PRIVACY_POLICY } from '../../constants/legalTerms';
@@ -107,8 +102,8 @@ export const LegalTermsModal: React.FC<LegalTermsModalProps> = ({
             <Text style={[styles.subTitle, { color: colors.textMain }]}>{contentTitle}</Text>
             <Text style={[styles.policyNotice, { color: colors.textMuted }]}>
               {activeTab === 'terms'
-                ? 'Local-First 및 위치기반서비스 규정 포함'
-                : '200m 공간 마스킹 및 단말기 격리 보관 원칙'}
+                ? '위치 정보 이용 안내 포함'
+                : '집 근처 위치 보호 및 휴대폰 보관 안내'}
             </Text>
           </View>
 
@@ -190,7 +185,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.screenTitle,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -224,7 +219,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
   },
   tabTextActive: {
@@ -235,11 +230,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   subTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.support,
     fontWeight: '700',
   },
   policyNotice: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     marginTop: 2,
   },
   contentScroll: {
@@ -250,8 +245,8 @@ const styles = StyleSheet.create({
     maxHeight: 380,
   },
   bodyText: {
-    fontSize: 12,
-    lineHeight: 19,
+    fontSize: TYPOGRAPHY.support,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     letterSpacing: -0.2,
   },
   footer: {
@@ -272,7 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   outlineBtnText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   primaryBtn: {
@@ -284,7 +279,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '800',
   },
 });

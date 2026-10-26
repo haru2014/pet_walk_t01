@@ -9,8 +9,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, BackHandler, ScrollView } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity, Alert, BackHandler, ScrollView } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import { GradientButton } from '../common/GradientButton';
 import { AppIcon } from '../common/AppIcon';
 import { DogProfile, calculateRecommendedSpeedKmH } from '../../types/dogProfile';
@@ -229,7 +230,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                   {privacyAgreed && <Text style={styles.checkIcon}>✓</Text>}
                 </View>
                 <Text style={styles.agreeText}>
-                  [필수] 개인정보 처리방침 (Local-First) 동의
+                  [필수] 개인정보 처리방침 동의
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => openLegalModal('privacy')} style={styles.viewLinkBtn}>
@@ -248,7 +249,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           <View style={styles.stepCard}>
             <Text style={styles.stepBadge}>Step 2. 반려견 프로필 등록</Text>
             <Text style={styles.stepTitle}>우리 강아지를 소개해 주세요 🐕</Text>
-            <Text style={styles.stepSubtitle}>체급과 보폭에 맞는 안심 산책로를 분석합니다.</Text>
+            <Text style={styles.stepSubtitle}>몸집과 걸음걸이에 맞는 편안한 산책길을 찾아드려요.</Text>
 
             <TextInput
               value={dogName}
@@ -280,11 +281,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 <Text style={[styles.photoSelectText, Boolean(photoUri) && { color: '#065F46', fontWeight: '700' }]}>
                   {photoUri ? '✓ 대표 사진 선택 완료' : '📷 대표 사진 등록하기 (터치)'}
                 </Text>
-                <Text style={{ fontSize: 10.5, color: TOKENS.colors.textMuted, marginTop: 2 }}>
+                <Text style={{ fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted, marginTop: 2 }}>
                   {photoUri ? '터치하여 다른 사진이나 캐릭터로 변경' : '앨범 사진 또는 귀여운 견종 캐릭터'}
                 </Text>
               </View>
-              <Text style={{ fontSize: 12, color: TOKENS.colors.primaryDark, fontWeight: '700' }}>
+              <Text style={{ fontSize: TYPOGRAPHY.label, color: TOKENS.colors.primaryDark, fontWeight: '700' }}>
                 {photoUri ? '변경' : '선택'}
               </Text>
             </TouchableOpacity>
@@ -301,7 +302,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
             <Text style={styles.stepBadge}>Step 3. 산책 시작 위치 동의</Text>
             <Text style={styles.stepTitle}>안심 보행로 위치 권한 📍</Text>
             <Text style={styles.stepSubtitle}>
-              내 위치 기반 지면온도와 계단 없는 맞춤 길을 실시간으로 안내합니다.
+              현재 위치의 노면 온도와 계단이 적은 산책길을 알려드려요.
             </Text>
 
             <View style={styles.privacyBox}>
@@ -323,7 +324,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                 {locationAgreed && <Text style={styles.checkIcon}>✓</Text>}
               </View>
               <Text style={styles.agreeText}>
-                [필수] 실시간 보행 내비게이션 위치 정보 수집 동의
+                [필수] 산책 중 위치 정보 이용 동의
               </Text>
             </TouchableOpacity>
 
@@ -382,9 +383,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  topLogo: { fontSize: 16, fontWeight: '800', color: TOKENS.colors.primaryDark },
-  topLogoCompact: { fontSize: 14, fontWeight: '800', color: TOKENS.colors.textMain },
-  stepCounter: { fontSize: 12, fontWeight: '700', color: TOKENS.colors.textMuted },
+  topLogo: { fontSize: TYPOGRAPHY.body, fontWeight: '800', color: TOKENS.colors.primaryDark },
+  topLogoCompact: { fontSize: TYPOGRAPHY.body, fontWeight: '800', color: TOKENS.colors.textMain },
+  stepCounter: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: TOKENS.colors.textMuted },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   backButtonText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -436,22 +437,22 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   stepBadge: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
     marginBottom: 6,
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.4,
     marginBottom: 4,
   },
   stepSubtitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 17,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginBottom: 16,
   },
   input: {
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.body,
     color: TOKENS.colors.textMain,
   },
   agreeRowContainer: {
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primaryLight,
   },
   viewLinkText: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   agreeText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMain,
     fontWeight: '500',
     flex: 1,
@@ -527,7 +528,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5',
   },
   photoSelectText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     color: TOKENS.colors.textMuted,
   },
   privacyBox: {
@@ -545,14 +546,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   privacyTitle: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.primaryDark,
   },
   privacyDesc: {
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.support,
     color: TOKENS.colors.textMuted,
-    lineHeight: 15,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
 });
 
