@@ -17,7 +17,8 @@ from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 SurfaceType = Literal["dirt", "grass", "rubber", "paved", "asphalt", "gravel"]
-HazardType = Literal["high_curb", "stairs", "construction", "broken_glass", "none"]
+# dog_danger: 들개·맹견 출몰 (앱 #228 이 그대로 보낸다, #227)
+HazardType = Literal["high_curb", "stairs", "construction", "broken_glass", "dog_danger", "none"]
 HazardSeverity = Literal["info", "warning", "danger"]
 
 
@@ -72,7 +73,7 @@ def evaluate_hazard_action(inspection: HazardInspectionResult) -> Dict[str, Any]
             "message": "신뢰도 부족으로 현 경로 유지"
         }
 
-    if inspection.hazard_type in ["high_curb", "stairs", "construction"] and inspection.severity in ["warning", "danger"]:
+    if inspection.hazard_type in ["high_curb", "stairs", "construction", "dog_danger"] and inspection.severity in ["warning", "danger"]:
         return {
             "needs_reroute": True,
             "penalty_multiplier": 10.0,  # 해당 링크 비용 10배 가중치

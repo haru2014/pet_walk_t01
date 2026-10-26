@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.hazard_reports (
     user_id       TEXT NOT NULL,
     lat           DOUBLE PRECISION NOT NULL CHECK (lat BETWEEN -90 AND 90),
     lon           DOUBLE PRECISION NOT NULL CHECK (lon BETWEEN -180 AND 180),
-    hazard_type   VARCHAR(30) NOT NULL CHECK (hazard_type IN ('high_curb','stairs','construction','broken_glass','none')),
+    hazard_type   VARCHAR(30) NOT NULL CHECK (hazard_type IN ('high_curb','stairs','construction','broken_glass','dog_danger','none')),
     severity      VARCHAR(10) NOT NULL CHECK (severity IN ('info','warning','danger')),
     description   TEXT NOT NULL,
     photo_url     TEXT,
