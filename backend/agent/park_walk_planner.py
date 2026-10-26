@@ -187,14 +187,32 @@ def warm_park_cycles(graph: nx.Graph) -> int:
 
 
 class ParkRoute(list):
-    """공원 순환 경로 좌표 목록 및 반복 바퀴 수 메타데이터."""
+    """공원 순환 경로 좌표 목록 및 반복 바퀴 수 메타데이터.
+
+    loop_entry 는 순환로에 들어서는 점 [경도, 위도], approach_m 은 출발지에서 그 점까지 가는 거리(m)다.
+    """
     lap_count: int = 1
     lap_cycle_m: float = 0.0
+    loop_entry: Optional[list] = None
+    approach_m: float = 0.0
 
-    def __init__(self, iterable=(), lap_count: int = 1, lap_cycle_m: float = 0.0):
+    def __init__(self, iterable=(), lap_count: int = 1, lap_cycle_m: float = 0.0,
+                 loop_entry: Optional[list] = None, approach_m: float = 0.0):
         super().__init__(iterable)
         self.lap_count = lap_count
         self.lap_cycle_m = lap_cycle_m
+        self.loop_entry = loop_entry
+        self.approach_m = approach_m
+
+
+def _route_meta(route: Any) -> dict:
+    """좌표를 다시 만들 때 따라가야 하는 ParkRoute 메타데이터."""
+    return {
+        "lap_count": getattr(route, "lap_count", 1),
+        "lap_cycle_m": getattr(route, "lap_cycle_m", 0.0),
+        "loop_entry": getattr(route, "loop_entry", None),
+        "approach_m": getattr(route, "approach_m", 0.0),
+    }
 
 
 def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float) -> list:
@@ -237,7 +255,13 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
             cycle = cycle[position:] + cycle[:position]
             approach = paths[entry]
             nodes = approach + (cycle[1:] + [entry]) * repeats + list(reversed(approach[:-1]))
-            return ParkRoute([list(node) for node in nodes], lap_count=repeats, lap_cycle_m=round(cycle_length, 1))
+            return ParkRoute(
+                [list(node) for node in nodes],
+                lap_count=repeats,
+                lap_cycle_m=round(cycle_length, 1),
+                loop_entry=list(entry),
+                approach_m=round(distances[entry], 1),
+            )
         build.repeats = repeats
         build.cycle_length_m = round(cycle_length, 1)
         return build
@@ -285,11 +309,7 @@ def _fill_with_reversed_routes(chosen: list, base: list, target_count: int = CAN
     for coords, edges, shape in base:
         if len(chosen) >= target_count:
             break
-        reverse = ParkRoute(
-            reversed(coords),
-            lap_count=getattr(coords, "lap_count", 1),
-            lap_cycle_m=getattr(coords, "lap_cycle_m", 0.0),
-        )
+        reverse = ParkRoute(reversed(coords), **_route_meta(coords))
         if not any(reverse == c for c, _, _ in chosen):
             chosen.append((reverse, edges, shape))
 
@@ -315,11 +335,7 @@ REGENERATE_MAX_OVERLAP = 0.5  # 다시 추천 시 직전에 보여준 2·3번과
 
 
 def _reversed_route(route: Any) -> ParkRoute:
-    return ParkRoute(
-        reversed(route),
-        lap_count=getattr(route, "lap_count", 1),
-        lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
-    )
+    return ParkRoute(reversed(route), **_route_meta(route))
 
 
 def _is_fresh(route: Any, previous: list, picked: list) -> bool:
@@ -412,22 +428,16 @@ def plan_park_walk_candidates(
         routes = [pool[0], *_pick_regenerated_alternatives(pool[1:], regenerate_nonce)]
 
     if approach is not None:
+        # 주차장에서 공원 시작점까지의 진입로도 순환로에 닿기 전에 걷는 거리다.
+        approach_m = polyline_length_m(approach)
         routes = [
             ParkRoute(
                 approach[:-1] + list(route) + list(reversed(approach))[1:],
-                lap_count=getattr(route, "lap_count", 1),
-                lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
+                **{**_route_meta(route), "approach_m": round(getattr(route, "approach_m", 0.0) + approach_m, 1)},
             )
             for route in routes
         ]
-    return [
-        ParkRoute(
-            [list(point) for point in route],
-            lap_count=getattr(route, "lap_count", 1),
-            lap_cycle_m=getattr(route, "lap_cycle_m", 0.0),
-        )
-        for route in routes
-    ]
+    return [ParkRoute([list(point) for point in route], **_route_meta(route)) for route in routes]
 
 
 def plan_park_walk(

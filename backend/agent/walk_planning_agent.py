@@ -76,6 +76,8 @@ class RouteCandidate(BaseModel):
     route_source: str = "unknown"
     lap_count: int = 1
     lap_cycle_m: Optional[float] = None
+    loop_entry: Optional[List[float]] = None
+    approach_m: Optional[float] = None
     slope_source: Optional[str] = "approximation"
     stairs_source: Optional[str] = None
     shade_source: Optional[str] = None
@@ -432,6 +434,8 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
             route_source=plan.source,
             lap_count=getattr(plan, "lap_count", 1) or 1,
             lap_cycle_m=getattr(plan, "lap_cycle_m", None),
+            loop_entry=getattr(plan, "loop_entry", None),
+            approach_m=getattr(plan, "approach_m", None),
             direction_label=direction_label,
             **_variant_profile(variant, req),
         ))
