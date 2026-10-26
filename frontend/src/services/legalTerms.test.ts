@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TERMS_OF_SERVICE, PRIVACY_POLICY, DATA_SOURCES_ATTRIBUTION } from '../constants/legalTerms';
+import { TERMS_OF_SERVICE, PRIVACY_POLICY, DATA_SOURCES_ATTRIBUTION, WORLDCOVER_ATTRIBUTION } from '../constants/legalTerms';
 
 describe('회원가입약관 및 개인정보보호정책 규격 검증', () => {
   it('회원가입 약관(TERMS_OF_SERVICE)에 필수 조항 및 핵심 서비스 규정이 포함되어야 한다', () => {
@@ -32,5 +32,15 @@ describe('회원가입약관 및 개인정보보호정책 규격 검증', () => 
     expect(PRIVACY_POLICY).toContain('AsyncStorage');
     expect(PRIVACY_POLICY).toContain('위치정보 (GPS)');
     expect(PRIVACY_POLICY).toContain('개인정보 보호책임자');
+  });
+
+  it('그늘(ESA WorldCover)·대기질(에어코리아)·주차장(공공데이터) 출처가 목록과 이용약관에 있다', () => {
+    const required = ['ESA WorldCover 2021', '에어코리아', '전국주차장정보표준데이터'];
+    for (const name of required) {
+      expect(DATA_SOURCES_ATTRIBUTION.some((s) => s.includes(name))).toBe(true);
+      expect(TERMS_OF_SERVICE).toContain(name);
+    }
+    expect(WORLDCOVER_ATTRIBUTION).toContain('© ESA WorldCover project 2021');
+    expect(WORLDCOVER_ATTRIBUTION).toContain('CC BY 4.0');
   });
 });

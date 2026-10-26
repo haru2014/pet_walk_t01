@@ -6,11 +6,18 @@
  * 프라이버시 바이 디자인(Privacy by Design) 규격 준수
  */
 
+/** 그늘 비율(나무 근접 비율) 자료 출처. CC BY 4.0 이라 그늘 값을 보여 줄 때 표기한다 (backend/data/landcover/NOTICE.md). */
+export const WORLDCOVER_ATTRIBUTION =
+  '그늘: © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium (CC BY 4.0)';
+
 export const DATA_SOURCES_ATTRIBUTION = [
   'OpenStreetMap(OSM) (ODbL)',
   '기상청 공공데이터포털 단기예보 오픈 API',
   'Open-Meteo.com (CC BY 4.0)',
   'Copernicus DEM GLO-30 (© DLR e.V. 2010-2014, © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA)',
+  'ESA WorldCover 2021 (© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium, CC BY 4.0)',
+  '한국환경공단 에어코리아 대기오염정보 (공공데이터포털)',
+  '전국주차장정보표준데이터 (공공데이터포털, 공공누리 출처표시)',
 ] as const;
 
 export const TERMS_OF_SERVICE = `
@@ -49,6 +56,9 @@ export const TERMS_OF_SERVICE = `
 
 부칙
 본 약관은 2026년 10월 14일부터 적용됩니다.
+
+[데이터 출처]
+${DATA_SOURCES_ATTRIBUTION.map((source) => `- ${source}`).join('\n')}
 `.trim();
 
 export const PRIVACY_POLICY = `
