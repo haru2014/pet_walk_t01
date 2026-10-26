@@ -34,6 +34,7 @@ import { formatCourseSlope, formatCourseSurface } from '../../services/routeProf
 import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
 import { analyzeCourseLaps, formatCourseLapSummary, mergeLoopStartPin } from '../../services/courseLapInfo';
+import { WORLDCOVER_ATTRIBUTION } from '../../constants/legalTerms';
 
 /**
  * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
@@ -763,11 +764,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
         {/* 고도 자료 출처 (Copernicus DEM 라이선스 6조 (b), #76) */}
         {/* 고도 및 지도 자료 출처 독립 격리 표시 (Copernicus DEM 라이선스 6조 (b), #76) */}
-        {planResult?.elevationAttribution ? (
+        {planResult?.elevationAttribution || currentCourse.shadePercent != null ? (
           <View style={styles.attributionContainer}>
-            <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
-              {planResult.elevationAttribution}
-            </Text>
+            {planResult?.elevationAttribution ? (
+              <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+                {planResult.elevationAttribution}
+              </Text>
+            ) : null}
+            {/* 그늘 값(위성 토지피복)을 보여 줄 때 출처 표기 (ESA WorldCover, CC BY 4.0) */}
+            {currentCourse.shadePercent != null ? (
+              <Text style={[styles.elevationAttribution, { color: colors.textMuted }]}>
+                {WORLDCOVER_ATTRIBUTION}
+              </Text>
+            ) : null}
           </View>
         ) : null}
       </View>
