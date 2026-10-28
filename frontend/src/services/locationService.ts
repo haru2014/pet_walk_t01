@@ -12,6 +12,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { prepareBackgroundSpeech, processBackgroundGuidancePoint } from './backgroundWalkGuidance';
+import { DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 export const WALK_LOCATION_TASK = 'PETWALK_BACKGROUND_LOCATION';
 const WALK_TRACK_KEY = '@편안하개:active_walk_track';
@@ -164,9 +165,9 @@ function startWebSimulation(): void {
     clearInterval(webSimulationTimer);
     webSimulationTimer = null;
   }
-  // 기본 시작 좌표 (서울숲 인근 기준 가상 보행)
-  const baseLat = 37.5445;
-  const baseLon = 127.0374;
+  // 기본 시작 좌표 (기본 시범 공원 대전 유림공원 기준 가상 보행, #281)
+  const baseLat = DEFAULT_PILOT_PARK.center.lat;
+  const baseLon = DEFAULT_PILOT_PARK.center.lon;
   let step = 0;
   const initialLocation: Location.LocationObject = {
     coords: {
