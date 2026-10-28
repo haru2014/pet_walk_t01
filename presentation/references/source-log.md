@@ -84,4 +84,8 @@
 | 자동화 검증 수치 | 루트 `README.md` 품질 검증 표 및 테스트 실행 안내 | README 기재 수치; 이번 PPT 제작에서는 테스트를 재실행하지 않음 | 사용, 출처 표시 |
 | API 성능 수치 | `docs/reports/2026-10-21_API_P95_Latency_검증보고서.md` 결과 표 | 2026-10-21, FastAPI TestClient·로컬 Fast-Path 캐시/라우팅 어댑터; warm/cold 구분과 heat-risk SLA 미달을 함께 표기 | 사용 |
 | Code Freeze / CBT 진행 상태 | `docs/reports/2026-10-21_Code_Freeze_무결성_감사보고서.md`, `docs/reports/2026-10-21_5인_CBT_실행_시나리오_명세서.md`, `docs/00_final_mission.md` | 감사·시뮬레이션은 2026-10-21 문서 기준. 실제 CBT는 10/31~11/7 계획으로 미래 시점이며 완료 주장 제외 | 사용, 한계 표시 |
+| GitHub 형상관리 실적 (717 커밋, 210 PR, 75 이슈) | `haru2014/pet_walk_t01` GitHub 리포지토리 실측 로그 (`gh pr list`, `gh issue list`, `git rev-list`) | 2026-10-28 실측 기준 (207 PR 머지 98.6%, 61 이슈 해결 81.3%) | 사용 |
+| GitHub 4대 핵심 난제 극복 (빌딩 관통, 4.8s 지연, 다크포켓, 맹견 제보) | GitHub Issues #22, #28, #221, #227 및 PR #22, #28, #277, #283 | 이슈 및 PR 해결 기록 대조 | 사용 |
+| 시스템 아키텍처 (4+1 View, CMP-xxx 추적성) | `docs/10_편안하개_아키텍처_설계서.md` | 최신 v1.0 아키텍처 설계서 기준 | 사용 |
+| 사용자스토리 기반 시험 검증 (71 pt, Vitest 513, Pytest 908) | `docs/11_편안하개_사용자스토리_기반_시험결과보고서.md` | 2026-10-26 QA & 통합 엔지니어링 팀 총괄 보고서 기준 | 사용 |
 
