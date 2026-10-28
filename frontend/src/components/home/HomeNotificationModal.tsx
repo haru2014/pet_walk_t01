@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
-import { TYPOGRAPHY, TOKENS } from '../../theme/tokens';
+import { TYPOGRAPHY } from '../../theme/tokens';
 import { HeatRiskResponse } from '../../types/weather';
 import { DogProfile } from '../../types/dogProfile';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
