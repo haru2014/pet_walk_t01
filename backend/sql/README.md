@@ -82,7 +82,9 @@ if (error) { /* 사용자에게 알림 + 로컬 유지 */ }
 오류 응답(앱이 알려 줄 문구가 있어야 함): `401 AUTH_REQUIRED/AUTH_INVALID`, `404 WALK_NOT_FOUND`(없거나 남의 기록), `422 ROUTE_TOO_SHORT_TO_MASK`(가리면 남는 경로가 없음)/`INVALID_ROUTE`/`INVALID_WALK_ID`, `503 DB_NOT_CONNECTED`.
 **주의**: 앱의 산책 기록 목록은 지금 폰 안(로컬)에 저장돼 있어서, 클라우드에 올라가지 않은 기록은 `404`로 공개할 수 없습니다.
 
-**적용 순서**: `supabase_auth_schema.sql` → `supabase_walk_public_migration.sql` (재실행 안전). 이미 쓰는 DB 는 마이그레이션 파일만 실행하면 됩니다.
+**적용 순서**: `supabase_auth_schema.sql` → `supabase_walk_public_migration.sql` → `supabase_hazard_dog_danger_migration.sql` (모두 재실행 안전). 이미 쓰는 DB 는 마이그레이션 파일만 실행하면 됩니다.
+
+`supabase_hazard_dog_danger_migration.sql` (이슈 #227): 위험 제보 종류에 `dog_danger`(들개·맹견)를 허용합니다. 적용 전에는 이 종류의 제보가 DB 에 저장되지 않고 서버 메모리에만 임시로 남습니다.
 
 ## 3. 서버가 쓰는 표 (앱은 직접 쓰지 않음)
 

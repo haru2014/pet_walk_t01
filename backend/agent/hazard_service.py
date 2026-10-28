@@ -75,6 +75,7 @@ _HAZARD_LABEL_KO = {
     "stairs": "야외 계단",
     "construction": "공사",
     "broken_glass": "유리 파편",
+    "dog_danger": "들개·맹견",
 }
 _HAZARD_CLEARANCE_M = 60.0   # 이 거리 안의 기존 경로점은 제거
 _DETOUR_OFFSET_M = 80.0      # 위험점에서 수직으로 비켜갈 거리
