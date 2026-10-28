@@ -142,6 +142,61 @@ class TestWalkRerouteEndpoint:
         # 진행 거리가 0이면 코스 처음 구간으로 합류해 코스 전체를 이어 간다.
         assert early["new_distance_m"] > late["new_distance_m"]
 
+    def test_route_deviation_method_a_regenerates_current_location_return_loop(self, client):
+        # 방법 A: 현위치 기반 산책 모드에서 이탈 시 남은 산책 거리 기준 새 복귀 코스를 재생성
+        payload = {
+            "current_lat": 36.3635,
+            "current_lon": 127.3595,
+            "destination_lat": 36.3620,
+            "destination_lon": 127.3580,
+            "reroute_reason": "deviation",
+            "origin_mode": "current_location",
+            "remaining_distance_m": 750.0,
+            "route_coordinates": [[127.3580, 36.3620], [127.3610, 36.3640], [127.3580, 36.3620]],
+            "progress_m": 250.0,
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["reroute_strategy"] == "regenerate_to_origin"
+        assert body["route_source"] in ("osrm_regenerated", "offline_regenerated_loop")
+        assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert len(coords) >= 6
+        assert coords[0] == pytest.approx([127.3595, 36.3635], abs=1e-3)
+        assert coords[-1] == pytest.approx([127.3580, 36.3620], abs=1e-3)
+
+    def test_route_deviation_method_c_rejoins_via_park_walkway_network(self, client):
+        # 방법 C: 지정 공원 산책 모드에서 이탈 시 공원 산책로망(networkx 그래프)을 따라 코스에 합류
+        park_course = [
+            [127.3568, 36.3618],
+            [127.3585, 36.3625],
+            [127.3602, 36.3632],
+            [127.3568, 36.3618],
+        ]
+        payload = {
+            "current_lat": 36.3612,
+            "current_lon": 127.3582,
+            "destination_lat": 36.3618,
+            "destination_lon": 127.3568,
+            "reroute_reason": "deviation",
+            "origin_mode": "park",
+            "pilot_park_id": "yurim",
+            "route_coordinates": park_course,
+            "progress_m": 60.0,
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["reroute_strategy"] == "park_network_rejoin"
+        assert body["route_source"] in ("park_graph_yurim", "osrm_foot_rejoin", "segment_projection")
+        assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert coords[0] == pytest.approx([127.3582, 36.3612], abs=1e-4)
+        assert coords[-1] == pytest.approx([127.3568, 36.3618], abs=1e-4)
+
     def test_invalid_hazard_type_rejected(self, client):
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(hazard_type="lava"))
         assert res.status_code == 422

@@ -18,7 +18,7 @@ import {
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { fetchWithServerFallback } from './apiClient';
 import { haversineMeters, polylineLengthMeters } from './routeGeometry';
-import { buildRejoinPath } from './routeRejoin';
+import { buildLocalRegeneratedReturnPath, buildRejoinPath } from './routeRejoin';
 
 export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
   high_curb: '높은 턱',
@@ -386,13 +386,65 @@ export async function requestRerouteAroundHazard(payload: RerouteRequestPayload)
   };
 }
 
+function buildRegeneratedPins(coords: readonly (readonly [number, number])[]): RouteStepPin[] {
+  const pins: RouteStepPin[] = [];
+  const firstTurn = coords[1] ?? coords[0];
+  if (firstTurn) {
+    pins.push({
+      id: `regen_start_${Date.now()}`,
+      kind: 'turn',
+      position: [firstTurn[0], firstTurn[1]],
+      instruction: '현재 위치에서 출발지로 돌아오는 새 산책 경로를 따라 이동하세요.',
+    });
+  }
+  const dest = coords.at(-1);
+  if (dest && dest !== firstTurn) {
+    pins.push({
+      id: `regen_dest_${Date.now()}`,
+      kind: 'safe',
+      position: [dest[0], dest[1]],
+      instruction: '새로 생성된 산책 경로를 따라 원래 출발지로 복귀하세요.',
+    });
+  }
+  return pins;
+}
+
 /**
- * 로컬 기하 기반 경로 이탈 복귀 경로 생성 (오프라인 폴백)
- * 현재 위치에서 기존 경로의 가장 가까운 전방 지점을 찾아 연결한다.
+ * 로컬 기하 기반 경로 이탈 복귀/재생성 경로 생성 (오프라인 폴백)
+ * - current_location 모드(방법 A): 현재 위치에서 남은 거리를 소화하며 원래 출발지로 돌아오는 경로 생성
+ * - 공원/기본 모드(방법 C): 현재 위치에서 기존 경로의 가장 가까운 전방 지점을 찾아 합류
  */
 export function generateLocalDeviationReroute(payload: DeviationReroutePayload): RerouteResult {
   const start: [number, number] = [payload.currentLon, payload.currentLat];
   const end: [number, number] = [payload.destinationLon, payload.destinationLat];
+
+  if (payload.originMode === 'current_location') {
+    const regenCoords = buildLocalRegeneratedReturnPath(start, end, payload.remainingDistanceM);
+    const distM = Math.round(polylineLengthMeters(regenCoords));
+    const estMin = Math.max(1, Math.round(distM / 46.7));
+    const localGeojson: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.5, shaded: true },
+          geometry: { type: 'LineString', coordinates: regenCoords },
+        },
+      ],
+    };
+    return {
+      status: 'REROUTED',
+      needsReroute: true,
+      voiceAlert: `경로를 벗어나 현재 위치에서 출발지로 돌아오는 약 ${estMin}분, ${Math.max(10, Math.round(distM / 10) * 10)}미터 산책 경로를 새로 생성했습니다.`,
+      newRoute: localGeojson,
+      stepPins: buildRegeneratedPins(regenCoords),
+      newDistanceM: distM,
+      isEmergencyReturn: false,
+      rerouteStrategy: 'regenerate_to_origin',
+      routeSource: 'geometric_fallback',
+    };
+  }
+
   const base = payload.routeCoordinates && payload.routeCoordinates.length >= 2
     ? payload.routeCoordinates.map((c) => [c[0], c[1]] as [number, number])
     : [start, end];
@@ -425,12 +477,14 @@ export function generateLocalDeviationReroute(payload: DeviationReroutePayload):
     stepPins,
     newDistanceM: Math.round(polylineLengthMeters(detourCoords)),
     isEmergencyReturn: false,
+    rerouteStrategy: payload.originMode ? 'park_network_rejoin' : 'segment_rejoin',
+    routeSource: 'segment_projection_fallback',
   };
 }
 
 /**
  * 경로 이탈 시 서버에 재탐색 요청 (POST /api/v1/walk/reroute)
- * 서버 통신 실패 시 로컬 안전 복귀 경로로 즉시 폴백
+ * 서버 통신 실패 시 로컬 안전 복귀/재생성 경로로 즉시 폴백
  */
 export async function requestDeviationReroute(payload: DeviationReroutePayload): Promise<RerouteResult> {
   try {
@@ -450,6 +504,9 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
         route_coordinates: payload.routeCoordinates ? payload.routeCoordinates.map((c) => [c[0], c[1]]) : null,
         reroute_reason: 'deviation',
         progress_m: payload.progressM ?? null,
+        origin_mode: payload.originMode ?? null,
+        pilot_park_id: payload.pilotParkId ?? null,
+        remaining_distance_m: payload.remainingDistanceM ?? null,
       }),
     });
 
@@ -458,7 +515,26 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
       if (data.status === 'REROUTED' && data.geojson?.features?.length > 0) {
         const geojson: RouteFeatureCollection = data.geojson;
         const coords = getRouteCoordinates(geojson);
-        const { voiceAlert, stepPins } = getDeviationGuidance(coords);
+        const isRegenerated = payload.originMode === 'current_location'
+          || data.reroute_strategy === 'regenerate_to_origin';
+        const isParkRejoin = payload.originMode === 'park'
+          || payload.originMode === 'parking_pnr'
+          || data.reroute_strategy === 'park_network_rejoin';
+
+        const fallbackGuidance = getDeviationGuidance(coords);
+        const serverPins: RouteStepPin[] | undefined = Array.isArray(data.step_pins) && data.step_pins.length > 0
+          ? data.step_pins
+          : undefined;
+
+        let voiceAlert = fallbackGuidance.voiceAlert;
+        let stepPins = fallbackGuidance.stepPins;
+        if (isRegenerated) {
+          voiceAlert = data.voice_alert ?? '경로를 벗어나 현재 위치에서 출발지로 돌아오는 새 산책 경로를 생성했습니다.';
+          stepPins = serverPins ?? buildRegeneratedPins(coords);
+        } else if (isParkRejoin) {
+          voiceAlert = data.voice_alert ?? fallbackGuidance.voiceAlert;
+          stepPins = serverPins ?? fallbackGuidance.stepPins;
+        }
 
         return {
           status: 'REROUTED',
@@ -469,6 +545,8 @@ export async function requestDeviationReroute(payload: DeviationReroutePayload):
           newDistanceM: data.new_distance_m ?? Math.round(polylineLengthMeters(coords)),
           hazardClearanceM: 0,
           isEmergencyReturn: false,
+          rerouteStrategy: data.reroute_strategy,
+          routeSource: data.route_source,
         };
       }
     }

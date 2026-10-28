@@ -175,7 +175,13 @@ export default function App() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signup' | 'signin'>('signup');
   const [myProfileSubTab, setMyProfileSubTab] = useState<'dog_profile' | 'theme_account' | 'walk_records' | 'settings'>('dog_profile');
-  const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
+  const resolvedOriginMode = preferences.originMode ?? (preferences.pilotParkId ? 'park' : 'current_location');
+  const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS, {
+    originMode: resolvedOriginMode,
+    pilotParkId: preferences.pilotParkId,
+    targetMinutes: preferences.durationMinutes,
+    speedKmH: activeDog.speedKmH,
+  });
   const [walkBookmark, setWalkBookmark] = useState<BookmarkedRoute | null>(null);
   const consent = useLocationConsent();
 
@@ -576,6 +582,9 @@ export default function App() {
             walkedCoords={recordedCoords}
             mapRoute={pocketMapRoute}
             mapPins={walk.activePins}
+            originMode={resolvedOriginMode}
+            isOffRoute={walk.isOffRoute}
+            onRegenerateRoute={walk.regenerateFromCurrentLocation}
             onReroute={(res) => {
               walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);
             }}
