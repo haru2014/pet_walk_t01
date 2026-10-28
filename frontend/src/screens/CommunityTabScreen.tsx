@@ -205,19 +205,23 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
-      {/* 앰비언트 글로우 오라 (자연스러운 깊이감 형성) */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
       <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
 
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeaderTextWrap}>
-          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
-          <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderTextWrap}>
+            <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
+          </View>
+          <View pointerEvents="none" style={styles.headerMascotWrap}>
+            <Image source={dogWalkingImg} style={styles.headerMascotImg} resizeMode="contain" />
+          </View>
         </View>
-        <View pointerEvents="none" style={styles.headerMascotWrap}>
-          <Image source={dogWalkingImg} style={styles.headerMascotImg} resizeMode="contain" />
-        </View>
-      </View>
 
       {/* 연동 상태 뱃지 */}
       <View style={styles.badgeRow}>
@@ -552,12 +556,14 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           </View>
         </Modal>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative', overflow: 'hidden' },
+  scrollContainer: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
   ambientAuraTop: {
     position: 'absolute',
@@ -566,7 +572,34 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(90, 115, 97, 0.08)',
+    backgroundColor: 'rgba(90, 115, 97, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -10,
+    right: 25,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -50,
+    left: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(207, 160, 82, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -15,
+    left: 20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
   },
   sectionHeader: {
     flexDirection: 'row',

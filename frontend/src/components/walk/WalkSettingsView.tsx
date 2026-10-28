@@ -233,8 +233,11 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 앰비언트 글로우 오라 (자연광 깊이감 형성) */}
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
       <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
 
       {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
       <AppScreenHeader title="산책 설정" onBack={onBack} />
@@ -558,10 +561,37 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -30,
     right: -20,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(207, 160, 82, 0.08)',
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: 'rgba(207, 160, 82, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -5,
+    right: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -10,
+    left: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
   },
   header: {
     height: 48,

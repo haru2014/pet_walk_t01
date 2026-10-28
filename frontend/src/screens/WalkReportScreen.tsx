@@ -152,9 +152,11 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 앰비언트 글로우 오라 (사진 없이 깊이감과 따뜻함을 더하는 은은한 레이어) */}
+      {/* 오로라/메시 블렌딩 글로우 (다중 톤 번짐으로 유기적 깊이감 형성) */}
       <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
       <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
 
       {/* 1. 산책 기록 헤더 */}
       <View style={styles.reportHeader}>
@@ -436,7 +438,16 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(207, 160, 82, 0.08)',
+    backgroundColor: 'rgba(207, 160, 82, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -10,
+    right: 25,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
   },
   ambientAuraBottom: {
     position: 'absolute',
@@ -445,7 +456,16 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(90, 115, 97, 0.07)',
+    backgroundColor: 'rgba(90, 115, 97, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -15,
+    left: 30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
   },
   reportHeader: {
     flexDirection: 'row',

@@ -131,9 +131,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* 1. 상단 테마 메인 배경 영역 (마스코트 및 메인 카드) */}
       <View style={[styles.topSageSection, { backgroundColor: colors.primaryDark }]}>
-        {/* 자연 톤 앰비언트 오라 데코 (사진 없이 심플함을 탈피하는 자연광 깊이감 레이어) */}
+        {/* 자연 톤 오로라/메시 블렌딩 데코 (중심이 어긋난 다중 타원으로 은은한 유기적 깊이감 형성) */}
         <View pointerEvents="none" style={styles.ambientAuraTop} />
+        <View pointerEvents="none" style={styles.ambientAuraTopSub} />
         <View pointerEvents="none" style={styles.ambientAuraBottom} />
+        <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
 
         <HomeParkWalkCardN2
           dog={dog}
@@ -219,7 +221,16 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.09)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -15,
+    right: 25,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   ambientAuraBottom: {
     position: 'absolute',
@@ -228,6 +239,15 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.07)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -20,
+    left: 20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
   },
 });
