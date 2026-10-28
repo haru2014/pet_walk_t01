@@ -3,12 +3,12 @@
  * 완주 리포트 코스 공유 연계 플로우 단위 테스트 (US-G2, T1-2)
  *
  * - 완주 기록(gpsTrack) 좌표 추출 및 [lon, lat] 튜플 변환
- * - gpsTrack 비어있을 때의 안전한 폴백 좌표 처리
+ * - gpsTrack 비어있을 때 대체 좌표 없이 공유 차단 (#281)
  * - shareCommunityCourse API 호출 및 200m 공간 보호 플로우 검증
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { shareCommunityCourse } from './communityApi';
+import { hasVisibleCommunityRoute, shareCommunityCourse, toShareCoordinates } from './communityApi';
 import { WalkRecord } from '../types/storage';
 
 describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)', () => {
@@ -59,41 +59,28 @@ describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)',
     expect(capturedBody.satisfaction_rating).toBe(5);
   });
 
-  it('gpsTrack이 비어있는 경우 기본 안전 좌표로 폴백되어 전송된다', async () => {
-    const emptyRecord: WalkRecord = {
-      id: 'walk_test_empty',
-      dogId: 'dog_choco',
-      startedAt: '2026-10-13T10:00:00Z',
-      completedAt: '2026-10-13T10:20:00Z',
-      durationMinutes: 20,
-      totalDistanceKm: 1.0,
-      averageSpeedKmH: 3.0,
-      safeSurfaceRatio: 0.85,
-      gpsTrack: [],
-    };
+  it('gpsTrack이 비었거나 1점뿐이면 대체 좌표 없이 공유 좌표가 null이다 (#281)', () => {
+    expect(toShareCoordinates([])).toBeNull();
+    expect(toShareCoordinates(undefined)).toBeNull();
+    expect(toShareCoordinates([{ lat: 36.362, lon: 127.36, timestamp: 1000 }])).toBeNull();
+  });
 
-    let capturedBody: any = null;
-    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
-      if (init && init.body) {
-        capturedBody = JSON.parse(init.body as string);
-      }
-      return {
-        ok: true,
-        json: async () => ({ status: 'success', course_id: 'fallback_1', is_supabase: false }),
-      } as Response;
-    });
+  it('gpsTrack이 2점 이상이면 [lon, lat] 좌표열로 바꾼다 (#281)', () => {
+    expect(
+      toShareCoordinates([
+        { lat: 36.362, lon: 127.36, timestamp: 1000 },
+        { lat: 36.363, lon: 127.361, timestamp: 2000 },
+      ]),
+    ).toEqual([
+      [127.36, 36.362],
+      [127.361, 36.363],
+    ]);
+  });
 
-    const fallbackCoords: [number, number][] =
-      emptyRecord.gpsTrack.length > 0
-        ? emptyRecord.gpsTrack.map((p) => [p.lon, p.lat])
-        : [[127.038, 37.544], [127.040, 37.545], [127.039, 37.543]];
-
-    const res = await shareCommunityCourse('기본 안심 코스', fallbackCoords, 4);
-
-    expect(res.success).toBe(true);
-    expect(capturedBody.raw_coordinates).toHaveLength(3);
-    expect(capturedBody.course_title).toBe('기본 안심 코스');
-    expect(capturedBody.satisfaction_rating).toBe(4);
+  it('마스킹 후 경로가 2점 미만이면 커뮤니티 지도에 그릴 경로가 없다 (#281)', () => {
+    expect(hasVisibleCommunityRoute({ masked_polyline: [] })).toBe(false);
+    expect(hasVisibleCommunityRoute({ masked_polyline: [[127.36, 36.362]] })).toBe(false);
+    expect(hasVisibleCommunityRoute({ masked_polyline: [[127.36, 36.362], [127.361, 36.363]] })).toBe(true);
   });
 
   it('서버 통신 실패 또는 타임아웃 발생 시 success: false 및 실패 안내 메시지를 반환한다 (이슈 #117)', async () => {

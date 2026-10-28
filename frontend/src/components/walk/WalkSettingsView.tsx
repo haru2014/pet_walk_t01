@@ -233,6 +233,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
+
       {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
       <AppScreenHeader title="산책 설정" onBack={onBack} />
 
@@ -548,6 +554,44 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: 'rgba(207, 160, 82, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -5,
+    right: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -10,
+    left: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
   },
   header: {
     height: 48,
@@ -569,17 +613,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   titleSection: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeBtn: {
     flex: 1,
-    height: 36,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -602,7 +646,7 @@ const styles = StyleSheet.create({
     lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   aiBanner: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
     borderWidth: 1,
   },
@@ -625,9 +669,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   parkChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
     marginRight: 6,
   },
@@ -652,7 +696,7 @@ const styles = StyleSheet.create({
   durationBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   durationBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -661,7 +705,7 @@ const styles = StyleSheet.create({
   detailToggleBtn: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 6,
   },
@@ -685,7 +729,7 @@ const styles = StyleSheet.create({
   durationChip: {
     flex: 1,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -701,7 +745,7 @@ const styles = StyleSheet.create({
   envCard: {
     width: '48.5%',
     padding: 9,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   envCardHeader: {
     flexDirection: 'row',
@@ -743,9 +787,14 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 50,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
   },
   submitButtonContent: {
     flexDirection: 'row',

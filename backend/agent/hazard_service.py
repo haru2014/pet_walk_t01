@@ -19,6 +19,12 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from test_case.test_api_contracts import calculate_haversine_distance_m
+from agent.deviation_reroute import (
+    build_current_location_regenerated_route,
+    build_park_network_rejoin_route,
+    collect_projections,
+    select_projection,
+)
 from test_case.test_vision_safety_inspector import (
     HazardInspectionResult,
     HazardSeverity,
@@ -53,6 +59,10 @@ class RerouteRequest(BaseModel):
     reroute_reason: Optional[str] = "hazard"
     # 경로 이탈 직전까지 코스 위에서 진행한 거리(m). 순환 코스에서 앞쪽 합류 지점을 고르는 데 사용.
     progress_m: Optional[float] = Field(None, ge=0.0)
+    # 산책 출발 모드 ('current_location': 방법 A 현위치→출발지 재생성, 'park'/'parking_pnr': 방법 C 보행망 합류)
+    origin_mode: Optional[Literal["current_location", "park", "parking_pnr"]] = None
+    pilot_park_id: Optional[str] = None
+    remaining_distance_m: Optional[float] = Field(None, ge=0.0)
 
 
 class HazardReportRequest(BaseModel):
@@ -140,68 +150,41 @@ def build_detour_route(req: RerouteRequest) -> Dict[str, Any]:
     }
 
 
-_REJOIN_BACKTRACK_TOLERANCE_M = 30.0   # 진행 거리보다 이만큼 뒤쪽 후보까지는 전방으로 취급
-_REJOIN_FORWARD_SLACK_M = 60.0         # 전방 후보가 전체 최근접보다 이만큼 이상 멀면 최근접 사용
-_REJOIN_SAME_PLACE_M = 15.0            # 같은 자리(여러 바퀴)로 볼 거리
-
-
-def _collect_projections(coords: List[List[float]], lat: float, lon: float) -> List[Dict[str, Any]]:
-    """현재 위치를 코스의 모든 선분에 투영한 후보 [{point, next_index, progress_m, distance_m}]."""
-    cos_lat = math.cos(math.radians(lat))
-    candidates: List[Dict[str, Any]] = []
-    traversed = 0.0
-    for index in range(1, len(coords)):
-        a, b = coords[index - 1], coords[index]
-        ax, ay = (a[0] - lon) * 111_320.0 * cos_lat, (a[1] - lat) * 110_540.0
-        bx, by = (b[0] - lon) * 111_320.0 * cos_lat, (b[1] - lat) * 110_540.0
-        dx, dy = bx - ax, by - ay
-        length_sq = dx * dx + dy * dy
-        ratio = 0.0 if length_sq == 0 else max(0.0, min(1.0, -(ax * dx + ay * dy) / length_sq))
-        segment_m = calculate_haversine_distance_m((a[1], a[0]), (b[1], b[0]))
-        candidates.append({
-            "point": [a[0] + (b[0] - a[0]) * ratio, a[1] + (b[1] - a[1]) * ratio],
-            "next_index": index,
-            "progress_m": traversed + ratio * segment_m,
-            "distance_m": math.hypot(ax + ratio * dx, ay + ratio * dy),
-        })
-        traversed += segment_m
-    return candidates
-
-
-def _select_projection(candidates: List[Dict[str, Any]], progress_m: Optional[float]) -> Optional[Dict[str, Any]]:
-    """합류 지점 선택. 진행 거리 힌트가 있으면 지금까지 온 곳보다 앞쪽에서 가장 가까운 지점을 우선."""
-    if not candidates:
-        return None
-    nearest = min(candidates, key=lambda c: c["distance_m"])
-    if progress_m is None:
-        return nearest
-    forward = [c for c in candidates if c["progress_m"] >= progress_m - _REJOIN_BACKTRACK_TOLERANCE_M]
-    if not forward:
-        return nearest
-    nearest_forward = min(forward, key=lambda c: c["distance_m"])
-    if nearest_forward["distance_m"] > nearest["distance_m"] + _REJOIN_FORWARD_SLACK_M:
-        return nearest
-    same_place = [c for c in forward if c["distance_m"] <= nearest_forward["distance_m"] + _REJOIN_SAME_PLACE_M]
-    return min(same_place, key=lambda c: c["progress_m"])
-
-
 def build_deviation_route(req: RerouteRequest) -> Dict[str, Any]:
-    """경로 이탈 시 현재 위치에서 기존 코스 선분으로 합류한 뒤 남은 코스를 이어 가는 경로 생성.
+    """경로 이탈 시 출발 모드에 맞춰 현위치 기반 재생성(방법 A) 또는 보행망 합류(방법 C) 경로를 산출한다."""
+    if req.origin_mode == "current_location":
+        return build_current_location_regenerated_route(
+            current_lat=req.current_lat,
+            current_lon=req.current_lon,
+            destination_lat=req.destination_lat,
+            destination_lon=req.destination_lon,
+            route_coordinates=req.route_coordinates,
+            progress_m=req.progress_m,
+            remaining_distance_m=req.remaining_distance_m,
+        )
 
-    정점이 아닌 선분 투영으로 합류하고, 순환 코스는 progress_m 보다 앞쪽에서 이어 시작점 복귀만 안내하지 않는다.
-    """
+    if req.origin_mode in ("park", "parking_pnr") or req.pilot_park_id:
+        return build_park_network_rejoin_route(
+            current_lat=req.current_lat,
+            current_lon=req.current_lon,
+            destination_lat=req.destination_lat,
+            destination_lon=req.destination_lon,
+            route_coordinates=req.route_coordinates,
+            progress_m=req.progress_m,
+            pilot_park_id=req.pilot_park_id,
+        )
+
     start = [req.current_lon, req.current_lat]
     end = [req.destination_lon, req.destination_lat]
     base = req.route_coordinates or [start, end]
     if base[-1] != end:
         base = base + [end]
 
-    join = _select_projection(_collect_projections(base, req.current_lat, req.current_lon), req.progress_m)
+    join = select_projection(collect_projections(base, req.current_lat, req.current_lon), req.progress_m)
     if join is None:
         coords = [start, end]
     else:
         rest = [list(pt) for pt in base[join["next_index"]:]]
-        # 투영점이 다음 정점과 사실상 같으면 중복 점을 만들지 않는다.
         if rest and calculate_haversine_distance_m(
             (join["point"][1], join["point"][0]), (rest[0][1], rest[0][0])
         ) < 1.0:
@@ -212,6 +195,10 @@ def build_deviation_route(req: RerouteRequest) -> Dict[str, Any]:
         "coordinates": coords,
         "distance_m": _polyline_length_m(coords),
         "hazard_clearance_m": 0.0,
+        "reroute_strategy": "segment_rejoin",
+        "route_source": "segment_projection",
+        "step_pins": [],
+        "voice_alert": "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
     }
 
 
@@ -219,21 +206,31 @@ def reroute_around_hazard(req: RerouteRequest) -> Dict[str, Any]:
     """[US-D2] 위험 판정 또는 경로 이탈 시 안전 우회/복귀 경로 재산출. 응답에 측정 지연시간 포함."""
     started = time.perf_counter()
 
-    # 경로 이탈(deviation) 또는 위험 좌표 미지정 시 즉시 복귀 재탐색 처리
+    # 경로 이탈(deviation) 또는 위험 좌표 미지정 시 즉시 복귀/재생성 재탐색 처리
     if req.reroute_reason == "deviation" or req.hazard_lat is None or req.hazard_lon is None:
         detour = build_deviation_route(req)
+        strategy = detour.get("reroute_strategy", "segment_rejoin")
+        route_source = detour.get("route_source", "segment_projection")
         return {
             "status": "REROUTED",
             "needs_reroute": True,
             "penalty_multiplier": 1.0,
-            "voice_alert": "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
+            "voice_alert": detour.get("voice_alert") or "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
             "blocked_hazard": None,
+            "reroute_strategy": strategy,
+            "route_source": route_source,
+            "step_pins": detour.get("step_pins") or [],
             "geojson": {
                 "type": "FeatureCollection",
                 "features": [
                     {
                         "type": "Feature",
-                        "properties": {"segmentType": "reroute", "reason": "deviation"},
+                        "properties": {
+                            "segmentType": "reroute",
+                            "reason": "deviation",
+                            "rerouteStrategy": strategy,
+                            "routeSource": route_source,
+                        },
                         "geometry": {"type": "LineString", "coordinates": detour["coordinates"]},
                     }
                 ],

@@ -26,9 +26,11 @@ import {
   resetGuidanceForNewRoute,
   routeEnd,
 } from '../services/guidanceEngine';
-import { haversineMeters, polylineLengthMeters } from '../services/routeGeometry';
+import { flattenRouteCoordinates, haversineMeters, polylineLengthMeters } from '../services/routeGeometry';
+import { calculateRemainingWalkDistanceM } from '../services/routeRejoin';
 import { TTSNavigationService } from '../services/ttsNavigation';
 import { calculateAverageSpeedKmH } from '../services/walkFormat';
+import { RerouteOriginMode } from '../types/hazard';
 import {
   getForwardHazardReports,
   getForwardSafetyAnalysis,
@@ -57,6 +59,27 @@ export interface WalkStats {
 
 const EMPTY_STATS: WalkStats = { distanceKm: 0, elapsedSec: 0, speedKmH: 0, averageSpeedKmH: 0 };
 const MPS_TO_KMH = 3.6;
+/** GPS 튐 및 연속 재탐색 API 과호출을 방지하기 위한 최소 쿨다운(30초) */
+export const DEVIATION_REROUTE_COOLDOWN_MS = 30_000;
+/** GPS 오차 반경이 이 값을 넘으면 일시적 신호 튐으로 간주해 자동 경로 재생성을 보류한다. */
+export const MAX_REROUTE_GPS_ACCURACY_M = 45;
+
+export interface GuidanceRerouteContext {
+  readonly originMode?: RerouteOriginMode;
+  readonly pilotParkId?: string;
+  readonly targetMinutes?: number | null;
+  readonly elapsedSec?: number;
+  readonly speedKmH?: number;
+  readonly lastRerouteAtMs?: number | null;
+  readonly cooldownMs?: number;
+}
+
+export interface WalkGuidanceOptions {
+  readonly originMode?: RerouteOriginMode;
+  readonly pilotParkId?: string;
+  readonly targetMinutes?: number | null;
+  readonly speedKmH?: number;
+}
 
 function computeDistanceKm(track: readonly GpsPoint[]): number {
   const coords = track.map((p) => [p.longitude, p.latitude] as const);
@@ -165,6 +188,83 @@ function evaluateForwardSafetyResults(
   return { freeSafety: { status: 'unknown', message }, announceMessage: null };
 }
 
+function isRerouteCooldownActive(
+  pointTimestamp: number,
+  lastRerouteAtMs?: number | null,
+  cooldownMs = DEVIATION_REROUTE_COOLDOWN_MS,
+): boolean {
+  if (lastRerouteAtMs == null) return false;
+  const elapsed = pointTimestamp - lastRerouteAtMs;
+  return elapsed >= 0 && elapsed < cooldownMs;
+}
+
+function shouldTriggerDeviationReroute(
+  isOffRoute: boolean,
+  hasOffRouteEvent: boolean,
+  isRerouting: boolean,
+  accuracyM?: number | null,
+  timestamp = 0,
+  rerouteContext?: GuidanceRerouteContext,
+): boolean {
+  if (!isOffRoute && !hasOffRouteEvent) return false;
+  if (isRerouting) return false;
+  if (accuracyM != null && accuracyM > MAX_REROUTE_GPS_ACCURACY_M) return false;
+  return !isRerouteCooldownActive(
+    timestamp,
+    rerouteContext?.lastRerouteAtMs,
+    rerouteContext?.cooldownMs,
+  );
+}
+
+interface ExecuteRerouteParams {
+  point: GpsPoint;
+  currentRoute: RouteFeatureCollection;
+  routeProgressM?: number;
+  walkedM: number;
+  rerouteContext?: GuidanceRerouteContext;
+  applyReroute: (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => void;
+  requestReroute: typeof requestDeviationReroute;
+}
+
+async function executeDeviationReroute(params: ExecuteRerouteParams): Promise<void> {
+  const { point, currentRoute, routeProgressM, walkedM, rerouteContext, applyReroute, requestReroute } = params;
+  const end = routeEnd(currentRoute);
+  const destinationLon = end ? end[0] : point.longitude;
+  const destinationLat = end ? end[1] : point.latitude;
+  const coords = flattenRouteCoordinates(currentRoute);
+  const routeCoords = coords.length > 0 ? coords : undefined;
+  const routeLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
+  const remainingDistanceM = rerouteContext
+    ? calculateRemainingWalkDistanceM({
+        targetMinutes: rerouteContext.targetMinutes,
+        elapsedSec: rerouteContext.elapsedSec,
+        speedKmH: rerouteContext.speedKmH,
+        routeLengthM: routeLenM,
+        walkedM,
+      })
+    : undefined;
+
+  try {
+    const rerouteRes = await requestReroute({
+      currentLat: point.latitude,
+      currentLon: point.longitude,
+      destinationLat,
+      destinationLon,
+      routeCoordinates: routeCoords,
+      progressM: routeProgressM,
+      originMode: rerouteContext?.originMode,
+      pilotParkId: rerouteContext?.pilotParkId,
+      remainingDistanceM,
+    });
+
+    if (rerouteRes.needsReroute && rerouteRes.newRoute) {
+      applyReroute(rerouteRes.newRoute, rerouteRes.stepPins, rerouteRes.voiceAlert);
+    }
+  } catch (err) {
+    console.warn('[handleGuidancePoint] 이탈 재탐색 요청 처리 중 오류:', err);
+  }
+}
+
 /**
  * GPS 점 수신 시 안내 평가 및 이탈 시 서버 재탐색 파이프라인
  */
@@ -179,6 +279,7 @@ export async function handleGuidancePoint(
     requestReroute?: typeof requestDeviationReroute;
   },
   isRerouting = false,
+  rerouteContext?: GuidanceRerouteContext,
 ): Promise<{ nextState: GuidanceState; triggeredReroute: boolean; guidanceMessage: string | null }> {
   const result = evaluateGuidance([point.longitude, point.latitude], currentRoute, activePins, guidanceState);
   const nextState = result.nextState;
@@ -188,50 +289,58 @@ export async function handleGuidancePoint(
   result.events.forEach((event) => speak(event));
 
   const hasOffRoute = result.events.some((e) => e.kind === 'off_route');
-  let triggeredReroute = false;
+  const triggeredReroute = shouldTriggerDeviationReroute(
+    nextState.offRouteActive,
+    hasOffRoute,
+    isRerouting,
+    point.accuracyM,
+    point.timestamp,
+    rerouteContext,
+  );
 
-  if (hasOffRoute && !isRerouting) {
-    triggeredReroute = true;
-    const end = routeEnd(currentRoute);
-    const destinationLon = end ? end[0] : point.longitude;
-    const destinationLat = end ? end[1] : point.latitude;
-    const coords = currentRoute.features[0]?.geometry?.coordinates as [number, number][] | undefined;
-
-    try {
-      const rerouteRes = await requestReroute({
-        currentLat: point.latitude,
-        currentLon: point.longitude,
-        destinationLat,
-        destinationLon,
-        routeCoordinates: coords,
-        progressM: nextState.routeProgressM,
-      });
-
-      if (rerouteRes.needsReroute && rerouteRes.newRoute) {
-        callbacks.applyReroute(rerouteRes.newRoute, rerouteRes.stepPins, rerouteRes.voiceAlert);
-      }
-    } catch (err) {
-      console.warn('[handleGuidancePoint] 이탈 재탐색 요청 처리 중 오류:', err);
-    }
+  if (triggeredReroute) {
+    await executeDeviationReroute({
+      point,
+      currentRoute,
+      routeProgressM: nextState.routeProgressM,
+      walkedM: nextState.walkedM,
+      rerouteContext,
+      applyReroute: callbacks.applyReroute,
+      requestReroute,
+    });
   }
 
   return { nextState, triggeredReroute, guidanceMessage: result.events.at(-1)?.message ?? null };
 }
 
-export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: readonly RouteStepPin[]) {
+export function useWalkGuidance(
+  initialRoute: RouteFeatureCollection,
+  pins: readonly RouteStepPin[],
+  options?: WalkGuidanceOptions,
+) {
   const [route, setRoute] = useState(initialRoute);
   const [activePins, setActivePins] = useState<readonly RouteStepPin[]>(pins);
   const [status, setStatus] = useState<WalkSessionStatus>('idle');
   const [stats, setStats] = useState<WalkStats>(EMPTY_STATS);
   const [mode, setMode] = useState<WalkSessionMode>('route');
   const [currentPoint, setCurrentPoint] = useState<GpsPoint | null>(null);
+  const [isOffRoute, setIsOffRoute] = useState(false);
   const [guidanceMessage, setGuidanceMessage] = useState('경로 안내를 준비하고 있어요.');
   const [freeWalkSafety, setFreeWalkSafety] = useState<FreeWalkSafetyInfo>(UNKNOWN_SAFETY_INFO);
   const modeRef = useRef<WalkSessionMode>('route');
   const guidanceRef = useRef<GuidanceState>(INITIAL_GUIDANCE_STATE);
   const startedAtRef = useRef<number | null>(null);
+  const lastRerouteAtRef = useRef<number | null>(null);
+  const optionsRef = useRef<WalkGuidanceOptions | undefined>(options);
+  const statsRef = useRef<WalkStats>(EMPTY_STATS);
   const routeRef = useRef(route);
   const activePinsRef = useRef(activePins);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
   useEffect(() => {
     routeRef.current = route;
   }, [route]);
@@ -252,6 +361,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string, activateRouteGuidance = false) => {
       setRoute(newRoute);
       routeRef.current = newRoute;
+      setIsOffRoute(false);
+      lastRerouteAtRef.current = Date.now();
       if (activateRouteGuidance) {
         modeRef.current = 'route';
         setMode('route');
@@ -345,6 +456,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
 
   const handleRouteWalkGuidance = useCallback((point: GpsPoint) => {
     const rerouting = isReroutingRef.current;
+    const rerouteContext: GuidanceRerouteContext = {
+      originMode: optionsRef.current?.originMode,
+      pilotParkId: optionsRef.current?.pilotParkId,
+      targetMinutes: optionsRef.current?.targetMinutes,
+      elapsedSec: statsRef.current.elapsedSec,
+      speedKmH: optionsRef.current?.speedKmH,
+      lastRerouteAtMs: lastRerouteAtRef.current,
+    };
     void handleGuidancePoint(
       point,
       routeRef.current,
@@ -356,19 +475,65 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
         requestReroute: requestDeviationReroute,
       },
       rerouting,
+      rerouteContext,
     )
       .then((res) => {
         guidanceRef.current = res.nextState;
+        setIsOffRoute(res.nextState.offRouteActive);
         void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
         if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
         if (res.triggeredReroute) {
           isReroutingRef.current = true;
+          lastRerouteAtRef.current = point.timestamp;
         }
       })
       .finally(() => {
         isReroutingRef.current = false;
       });
   }, [activePins, applyReroute]);
+
+  /** 현위치 기준으로 산책 경로를 즉시 재생성(방법 A)하거나 공원 산책로망에 합류(방법 C)한다. */
+  const regenerateFromCurrentLocation = useCallback(async (): Promise<boolean> => {
+    const point = lastPointRef.current;
+    if (!point || isReroutingRef.current) return false;
+    const end = routeEnd(routeRef.current);
+    if (!end) return false;
+    const coords = flattenRouteCoordinates(routeRef.current);
+    const routeCoords = coords.length > 0 ? coords : undefined;
+
+    const totalLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
+    const remainingDistanceM = calculateRemainingWalkDistanceM({
+      routeLengthM: totalLenM,
+      walkedM: guidanceRef.current.walkedM,
+      targetMinutes: optionsRef.current?.targetMinutes,
+      elapsedSec: statsRef.current.elapsedSec,
+      speedKmH: optionsRef.current?.speedKmH,
+    });
+    const resolvedOriginMode =
+      optionsRef.current?.originMode ?? (optionsRef.current?.pilotParkId ? 'park' : 'current_location');
+
+    isReroutingRef.current = true;
+    try {
+      const result = await requestDeviationReroute({
+        currentLat: point.latitude,
+        currentLon: point.longitude,
+        destinationLat: end[1],
+        destinationLon: end[0],
+        routeCoordinates: routeCoords,
+        progressM: guidanceRef.current.routeProgressM,
+        originMode: resolvedOriginMode,
+        pilotParkId: optionsRef.current?.pilotParkId,
+        remainingDistanceM,
+      });
+      applyReroute(result.newRoute, result.stepPins, result.voiceAlert, true);
+      lastRerouteAtRef.current = Date.now();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isReroutingRef.current = false;
+    }
+  }, [applyReroute]);
 
   const handlePoint = useCallback(
     (point: GpsPoint) => {
@@ -429,6 +594,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
       modeRef.current = nextMode;
       setMode(nextMode);
       lastPointRef.current = null;
+      lastRerouteAtRef.current = null;
+      setIsOffRoute(false);
       nearbyHazardsRef.current = [];
       announcedHazardIdsRef.current = new Set();
       lastSafetyQueryRef.current = null;
@@ -451,6 +618,7 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     await clearBackgroundGuidanceSession();
     modeRef.current = 'route';
     setMode('route');
+    setIsOffRoute(false);
     setStatus('idle');
   }, []);
 
@@ -485,6 +653,8 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     activePinsRef.current = newPins;
     modeRef.current = 'route';
     setMode('route');
+    setIsOffRoute(false);
+    lastRerouteAtRef.current = null;
     guidanceRef.current = INITIAL_GUIDANCE_STATE;
     if (status === 'running') void saveBackgroundGuidanceSession(newRoute, newPins, guidanceRef.current);
   }, [status]);
@@ -498,12 +668,14 @@ export function useWalkGuidance(initialRoute: RouteFeatureCollection, pins: read
     currentPoint,
     guidanceMessage,
     freeWalkSafety,
+    isOffRoute,
     poopEvents,
     poopCount: poopEvents.length,
     markPoop,
     start,
     stop,
     applyReroute,
+    regenerateFromCurrentLocation,
     loadCourse,
     getTrackBuffer,
     getPersistedTrackBuffer,

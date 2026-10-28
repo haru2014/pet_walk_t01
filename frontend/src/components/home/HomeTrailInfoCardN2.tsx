@@ -9,6 +9,7 @@ import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
 import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
+import bushImg from '../../../assets/ui_n2/bush.png';
 
 function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; grade: string } {
   if (!weather) return { score: 92, grade: '매우 좋음' };
@@ -21,6 +22,13 @@ function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; gr
     return { score: s, grade: '매우 좋음' };
   }
   return { score: 85, grade: '좋음' };
+}
+
+function resolveTrailAuraColor(isGolden: boolean, isDark: boolean): string {
+  if (isGolden) {
+    return isDark ? 'rgba(52, 211, 153, 0.12)' : 'rgba(207, 160, 82, 0.16)';
+  }
+  return isDark ? 'rgba(245, 158, 11, 0.10)' : 'rgba(90, 115, 97, 0.10)';
 }
 
 export interface HomeTrailInfoCardN2Props {
@@ -64,10 +72,28 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onOpenWeatherModal ?? onOpenPlanner}
-        style={[styles.trailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[
+          styles.trailCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.65)',
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel="산책하기 좋은 시간과 날씨 자세히 보기"
       >
+        {/* 토스/애플 스타일: 상태별 은은한 앰비언트 오라 글로우 (사진 없이 시각적 풍부함 부여) */}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.trailAuraGlow,
+            {
+              backgroundColor: resolveTrailAuraColor(isGolden, isDark),
+            },
+          ]}
+        />
+
         <View style={styles.cardTextCol}>
           <Text style={[styles.trailTitle, { color: colors.textMain }]}>산책 정보</Text>
           <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
@@ -105,8 +131,15 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
         {/* 점수와 나무 일러스트 사이 얇은 구분선 */}
         <View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
 
-        {/* 나무 일러스트 (시각적 우선순위 유지) */}
+        {/* 나무 및 보태니컬 서브 일러스트 (입체감 있는 자연 비주얼) */}
         <View style={styles.treeImageWrap}>
+          <View pointerEvents="none" style={styles.bushSubDeco}>
+            <Image
+              source={bushImg}
+              style={[styles.bushImage, { opacity: isDark ? 0.22 : 0.34 }]}
+              resizeMode="contain"
+            />
+          </View>
           <Image source={trees01Img} style={styles.tree01Image} resizeMode="contain" />
         </View>
       </TouchableOpacity>
@@ -130,6 +163,7 @@ const styles = StyleSheet.create({
   },
   handleBar: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#DCD2BE', alignSelf: 'center', marginBottom: 2 },
   trailCard: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -140,11 +174,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EFE7D6',
     shadowColor: '#5A7361',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     overflow: 'hidden',
+  },
+  trailAuraGlow: {
+    position: 'absolute',
+    top: -24,
+    right: -10,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+  },
+  bushSubDeco: {
+    position: 'absolute',
+    bottom: -3,
+    left: -12,
+    width: 28,
+    height: 20,
+    zIndex: 1,
+  },
+  bushImage: {
+    width: '100%',
+    height: '100%',
   },
   cardTextCol: { flex: 1, paddingRight: 6 },
   trailTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', marginBottom: 3, letterSpacing: -0.2 },

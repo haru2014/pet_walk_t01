@@ -8,12 +8,12 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
 import { AppText as Text } from '../components/common/AppText';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 import { useAppTheme } from '../theme/themeManager';
 import { CardWrapper } from '../components/common/CardWrapper';
-import { fetchCommunityFeeds, CommunityFeedItem } from '../services/communityApi';
+import { fetchCommunityFeeds, CommunityFeedItem, hasVisibleCommunityRoute } from '../services/communityApi';
 import { RouteMapView } from '../components/map/RouteMapView';
 import { RouteFeatureCollection, RouteStepPin, LonLat } from '../types/route';
 import { LandmarkCategoryCode } from '../types/landmarkCategory';
@@ -22,6 +22,8 @@ import { useAppResponsive } from '../hooks/useAppResponsive';
 import { BookmarkToggleButton } from '../components/bookmark/BookmarkToggleButton';
 import { BookmarkedRoute } from '../types/bookmark';
 import { StatsPeriodType } from '../services/walkStatisticsService';
+import dogWalkingImg from '../../assets/ui_n2/dog_walking.png';
+import grassImg from '../../assets/ui_n2/grass.png';
 
 export interface CommunityTabScreenProps {
   readonly onStartCommunityWalk?: (
@@ -60,18 +62,9 @@ export function filterCommunityFeeds(
 /** 이웃이 공유한 마스킹 좌표열을 3대 안심 등급 GeoJSON FeatureCollection 규격으로 변환 */
 function buildRouteFromMaskedPolyline(coords: readonly (readonly [number, number])[]): RouteFeatureCollection {
   const safeCoords: LonLat[] = coords.map((c) => [c[0], c[1]]);
+  // 마스킹 후 2점 미만이면 그릴 경로가 없음 — 화면은 '경로 비공개'로 표시 (#281)
   if (safeCoords.length < 2) {
-    const single: LonLat = safeCoords[0] || [127.038, 37.544];
-    return {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: { segmentType: 'safe', maxSlopePercent: 2.0, shaded: true },
-          geometry: { type: 'LineString', coordinates: [single, [single[0] + 0.001, single[1] + 0.001]] },
-        },
-      ],
-    };
+    return { type: 'FeatureCollection', features: [] };
   }
 
   const mid = Math.max(1, Math.floor(safeCoords.length / 2));
@@ -134,7 +127,8 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   initialPeriod = 'all',
   initialCategory = 'ALL',
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
   const { community } = useAppResponsive();
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>(initialFeeds ?? []);
   const [filterTime, setFilterTime] = useState(() => Date.now());
@@ -178,6 +172,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   };
 
   const handleStartWalkFromFeed = (feed: CommunityFeedItem) => {
+    if (!hasVisibleCommunityRoute(feed)) return;
     const route = buildRouteFromMaskedPolyline(feed.masked_polyline);
     const pins = buildPinsFromCoords(feed.masked_polyline);
     if (onStartCommunityWalk) {
@@ -185,6 +180,16 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
     }
     setModalFeed(null);
   };
+
+  /** 마스킹 후 경로가 남지 않은 코스: 지도 대신 비공개 안내 (#281) */
+  const renderPrivateRouteNotice = () => (
+    <View style={[styles.privateRouteBox, { backgroundColor: colors.primaryWash, borderColor: colors.border }]}>
+      <Text style={[styles.privateRouteTitle, { color: colors.primaryDark }]}>🔒 경로 비공개(개인정보 보호)</Text>
+      <Text style={[styles.privateRouteBody, { color: colors.textMuted }]}>
+        출발·도착 200m 보호 구간을 빼고 나면 보여 드릴 경로가 남지 않는 코스예요.
+      </Text>
+    </View>
+  );
 
   const CATEGORY_CHIPS: readonly { code: LandmarkCategoryCode; label: string }[] = [
     { code: 'ALL', label: '전체' },
@@ -202,11 +207,23 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
+
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeaderTextWrap}>
+            <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
+          </View>
+          <View pointerEvents="none" style={styles.headerMascotWrap}>
+            <Image source={dogWalkingImg} style={styles.headerMascotImg} resizeMode="contain" />
+          </View>
+        </View>
 
       {/* 연동 상태 뱃지 */}
       <View style={styles.badgeRow}>
@@ -346,13 +363,30 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
         const feedRoute = buildRouteFromMaskedPolyline(feed.masked_polyline);
         const feedPins = buildPinsFromCoords(feed.masked_polyline);
         const bookmarkObj = convertFeedToBookmark(feed);
+        const hasRoute = hasVisibleCommunityRoute(feed);
 
         return (
           <CardWrapper
             key={feed.course_id}
             variant="elevated"
-            style={[styles.feedCard, { paddingVertical: community.feedCardPaddingV, paddingHorizontal: community.feedCardPaddingH }]}
+            style={[
+              styles.feedCard,
+              {
+                paddingVertical: community.feedCardPaddingV,
+                paddingHorizontal: community.feedCardPaddingH,
+                borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.65)',
+              },
+            ]}
           >
+            {/* 은은한 공원 잔디 식생 일러스트 데코 레이어 */}
+            <View pointerEvents="none" style={styles.cardGrassDeco}>
+              <Image
+                source={grassImg}
+                style={[styles.cardGrassImg, { opacity: isDark ? 0.08 : 0.14 }]}
+                resizeMode="contain"
+              />
+            </View>
+
             {/* 카드 상단 클릭 시 아코디언 토글 */}
             <TouchableOpacity
               activeOpacity={0.75}
@@ -385,9 +419,11 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 </View>
 
                 {/* 코스 찜하기 (북마크) 복원 */}
-                <View style={styles.bookmarkWrapper}>
-                  <BookmarkToggleButton bookmark={bookmarkObj} />
-                </View>
+                {hasRoute && (
+                  <View style={styles.bookmarkWrapper}>
+                    <BookmarkToggleButton bookmark={bookmarkObj} />
+                  </View>
+                )}
               </View>
 
               <View style={styles.feedHeader}>
@@ -411,36 +447,42 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
               <View style={styles.expandedContent}>
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                <Text style={[styles.previewNotice, { color: colors.textMuted }]}>
-                  🗺️ 안심 코스 미리보기 (초록: 완만길 · 파랑: 보통길)
-                </Text>
+                {hasRoute ? (
+                  <>
+                    <Text style={[styles.previewNotice, { color: colors.textMuted }]}>
+                      🗺️ 안심 코스 미리보기 (초록: 완만길 · 파랑: 보통길)
+                    </Text>
 
-                <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <RouteMapView
-                    route={feedRoute}
-                    stepPins={feedPins}
-                    speedKmH={dogSpeedKmH}
-                  />
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => setModalFeed(feed)}
-                    style={[
-                      styles.mapExpandBtn,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="코스 지도 크게 보기"
-                  >
-                    <Text style={[styles.mapExpandIcon, { color: colors.textMain }]}>⤢</Text>
-                    <Text style={[styles.mapExpandText, { color: colors.textMain }]}>크게 보기</Text>
-                  </TouchableOpacity>
-                </View>
+                    <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <RouteMapView
+                        route={feedRoute}
+                        stepPins={feedPins}
+                        speedKmH={dogSpeedKmH}
+                      />
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => setModalFeed(feed)}
+                        style={[
+                          styles.mapExpandBtn,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="코스 지도 크게 보기"
+                      >
+                        <Text style={[styles.mapExpandIcon, { color: colors.textMain }]}>⤢</Text>
+                        <Text style={[styles.mapExpandText, { color: colors.textMain }]}>크게 보기</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  renderPrivateRouteNotice()
+                )}
 
                 {/* 하단 단일 Primary 산책 시작 버튼 (100% Full Width) */}
-                {onStartCommunityWalk && (
+                {onStartCommunityWalk && hasRoute && (
                   <View style={styles.actionButtonGroup}>
                     <TouchableOpacity
                       activeOpacity={0.85}
@@ -475,7 +517,9 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                   <Text style={[styles.modalTitle, { color: colors.textMain }]}>{modalFeed.title}</Text>
                 </View>
                 <View style={styles.modalHeaderActions}>
-                  <BookmarkToggleButton bookmark={convertFeedToBookmark(modalFeed)} />
+                  {hasVisibleCommunityRoute(modalFeed) && (
+                    <BookmarkToggleButton bookmark={convertFeedToBookmark(modalFeed)} />
+                  )}
                   <TouchableOpacity
                     onPress={() => setModalFeed(null)}
                     style={styles.closeBtn}
@@ -495,13 +539,17 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 </Text>
               </View>
 
-              <View style={[styles.modalMapWrapper, { borderColor: colors.border }]}>
-                <RouteMapView
-                  route={buildRouteFromMaskedPolyline(modalFeed.masked_polyline)}
-                  stepPins={buildPinsFromCoords(modalFeed.masked_polyline)}
-                  speedKmH={dogSpeedKmH}
-                />
-              </View>
+              {hasVisibleCommunityRoute(modalFeed) ? (
+                <View style={[styles.modalMapWrapper, { borderColor: colors.border }]}>
+                  <RouteMapView
+                    route={buildRouteFromMaskedPolyline(modalFeed.masked_polyline)}
+                    stepPins={buildPinsFromCoords(modalFeed.masked_polyline)}
+                    speedKmH={dogSpeedKmH}
+                  />
+                </View>
+              ) : (
+                renderPrivateRouteNotice()
+              )}
 
               <View style={styles.modalActionRow}>
                 <TouchableOpacity
@@ -511,7 +559,7 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 >
                   <Text style={[styles.modalCancelText, { color: colors.textMain }]}>닫기</Text>
                 </TouchableOpacity>
-                {onStartCommunityWalk && (
+                {onStartCommunityWalk && hasVisibleCommunityRoute(modalFeed) && (
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => handleStartWalkFromFeed(modalFeed)}
@@ -525,18 +573,74 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           </View>
         </Modal>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, position: 'relative', overflow: 'hidden' },
+  scrollContainer: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
-  sectionHeader: { marginBottom: 12 },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -10,
+    right: 25,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -50,
+    left: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(207, 160, 82, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -15,
+    left: 20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  headerMascotWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerMascotImg: {
+    width: 42,
+    height: 42,
+  },
   sectionSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
   sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },
   badgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 14 },
   badgeSupabase: { backgroundColor: '#E0F2FE' },
   badgeOffline: { backgroundColor: '#E8F5E9' },
   badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
@@ -550,7 +654,7 @@ const styles = StyleSheet.create({
   filterChipScroll: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   filterChip: {
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
@@ -573,8 +677,8 @@ const styles = StyleSheet.create({
   periodChipRow: { flexDirection: 'row', gap: 6 },
   periodFilterChip: {
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
@@ -593,30 +697,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   feedListTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
-  feedCard: { marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  feedCard: {
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardGrassDeco: {
+    position: 'absolute',
+    top: 4,
+    right: 40,
+    width: 72,
+    height: 40,
+  },
+  cardGrassImg: {
+    width: '100%',
+    height: '100%',
+  },
   topActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   bookmarkWrapper: { padding: 2 },
   landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, marginRight: 8 },
   landmarkChip: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   landmarkChipText: { fontSize: TYPOGRAPHY.label, color: '#1D4ED8', fontWeight: '700' },
   feedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   feedTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
-  maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
+  maskedChip: {
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
   maskedChipText: { fontSize: TYPOGRAPHY.label, color: '#16A34A', fontWeight: '700' },
   demoBadge: {
     backgroundColor: '#FEF3C7',
     borderColor: '#F59E0B',
     borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
   demoBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -631,6 +760,16 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: TOKENS.colors.border, marginVertical: 12 },
   expandedContent: { marginTop: 4 },
   previewNotice: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted, marginBottom: 8, fontWeight: '600' },
+  privateRouteBox: {
+    borderRadius: TOKENS.borderRadius.card,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  privateRouteTitle: { fontSize: TYPOGRAPHY.body, fontWeight: '700', marginBottom: 4 },
+  privateRouteBody: { fontSize: TYPOGRAPHY.support, textAlign: 'center', lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   miniMapContainer: {
     borderRadius: TOKENS.borderRadius.card,
     overflow: 'hidden',

@@ -39,6 +39,8 @@ export interface RerouteRequestPayload {
   readonly rerouteReason?: 'hazard' | 'deviation' | 'emergency_return';
 }
 
+export type RerouteOriginMode = 'current_location' | 'park' | 'parking_pnr';
+
 export interface DeviationReroutePayload {
   readonly currentLat: number;
   readonly currentLon: number;
@@ -47,6 +49,12 @@ export interface DeviationReroutePayload {
   readonly routeCoordinates?: readonly (readonly [number, number])[];
   /** 마지막으로 코스 위에 있던 지점의 진행 거리(m). 순환 코스에서 앞쪽 합류 지점을 고르는 데 쓴다. */
   readonly progressM?: number;
+  /** 산책 출발 모드 ('current_location': 방법 A 현위치→출발지 재생성, 'park'/'parking_pnr': 방법 C 보행망 합류) */
+  readonly originMode?: RerouteOriginMode;
+  /** 지정 공원 식별자 ('yurim', 'sejong', 'songgang', 'doan', 'sejong_central') */
+  readonly pilotParkId?: string;
+  /** 남은 산책 시간/속도를 반영한 남은 목표 보행 거리(m) */
+  readonly remainingDistanceM?: number;
 }
 
 export interface BlockedHazardInfo {
@@ -66,4 +74,6 @@ export interface RerouteResult {
   readonly newDistanceM?: number;
   readonly hazardClearanceM?: number;
   readonly isEmergencyReturn?: boolean;
+  readonly rerouteStrategy?: 'regenerate_to_origin' | 'park_network_rejoin' | 'segment_rejoin';
+  readonly routeSource?: string;
 }
