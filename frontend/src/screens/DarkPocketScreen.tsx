@@ -58,6 +58,226 @@ const HudItem: React.FC<{ value: string; unit: string; label: string; compact?: 
   </View>
 );
 
+function computeWalkBearing(walkedCoords?: readonly (readonly [number, number])[]): number | undefined {
+  if (!walkedCoords || walkedCoords.length < 2) return undefined;
+  const [previous, current] = walkedCoords.slice(-2);
+  const [lon1, lat1] = previous;
+  const [lon2, lat2] = current;
+  const toRadians = Math.PI / 180;
+  const y = Math.sin((lon2 - lon1) * toRadians) * Math.cos(lat2 * toRadians);
+  const x = Math.cos(lat1 * toRadians) * Math.sin(lat2 * toRadians)
+    - Math.sin(lat1 * toRadians) * Math.cos(lat2 * toRadians) * Math.cos((lon2 - lon1) * toRadians);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function formatDarkPocketSubtitle(options: {
+  isFreeWalk?: boolean;
+  isOvertime: boolean;
+  targetMinutes?: number | null;
+  overtimeMinutes: number;
+}): string {
+  if (options.isFreeWalk) return '자유 산책 모드 · 시간 제한 없이 안심 기록 중';
+  if (options.isOvertime) return `목표 ${options.targetMinutes}분 달성 (+${options.overtimeMinutes}분) · 자유 산책 기록 지속 중`;
+  if (options.targetMinutes) return `목표: ${options.targetMinutes}분 · 화면이 꺼져도 음성으로 안내해요`;
+  return '화면이 꺼져도 음성으로 안내해요';
+}
+
+const SmartBarkSection: React.FC<{
+  barkState: BarkMuteState;
+  soundSettings: SoundSettings;
+  isCompactLayout: boolean;
+}> = ({ barkState, soundSettings, isCompactLayout }) => {
+  if (barkState.isAutoMuted) {
+    return (
+      <View style={styles.barkAlertBanner}>
+        <AppIcon name="volumeMute" size={16} color="#EF4444" />
+        <Text style={styles.barkAlertText}>
+          🚨 돌발 짖음 감지({barkState.currentNoiseDb}dB) · 안내 일시 차단 중 ({barkState.cooldownRemainingSec.toFixed(1)}s 후 자동 복구)
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.smartMuteRow, isCompactLayout && styles.smartMuteRowCompact]}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          const next = !(soundSettings.smartBarkMuteEnabled ?? true);
+          void TTSNavigationService.updateSettings({ smartBarkMuteEnabled: next });
+        }}
+        style={[
+          styles.smartMuteToggleBtn,
+          (soundSettings.smartBarkMuteEnabled ?? true) ? styles.smartMuteToggleActive : null,
+        ]}
+      >
+        <Text style={styles.smartMuteToggleIcon}>
+          {(soundSettings.smartBarkMuteEnabled ?? true) ? '🟢' : '⚪'}
+        </Text>
+        <Text
+          style={[
+            styles.smartMuteToggleText,
+            (soundSettings.smartBarkMuteEnabled ?? true) ? styles.smartMuteToggleTextActive : null,
+          ]}
+        >
+          스마트 짖음 감지 자동 음소거 {(soundSettings.smartBarkMuteEnabled ?? true) ? '켜짐 (73dB↑)' : '꺼짐'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => AmbientNoiseMonitorService.simulateNoise(82)}
+        style={styles.testBarkChip}
+      >
+        <Text style={styles.testBarkChipText}>📢 짖음 테스트</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const PocketGuidanceSection: React.FC<{
+  currentCoords?: { lat: number; lon: number } | null;
+  mapRoute: RouteFeatureCollection;
+  mapDisplayPins: readonly RouteStepPin[];
+  guidanceMessage?: string;
+  isCompactLayout: boolean;
+}> = ({ currentCoords, mapRoute, mapDisplayPins, guidanceMessage, isCompactLayout }) => (
+  <View style={[styles.guidanceRegion, isCompactLayout && styles.guidanceRegionCompact]}>
+    <View style={styles.guidanceMap} accessibilityLabel="현재 위치와 진행 경로 지도">
+      {currentCoords ? (
+        <MapLibreMapView
+          route={mapRoute}
+          stepPins={mapDisplayPins}
+          maskingCenter={[currentCoords.lon, currentCoords.lat]}
+          width="100%"
+          height="100%"
+          style={styles.guidanceMapView}
+          interactive={false}
+        />
+      ) : (
+        <View style={styles.guidanceMapEmpty}>
+          <AppIcon name="location" size={30} color="#A7F3D0" />
+          <Text style={styles.guidanceMapLoading}>현재 위치를 확인하고 있어요.</Text>
+        </View>
+      )}
+    </View>
+    <View style={styles.guidanceTextWrap}>
+      <Text style={[styles.guidanceLabel, isCompactLayout && styles.guidanceLabelCompact]}>산책 안내</Text>
+      <Text style={[styles.guidanceText, isCompactLayout && styles.guidanceTextCompact]}>
+        {guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}
+      </Text>
+    </View>
+  </View>
+);
+
+const PoopMarkingSection: React.FC<{
+  toastMsg: string | null;
+  poopCount: number;
+  isCompactLayout: boolean;
+  onPressMark: (type: 'poop' | 'pee') => void;
+}> = ({ toastMsg, poopCount, isCompactLayout, onPressMark }) => (
+  <View style={[styles.poopMarkingZone, isCompactLayout && styles.poopMarkingZoneCompact]}>
+    {toastMsg ? (
+      <View style={styles.toastBadge}>
+        <Text style={styles.toastText}>{toastMsg}</Text>
+      </View>
+    ) : (
+      <View style={styles.poopStatusRow}>
+        <Text style={styles.poopStatusText}>
+          {poopCount > 0 ? `🐾 배변 ${poopCount}회 마킹됨` : '🐾 배변 시 아래 버튼을 탭하세요'}
+        </Text>
+      </View>
+    )}
+
+    <View style={styles.fabRow}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onPressMark('poop')}
+        style={styles.poopFab}
+      >
+        <Text style={styles.poopFabIcon}>💩</Text>
+        <Text style={styles.poopFabText}>대변 마킹</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onPressMark('pee')}
+        style={styles.peeFab}
+      >
+        <Text style={styles.poopFabIcon}>💧</Text>
+        <Text style={styles.poopFabText}>소변 마킹</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const FinishWalkModal: React.FC<{
+  visible: boolean;
+  stats: WalkStats;
+  onClose: () => void;
+  onFinishWalk: (saveRecord: boolean) => void;
+}> = ({ visible, stats, onClose, onFinishWalk }) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.actionModal}>
+        <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
+        <View style={styles.finishModalButtons}>
+          <View style={styles.finishSummary}>
+            <Text style={styles.finishSummaryLabel}>산책 요약</Text>
+            <Text style={styles.finishSummaryText}>
+              경과 시간 {formatElapsed(stats.elapsedSec)} · 이동 거리 {stats.distanceKm.toFixed(2)}km
+            </Text>
+            <Text style={styles.finishSummaryHint}>저장하지 않으면 산책 기록과 경로가 남지 않습니다.</Text>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => { onClose(); onFinishWalk(true); }}
+            style={styles.finishSaveButton}
+          >
+            <Text style={styles.finishSaveButtonText}>기록 저장 후 종료</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => { onClose(); onFinishWalk(false); }}
+            style={styles.finishDiscardButton}
+          >
+            <Text style={styles.finishDiscardButtonText}>저장 없이 종료</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onClose}
+            style={styles.finishContinueButton}
+          >
+            <Text style={styles.finishContinueButtonText}>계속 산책</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
+const EmergencyReturnModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}> = ({ visible, onClose, onConfirm }) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.actionModal}>
+        <Text style={styles.modalTitle}>출발지로 돌아가기할까요?</Text>
+        <Text style={styles.modalBody}>현재 위치와 기록한 산책 경로를 이용해 출발지 복귀 안내를 시작합니다.</Text>
+        <View style={styles.modalButtons}>
+          <TouchableOpacity onPress={onClose} style={styles.secondaryModalButton}>
+            <Text style={styles.secondaryModalButtonText}>취소</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onConfirm} style={styles.confirmEmergencyButton}>
+            <Text style={styles.confirmFinishText}>돌아가기 시작</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
 export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   dogName,
   stats,
@@ -106,20 +326,12 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       AmbientNoiseMonitorService.stopMonitoring();
     };
   }, []);
+
   const isOvertime = !isFreeWalk && !!targetMinutes && stats.elapsedSec >= targetMinutes * 60;
   const overtimeMinutes = isOvertime ? Math.floor((stats.elapsedSec - targetMinutes! * 60) / 60) : 0;
-  const currentBearing = useMemo(() => {
-    if (!walkedCoords || walkedCoords.length < 2) return undefined;
-    const [previous, current] = walkedCoords.slice(-2);
-    const [lon1, lat1] = previous;
-    const [lon2, lat2] = current;
-    const toRadians = Math.PI / 180;
-    const y = Math.sin((lon2 - lon1) * toRadians) * Math.cos(lat2 * toRadians);
-    const x = Math.cos(lat1 * toRadians) * Math.sin(lat2 * toRadians)
-      - Math.sin(lat1 * toRadians) * Math.cos(lat2 * toRadians) * Math.cos((lon2 - lon1) * toRadians);
-    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-  }, [walkedCoords]);
-  const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => currentCoords
+  const currentBearing = useMemo(() => computeWalkBearing(walkedCoords), [walkedCoords]);
+
+  const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => (currentCoords
     ? [...mapPins, {
       id: 'current-location-pin',
       kind: 'safe',
@@ -128,7 +340,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       icon: '➤',
       bearingDeg: currentBearing,
     }]
-    : mapPins, [currentCoords, currentBearing, mapPins]);
+    : mapPins), [currentCoords, currentBearing, mapPins]);
 
   const handlePressMark = (type: 'poop' | 'pee') => {
     if (onMarkPoop) onMarkPoop(type);
@@ -176,48 +388,12 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const getSubtitle = () => {
-    if (isFreeWalk) return '자유 산책 모드 · 시간 제한 없이 안심 기록 중';
-    if (isOvertime) return `목표 ${targetMinutes}분 달성 (+${overtimeMinutes}분) · 자유 산책 기록 지속 중`;
-    if (targetMinutes) return `목표: ${targetMinutes}분 · 화면이 꺼져도 음성으로 안내해요`;
-    return '화면이 꺼져도 음성으로 안내해요';
-  };
-
-  const finishDialogContent = (
-    <View style={styles.actionModal}>
-      <Text style={styles.modalTitle}>산책을 종료할까요?</Text>
-      <View style={styles.finishModalButtons}>
-        <View style={styles.finishSummary}>
-          <Text style={styles.finishSummaryLabel}>산책 요약</Text>
-          <Text style={styles.finishSummaryText}>
-            경과 시간 {formatElapsed(stats.elapsedSec)} · 이동 거리 {stats.distanceKm.toFixed(2)}km
-          </Text>
-          <Text style={styles.finishSummaryHint}>저장하지 않으면 산책 기록과 경로가 남지 않습니다.</Text>
-        </View>
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={() => { setShowFinishModal(false); onFinishWalk(true); }}
-          style={styles.finishSaveButton}
-        >
-          <Text style={styles.finishSaveButtonText}>기록 저장 후 종료</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={() => { setShowFinishModal(false); onFinishWalk(false); }}
-          style={styles.finishDiscardButton}
-        >
-          <Text style={styles.finishDiscardButtonText}>저장 없이 종료</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={() => setShowFinishModal(false)}
-          style={styles.finishContinueButton}
-        >
-          <Text style={styles.finishContinueButtonText}>계속 산책</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const subtitle = formatDarkPocketSubtitle({
+    isFreeWalk,
+    isOvertime,
+    targetMinutes,
+    overtimeMinutes,
+  });
 
   return (
     <View style={[styles.container, isCompactLayout && styles.containerCompact]}>
@@ -226,7 +402,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         <Text style={styles.title}>{dogName}와 안심 산책 중</Text>
       </View>
       <Text style={[styles.subtitle, isOvertime && styles.subtitleOvertime]}>
-        {getSubtitle()}
+        {subtitle}
       </Text>
       {isFreeWalk && (
         <View style={[
@@ -244,74 +420,20 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <VoiceQuickControlBar compact={isCompactLayout} variant="emergency" style={isCompactLayout ? styles.voiceBarCompact : undefined} />
 
       {/* 스마트 돌발 짖음 감지 상태 배너 & 토글 컨트롤 */}
-      {barkState.isAutoMuted ? (
-        <View style={styles.barkAlertBanner}>
-          <AppIcon name="volumeMute" size={16} color="#EF4444" />
-          <Text style={styles.barkAlertText}>
-            🚨 돌발 짖음 감지({barkState.currentNoiseDb}dB) · 안내 일시 차단 중 ({barkState.cooldownRemainingSec.toFixed(1)}s 후 자동 복구)
-          </Text>
-        </View>
-      ) : (
-        <View style={[styles.smartMuteRow, isCompactLayout && styles.smartMuteRowCompact]}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              const next = !(soundSettings.smartBarkMuteEnabled ?? true);
-              void TTSNavigationService.updateSettings({ smartBarkMuteEnabled: next });
-            }}
-            style={[
-              styles.smartMuteToggleBtn,
-              (soundSettings.smartBarkMuteEnabled ?? true) ? styles.smartMuteToggleActive : null,
-            ]}
-          >
-            <Text style={styles.smartMuteToggleIcon}>
-              {(soundSettings.smartBarkMuteEnabled ?? true) ? '🟢' : '⚪'}
-            </Text>
-            <Text
-              style={[
-                styles.smartMuteToggleText,
-                (soundSettings.smartBarkMuteEnabled ?? true) ? styles.smartMuteToggleTextActive : null,
-              ]}
-            >
-              스마트 짖음 감지 자동 음소거 {(soundSettings.smartBarkMuteEnabled ?? true) ? '켜짐 (73dB↑)' : '꺼짐'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => AmbientNoiseMonitorService.simulateNoise(82)}
-            style={styles.testBarkChip}
-          >
-            <Text style={styles.testBarkChipText}>📢 짖음 테스트</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <SmartBarkSection
+        barkState={barkState}
+        soundSettings={soundSettings}
+        isCompactLayout={isCompactLayout}
+      />
 
       {!isFreeWalk && (
-        <View style={[styles.guidanceRegion, isCompactLayout && styles.guidanceRegionCompact]}>
-          <View style={styles.guidanceMap} accessibilityLabel="현재 위치와 진행 경로 지도">
-            {currentCoords ? (
-              <MapLibreMapView
-                route={mapRoute}
-                stepPins={mapDisplayPins}
-                maskingCenter={[currentCoords.lon, currentCoords.lat]}
-                width="100%"
-                height="100%"
-                style={styles.guidanceMapView}
-                interactive={false}
-              />
-            ) : (
-              <View style={styles.guidanceMapEmpty}>
-                <AppIcon name="location" size={30} color="#A7F3D0" />
-                <Text style={styles.guidanceMapLoading}>현재 위치를 확인하고 있어요.</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.guidanceTextWrap}>
-            <Text style={[styles.guidanceLabel, isCompactLayout && styles.guidanceLabelCompact]}>산책 안내</Text>
-            <Text style={[styles.guidanceText, isCompactLayout && styles.guidanceTextCompact]}>{guidanceMessage ?? '산책 경로를 따라 이동해 주세요.'}</Text>
-          </View>
-        </View>
+        <PocketGuidanceSection
+          currentCoords={currentCoords}
+          mapRoute={mapRoute}
+          mapDisplayPins={mapDisplayPins}
+          guidanceMessage={guidanceMessage}
+          isCompactLayout={isCompactLayout}
+        />
       )}
 
       {/* 가로형 산책 통계 HUD */}
@@ -324,39 +446,12 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       </View>
 
       {/* US-18: 한 손 원터치 배변 마킹 FAB 영역 (Thumb Zone) */}
-      <View style={[styles.poopMarkingZone, isCompactLayout && styles.poopMarkingZoneCompact]}>
-        {toastMsg ? (
-          <View style={styles.toastBadge}>
-            <Text style={styles.toastText}>{toastMsg}</Text>
-          </View>
-        ) : (
-          <View style={styles.poopStatusRow}>
-            <Text style={styles.poopStatusText}>
-              {poopCount > 0 ? `🐾 배변 ${poopCount}회 마킹됨` : '🐾 배변 시 아래 버튼을 탭하세요'}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.fabRow}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => handlePressMark('poop')}
-            style={styles.poopFab}
-          >
-            <Text style={styles.poopFabIcon}>💩</Text>
-            <Text style={styles.poopFabText}>대변 마킹</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => handlePressMark('pee')}
-            style={styles.peeFab}
-          >
-            <Text style={styles.poopFabIcon}>💧</Text>
-            <Text style={styles.poopFabText}>소변 마킹</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <PoopMarkingSection
+        toastMsg={toastMsg}
+        poopCount={poopCount}
+        isCompactLayout={isCompactLayout}
+        onPressMark={handlePressMark}
+      />
 
       {/* 4. 현장 위험 제보 & 안전 우회 / 현위치 경로 재생성(합류) 버튼 */}
       <View style={[styles.hazardActionRow, isCompactLayout && styles.hazardActionRowCompact]}>
@@ -438,26 +533,18 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </View>
       </Modal>
 
-      <Modal visible={showFinishModal} transparent animationType="fade" onRequestClose={() => setShowFinishModal(false)}>
-        <View style={styles.modalOverlay}>{finishDialogContent}</View>
-      </Modal>
+      <FinishWalkModal
+        visible={showFinishModal}
+        stats={stats}
+        onClose={() => setShowFinishModal(false)}
+        onFinishWalk={onFinishWalk}
+      />
 
-      <Modal visible={showEmergencyModal} transparent animationType="fade" onRequestClose={() => setShowEmergencyModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.actionModal}>
-            <Text style={styles.modalTitle}>출발지로 돌아가기할까요?</Text>
-            <Text style={styles.modalBody}>현재 위치와 기록한 산책 경로를 이용해 출발지 복귀 안내를 시작합니다.</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setShowEmergencyModal(false)} style={styles.secondaryModalButton}>
-                <Text style={styles.secondaryModalButtonText}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleEmergencyReturn} style={styles.confirmEmergencyButton}>
-                <Text style={styles.confirmFinishText}>돌아가기 시작</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <EmergencyReturnModal
+        visible={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+        onConfirm={handleEmergencyReturn}
+      />
     </View>
   );
 };

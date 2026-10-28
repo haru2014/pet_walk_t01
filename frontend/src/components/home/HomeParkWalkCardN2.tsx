@@ -21,6 +21,7 @@ import { HomeDogDropdownN2 } from './HomeDogDropdownN2';
 import { useAppTheme } from '../../theme/themeManager';
 import dogMascotImg from '../../../assets/ui_n2/dog_character.png';
 import bellIconImg from '../../../assets/ui_n2/bell_icon.png';
+import grassImg from '../../../assets/ui_n2/grass.png';
 
 const EMPTY_FREE_ROUTE: RouteFeatureCollection = {
   type: 'FeatureCollection',
@@ -107,7 +108,27 @@ export const HomeParkWalkCardN2: React.FC<HomeParkWalkCardN2Props> = ({
       </TouchableOpacity>
 
       {/* 2. 메인 카드 본체 */}
-      <View style={[styles.cardBody, { backgroundColor: cardBgColor, borderColor: colors.border, borderWidth: 1 }]}>
+      <View
+        style={[
+          styles.cardBody,
+          {
+            backgroundColor: cardBgColor,
+            borderColor: colors.border,
+            borderWidth: 1,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.45)',
+          },
+        ]}
+      >
+        {/* 토스/애플 스타일: 은은한 앰비언트 글로우 및 우측 자연 일러스트 데코 레이어 (사진 없이 깊이감 형성) */}
+        <View pointerEvents="none" style={styles.cardAuraGlow} />
+        <View pointerEvents="none" style={styles.cardDecoArt}>
+          <Image
+            source={grassImg}
+            style={[styles.grassImage, { opacity: isDark ? 0.15 : 0.22 }]}
+            resizeMode="contain"
+          />
+        </View>
+
         {/* 카드 헤더 (타이틀, 강아지 드롭다운, 알림 버튼) */}
         <View style={styles.cardHeader}>
           <View style={styles.headerTitleRow}>
@@ -273,7 +294,28 @@ const styles = StyleSheet.create({
   cardBody: {
     flex: 1, width: '100%', backgroundColor: '#CFA052', borderRadius: 24,
     paddingTop: 24, paddingHorizontal: 12, paddingBottom: 10,
+    position: 'relative', overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
+  },
+  cardAuraGlow: {
+    position: 'absolute',
+    top: -24,
+    right: -24,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  cardDecoArt: {
+    position: 'absolute',
+    top: 6,
+    right: 56,
+    width: 76,
+    height: 44,
+  },
+  grassImage: {
+    width: '100%',
+    height: '100%',
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 8, minHeight: 48 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
