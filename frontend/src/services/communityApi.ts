@@ -9,6 +9,7 @@
 import { detectLandmarkCategory } from './landmarkTagger';
 
 import { fetchWithServerFallback } from './apiClient';
+import { WalkRecord } from '../types/storage';
 
 export interface CommunityFeedItem {
   readonly course_id: string;
@@ -174,6 +175,23 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
 }
 
 export const COMMUNITY_SHARE_ERROR_MESSAGE = '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
+export const EMPTY_GPS_TRACK_SHARE_MESSAGE =
+  '이번 산책은 GPS 경로가 기록되지 않아 코스로 공유할 수 없어요.';
+
+/** 커뮤니티 피드에 지도로 그릴 경로가 남아 있는지 (마스킹 후 2점 미만이면 경로 비공개, #281) */
+export function hasVisibleCommunityRoute(feed: Pick<CommunityFeedItem, 'masked_polyline'>): boolean {
+  return feed.masked_polyline.length >= 2;
+}
+
+/**
+ * 산책 GPS 기록을 공유용 [경도, 위도] 좌표열로 바꿉니다.
+ * 기록이 2점 미만이면 null — 대체 좌표를 보내지 않고 공유를 막습니다 (#281).
+ */
+export function toShareCoordinates(gpsTrack?: WalkRecord['gpsTrack']): [number, number][] | null {
+  if (!gpsTrack || gpsTrack.length < 2) return null;
+  return gpsTrack.map((p) => [p.lon, p.lat]);
+}
 
 export async function shareCommunityCourse(
   title: string,

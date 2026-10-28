@@ -108,6 +108,12 @@ describe('routeGeometry - calculateRegionBounds', () => {
     expect(region.latitudeDelta).toBeGreaterThan(0);
     expect(region.longitudeDelta).toBeGreaterThan(0);
   });
+
+  it('좌표가 없으면 서울숲이 아닌 기본 시범 공원(유림공원) 중심을 쓴다 (#281)', () => {
+    const region = calculateRegionBounds([]);
+    expect(region.latitude).toBeCloseTo(36.362, 2);
+    expect(region.longitude).toBeCloseTo(127.36, 2);
+  });
 });
 
 describe('routeGeometry - calculateSafeSurfaceRatio', () => {

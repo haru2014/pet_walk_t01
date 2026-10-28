@@ -12,6 +12,7 @@ import {
   LonLat,
   RouteFeatureCollection,
 } from '../types/route';
+import { DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 const EARTH_RADIUS_M = 6371000;
 
@@ -114,7 +115,9 @@ export function calculateSafeSurfaceRatio(collection: RouteFeatureCollection | u
  */
 export function calculateRegionBounds(coords: readonly LonLat[], paddingFactor = 1.3): RegionBounds {
   if (coords.length === 0) {
-    return { latitude: 37.5443, longitude: 127.0374, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    // 좌표가 없으면 기본 시범 공원(대전 유림공원) 중심 (#281)
+    const { lat, lon } = DEFAULT_PILOT_PARK.center;
+    return { latitude: lat, longitude: lon, latitudeDelta: 0.01, longitudeDelta: 0.01 };
   }
 
   const lons = coords.map((c) => c[0]);
