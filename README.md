@@ -36,6 +36,35 @@ graph LR
     BE <--> KMA["☀️ 기상청 단기예보 & 지면온도"]
     BE <--> Supa[("🌐 Supabase Cloud / Mock Fallback")]
 ```
+## 📖 목차 (Table of Contents)
+
+0. [⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)](#-빠른-시작-및-가동-가이드-quick-start-guide)
+1. [🌟 프로젝트 개요 및 핵심 철학 (Overview)](#-1-프로젝트-개요-및-핵심-철학-overview)
+2. [🚨 해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
+3. [💡 4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
+4. [🏗️ 시스템 아키텍처 (System Architecture)](#-4-시스템-아키텍처-system-architecture)
+5. [📱 핵심 사용자 여정 및 주요 화면 갤러리 (User Journey & Screens)](#-5-핵심-사용자-여정-및-주요-화면-갤러리-user-journey--screens)
+   - [5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)](#51-📸-실제-구동-화면-스크린샷-갤러리-key-screenshots-gallery)
+   - [5.2 🗺️ 6대 핵심 시나리오 화면 명세 및 사용자 여정](#52-🗺️-6대-핵심-시나리오-화면-명세-및-사용자-여정)
+6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
+   - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
+   - [6.2 팀원별 담당 사용자 스토리 요약](#62-팀원별-담당-사용자-스토리-요약)
+   - [6.3 프로젝트 주요 마일스톤 (수행계획서 정합)](#63-프로젝트-주요-마일스톤-수행계획서-정합)
+   - [6.4 📊 2026-10-21 구현 현황 기록](#64-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
+7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
+   - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
+   - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
+8. [📂 프로젝트 디렉터리 구조 및 공식 산출물 문서 (Directory Structure & Docs)](#-8-프로젝트-디렉터리-구조-및-공식-산출물-문서-directory-structure--docs)
+   - [8.1 📚 docs/ 기획 및 공식 엔지니어링 산출물 문서 목록](#81-📚-docs-기획-및-공식-엔지니어링-산출물-문서-목록)
+   - [8.2 전체 프로젝트 디렉터리 트리](#82-전체-프로젝트-디렉터리-트리)
+9. [🚀 시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
+   - [9.1 환경 요구사항](#91-환경-요구사항)
+   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트-backend--supabase)
+   - [9.3 프론트엔드 모바일 앱/웹 가동](#93-프론트엔드-모바일-앱웹-가동)
+   - [9.4 의존성 설치 및 TDD/단위 테스트 실행](#94-의존성-설치-및-tdd단위-테스트-실행)
+   - [9.5 주요 개발 현황 보고서 및 설계 문서](#95-주요-개발-현황-보고서-및-설계-문서)
+   - [9.6 인터랙티브 목업 갤러리 확인](#96-인터랙티브-목업-갤러리-확인)
+10. [📜 라이선스 및 저작권 (License)](#-10-라이선스-및-저작권-license)
 
 ---
 
@@ -148,38 +177,6 @@ cd frontend && npm test
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
 cd frontend && npm run check
 ```
-
----
-
-## 📖 목차 (Table of Contents)
-
-0. [⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)](#-빠른-시작-및-가동-가이드-quick-start-guide)
-1. [🌟 프로젝트 개요 및 핵심 철학 (Overview)](#-1-프로젝트-개요-및-핵심-철학-overview)
-2. [🚨 해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
-3. [💡 4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
-4. [🏗️ 시스템 아키텍처 (System Architecture)](#-4-시스템-아키텍처-system-architecture)
-5. [📱 핵심 사용자 여정 및 주요 화면 갤러리 (User Journey & Screens)](#-5-핵심-사용자-여정-및-주요-화면-갤러리-user-journey--screens)
-   - [5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)](#51-📸-실제-구동-화면-스크린샷-갤러리-key-screenshots-gallery)
-   - [5.2 🗺️ 6대 핵심 시나리오 화면 명세 및 사용자 여정](#52-🗺️-6대-핵심-시나리오-화면-명세-및-사용자-여정)
-6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
-   - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
-   - [6.2 팀원별 담당 사용자 스토리 요약](#62-팀원별-담당-사용자-스토리-요약)
-   - [6.3 프로젝트 주요 마일스톤 (수행계획서 정합)](#63-프로젝트-주요-마일스톤-수행계획서-정합)
-   - [6.4 📊 2026-10-21 구현 현황 기록](#64-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
-7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
-   - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
-   - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
-8. [📂 프로젝트 디렉터리 구조 및 공식 산출물 문서 (Directory Structure & Docs)](#-8-프로젝트-디렉터리-구조-및-공식-산출물-문서-directory-structure--docs)
-   - [8.1 📚 docs/ 기획 및 공식 엔지니어링 산출물 문서 목록](#81-📚-docs-기획-및-공식-엔지니어링-산출물-문서-목록)
-   - [8.2 전체 프로젝트 디렉터리 트리](#82-전체-프로젝트-디렉터리-트리)
-9. [🚀 시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
-   - [9.1 환경 요구사항](#91-환경-요구사항)
-   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트-backend--supabase)
-   - [9.3 프론트엔드 모바일 앱/웹 가동](#93-프론트엔드-모바일-앱웹-가동)
-   - [9.4 의존성 설치 및 TDD/단위 테스트 실행](#94-의존성-설치-및-tdd단위-테스트-실행)
-   - [9.5 주요 개발 현황 보고서 및 설계 문서](#95-주요-개발-현황-보고서-및-설계-문서)
-   - [9.6 인터랙티브 목업 갤러리 확인](#96-인터랙티브-목업-갤러리-확인)
-10. [📜 라이선스 및 저작권 (License)](#-10-라이선스-및-저작권-license)
 
 ---
 

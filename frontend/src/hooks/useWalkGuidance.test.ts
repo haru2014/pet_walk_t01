@@ -221,6 +221,114 @@ describe('handleGuidancePoint - 경로 이탈 시 서버 재탐색 연동 및 �
     expect(requestRerouteSpy).not.toHaveBeenCalled();
     expect(applyRerouteSpy).not.toHaveBeenCalled();
   });
+
+  it('rerouteContext 전달 시 originMode, pilotParkId, 남은 산책 거리(remainingDistanceM)를 포함해 재탐색을 요청한다', async () => {
+    const speakSpy = vi.fn();
+    const applyRerouteSpy = vi.fn();
+    const requestRerouteSpy = vi.fn().mockResolvedValueOnce({
+      status: 'REROUTED',
+      needsReroute: true,
+      voiceAlert: '현재 위치에서 출발지로 돌아오는 새로운 산책 경로를 안내합니다.',
+      newRoute: TEST_ROUTE,
+      stepPins: TEST_PINS,
+    });
+
+    const stateWithStartChecked = {
+      ...INITIAL_GUIDANCE_STATE,
+      startChecked: true,
+      prevPosition: [127.382, 36.374] as [number, number],
+      routeProgressM: 120,
+    };
+
+    const offRoutePoint: GpsPoint = {
+      latitude: 36.375,
+      longitude: 127.385,
+      timestamp: 100_000,
+      speedMps: 1.1,
+      accuracyM: 12,
+    };
+
+    const res = await handleGuidancePoint(
+      offRoutePoint,
+      TEST_ROUTE,
+      TEST_PINS,
+      stateWithStartChecked,
+      {
+        speak: speakSpy,
+        applyReroute: applyRerouteSpy,
+        requestReroute: requestRerouteSpy,
+      },
+      false,
+      {
+        originMode: 'current_location',
+        targetMinutes: 30,
+        elapsedSec: 600, // 10분 경과 -> 20분 남음
+        speedKmH: 3.6, // 분당 60m -> 남은 거리 약 1200m
+        lastRerouteAtMs: null,
+      },
+    );
+
+    expect(res.triggeredReroute).toBe(true);
+    expect(requestRerouteSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        originMode: 'current_location',
+        remainingDistanceM: 1200,
+        progressM: 120,
+      }),
+    );
+  });
+
+  it('직전 재탐색으로부터 30초 쿨다운 이내이거나 GPS 오차(accuracyM > 45m)가 크면 자동 재탐색을 건너뛴다', async () => {
+    const speakSpy = vi.fn();
+    const applyRerouteSpy = vi.fn();
+    const requestRerouteSpy = vi.fn();
+
+    const stateWithStartChecked = {
+      ...INITIAL_GUIDANCE_STATE,
+      startChecked: true,
+      prevPosition: [127.382, 36.374] as [number, number],
+    };
+
+    // 1. 쿨다운(30초) 이내
+    const cooldownPoint: GpsPoint = {
+      latitude: 36.375,
+      longitude: 127.385,
+      timestamp: 115_000,
+      speedMps: 1.2,
+      accuracyM: 10,
+    };
+    const resCooldown = await handleGuidancePoint(
+      cooldownPoint,
+      TEST_ROUTE,
+      TEST_PINS,
+      stateWithStartChecked,
+      { speak: speakSpy, applyReroute: applyRerouteSpy, requestReroute: requestRerouteSpy },
+      false,
+      { originMode: 'current_location', lastRerouteAtMs: 100_000 },
+    );
+    expect(resCooldown.triggeredReroute).toBe(false);
+    expect(requestRerouteSpy).not.toHaveBeenCalled();
+
+    // 2. GPS 튀는 현상 (accuracyM = 65m > 45m)
+    const lowAccuracyPoint: GpsPoint = {
+      latitude: 36.375,
+      longitude: 127.385,
+      timestamp: 200_000,
+      speedMps: 1.2,
+      accuracyM: 65,
+    };
+    const resLowAcc = await handleGuidancePoint(
+      lowAccuracyPoint,
+      TEST_ROUTE,
+      TEST_PINS,
+      stateWithStartChecked,
+      { speak: speakSpy, applyReroute: applyRerouteSpy, requestReroute: requestRerouteSpy },
+      false,
+      { originMode: 'park', pilotParkId: 'yurim', lastRerouteAtMs: null },
+    );
+    expect(resLowAcc.triggeredReroute).toBe(false);
+    expect(requestRerouteSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('speakGuidanceEvent - 우선순위 발화 테스트', () => {

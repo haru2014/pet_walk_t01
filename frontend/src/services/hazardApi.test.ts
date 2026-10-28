@@ -386,5 +386,112 @@ describe('hazardApi - 현장 위험 제보 및 안전 우회 / 돌아가기 테�
       expect(local.newRoute.features[0].geometry.coordinates[0]).toEqual([127.383, 36.375]);
       expect(local.stepPins).toHaveLength(2);
     });
+
+    it('방법 A (current_location): origin_mode와 remaining_distance_m을 서버로 전송하고 새 경로 재생성 결과를 반환한다', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'REROUTED',
+          needs_reroute: true,
+          reroute_strategy: 'regenerate_to_origin',
+          route_source: 'osrm_regenerated',
+          voice_alert: '경로를 벗어났어요. 현재 위치에서 출발지로 돌아오는 새로운 산책 경로를 안내합니다.',
+          new_distance_m: 720,
+          step_pins: [
+            { id: 'step_1', kind: 'safe', position: [127.3825, 36.3745], instruction: '현재 위치에서 새 산책 경로 시작', icon: '🐾' },
+            { id: 'step_2', kind: 'safe', position: [127.382, 36.374], instruction: '출발지 도착', icon: '🏁' },
+          ],
+          geojson: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { segmentType: 'safe' },
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [127.3825, 36.3745],
+                    [127.384, 36.376],
+                    [127.382, 36.374],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      } as any);
+
+      const res = await requestDeviationReroute({
+        currentLat: 36.3745,
+        currentLon: 127.3825,
+        destinationLat: 36.374,
+        destinationLon: 127.382,
+        originMode: 'current_location',
+        remainingDistanceM: 720,
+      });
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/walk/reroute',
+        expect.objectContaining({
+          body: expect.stringContaining('"origin_mode":"current_location"'),
+        }),
+      );
+      expect(res.rerouteStrategy).toBe('regenerate_to_origin');
+      expect(res.voiceAlert).toContain('현재 위치에서 출발지로 돌아오는 새로운 산책 경로');
+      expect(res.stepPins).toHaveLength(2);
+    });
+
+    it('방법 C (park): pilot_park_id를 서버로 전송하고 공원 산책로망 합류 결과를 반환한다', async () => {
+      const fetchSpy = vi.spyOn(apiClient, 'fetchWithServerFallback').mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'REROUTED',
+          needs_reroute: true,
+          reroute_strategy: 'park_network_rejoin',
+          route_source: 'park_graph_yurim',
+          voice_alert: '경로를 벗어났어요. 공원 산책로망을 따라 약 65미터 이동해 코스에 다시 합류합니다.',
+          new_distance_m: 540,
+          step_pins: [
+            { id: 'rejoin-park-entry', kind: 'safe', position: [127.3585, 36.3625], instruction: '공원 산책로를 따라 약 65m 이동해 코스에 합류', icon: '↪️' },
+          ],
+          geojson: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { segmentType: 'safe' },
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [127.3582, 36.3612],
+                    [127.3585, 36.3625],
+                    [127.3568, 36.3618],
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      } as any);
+
+      const res = await requestDeviationReroute({
+        currentLat: 36.3612,
+        currentLon: 127.3582,
+        destinationLat: 36.3618,
+        destinationLon: 127.3568,
+        originMode: 'park',
+        pilotParkId: 'yurim',
+      });
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/v1/walk/reroute',
+        expect.objectContaining({
+          body: expect.stringContaining('"pilot_park_id":"yurim"'),
+        }),
+      );
+      expect(res.rerouteStrategy).toBe('park_network_rejoin');
+      expect(res.routeSource).toBe('park_graph_yurim');
+      expect(res.voiceAlert).toContain('공원 산책로망');
+    });
   });
 });

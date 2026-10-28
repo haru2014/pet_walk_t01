@@ -43,6 +43,9 @@ export interface DarkPocketScreenProps {
   readonly mapRoute: RouteFeatureCollection;
   readonly mapPins: readonly RouteStepPin[];
   readonly onReroute?: (result: RerouteResult) => void;
+  readonly originMode?: 'current_location' | 'park' | 'parking_pnr';
+  readonly isOffRoute?: boolean;
+  readonly onRegenerateRoute?: () => Promise<boolean> | boolean | void;
 }
 
 const HudItem: React.FC<{ value: string; unit: string; label: string; compact?: boolean }> = ({ value, unit, label, compact }) => (
@@ -74,6 +77,9 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   mapRoute,
   mapPins,
   onReroute,
+  originMode = 'current_location',
+  isOffRoute = false,
+  onRegenerateRoute,
 }) => {
   const { height } = useWindowDimensions();
   // This screen intentionally does not scroll; use the dense layout before
@@ -149,6 +155,24 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
     onReroute(result);
     setShowEmergencyModal(false);
     setToastMsg('출발지로 복귀하는 긴급 경로 안내를 시작했어요.');
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const isParkMode = originMode === 'park' || originMode === 'parking_pnr';
+  const regenerateBtnLabel = isParkMode ? '현위치 코스 합류' : '현위치 경로 재생성';
+
+  const handleRegenerateRoute = async () => {
+    if (!onRegenerateRoute) return;
+    const ok = await onRegenerateRoute();
+    if (ok === false) {
+      setToastMsg('현재 GPS 위치를 확인한 뒤 다시 시도해 주세요.');
+    } else {
+      setToastMsg(
+        isParkMode
+          ? '🔄 공원 산책로망을 따라 코스에 다시 합류해요.'
+          : '🔄 현재 위치에서 출발지로 돌아오는 새 경로를 안내해요.',
+      );
+    }
     setTimeout(() => setToastMsg(null), 3500);
   };
 
@@ -334,7 +358,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
         </View>
       </View>
 
-      {/* 4. 현장 위험 제보 & 안전 우회 버튼 */}
+      {/* 4. 현장 위험 제보 & 안전 우회 / 현위치 경로 재생성(합류) 버튼 */}
       <View style={[styles.hazardActionRow, isCompactLayout && styles.hazardActionRowCompact]}>
         <TouchableOpacity
           activeOpacity={0.8}
@@ -345,6 +369,20 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           <Text style={styles.hazardBtnIcon}>⚠️</Text>
           <Text style={styles.hazardBtnText}>위험 제보 & 안전 우회</Text>
         </TouchableOpacity>
+        {!isFreeWalk && onRegenerateRoute && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { void handleRegenerateRoute(); }}
+            style={[styles.regenerateBtn, isOffRoute && styles.regenerateBtnOffRoute]}
+            accessibilityRole="button"
+            accessibilityLabel={regenerateBtnLabel}
+          >
+            <Text style={styles.hazardBtnIcon}>🔄</Text>
+            <Text style={[styles.regenerateBtnText, isOffRoute && styles.regenerateBtnTextOffRoute]}>
+              {regenerateBtnLabel}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={[styles.primaryActions, isCompactLayout && styles.primaryActionsCompact]}>
@@ -598,7 +636,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   hazardActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 8,
   },
   hazardActionRowCompact: { marginBottom: 0 },
@@ -610,7 +652,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(239, 68, 68, 0.6)',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 18,
   },
@@ -621,5 +663,29 @@ const styles = StyleSheet.create({
     color: '#FCA5A5',
     fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
+  },
+  regenerateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  regenerateBtnOffRoute: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: '#F59E0B',
+  },
+  regenerateBtnText: {
+    color: '#6EE7B7',
+    fontSize: TYPOGRAPHY.button,
+    fontWeight: '700',
+  },
+  regenerateBtnTextOffRoute: {
+    color: '#FDE68A',
   },
 });
