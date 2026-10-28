@@ -26,7 +26,7 @@ import {
   resetGuidanceForNewRoute,
   routeEnd,
 } from '../services/guidanceEngine';
-import { haversineMeters, polylineLengthMeters } from '../services/routeGeometry';
+import { flattenRouteCoordinates, haversineMeters, polylineLengthMeters } from '../services/routeGeometry';
 import { calculateRemainingWalkDistanceM } from '../services/routeRejoin';
 import { TTSNavigationService } from '../services/ttsNavigation';
 import { calculateAverageSpeedKmH } from '../services/walkFormat';
@@ -220,13 +220,19 @@ export async function handleGuidancePoint(
     && point.timestamp - rerouteContext.lastRerouteAtMs >= 0
     && point.timestamp - rerouteContext.lastRerouteAtMs < cooldownMs;
 
-  if (hasOffRoute && !isRerouting && !isLowAccuracySpike && !isInCooldown) {
+  const shouldTriggerReroute = (hasOffRoute || nextState.offRouteActive)
+    && !isRerouting
+    && !isLowAccuracySpike
+    && !isInCooldown;
+
+  if (shouldTriggerReroute) {
     triggeredReroute = true;
     const end = routeEnd(currentRoute);
     const destinationLon = end ? end[0] : point.longitude;
     const destinationLat = end ? end[1] : point.latitude;
-    const coords = currentRoute.features[0]?.geometry?.coordinates as [number, number][] | undefined;
-    const routeLenM = coords ? polylineLengthMeters(coords) : undefined;
+    const coords = flattenRouteCoordinates(currentRoute);
+    const routeCoords = coords.length > 0 ? coords : undefined;
+    const routeLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
     const remainingDistanceM = rerouteContext
       ? calculateRemainingWalkDistanceM({
           targetMinutes: rerouteContext.targetMinutes,
@@ -243,7 +249,7 @@ export async function handleGuidancePoint(
         currentLon: point.longitude,
         destinationLat,
         destinationLon,
-        routeCoordinates: coords,
+        routeCoordinates: routeCoords,
         progressM: nextState.routeProgressM,
         originMode: rerouteContext?.originMode,
         pilotParkId: rerouteContext?.pilotParkId,
@@ -446,9 +452,10 @@ export function useWalkGuidance(
     if (!point || isReroutingRef.current) return false;
     const end = routeEnd(routeRef.current);
     if (!end) return false;
-    const routeCoords = routeRef.current.features[0]?.geometry?.coordinates as [number, number][] | undefined;
+    const coords = flattenRouteCoordinates(routeRef.current);
+    const routeCoords = coords.length > 0 ? coords : undefined;
 
-    const totalLenM = routeCoords ? polylineLengthMeters(routeCoords) : undefined;
+    const totalLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
     const remainingDistanceM = calculateRemainingWalkDistanceM({
       routeLengthM: totalLenM,
       walkedM: guidanceRef.current.walkedM,

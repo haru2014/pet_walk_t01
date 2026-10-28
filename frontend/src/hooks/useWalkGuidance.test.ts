@@ -329,6 +329,123 @@ describe('handleGuidancePoint - 경로 이탈 시 서버 재탐색 연동 및 �
     expect(resLowAcc.triggeredReroute).toBe(false);
     expect(requestRerouteSpy).not.toHaveBeenCalled();
   });
+
+  it('다중 세그먼트 코스에서 이탈 시 모든 조각의 연결 좌표(routeCoordinates)를 재탐색 파라미터로 전송한다 (#290)', async () => {
+    const speakSpy = vi.fn();
+    const applyRerouteSpy = vi.fn();
+    const requestRerouteSpy = vi.fn().mockResolvedValueOnce({
+      status: 'REROUTED',
+      needsReroute: true,
+      voiceAlert: '경로를 재탐색했습니다.',
+      newRoute: TEST_ROUTE,
+      stepPins: TEST_PINS,
+    });
+
+    const multiSegmentRoute: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.0, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.380, 36.370],
+              [127.382, 36.372],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { segmentType: 'caution', maxSlopePercent: 4.0, shaded: false },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.382, 36.372],
+              [127.384, 36.374],
+            ],
+          },
+        },
+      ],
+    };
+
+    const stateWithStartChecked = {
+      ...INITIAL_GUIDANCE_STATE,
+      startChecked: true,
+      prevPosition: [127.380, 36.370] as [number, number],
+    };
+
+    const offRoutePoint: GpsPoint = {
+      latitude: 36.380,
+      longitude: 127.390,
+      timestamp: Date.now(),
+      speedMps: 1.2,
+      accuracyM: 10,
+    };
+
+    const res = await handleGuidancePoint(
+      offRoutePoint,
+      multiSegmentRoute,
+      TEST_PINS,
+      stateWithStartChecked,
+      { speak: speakSpy, applyReroute: applyRerouteSpy, requestReroute: requestRerouteSpy },
+      false,
+    );
+
+    expect(res.triggeredReroute).toBe(true);
+    expect(requestRerouteSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeCoordinates: [
+          [127.380, 36.370],
+          [127.382, 36.372],
+          [127.384, 36.374],
+        ],
+      }),
+    );
+  });
+
+  it('첫 이탈 순간 쿨다운으로 건너뛰었으나 코스 밖 상태(offRouteActive=true)가 지속될 때 쿨다운 경과 후 자동 재탐색을 수행한다 (#290)', async () => {
+    const speakSpy = vi.fn();
+    const applyRerouteSpy = vi.fn();
+    const requestRerouteSpy = vi.fn().mockResolvedValueOnce({
+      status: 'REROUTED',
+      needsReroute: true,
+      voiceAlert: '경로를 재탐색했습니다.',
+      newRoute: TEST_ROUTE,
+      stepPins: TEST_PINS,
+    });
+
+    // 이미 이탈 상태(offRouteActive = true)이므로 guidanceEngine에서는 off_route 이벤트를 새로 내지 않음
+    const stateAlreadyOffRoute = {
+      ...INITIAL_GUIDANCE_STATE,
+      startChecked: true,
+      offRouteActive: true,
+      prevPosition: [127.385, 36.375] as [number, number],
+    };
+
+    // 직전 재탐색이 100,000ms였고 현재 135,000ms (35초 경과 -> 쿨다운 30초 초과)
+    const nextPoint: GpsPoint = {
+      latitude: 36.375,
+      longitude: 127.385,
+      timestamp: 135_000,
+      speedMps: 1.2,
+      accuracyM: 15,
+    };
+
+    const res = await handleGuidancePoint(
+      nextPoint,
+      TEST_ROUTE,
+      TEST_PINS,
+      stateAlreadyOffRoute,
+      { speak: speakSpy, applyReroute: applyRerouteSpy, requestReroute: requestRerouteSpy },
+      false,
+      { originMode: 'park', pilotParkId: 'yurim', lastRerouteAtMs: 100_000 },
+    );
+
+    expect(res.triggeredReroute).toBe(true);
+    expect(requestRerouteSpy).toHaveBeenCalledTimes(1);
+    expect(applyRerouteSpy).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('speakGuidanceEvent - 우선순위 발화 테스트', () => {

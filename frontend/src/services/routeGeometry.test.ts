@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   haversineMeters,
   polylineLengthMeters,
+  flattenRouteCoordinates,
   buildCourseSummary,
   calculateRegionBounds,
   calculateSafeSurfaceRatio,
@@ -120,5 +121,90 @@ describe('routeGeometry - calculateSafeSurfaceRatio', () => {
     const ratio = calculateSafeSurfaceRatio(SAMPLE_ROUTE);
     expect(ratio).toBeGreaterThan(0.5);
     expect(ratio).toBeLessThanOrEqual(1.0);
+  });
+});
+
+describe('routeGeometry - flattenRouteCoordinates', () => {
+  it('null, undefined, 또는 빈 FeatureCollection에 대해 빈 배열을 반환한다', () => {
+    expect(flattenRouteCoordinates(null)).toEqual([]);
+    expect(flattenRouteCoordinates(undefined)).toEqual([]);
+    expect(flattenRouteCoordinates({ type: 'FeatureCollection', features: [] })).toEqual([]);
+  });
+
+  it('단일 세그먼트의 좌표 목록을 온전히 반환한다', () => {
+    const singleRoute: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.0, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.382, 36.374],
+              [127.383, 36.375],
+            ],
+          },
+        },
+      ],
+    };
+    expect(flattenRouteCoordinates(singleRoute)).toEqual([
+      [127.382, 36.374],
+      [127.383, 36.375],
+    ]);
+  });
+
+  it('여러 세그먼트 조각을 순서대로 연결하고 접합점의 중복 좌표를 제거한다 (#290)', () => {
+    const multiSegmentRoute: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.0, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.380, 36.370],
+              [127.381, 36.371],
+              [127.382, 36.372],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { segmentType: 'caution', maxSlopePercent: 4.5, shaded: false },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.382, 36.372], // 세그먼트 1의 끝점과 동일
+              [127.383, 36.373],
+              [127.384, 36.374],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 0.8, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.384, 36.374], // 세그먼트 2의 끝점과 동일
+              [127.385, 36.375],
+            ],
+          },
+        },
+      ],
+    };
+
+    const flattened = flattenRouteCoordinates(multiSegmentRoute);
+    expect(flattened).toEqual([
+      [127.380, 36.370],
+      [127.381, 36.371],
+      [127.382, 36.372],
+      [127.383, 36.373],
+      [127.384, 36.374],
+      [127.385, 36.375],
+    ]);
+    expect(flattened).toHaveLength(6);
   });
 });

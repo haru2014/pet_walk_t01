@@ -47,6 +47,29 @@ export function polylineLengthMeters(coords: readonly LonLat[]): number {
 }
 
 /**
+ * GeoJSON FeatureCollection의 모든 LineString 세그먼트 좌표를 순서대로 이어 붙인다.
+ * 세그먼트 간 접합점(이전 세그먼트의 끝점과 다음 세그먼트의 시작점)이 동일한 경우 중복을 제거한다.
+ */
+export function flattenRouteCoordinates(
+  collection?: RouteFeatureCollection | null,
+): [number, number][] {
+  if (!collection?.features || collection.features.length === 0) return [];
+  const result: [number, number][] = [];
+  for (const feature of collection.features) {
+    const coords = feature.geometry?.coordinates;
+    if (!Array.isArray(coords)) continue;
+    for (const pt of coords) {
+      if (!Array.isArray(pt) || pt.length < 2) continue;
+      const last = result.at(-1);
+      if (!last || last[0] !== pt[0] || last[1] !== pt[1]) {
+        result.push([pt[0], pt[1]]);
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * GeoJSON 세그먼트로부터 코스 요약(거리/시간/최대 경사/그늘 비율)을 계산한다.
  * @param speedKmH 반려견 권장 속도 (km/h)
  */
