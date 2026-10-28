@@ -188,6 +188,83 @@ function evaluateForwardSafetyResults(
   return { freeSafety: { status: 'unknown', message }, announceMessage: null };
 }
 
+function isRerouteCooldownActive(
+  pointTimestamp: number,
+  lastRerouteAtMs?: number | null,
+  cooldownMs = DEVIATION_REROUTE_COOLDOWN_MS,
+): boolean {
+  if (lastRerouteAtMs == null) return false;
+  const elapsed = pointTimestamp - lastRerouteAtMs;
+  return elapsed >= 0 && elapsed < cooldownMs;
+}
+
+function shouldTriggerDeviationReroute(
+  isOffRoute: boolean,
+  hasOffRouteEvent: boolean,
+  isRerouting: boolean,
+  accuracyM?: number | null,
+  timestamp = 0,
+  rerouteContext?: GuidanceRerouteContext,
+): boolean {
+  if (!isOffRoute && !hasOffRouteEvent) return false;
+  if (isRerouting) return false;
+  if (accuracyM != null && accuracyM > MAX_REROUTE_GPS_ACCURACY_M) return false;
+  return !isRerouteCooldownActive(
+    timestamp,
+    rerouteContext?.lastRerouteAtMs,
+    rerouteContext?.cooldownMs,
+  );
+}
+
+interface ExecuteRerouteParams {
+  point: GpsPoint;
+  currentRoute: RouteFeatureCollection;
+  routeProgressM?: number;
+  walkedM: number;
+  rerouteContext?: GuidanceRerouteContext;
+  applyReroute: (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => void;
+  requestReroute: typeof requestDeviationReroute;
+}
+
+async function executeDeviationReroute(params: ExecuteRerouteParams): Promise<void> {
+  const { point, currentRoute, routeProgressM, walkedM, rerouteContext, applyReroute, requestReroute } = params;
+  const end = routeEnd(currentRoute);
+  const destinationLon = end ? end[0] : point.longitude;
+  const destinationLat = end ? end[1] : point.latitude;
+  const coords = flattenRouteCoordinates(currentRoute);
+  const routeCoords = coords.length > 0 ? coords : undefined;
+  const routeLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
+  const remainingDistanceM = rerouteContext
+    ? calculateRemainingWalkDistanceM({
+        targetMinutes: rerouteContext.targetMinutes,
+        elapsedSec: rerouteContext.elapsedSec,
+        speedKmH: rerouteContext.speedKmH,
+        routeLengthM: routeLenM,
+        walkedM,
+      })
+    : undefined;
+
+  try {
+    const rerouteRes = await requestReroute({
+      currentLat: point.latitude,
+      currentLon: point.longitude,
+      destinationLat,
+      destinationLon,
+      routeCoordinates: routeCoords,
+      progressM: routeProgressM,
+      originMode: rerouteContext?.originMode,
+      pilotParkId: rerouteContext?.pilotParkId,
+      remainingDistanceM,
+    });
+
+    if (rerouteRes.needsReroute && rerouteRes.newRoute) {
+      applyReroute(rerouteRes.newRoute, rerouteRes.stepPins, rerouteRes.voiceAlert);
+    }
+  } catch (err) {
+    console.warn('[handleGuidancePoint] 이탈 재탐색 요청 처리 중 오류:', err);
+  }
+}
+
 /**
  * GPS 점 수신 시 안내 평가 및 이탈 시 서버 재탐색 파이프라인
  */
@@ -212,56 +289,25 @@ export async function handleGuidancePoint(
   result.events.forEach((event) => speak(event));
 
   const hasOffRoute = result.events.some((e) => e.kind === 'off_route');
-  let triggeredReroute = false;
+  const triggeredReroute = shouldTriggerDeviationReroute(
+    nextState.offRouteActive,
+    hasOffRoute,
+    isRerouting,
+    point.accuracyM,
+    point.timestamp,
+    rerouteContext,
+  );
 
-  const isLowAccuracySpike = point.accuracyM != null && point.accuracyM > MAX_REROUTE_GPS_ACCURACY_M;
-  const cooldownMs = rerouteContext?.cooldownMs ?? DEVIATION_REROUTE_COOLDOWN_MS;
-  const isInCooldown = rerouteContext?.lastRerouteAtMs != null
-    && point.timestamp - rerouteContext.lastRerouteAtMs >= 0
-    && point.timestamp - rerouteContext.lastRerouteAtMs < cooldownMs;
-
-  const shouldTriggerReroute = (hasOffRoute || nextState.offRouteActive)
-    && !isRerouting
-    && !isLowAccuracySpike
-    && !isInCooldown;
-
-  if (shouldTriggerReroute) {
-    triggeredReroute = true;
-    const end = routeEnd(currentRoute);
-    const destinationLon = end ? end[0] : point.longitude;
-    const destinationLat = end ? end[1] : point.latitude;
-    const coords = flattenRouteCoordinates(currentRoute);
-    const routeCoords = coords.length > 0 ? coords : undefined;
-    const routeLenM = coords.length > 0 ? polylineLengthMeters(coords) : undefined;
-    const remainingDistanceM = rerouteContext
-      ? calculateRemainingWalkDistanceM({
-          targetMinutes: rerouteContext.targetMinutes,
-          elapsedSec: rerouteContext.elapsedSec,
-          speedKmH: rerouteContext.speedKmH,
-          routeLengthM: routeLenM,
-          walkedM: nextState.walkedM,
-        })
-      : undefined;
-
-    try {
-      const rerouteRes = await requestReroute({
-        currentLat: point.latitude,
-        currentLon: point.longitude,
-        destinationLat,
-        destinationLon,
-        routeCoordinates: routeCoords,
-        progressM: nextState.routeProgressM,
-        originMode: rerouteContext?.originMode,
-        pilotParkId: rerouteContext?.pilotParkId,
-        remainingDistanceM,
-      });
-
-      if (rerouteRes.needsReroute && rerouteRes.newRoute) {
-        callbacks.applyReroute(rerouteRes.newRoute, rerouteRes.stepPins, rerouteRes.voiceAlert);
-      }
-    } catch (err) {
-      console.warn('[handleGuidancePoint] 이탈 재탐색 요청 처리 중 오류:', err);
-    }
+  if (triggeredReroute) {
+    await executeDeviationReroute({
+      point,
+      currentRoute,
+      routeProgressM: nextState.routeProgressM,
+      walkedM: nextState.walkedM,
+      rerouteContext,
+      applyReroute: callbacks.applyReroute,
+      requestReroute,
+    });
   }
 
   return { nextState, triggeredReroute, guidanceMessage: result.events.at(-1)?.message ?? null };

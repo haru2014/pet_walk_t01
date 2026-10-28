@@ -107,7 +107,7 @@ export function buildCourseSummary(
  * segmentType === 'safe' 또는 maxSlopePercent <= 3.5% 완만 경사 세그먼트의 거리 가중 비율 산출.
  */
 export function calculateSafeSurfaceRatio(collection: RouteFeatureCollection | undefined | null): number {
-  if (!collection || !collection.features || collection.features.length === 0) {
+  if (!collection?.features || collection.features.length === 0) {
     return 0.85;
   }
   let totalM = 0;
