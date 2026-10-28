@@ -8,10 +8,10 @@
 
 | 엔드포인트 | Cold 첫 회 (ms) | Warm 평균 (ms) | Warm P50 (ms) | Warm P90 (ms) | Warm P95 (ms) | 1.5초 SLA 검증 |
 |---|---|---|---|---|---|---|
-| GET /weather/heat-risk | 3356.08 ms | 8.08 ms | 8.09 ms | 9.47 ms | **9.58 ms** | ❌ 미달 |
-| GET /parking/nearby | 6.29 ms | 6.81 ms | 6.44 ms | 8.87 ms | **10.31 ms** | ✅ 달성 |
-| POST /walk/plan (공원 보행망) | 483.32 ms | 95.31 ms | 93.98 ms | 106.85 ms | **112.55 ms** | ✅ 달성 |
-| POST /walk/plan (주차장 P&R) | 1307.55 ms | 79.51 ms | 78.0 ms | 89.71 ms | **91.54 ms** | ✅ 달성 |
+| GET /weather/heat-risk | 4029.5 ms | 14.33 ms | 7.36 ms | 18.07 ms | **68.28 ms** | ❌ 미달 |
+| GET /parking/nearby | 5.01 ms | 6.06 ms | 6.24 ms | 7.5 ms | **8.1 ms** | ✅ 달성 |
+| POST /walk/plan (공원 보행망) | 2288.63 ms | 205.7 ms | 192.38 ms | 249.6 ms | **268.14 ms** | ✅ 달성 |
+| POST /walk/plan (주차장 P&R) | 4953.94 ms | 136.35 ms | 121.34 ms | 163.24 ms | **192.93 ms** | ❌ 미달 |
 
 ## 2. 분석 및 결론
 
