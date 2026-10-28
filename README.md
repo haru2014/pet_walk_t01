@@ -360,42 +360,263 @@ graph LR
 ### 6.2 팀원별 담당 사용자 스토리 요약
 > 상세 요구사항 및 인수 조건(DoD): [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)
 
-| 담당 팀원 (역할) | 스토리 ID | 에픽 (Epic) | 사용자 스토리 명칭 | 포인트 | 담당 역할 내 구현 및 책임 요약 |
-|:---:|:---:|---|---|:---:|---|
-| **1번 조현정**<br/>(팀장 / AI 설계) | `US-A1` | Epic A (조건 입력 & 개인화) | 대화형 자연어 산책 요청 및 조건 구조화 | 5 pt | 자연어 발화에서 목표 시간·계단 회피·경사·그늘 선호도를 추출하고 로컬 반려견 프로필과 결합해 Pydantic 스키마(`WalkIntent`)로 구조화 |
-| **1번 조현정**<br/>(팀장 / AI 설계) | `US-A3` | Epic A (조건 입력 & 개인화) | 목표 산책 시간/거리 기반 환산 (속도/슬라이더) | 3 pt | 체급·연령별 표준 보행 속도 모델(소형 2.8, 중형 3.6, 대형 4.2, 노령견 2.2 km/h) 적용 및 목표 시간 $\pm 15\%$ 수렴 튜닝 |
-| **1번 조현정**<br/>(팀장 / AI 설계) | `US-B3` | Epic B (무장애·지면온도 라우팅) | Routing API Adapter 연동 및 후보 경로 다요소 스코어링 | 8 pt | 후보 경로들의 무장애길 지표(계단 0, 경사 <15°), 지면온도 안전도, 거리 적합도를 100점 만점으로 종합 채점 및 추천 사유 브리핑 생성 |
-| **1번 조현정**<br/>(팀장 / AI 설계) | `US-E3` | Epic E (산책 기록 & Memory) | 로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정 | 3 pt | 클라이언트가 전달한 최근 산책 체감 피드백 요약을 무상태로 주입받아 다음 산책 추천 시 허용 경사도 등 에이전트 가중치 동적 보정 |
-| **1번 조현정**<br/>(팀장 / AI 설계) | `US-D2` | Phase 2 (동적 장애물 우회) | 현장 위험 구간 우회 및 동적 재탐색 | 5 pt | 산책 중 위험 구간 감지 및 동적 우회 경로 재산출에 따른 AI 안내 브리핑 설계 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-B1` | Epic B (무장애·지면온도 라우팅) | 지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출 | 8 pt | 대전·세종 5대 공원 OSM 보행망 및 공공 무장애길 정제, DEM 고도 래스터 기반 15도 미만 완만 경사 보행로 데이터 분석 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-B2` | Epic B (무장애·지면온도 라우팅) | 기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피) | 5 pt | 기상청 단기예보(기온·일사량)와 링크별 노면 재질(아스팔트 vs 흙/잔디/탄성포장)을 결합한 경험적 지면온도 추정 모델 구축 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-F1` | Epic F (기상 연동 열 위험 관리) | 기상청 단기예보 연동 시간대별 열 위험 지수 안내 | 3 pt | 기상청 격자 변환(`kma_grid_converter`) 및 실시간 수집 클라이언트(`kma_weather_client`) 구축, 시간대별 지면열 위험 지수·골든타임 산출 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-G1` | Epic G (거점 연계 & 커뮤니티) | 출발 거점 연계 공영주차장(P&R) 코스 탐색 | 2 pt | 전국 공영주차장 공공데이터 POI 정제 및 주차장 출입구 좌표를 산책 출발·도착 웨이포인트로 자동 매핑 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-G2` | Epic G (거점 연계 & 커뮤니티) | 간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹) | 4 pt | 커뮤니티 코스 공유 시 자택 위치 노출 방지를 위해 출발·도착지 반경 200m 구간 좌표를 자동 절단·블러링하는 공간 지터링 파이프라인 구현 |
-| **2번 전황진**<br/>(데이터 / 공간·AI) | `US-D1`<br>`US-D2` | Phase 2 (비전 AI & 동적 우회) | Vision AI 현장 턱·계단 시각 분석 및 위험 구간 동적 우회 | 10 pt | Gemini 순차 폴백 체인 기반 현장 높은 턱·계단 시각 판독 및 공원 종합안내판 반려견 출입금지 구역 JSON 파싱 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-B1` | Epic B (무장애·지면온도 라우팅) | 지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출 | 8 pt | 계단(`highway=steps`) 하드 제약 배제 및 15도 미만 완만 경사 가중치가 적용된 서버 라우팅 엔진 및 무장애 메타데이터 스키마 구현 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-B2` | Epic B (무장애·지면온도 라우팅) | 기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피) | 5 pt | 추정 지면온도 35℃ 초과 고온 구간에 동적 페널티 가중치를 부여하여 저온 안전 노면을 우선 탐색하는 라우팅 비용 함수 구현 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-B3` | Epic B (무장애·지면온도 라우팅) | Routing API Adapter 연동 및 후보 경로 다요소 스코어링 | 8 pt | OpenRouteService / OSRM 라우팅 어댑터 연동으로 실제 도로망 순환 후보 경로 2~3개를 1.5초 내 수집 및 최적 경로 GeoJSON·스텝 반환 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-F1` | Epic F (기상 연동 열 위험 관리) | 기상청 단기예보 연동 시간대별 열 위험 지수 안내 | 3 pt | 1.1km 격자 단위 10분 TTL 메모리 캐시 및 타임아웃 캡이 적용된 실시간 열 위험 지수 조회 REST API(`GET /api/v1/weather/heat-risk`) 구현 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-G1` | Epic G (거점 연계 & 커뮤니티) | 출발 거점 연계 공영주차장(P&R) 코스 탐색 | 2 pt | 반경 내 공영주차장 탐색 API(`GET /api/v1/parking/nearby`) 및 주차장 출입구 스냅 기반 순환 코스 생성 엔드포인트 구현 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-G2` | Epic G (거점 연계 & 커뮤니티) | 간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹) | 4 pt | Supabase Auth 간편 이메일 가입/로그인 연동 및 200m 공간 마스킹이 적용된 공개 코스 공유·피드 조회 REST API 구현 |
-| **3번 노희선**<br/>(서버 / 맞춤 경로) | `US-D2` | Phase 2 (동적 장애물 우회) | 현장 위험 구간 우회 및 동적 재탐색 | 5 pt | 위험 지점 좌표를 임시 차단 링크로 등록하고 3초 이내에 안전 우회로를 재산출하는 `/api/v1/walk/reroute` 엔드포인트 구현 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-A2` | Epic A (조건 입력 & 개인화) | 반려견 프로필 로컬 등록 및 JSON 백업/복원 | 3 pt | 반려견 프로필을 서버 DB 전송 없이 기기 `AsyncStorage`에만 영속 저장하고 로컬 JSON 파일 내보내기/가져오기 백업 모듈 구현 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-C1` | Epic C (모바일 UI & 핸즈프리 안내) | React Native Maps 기반 구간별 색상 분기 경로 시각화 | 5 pt | `react-native-maps` / OpenFreeMap 지도 위에 구간 속성별 분기 색상(완만/그늘 초록, 일반 파랑, 주의 주황) Polyline 및 마커 렌더링 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-C2` | Epic C (모바일 UI & 핸즈프리 안내) | 시선 해방(Eyes-Free) 백그라운드 핸즈프리 음성 길 안내 | 5 pt | Android Foreground Service + `expo-speech` 기반 주머니 속 30m 전 회전 음성 안내, 40m 이탈 알림, AI 보이스 4종 및 73dB 짖음 감지 자동 음소거 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-E1` | Epic E (산책 기록 & Memory) | 백그라운드 GPS 위치 추적 및 실산책 경로 로컬 저장 | 5 pt | 백그라운드 실보행 GPS 궤적을 수집해 로컬(`@편안하개:walk_history`)에 영구 저장하고 완주 상세 화면에서 계획 경로와 오버레이 시각화 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-E2` | Epic E (산책 기록 & Memory) | 산책 종료 후 보행 체감 피드백 수집 및 로컬 통계 | 3 pt | 산책 완료 시 보행 지표 통계 산출 및 사용자 체감 피드백·별점을 로컬 산책 이력 메타데이터에 즉시 바인딩 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-E3` | Epic E (산책 기록 & Memory) | 로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정 | 3 pt | 로컬에 누적된 최근 3회 산책 피드백 요약을 산책 계획 요청 페이로드(`feedbackContext.ts`)에 담아 서버로 무상태 전달 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-H1` | Epic H (무중단 배포 & 실사용 검증) | EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT | 5 pt | EAS Build 기반 테스터용 Android APK 1회 패키징 배포 및 `expo-updates` 무선 무점검 OTA 실시간 핫픽스 파이프라인 구축 |
-| **4번 김승현**<br/>(앱 / GPS·음성 안내) | `US-D2`, `18`,<br>`21`, `23`, `29` | Phase 2 (모바일 확장 백로그) | 위험 우회 안내, 원터치 배변 마킹, 온보딩, 위치동의, 즐겨찾기 보관함 | 14 pt | 위험 우회 안내 전환(`US-D2`), 한 손 원터치 배변 마킹 FAB(`US-18`), 4단계 온보딩 위저드(`US-21`), 위치동의 투명 고지(`US-23`), 코스 북마크 로컬 보관함(`US-29`) 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-A2` | Epic A (조건 입력 & 개인화) | 반려견 프로필 로컬 등록 및 JSON 백업/복원 | 3 pt | 질병 용어를 100% 배제하고 '관절 안심 케어 수준', '폭신한 길 위주' 등 긍정적 웰니스 카피라이팅이 적용된 프로필 등록·관리 UI 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-A3` | Epic A (조건 입력 & 개인화) | 목표 산책 시간/거리 기반 환산 (속도/슬라이더) | 3 pt | 15분 단위 세분화 산책 시간 슬라이더(`WalkDurationSlider.tsx`), 자유 산책 모드 및 체급별 예상 거리 자동 환산 플래너 화면 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-C1` | Epic C (모바일 UI & 핸즈프리 안내) | React Native Maps 기반 구간별 색상 분기 경로 시각화 | 5 pt | 고대비 야외 시인성 컬러 토큰 적용 및 하단 코스 요약 카드(접기/펼치기 Split View)·회전 스텝 리스트 뷰(`CourseRecommendationView.tsx`) 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-E2` | Epic E (산책 기록 & Memory) | 산책 종료 후 보행 체감 피드백 수집 및 로컬 통계 | 3 pt | 산책 완주 인포그래픽 요약 카드(거리, 시간, 완만 구간 비율) 및 3초 원터치 간편 피드백 모달(`QuickFeedbackModal.tsx`) UI 디자인·구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-F1` | Epic F (기상 연동 열 위험 관리) | 기상청 단기예보 연동 시간대별 열 위험 지수 안내 | 3 pt | 메인 홈 시간대별 열 위험 지수·골든타임 위젯(`GoldenTimeWidget.tsx`) 및 노면별 발바닥 체감온도 비교 날씨 리포트 모달 UI 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-G1` | Epic G (거점 연계 & 커뮤니티) | 출발 거점 연계 공영주차장(P&R) 코스 탐색 | 2 pt | 플래너 화면 내 주차장 연계(P&R) 탐색 토글 및 코스 요약 카드 내 주차장 명칭·기본 정보 표시 UI 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-G2` | Epic G (거점 연계 & 커뮤니티) | 간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹) | 4 pt | 간편 가입 화면 및 200m 안심 마스킹 뱃지가 적용된 이웃 공유 코스 탐색 커뮤니티 피드 화면 구현 |
-| **5번 김정님**<br/>(UI / 화면·통합 테스트) | `US-H1` | Epic H (무중단 배포 & 실사용 검증) | EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT | 5 pt | 최소 5인 이상 실사용자 필드 산책 테스트(CBT) 사용성 평가(Usability Testing) 수행, 핸즈프리 음성·계단 회피 체감 설문 수집 및 통합 QA 총괄 |
+<table>
+  <thead>
+    <tr>
+      <th align="center">담당 팀원 (역할)</th>
+      <th align="center">스토리 ID</th>
+      <th align="left">에픽 (Epic)</th>
+      <th align="left">사용자 스토리 명칭</th>
+      <th align="center">포인트</th>
+      <th align="left">담당 역할 내 구현 및 책임 요약</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5" align="center"><strong>1번 조현정</strong><br/>(팀장 / AI 설계)</td>
+      <td align="center"><code>US-A1</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>대화형 자연어 산책 요청 및 조건 구조화</td>
+      <td align="center">5 pt</td>
+      <td>자연어 발화에서 목표 시간·계단 회피·경사·그늘 선호도를 추출하고 로컬 반려견 프로필과 결합해 Pydantic 스키마(<code>WalkIntent</code>)로 구조화</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-A3</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>목표 산책 시간/거리 기반 환산 (속도/슬라이더)</td>
+      <td align="center">3 pt</td>
+      <td>체급·연령별 표준 보행 속도 모델(소형 2.8, 중형 3.6, 대형 4.2, 노령견 2.2 km/h) 적용 및 목표 시간 ±15% 수렴 튜닝</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B3</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>Routing API Adapter 연동 및 후보 경로 다요소 스코어링</td>
+      <td align="center">8 pt</td>
+      <td>후보 경로들의 무장애길 지표(계단 0, 경사 &lt;15°), 지면온도 안전도, 거리 적합도를 100점 만점으로 종합 채점 및 추천 사유 브리핑 생성</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E3</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정</td>
+      <td align="center">3 pt</td>
+      <td>클라이언트가 전달한 최근 산책 체감 피드백 요약을 무상태로 주입받아 다음 산책 추천 시 허용 경사도 등 에이전트 가중치 동적 보정</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code></td>
+      <td>Phase 2 (동적 장애물 우회)</td>
+      <td>현장 위험 구간 우회 및 동적 재탐색</td>
+      <td align="center">5 pt</td>
+      <td>산책 중 위험 구간 감지 및 동적 우회 경로 재산출에 따른 AI 안내 브리핑 설계</td>
+    </tr>
+    <tr>
+      <td rowspan="6" align="center"><strong>2번 전황진</strong><br/>(데이터 / 공간·AI)</td>
+      <td align="center"><code>US-B1</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출</td>
+      <td align="center">8 pt</td>
+      <td>대전·세종 5대 공원 OSM 보행망 및 공공 무장애길 정제, DEM 고도 래스터 기반 15도 미만 완만 경사 보행로 데이터 분석</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B2</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피)</td>
+      <td align="center">5 pt</td>
+      <td>기상청 단기예보(기온·일사량)와 링크별 노면 재질(아스팔트 vs 흙/잔디/탄성포장)을 결합한 경험적 지면온도 추정 모델 구축</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>기상청 격자 변환(<code>kma_grid_converter</code>) 및 실시간 수집 클라이언트(<code>kma_weather_client</code>) 구축, 시간대별 지면열 위험 지수·골든타임 산출</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>전국 공영주차장 공공데이터 POI 정제 및 주차장 출입구 좌표를 산책 출발·도착 웨이포인트로 자동 매핑</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>커뮤니티 코스 공유 시 자택 위치 노출 방지를 위해 출발·도착지 반경 200m 구간 좌표를 자동 절단·블러링하는 공간 지터링 파이프라인 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D1</code><br/><code>US-D2</code></td>
+      <td>Phase 2 (비전 AI & 동적 우회)</td>
+      <td>Vision AI 현장 턱·계단 시각 분석 및 위험 구간 동적 우회</td>
+      <td align="center">10 pt</td>
+      <td>Gemini 순차 폴백 체인 기반 현장 높은 턱·계단 시각 판독 및 공원 종합안내판 반려견 출입금지 구역 JSON 파싱</td>
+    </tr>
+    <tr>
+      <td rowspan="7" align="center"><strong>3번 노희선</strong><br/>(서버 / 맞춤 경로)</td>
+      <td align="center"><code>US-B1</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출</td>
+      <td align="center">8 pt</td>
+      <td>계단(<code>highway=steps</code>) 하드 제약 배제 및 15도 미만 완만 경사 가중치가 적용된 서버 라우팅 엔진 및 무장애 메타데이터 스키마 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B2</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피)</td>
+      <td align="center">5 pt</td>
+      <td>추정 지면온도 35℃ 초과 고온 구간에 동적 페널티 가중치를 부여하여 저온 안전 노면을 우선 탐색하는 라우팅 비용 함수 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B3</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>Routing API Adapter 연동 및 후보 경로 다요소 스코어링</td>
+      <td align="center">8 pt</td>
+      <td>OpenRouteService / OSRM 라우팅 어댑터 연동으로 실제 도로망 순환 후보 경로 2~3개를 1.5초 내 수집 및 최적 경로 GeoJSON·스텝 반환</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>1.1km 격자 단위 10분 TTL 메모리 캐시 및 타임아웃 캡이 적용된 실시간 열 위험 지수 조회 REST API(<code>GET /api/v1/weather/heat-risk</code>) 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>반경 내 공영주차장 탐색 API(<code>GET /api/v1/parking/nearby</code>) 및 주차장 출입구 스냅 기반 순환 코스 생성 엔드포인트 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>Supabase Auth 간편 이메일 가입/로그인 연동 및 200m 공간 마스킹이 적용된 공개 코스 공유·피드 조회 REST API 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code></td>
+      <td>Phase 2 (동적 장애물 우회)</td>
+      <td>현장 위험 구간 우회 및 동적 재탐색</td>
+      <td align="center">5 pt</td>
+      <td>위험 지점 좌표를 임시 차단 링크로 등록하고 3초 이내에 안전 우회로를 재산출하는 <code>/api/v1/walk/reroute</code> 엔드포인트 구현</td>
+    </tr>
+    <tr>
+      <td rowspan="8" align="center"><strong>4번 김승현</strong><br/>(앱 / GPS·음성 안내)</td>
+      <td align="center"><code>US-A2</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>반려견 프로필 로컬 등록 및 JSON 백업/복원</td>
+      <td align="center">3 pt</td>
+      <td>반려견 프로필을 서버 DB 전송 없이 기기 <code>AsyncStorage</code>에만 영속 저장하고 로컬 JSON 파일 내보내기/가져오기 백업 모듈 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C1</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>React Native Maps 기반 구간별 색상 분기 경로 시각화</td>
+      <td align="center">5 pt</td>
+      <td><code>react-native-maps</code> / OpenFreeMap 지도 위에 구간 속성별 분기 색상(완만/그늘 초록, 일반 파랑, 주의 주황) Polyline 및 마커 렌더링</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C2</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>시선 해방(Eyes-Free) 백그라운드 핸즈프리 음성 길 안내</td>
+      <td align="center">5 pt</td>
+      <td>Android Foreground Service + <code>expo-speech</code> 기반 주머니 속 30m 전 회전 음성 안내, 40m 이탈 알림, AI 보이스 4종 및 73dB 짖음 감지 자동 음소거</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E1</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>백그라운드 GPS 위치 추적 및 실산책 경로 로컬 저장</td>
+      <td align="center">5 pt</td>
+      <td>백그라운드 실보행 GPS 궤적을 수집해 로컬(<code>@편안하개:walk_history</code>)에 영구 저장하고 완주 상세 화면에서 계획 경로와 오버레이 시각화</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E2</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>산책 종료 후 보행 체감 피드백 수집 및 로컬 통계</td>
+      <td align="center">3 pt</td>
+      <td>산책 완료 시 보행 지표 통계 산출 및 사용자 체감 피드백·별점을 로컬 산책 이력 메타데이터에 즉시 바인딩</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E3</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정</td>
+      <td align="center">3 pt</td>
+      <td>로컬에 누적된 최근 3회 산책 피드백 요약을 산책 계획 요청 페이로드(<code>feedbackContext.ts</code>)에 담아 서버로 무상태 전달</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-H1</code></td>
+      <td>Epic H (무중단 배포 & 실사용 검증)</td>
+      <td>EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT</td>
+      <td align="center">5 pt</td>
+      <td>EAS Build 기반 테스터용 Android APK 1회 패키징 배포 및 <code>expo-updates</code> 무선 무점검 OTA 실시간 핫픽스 파이프라인 구축</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code>, <code>18</code>,<br/><code>21</code>, <code>23</code>, <code>29</code></td>
+      <td>Phase 2 (모바일 확장 백로그)</td>
+      <td>위험 우회 안내, 원터치 배변 마킹, 온보딩, 위치동의, 즐겨찾기 보관함</td>
+      <td align="center">14 pt</td>
+      <td>위험 우회 안내 전환(<code>US-D2</code>), 한 손 원터치 배변 마킹 FAB(<code>US-18</code>), 4단계 온보딩 위저드(<code>US-21</code>), 위치동의 투명 고지(<code>US-23</code>), 코스 북마크 로컬 보관함(<code>US-29</code>) 구현</td>
+    </tr>
+    <tr>
+      <td rowspan="8" align="center"><strong>5번 김정님</strong><br/>(UI / 화면·통합 테스트)</td>
+      <td align="center"><code>US-A2</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>반려견 프로필 로컬 등록 및 JSON 백업/복원</td>
+      <td align="center">3 pt</td>
+      <td>질병 용어를 100% 배제하고 '관절 안심 케어 수준', '폭신한 길 위주' 등 긍정적 웰니스 카피라이팅이 적용된 프로필 등록·관리 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-A3</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>목표 산책 시간/거리 기반 환산 (속도/슬라이더)</td>
+      <td align="center">3 pt</td>
+      <td>15분 단위 세분화 산책 시간 슬라이더(<code>WalkDurationSlider.tsx</code>), 자유 산책 모드 및 체급별 예상 거리 자동 환산 플래너 화면 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C1</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>React Native Maps 기반 구간별 색상 분기 경로 시각화</td>
+      <td align="center">5 pt</td>
+      <td>고대비 야외 시인성 컬러 토큰 적용 및 하단 코스 요약 카드(접기/펼치기 Split View)·회전 스텝 리스트 뷰(<code>CourseRecommendationView.tsx</code>) 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E2</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>산책 종료 후 보행 체감 피드백 수집 및 로컬 통계</td>
+      <td align="center">3 pt</td>
+      <td>산책 완주 인포그래픽 요약 카드(거리, 시간, 완만 구간 비율) 및 3초 원터치 간편 피드백 모달(<code>QuickFeedbackModal.tsx</code>) UI 디자인·구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>메인 홈 시간대별 열 위험 지수·골든타임 위젯(<code>GoldenTimeWidget.tsx</code>) 및 노면별 발바닥 체감온도 비교 날씨 리포트 모달 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>플래너 화면 내 주차장 연계(P&amp;R) 탐색 토글 및 코스 요약 카드 내 주차장 명칭·기본 정보 표시 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>간편 가입 화면 및 200m 안심 마스킹 뱃지가 적용된 이웃 공유 코스 탐색 커뮤니티 피드 화면 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-H1</code></td>
+      <td>Epic H (무중단 배포 & 실사용 검증)</td>
+      <td>EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT</td>
+      <td align="center">5 pt</td>
+      <td>최소 5인 이상 실사용자 필드 산책 테스트(CBT) 사용성 평가(Usability Testing) 수행, 핸즈프리 음성·계단 회피 체감 설문 수집 및 통합 QA 총괄</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
