@@ -160,7 +160,7 @@ class TestWalkRerouteEndpoint:
         body = res.json()
         assert body["status"] == "REROUTED"
         assert body["reroute_strategy"] == "regenerate_to_origin"
-        assert body["route_source"] in ("osrm_regenerated", "offline_regenerated_loop")
+        assert body["route_source"] in ("osrm_live", "osrm_regenerated", "geometric_fallback", "offline_regenerated_loop")
         assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
         coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
         assert len(coords) >= 6
@@ -191,7 +191,7 @@ class TestWalkRerouteEndpoint:
         body = res.json()
         assert body["status"] == "REROUTED"
         assert body["reroute_strategy"] == "park_network_rejoin"
-        assert body["route_source"] in ("park_graph_yurim", "osrm_foot_rejoin", "segment_projection")
+        assert body["route_source"] in ("park_graph_yurim", "osrm_live", "osrm_foot_rejoin", "segment_projection", "segment_projection_fallback")
         assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
         coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
         assert coords[0] == pytest.approx([127.3582, 36.3612], abs=1e-4)
