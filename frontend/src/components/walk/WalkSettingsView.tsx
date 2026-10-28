@@ -233,6 +233,9 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 앰비언트 글로우 오라 (자연광 깊이감 형성) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+
       {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
       <AppScreenHeader title="산책 설정" onBack={onBack} />
 
@@ -548,6 +551,17 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(207, 160, 82, 0.08)',
   },
   header: {
     height: 48,
@@ -569,17 +583,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   titleSection: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeBtn: {
     flex: 1,
-    height: 36,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -602,7 +616,7 @@ const styles = StyleSheet.create({
     lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   aiBanner: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
     borderWidth: 1,
   },
@@ -625,9 +639,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   parkChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
     marginRight: 6,
   },
@@ -652,7 +666,7 @@ const styles = StyleSheet.create({
   durationBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   durationBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -661,7 +675,7 @@ const styles = StyleSheet.create({
   detailToggleBtn: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 6,
   },
@@ -685,7 +699,7 @@ const styles = StyleSheet.create({
   durationChip: {
     flex: 1,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -701,7 +715,7 @@ const styles = StyleSheet.create({
   envCard: {
     width: '48.5%',
     padding: 9,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   envCardHeader: {
     flexDirection: 'row',
@@ -743,9 +757,14 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 50,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
   },
   submitButtonContent: {
     flexDirection: 'row',

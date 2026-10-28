@@ -22,6 +22,7 @@ import { ShareCourseModal } from '../components/community/ShareCourseModal';
 import { shareCommunityCourse } from '../services/communityApi';
 import { SupabaseService } from '../services/supabaseService';
 import { DogAvatar } from '../components/common/DogAvatar';
+import bushImg from '../../assets/ui_n2/bush.png';
 
 export interface WalkReportScreenProps {
   record: WalkRecord;
@@ -44,7 +45,8 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
   bookmarkCandidate = null,
   onOpenAuthModal,
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
   const { walkReport, scale } = useAppResponsive();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [showCompletionModal, setShowCompletionModal] = useState(true);
@@ -150,10 +152,26 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* 1. 산책 기록 헤더: 축하 문구는 팝업에서만 보여줍니다. */}
+      {/* 앰비언트 글로우 오라 (사진 없이 깊이감과 따뜻함을 더하는 은은한 레이어) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+
+      {/* 1. 산책 기록 헤더 */}
       <View style={styles.reportHeader}>
-        <Text style={[styles.reportTitle, { color: colors.textMain }]}>오늘의 기록</Text>
-        <View style={[styles.dogSummaryBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.reportTitleRow}>
+          <Text style={styles.reportPaw}>🐾</Text>
+          <Text style={[styles.reportTitle, { color: colors.textMain }]}>오늘의 기록</Text>
+        </View>
+        <View
+          style={[
+            styles.dogSummaryBadge,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+            },
+          ]}
+        >
           <DogAvatar photoUri={completionPhotoUri} size={24} />
           <Text style={[styles.dogSummaryBadgeText, { color: colors.textMain }]} numberOfLines={1}>
             {record.dogSummary?.name || dogName}
@@ -161,30 +179,78 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </View>
       </View>
 
-      {/* 2. 중단 4대 핵심 보행 지표 2x2 그리드 (07_walk_report.png 원형 복원) */}
+      {/* 2. 중단 4대 핵심 보행 지표 2x2 그리드 (07_walk_report.png 원형 복원 + 귀여운 디테일) */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              minHeight: walkReport.statBoxHeight,
+              padding: scale(8, 10, 14),
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+            },
+          ]}
+        >
+          <Text pointerEvents="none" style={styles.statBoxPawWatermark}>🐾</Text>
           <Text style={styles.statIcon}>📍</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>총 이동 거리</Text>
           <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.totalDistanceKm.toFixed(2)} <Text style={styles.statUnit}>km</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              minHeight: walkReport.statBoxHeight,
+              padding: scale(8, 10, 14),
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+            },
+          ]}
+        >
+          <Text pointerEvents="none" style={styles.statBoxPawWatermark}>🐾</Text>
           <Text style={styles.statIcon}>⏱️</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>산책 소요 시간</Text>
           <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.durationMinutes} <Text style={styles.statUnit}>분</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              minHeight: walkReport.statBoxHeight,
+              padding: scale(8, 10, 14),
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+            },
+          ]}
+        >
+          <Text pointerEvents="none" style={styles.statBoxPawWatermark}>🐾</Text>
           <Text style={styles.statIcon}>⚡</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>평균 속도</Text>
           <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.textMain }]}>
             {record.averageSpeedKmH.toFixed(1)} <Text style={styles.statUnit}>km/h</Text>
           </Text>
         </View>
-        <View style={[styles.statBox, { minHeight: walkReport.statBoxHeight, padding: scale(8, 10, 14), backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              minHeight: walkReport.statBoxHeight,
+              padding: scale(8, 10, 14),
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+            },
+          ]}
+        >
+          <Text pointerEvents="none" style={styles.statBoxPawWatermark}>🐾</Text>
           <Text style={styles.statIcon}>🌿</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>편안한 길 비율</Text>
           <Text style={[styles.statValue, { fontSize: walkReport.statValueFontSize, color: colors.primary }]}>
@@ -202,8 +268,26 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </View>
       )}
 
-      {/* 3. 산책 체감 피드백 카드 (07_walk_report.png 원형 복원) */}
-      <View style={[styles.feedbackCard, { padding: walkReport.feedbackCardPadding, backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {/* 3. 산책 체감 피드백 카드 (07_walk_report.png 원형 복원 + 은은한 식생 데코) */}
+      <View
+        style={[
+          styles.feedbackCard,
+          {
+            padding: walkReport.feedbackCardPadding,
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+          },
+        ]}
+      >
+        <View pointerEvents="none" style={styles.feedbackDecoArt}>
+          <Image
+            source={bushImg}
+            style={[styles.feedbackDecoImage, { opacity: isDark ? 0.08 : 0.15 }]}
+            resizeMode="contain"
+          />
+        </View>
+
         <View style={styles.feedbackCardHeader}>
           <View style={styles.feedbackTitleRow}>
             <Text style={{ fontSize: TYPOGRAPHY.body }}>📝</Text>
@@ -342,6 +426,26 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
     justifyContent: 'space-between', // 스크롤 없이 한 화면에 균형 배치
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(207, 160, 82, 0.08)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -50,
+    left: -30,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(90, 115, 97, 0.07)',
   },
   reportHeader: {
     flexDirection: 'row',
@@ -349,6 +453,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
     minHeight: 36,
+  },
+  reportTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reportPaw: {
+    fontSize: 18,
   },
   reportTitle: {
     fontSize: TYPOGRAPHY.cardTitle,
@@ -359,11 +471,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   dogSummaryBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -380,12 +497,12 @@ const styles = StyleSheet.create({
   completionModalCard: {
     width: '100%',
     maxWidth: 380,
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 30,
+    padding: 22,
     shadowColor: '#1D2B22',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
     elevation: 12,
   },
   completionModalContent: {
@@ -428,9 +545,14 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 48,
     paddingHorizontal: 16,
-    borderRadius: 15,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   completionModalButtonText: {
     color: '#FFFFFF',
@@ -446,11 +568,25 @@ const styles = StyleSheet.create({
   statBox: {
     width: '48.5%',
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statBoxPawWatermark: {
+    position: 'absolute',
+    right: 8,
+    bottom: 2,
+    fontSize: 26,
+    opacity: 0.10,
   },
   statIcon: {
-    fontSize: 14,
+    fontSize: 15,
     marginBottom: 2,
   },
   statLabel: {
@@ -467,9 +603,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   poopBar: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     marginBottom: 4,
@@ -480,9 +616,27 @@ const styles = StyleSheet.create({
   },
   feedbackCard: {
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 4,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  feedbackDecoArt: {
+    position: 'absolute',
+    top: 6,
+    right: 12,
+    width: 68,
+    height: 40,
+  },
+  feedbackDecoImage: {
+    width: '100%',
+    height: '100%',
   },
   feedbackCardHeader: {
     flexDirection: 'row',
@@ -527,9 +681,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tagChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   tagText: {
     fontSize: TYPOGRAPHY.label,

@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
 import { AppText as Text } from '../components/common/AppText';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 import { useAppTheme } from '../theme/themeManager';
@@ -22,6 +22,8 @@ import { useAppResponsive } from '../hooks/useAppResponsive';
 import { BookmarkToggleButton } from '../components/bookmark/BookmarkToggleButton';
 import { BookmarkedRoute } from '../types/bookmark';
 import { StatsPeriodType } from '../services/walkStatisticsService';
+import dogWalkingImg from '../../assets/ui_n2/dog_walking.png';
+import grassImg from '../../assets/ui_n2/grass.png';
 
 export interface CommunityTabScreenProps {
   readonly onStartCommunityWalk?: (
@@ -134,7 +136,8 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
   initialPeriod = 'all',
   initialCategory = 'ALL',
 }) => {
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
   const { community } = useAppResponsive();
   const [feeds, setFeeds] = useState<readonly CommunityFeedItem[]>(initialFeeds ?? []);
   const [filterTime, setFilterTime] = useState(() => Date.now());
@@ -203,9 +206,17 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
+      {/* 앰비언트 글로우 오라 (자연스러운 깊이감 형성) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
+        <View style={styles.sectionHeaderTextWrap}>
+          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>동네 이웃 안심 산책로 공유</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textMain }]}>커뮤니티 코스 피드 👥</Text>
+        </View>
+        <View pointerEvents="none" style={styles.headerMascotWrap}>
+          <Image source={dogWalkingImg} style={styles.headerMascotImg} resizeMode="contain" />
+        </View>
       </View>
 
       {/* 연동 상태 뱃지 */}
@@ -351,8 +362,24 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
           <CardWrapper
             key={feed.course_id}
             variant="elevated"
-            style={[styles.feedCard, { paddingVertical: community.feedCardPaddingV, paddingHorizontal: community.feedCardPaddingH }]}
+            style={[
+              styles.feedCard,
+              {
+                paddingVertical: community.feedCardPaddingV,
+                paddingHorizontal: community.feedCardPaddingH,
+                borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.65)',
+              },
+            ]}
           >
+            {/* 은은한 공원 잔디 식생 일러스트 데코 레이어 */}
+            <View pointerEvents="none" style={styles.cardGrassDeco}>
+              <Image
+                source={grassImg}
+                style={[styles.cardGrassImg, { opacity: isDark ? 0.08 : 0.14 }]}
+                resizeMode="contain"
+              />
+            </View>
+
             {/* 카드 상단 클릭 시 아코디언 토글 */}
             <TouchableOpacity
               activeOpacity={0.75}
@@ -530,13 +557,40 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, position: 'relative', overflow: 'hidden' },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
-  sectionHeader: { marginBottom: 12 },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.08)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  headerMascotWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerMascotImg: {
+    width: 42,
+    height: 42,
+  },
   sectionSubtitle: { fontSize: TYPOGRAPHY.support, color: TOKENS.colors.textMuted },
   sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', color: TOKENS.colors.textMain, letterSpacing: -0.5 },
   badgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 14 },
   badgeSupabase: { backgroundColor: '#E0F2FE' },
   badgeOffline: { backgroundColor: '#E8F5E9' },
   badgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '600' },
@@ -550,7 +604,7 @@ const styles = StyleSheet.create({
   filterChipScroll: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
   filterChip: {
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
@@ -573,8 +627,8 @@ const styles = StyleSheet.create({
   periodChipRow: { flexDirection: 'row', gap: 6 },
   periodFilterChip: {
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: TOKENS.colors.border,
@@ -593,30 +647,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   feedListTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 10, marginTop: 4 },
-  feedCard: { marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  feedCard: {
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardGrassDeco: {
+    position: 'absolute',
+    top: 4,
+    right: 40,
+    width: 72,
+    height: 40,
+  },
+  cardGrassImg: {
+    width: '100%',
+    height: '100%',
+  },
   topActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   bookmarkWrapper: { padding: 2 },
   landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, marginRight: 8 },
   landmarkChip: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
   landmarkChipText: { fontSize: TYPOGRAPHY.label, color: '#1D4ED8', fontWeight: '700' },
   feedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   feedTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
-  maskedChip: { backgroundColor: '#F0FDF4', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6, borderWidth: 1, borderColor: '#DCFCE7' },
+  maskedChip: {
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
   maskedChipText: { fontSize: TYPOGRAPHY.label, color: '#16A34A', fontWeight: '700' },
   demoBadge: {
     backgroundColor: '#FEF3C7',
     borderColor: '#F59E0B',
     borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
   demoBadgeText: {
     fontSize: TYPOGRAPHY.label,

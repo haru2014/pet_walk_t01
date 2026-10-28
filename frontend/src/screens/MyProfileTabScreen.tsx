@@ -7,7 +7,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Image } from 'react-native';
 import { AppText as Text } from '../components/common/AppText';
 import * as Updates from 'expo-updates';
 import { DogProfile } from '../types/dogProfile';
@@ -28,6 +28,7 @@ import { VoiceSettingCard } from '../components/voice/VoiceSettingCard';
 import { WeeklyWalkReportCard, RecentWalkInfo } from '../components/home/WeeklyWalkReportCard';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { LocalStorageService } from '../services/storage';
+import dogSittingImg from '../../assets/ui_n2/dog_sitting.png';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
@@ -385,7 +386,8 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   const [legalVisible, setLegalVisible] = useState(false);
   const [legalTab, setLegalTab] = useState<LegalTabType>('terms');
   const [currentUser, setCurrentUser] = useState(() => SupabaseService.getCurrentUser());
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
   const { myProfile } = useAppResponsive();
 
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
@@ -459,14 +461,31 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   };
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingHorizontal: myProfile.containerPaddingH }]}>
+      {/* 앰비언트 글로우 오라 */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+
       {/* 상단 헤더 */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 강아지 정보 & 테마 설정 🐾</Text>
+        <View style={styles.sectionHeaderTextWrap}>
+          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 강아지 정보 & 테마 설정 🐾</Text>
+        </View>
+        <View pointerEvents="none" style={styles.headerMascotWrap}>
+          <Image source={dogSittingImg} style={styles.headerMascotImg} resizeMode="contain" />
+        </View>
       </View>
 
       {/* 🚀 Rule 11 컴팩트 세그먼트 네비게이션 (단일 뷰포트 / 스크롤 배제 4단 세그먼트) */}
-      <View style={[styles.segmentContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.segmentContainer,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => handleSubTabChange('dog_profile')}
           style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'dog_profile' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
@@ -700,24 +719,53 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(207, 160, 82, 0.08)',
   },
   tabScrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 64 },
-  sectionHeader: { marginBottom: 10 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  headerMascotWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerMascotImg: {
+    width: 44,
+    height: 44,
+  },
   sectionSubtitle: { fontSize: TYPOGRAPHY.support },
   sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.4 },
   segmentContainer: {
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 3,
+    padding: 4,
     marginBottom: 12,
     gap: 4,
   },
   segmentBtn: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -726,7 +774,7 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: TYPOGRAPHY.caption, fontWeight: '600', color: '#6B7280' },
   filterChipContainer: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 3,
     marginBottom: 10,
@@ -735,7 +783,7 @@ const styles = StyleSheet.create({
   filterChip: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 9,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
