@@ -19,7 +19,11 @@ import { WalkRecord, WalkFeedback } from '../types/storage';
 import { QuickFeedbackModal } from '../components/feedback/QuickFeedbackModal';
 import { BookmarkedRoute } from '../types/bookmark';
 import { ShareCourseModal } from '../components/community/ShareCourseModal';
-import { shareCommunityCourse } from '../services/communityApi';
+import {
+  EMPTY_GPS_TRACK_SHARE_MESSAGE,
+  shareCommunityCourse,
+  toShareCoordinates,
+} from '../services/communityApi';
 import { SupabaseService } from '../services/supabaseService';
 import { DogAvatar } from '../components/common/DogAvatar';
 import bushImg from '../../assets/ui_n2/bush.png';
@@ -100,6 +104,14 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       }
       return;
     }
+    if (!toShareCoordinates(record.gpsTrack)) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`[코스 공유 불가]\n${EMPTY_GPS_TRACK_SHARE_MESSAGE}`);
+      } else {
+        Alert.alert('코스 공유 불가', EMPTY_GPS_TRACK_SHARE_MESSAGE);
+      }
+      return;
+    }
     setShowShareModal(true);
   };
 
@@ -109,12 +121,14 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       Alert.alert('회원 전용 기능', '커뮤니티 코스 공유는 회원만 가능합니다.');
       return;
     }
+    const rawCoords = toShareCoordinates(record.gpsTrack);
+    if (!rawCoords) {
+      setShowShareModal(false);
+      Alert.alert('코스 공유 불가', EMPTY_GPS_TRACK_SHARE_MESSAGE);
+      return;
+    }
     setIsSharing(true);
     try {
-      const rawCoords: [number, number][] =
-        record.gpsTrack && record.gpsTrack.length > 0
-          ? record.gpsTrack.map((p) => [p.lon, p.lat] as [number, number])
-          : [[127.038, 37.544], [127.040, 37.545], [127.039, 37.543]];
       const res = await shareCommunityCourse(title, rawCoords, rating, user.id);
       setIsSharing(false);
       setShowShareModal(false);
