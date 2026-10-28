@@ -17,7 +17,7 @@ import {
 } from '../types/hazard';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { fetchWithServerFallback } from './apiClient';
-import { haversineMeters, polylineLengthMeters } from './routeGeometry';
+import { haversineMeters, polylineLengthMeters, flattenRouteCoordinates } from './routeGeometry';
 import { buildLocalRegeneratedReturnPath, buildRejoinPath } from './routeRejoin';
 
 export const HAZARD_TYPE_LABELS: Record<HazardType, string> = {
@@ -121,7 +121,7 @@ const DETOUR_OFFSET_METERS = 80.0;
 const COMPASS_DIRECTIONS = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'] as const;
 
 function getRouteCoordinates(route: RouteFeatureCollection): [number, number][] {
-  return route.features[0]?.geometry?.coordinates.map(([lon, lat]) => [lon, lat]) ?? [];
+  return flattenRouteCoordinates(route);
 }
 
 function getDeviationGuidance(coords: readonly (readonly [number, number])[]): {
@@ -298,9 +298,7 @@ export async function requestRerouteAroundHazard(payload: RerouteRequestPayload)
       const data = await res.json();
       if (data.status === 'REROUTED' && data.geojson?.features?.length > 0) {
         const geojson: RouteFeatureCollection = data.geojson;
-        const detourCoords: [number, number][] = (geojson.features[0]?.geometry?.coordinates ?? []).map(
-          (c: readonly [number, number]) => [c[0], c[1]]
-        );
+        const detourCoords: [number, number][] = flattenRouteCoordinates(geojson);
         const midPoint = detourCoords[Math.floor(detourCoords.length / 2)] ?? [payload.hazardLon, payload.hazardLat];
 
         const stepPins: RouteStepPin[] = [
