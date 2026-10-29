@@ -25,9 +25,10 @@ import { useAppTheme } from '../theme/themeManager';
 import { useAppResponsive } from '../hooks/useAppResponsive';
 import { LegalTermsModal, LegalTabType } from '../components/common/LegalTermsModal';
 import { VoiceSettingCard } from '../components/voice/VoiceSettingCard';
-import { WeeklyWalkReportCard, RecentWalkInfo } from '../components/home/WeeklyWalkReportCard';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { LocalStorageService } from '../services/storage';
+import { WalkRecord } from '../types/storage';
+import { MonthlyWalkStampCalendar } from '../components/profile/MonthlyWalkStampCalendar';
 import dogSittingImg from '../../assets/ui_n2/dog_sitting.png';
 
 export interface MyProfileTabScreenProps {
@@ -393,7 +394,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
     WalkStatisticsService.getWeeklyStats([])
   );
-  const [recentStats, setRecentStats] = useState<RecentWalkInfo | null>(null);
+  const [walkRecords, setWalkRecords] = useState<WalkRecord[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -410,39 +411,12 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
     void LocalStorageService.getWalkHistory().then((history) => {
       if (!isMounted) return;
       if (history.length === 0) {
+        setWalkRecords([]);
         setWeeklyStats(WalkStatisticsService.getWeeklyStats([]));
-        setRecentStats(null);
         return;
       }
+      setWalkRecords(history);
       setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayList = history.filter((r) => r.completedAt.slice(0, 10) === todayStr);
-
-      if (todayList.length > 0) {
-        const totalDist = todayList.reduce((acc, r) => acc + r.totalDistanceKm, 0);
-        const totalDur = todayList.reduce((acc, r) => acc + r.durationMinutes, 0);
-        const avgSafe = Math.round(
-          (todayList.reduce((acc, r) => acc + r.safeSurfaceRatio, 0) / todayList.length) * 100
-        );
-        setRecentStats({
-          title: `오늘의 완주 (${todayList.length}회)`,
-          distanceKm: Math.round(totalDist * 10) / 10,
-          durationMinutes: totalDur,
-          safeRatioPercent: avgSafe,
-        });
-      } else {
-        const latest = history[0];
-        const dateStr = new Date(latest.completedAt).toLocaleDateString('ko-KR', {
-          month: 'numeric',
-          day: 'numeric',
-        });
-        setRecentStats({
-          title: `직전 완주 (${dateStr})`,
-          distanceKm: Math.round(latest.totalDistanceKm * 10) / 10,
-          durationMinutes: latest.durationMinutes,
-          safeRatioPercent: Math.round(latest.safeSurfaceRatio * 100),
-        });
-      }
     });
     return () => {
       isMounted = false;
@@ -615,7 +589,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
         </ScrollView>
       )}
 
-      {/* 서브탭 3: 산책 활동 (이번 주 산책 달성도 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
+      {/* 서브탭 3: 산책 활동 (월간 스탬프 달력 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
       {subTab === 'walk_records' && (
         <ScrollView
           style={styles.tabScrollContainer}
@@ -623,13 +597,7 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled={true}
         >
-          {/* 🌟 이번 주 산책 달성도 & 직전 완주 통계 위젯 */}
-          <WeeklyWalkReportCard
-            stats={weeklyStats}
-            recentWalk={recentStats}
-            onPress={() => setWalkSubFilter('history')}
-            style={{ marginBottom: 10 }}
-          />
+          <MonthlyWalkStampCalendar records={walkRecords} weeklyStats={weeklyStats} />
 
           <View style={[styles.filterChipContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <TouchableOpacity
