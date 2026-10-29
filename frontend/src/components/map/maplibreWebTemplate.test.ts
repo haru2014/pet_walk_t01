@@ -111,6 +111,19 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
+  it('경로가 아직 없으면 마스킹 없이 초기 지도 중심 좌표를 사용한다', () => {
+    const html = buildMapLibreHtml({
+      styleUrl: PRIMARY_STYLE,
+      route: { type: 'FeatureCollection', features: [] },
+      routeColors: THEME_MAP_ROUTE_COLORS.forest,
+      initialCenter: [127.3601379, 36.3620608],
+    });
+
+    expect(html).toContain('"initialCenter":[127.3601379,36.3620608]');
+    expect(html).toContain('payload.initialCenter || payload.maskingCenter');
+    expect(html).toContain('"maskingFeature":null');
+  });
+
   it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,

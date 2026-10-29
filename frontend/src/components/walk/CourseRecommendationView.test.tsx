@@ -94,6 +94,10 @@ vi.mock('../map/RouteMapView', () => ({
   RouteMapView: () => React.createElement('div', { 'data-testid': 'mock-route-map-view' }),
 }));
 
+vi.mock('../map/MapLibreMapView', () => ({
+  MapLibreMapView: () => React.createElement('div', { 'data-testid': 'mock-loading-map' }),
+}));
+
 vi.mock('../../services/api', async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
@@ -138,9 +142,9 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       />
     );
 
-    // 공원 검증 확인 전에는 코스 상세 카드가 아닌 대기/알림 뷰와 돌아가기 버튼 표시
-    expect(html).toContain('보행 경로를 확인하고 있어요');
-    expect(html).toContain('산책 설정으로 돌아가기');
+    // 공원 검증 확인 전에는 새 경로 로딩 화면과 설정 화면으로 돌아가는 헤더를 표시
+    expect(html).toContain('산책하기 좋은 길을 찾고 있어요');
+    expect(html).toContain('aria-label="뒤로가기"');
     expect(html).not.toContain('실시간 AI 맞춤 코스');
   });
 

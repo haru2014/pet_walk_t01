@@ -35,6 +35,8 @@ import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
 import { analyzeCourseLaps, formatCourseLapSummary, mergeLoopStartPin } from '../../services/courseLapInfo';
 import { WORLDCOVER_ATTRIBUTION } from '../../constants/legalTerms';
+import { getPilotParkById } from '../../types/pilotParks';
+import { WalkPlanLoadingView } from './WalkPlanLoadingView';
 
 /**
  * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
@@ -573,6 +575,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const retryInFlightRef = React.useRef(false);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
     requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback)
   );
@@ -592,6 +596,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     setRequestInputs({ dog, preferences, feedback });
     setPlanResult(null);
     setPlanError(null);
+    setIsPlanLoading(true);
     setSelectedCourseIndex(0);
     setRegenerateNonce(0);
     setFreshCourseIds(new Set());
@@ -601,17 +606,48 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   useEffect(() => {
     let isMounted = true;
+    setIsPlanLoading(true);
+    setPlanError(null);
     void requestWalkPlan(dog, preferences, feedback).then((res) => {
       if (!isMounted) return;
       setPlanResult(res);
-      if (res.courses.length > 0) setCourses(res.courses);
+      if (res.courses.length > 0) {
+        setCourses(res.courses);
+      } else if (requiresValidatedPark) {
+        setPlanError('선택한 조건에 맞는 경로를 찾지 못했습니다. 다시 시도해 주세요.');
+        setCourses([]);
+      }
     }).catch((error: unknown) => {
       if (!isMounted) return;
       setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
       setCourses([]);
+    }).finally(() => {
+      if (isMounted) setIsPlanLoading(false);
     });
     return () => { isMounted = false; };
   }, [dog, preferences, feedback, requiresValidatedPark]);
+
+  const handleRetryPlan = () => {
+    if (retryInFlightRef.current || isPlanLoading) return;
+    retryInFlightRef.current = true;
+    setIsPlanLoading(true);
+    setPlanError(null);
+    void requestWalkPlan(dog, preferences, feedback)
+      .then((res) => {
+        setPlanResult(res);
+        setCourses(res.courses);
+        setSelectedCourseIndex(0);
+        if (res.courses.length === 0) setPlanError('선택한 조건으로 경로를 찾지 못했습니다. 다시 시도해 주세요.');
+      })
+      .catch((error: unknown) => {
+        setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
+        setCourses([]);
+      })
+      .finally(() => {
+        retryInFlightRef.current = false;
+        setIsPlanLoading(false);
+      });
+  };
 
   const handleRegenerateRoute = () => {
     if (isRegenerating) return;
@@ -664,6 +700,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     }
     return null;
   });
+  const loadingMapCenter = useMemo(() => {
+    if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
+    const park = getPilotParkById(preferences?.pilotParkId);
+    return [park.center.lon, park.center.lat] as const;
+  }, [isCurrentLocOrigin, gpsCoords?.lon, gpsCoords?.lat, preferences?.pilotParkId]);
 
   useEffect(() => {
     if (isCurrentLocOrigin && !gpsCoords) {
@@ -711,15 +752,16 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const safetyBriefingText = planResult?.safetyBriefingMessage ?? '';
 
   if (!currentCourse || (requiresValidatedPark && !planResult)) {
+    const park = getPilotParkById(preferences?.pilotParkId);
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, padding: 20, justifyContent: 'center', gap: 16 }]}>
-        <Text accessibilityRole="alert" style={{ color: colors.textMain }}>
-          {planError ?? '선택한 공원 내부의 보행 경로를 확인하고 있어요.'}
-        </Text>
-        <TouchableOpacity accessibilityRole="button" onPress={onBack} style={[styles.startButton, { backgroundColor: colors.primary }]}>
-          <Text style={styles.startButtonText}>산책 설정으로 돌아가기</Text>
-        </TouchableOpacity>
-      </View>
+      <WalkPlanLoadingView
+        parkName={park.shortName}
+        mapCenter={loadingMapCenter}
+        isLoading={isPlanLoading}
+        error={planError}
+        onBack={onBack}
+        onRetry={handleRetryPlan}
+      />
     );
   }
 

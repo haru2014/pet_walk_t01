@@ -63,6 +63,8 @@ export interface MapLibreMapViewProps {
   readonly width?: number | string;
   readonly height?: number | string;
   readonly maskingCenter?: LonLat;
+  /** Camera target for neutral maps that do not have route geometry yet. */
+  readonly initialCenter?: LonLat;
   readonly onPinSelect?: (instruction: string) => void;
   readonly onMapLoaded?: () => void;
   readonly style?: StyleProp<ViewStyle>;
@@ -76,6 +78,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   width = '100%',
   height = 260,
   maskingCenter,
+  initialCenter,
   onPinSelect,
   onMapLoaded,
   style,
@@ -156,8 +159,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
             (initialBounds[0][0] + initialBounds[1][0]) / 2,
             (initialBounds[0][1] + initialBounds[1][1]) / 2,
           ];
-        } else if (latestMaskingCenterRef.current) {
-          defaultCenter = [latestMaskingCenterRef.current[0], latestMaskingCenterRef.current[1]];
+        } else if (initialCenter ?? latestMaskingCenterRef.current) {
+          const center = initialCenter ?? latestMaskingCenterRef.current!;
+          defaultCenter = [center[0], center[1]];
         }
 
         mapInstance = new maplibregl.Map({
@@ -300,10 +304,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     void updateMarkers();
     if (routeBounds && !userInteractedWithMapRef.current) {
       map.fitBounds(routeBounds, { padding: 40, duration: 700 });
-    } else if (maskingCenter) {
-      map.setCenter(maskingCenter);
+    } else if (initialCenter ?? maskingCenter) {
+      map.setCenter(initialCenter ?? maskingCenter!);
     }
-  }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, onPinSelect]);
+  }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, initialCenter, onPinSelect]);
 
   // ============================================================================
   // 2. 모바일 환경 (Android / iOS) - react-native-webview 브릿지
@@ -313,7 +317,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const [htmlSource] = useState(() => {
     if (isWeb) return '';
     return buildMapLibreHtml({
-      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, interactive,
+      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, initialCenter, interactive,
     });
   });
   const mobileMapLoadedRef = useRef(false);
