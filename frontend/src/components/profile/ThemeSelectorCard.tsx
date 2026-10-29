@@ -49,7 +49,7 @@ export const ThemeSelectorCard: React.FC = () => {
       </View>
 
       <Text style={[styles.subDesc, { color: colors.textMuted }]}>
-        취향과 상황에 맞는 7가지 비주얼 스타일을 선택하세요.
+        취향과 상황에 맞는 6가지 비주얼 스타일을 선택하세요.
       </Text>
 
       <View style={styles.themeGrid}>
