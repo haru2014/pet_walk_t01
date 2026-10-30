@@ -16,8 +16,18 @@ import { LocalStorageService } from './storage';
 import { generateUuid, isUuid } from '../utils/uuid';
 import { fetchWithServerFallback } from './apiClient';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_KEY || '';
+/**
+ * 팀 공용 Supabase 프로젝트(pet_walk)의 주소와 공개(publishable) 키. 앱에 넣도록 만들어진 공개 값이며 frontend/eas.json 에도 같은 값이 있다.
+ * 환경변수가 빠진 채 앱 업데이트(eas update)가 올라가면 Supabase 연결이 없어 산책 기록 공유만 막히던 문제(10/25, 10/30)를 막으려고
+ * 서버 주소(apiClient.ts)처럼 기본값을 둔다. 환경변수가 있으면 그 값을 먼저 쓴다.
+ */
+export const DEFAULT_SUPABASE_URL = 'https://ddnwbsujhsndodjtvuuq.supabase.co';
+export const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_e1Ei1BT4raPXl3lLIeNjcg_Ohy2ZTW4';
+
+// 환경변수가 아예 없을 때(undefined)만 기본값을 쓴다. 일부러 빈 문자열로 둔 경우(테스트의 '클라우드 없음')는 그대로 둔다.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_KEY ?? DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 const SESSION_KEY = '@편안하개:auth_session';
 
 /** 후기 공개/해제 결과. 실패하면 이유(code)와 사용자에게 보여 줄 문구(message)를 담는다. */

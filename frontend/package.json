@@ -54,7 +54,7 @@
     "export:web": "expo export --platform web",
     "export:android": "expo export --platform android",
     "build:apk": "eas build -p android --profile preview",
-    "ota:update": "eas update --branch preview --message \"UI 핫픽스 실시간 반영\"",
+    "ota:update": "eas update --branch preview --environment preview --message \"UI 핫픽스 실시간 반영\"",
     "lint": "expo lint"
   },
   "private": true
