@@ -19,6 +19,8 @@ export interface BuildMapLibreHtmlOptions {
   readonly stepPins?: readonly RouteStepPin[];
   readonly routeColors: MapRouteColors;
   readonly maskingCenter?: LonLat;
+  /** Camera target used when no route geometry is available yet. */
+  readonly initialCenter?: LonLat;
   readonly interactive?: boolean;
 }
 
@@ -55,6 +57,7 @@ export function buildMapLibreHtml({
   stepPins = [],
   routeColors,
   maskingCenter,
+  initialCenter,
   interactive = true,
 }: BuildMapLibreHtmlOptions): string {
   // 마스킹 원 GeoJSON 생성
@@ -79,6 +82,7 @@ export function buildMapLibreHtml({
     slopeSymbolColor: slopeSymbolColorExpression(),
     maskingFeature,
     maskingCenter,
+    initialCenter,
     interactive,
     styleLoadTimeoutMs: STYLE_LOAD_TIMEOUT_MS,
   });
@@ -152,7 +156,7 @@ export function buildMapLibreHtml({
 
       // 지도 초기화
       const bounds = computeBounds(payload.route);
-      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : (payload.maskingCenter || [127.3805, 36.4315]);
+      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : (payload.initialCenter || payload.maskingCenter || [127.3805, 36.4315]);
 
       // 현재 표시 중인 데이터/스타일 상태 (스타일 교체 후 레이어 재등록에 사용)
       let currentRoute = payload.route;
