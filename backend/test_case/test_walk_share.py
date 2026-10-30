@@ -287,3 +287,51 @@ def test_api_share_maps_unexpected_processing_failure_to_structured_503(fake, mo
 
     assert err.value.status_code == 503
     assert err.value.detail["code"] == "WALK_SHARE_FAILED"
+
+
+# ---- 평균 속도 상한 (10/30 QA: 7.75km 22분 = 시속 21km 기록이 공개됨) ----
+
+def test_share_walk_refuses_a_record_faster_than_12_kmh():
+    """7.75km 를 22분에 걸었다는 기록(시속 약 21km)은 공개하지 않고 DB 도 건드리지 않는다."""
+    fk = FakeSupabase([_row(distance_m=7750, duration_min=22)])
+    with pytest.raises(WalkShareError) as err:
+        share_walk(fk, USER_A, WALK_ID)
+    assert err.value.status == 422 and err.value.code == "WALK_SPEED_TOO_FAST"
+    assert fk.walk_records.updates == []
+    assert fk.walk_records.rows[0]["is_public"] is False
+
+
+@pytest.mark.parametrize("distance_m,duration_min", [(12000, 60), (3600, 60), (1300, 36), (6600, 120)])
+def test_share_walk_accepts_normal_walking_speeds(distance_m, duration_min):
+    """시속 12km 이하(정확히 12km 포함)는 공개된다."""
+    fk = FakeSupabase([_row(distance_m=distance_m, duration_min=duration_min)])
+    assert share_walk(fk, USER_A, WALK_ID)["is_public"] is True
+
+
+def test_share_walk_refuses_just_above_the_limit():
+    fk = FakeSupabase([_row(distance_m=12100, duration_min=60)])
+    with pytest.raises(WalkShareError) as err:
+        share_walk(fk, USER_A, WALK_ID)
+    assert err.value.code == "WALK_SPEED_TOO_FAST"
+
+
+@pytest.mark.parametrize("over", [
+    {},  # 거리·시간 칸이 없는 예전 기록
+    {"distance_m": None, "duration_min": 22},
+    {"distance_m": 7750, "duration_min": None},
+    {"distance_m": 7750, "duration_min": 0},
+    {"distance_m": 0, "duration_min": 22},
+    {"distance_m": "7750", "duration_min": 22},
+])
+def test_share_walk_skips_the_speed_check_when_distance_or_time_is_unusable(over):
+    """값을 알 수 없으면 속도를 검사하지 않는다 (예전 기록이 갑자기 공개 불가가 되지 않게)."""
+    fk = FakeSupabase([_row(**over)])
+    assert share_walk(fk, USER_A, WALK_ID)["is_public"] is True
+
+
+def test_api_share_returns_structured_422_for_too_fast_record(monkeypatch):
+    fk = FakeSupabase([_row(distance_m=7750, duration_min=22)])
+    monkeypatch.setattr(main, "_supabase_client", lambda: fk)
+    res = client.post(f"/api/v1/walks/{WALK_ID}/share", headers={"Authorization": "Bearer token-a"})
+    assert res.status_code == 422
+    assert res.json()["detail"]["code"] == "WALK_SPEED_TOO_FAST"
