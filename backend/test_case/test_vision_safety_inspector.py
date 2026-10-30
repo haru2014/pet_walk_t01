@@ -73,7 +73,7 @@ def evaluate_hazard_action(inspection: HazardInspectionResult) -> Dict[str, Any]
             "message": "신뢰도 부족으로 현 경로 유지"
         }
 
-    if inspection.hazard_type in ["high_curb", "stairs", "construction", "dog_danger"] and inspection.severity in ["warning", "danger"]:
+    if inspection.hazard_type in ["high_curb", "stairs", "construction", "broken_glass", "dog_danger"] and inspection.severity in ["warning", "danger"]:
         return {
             "needs_reroute": True,
             "penalty_multiplier": 10.0,  # 해당 링크 비용 10배 가중치

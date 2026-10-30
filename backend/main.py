@@ -40,7 +40,14 @@ from agent.park_walk_planner import (
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
-from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
+from agent.walk_limits import (
+    MAX_SPEED_KMH,
+    MAX_WALK_MINUTES,
+    MIN_SPEED_KMH,
+    MIN_WALK_MINUTES,
+    SERVICE_LAT_RANGE,
+    SERVICE_LON_RANGE,
+)
 from agent.supabase_repository import community_repo
 from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
@@ -446,6 +453,8 @@ def _parse_origin_coords(req: Dict[str, Any]) -> Tuple[float, float]:
 
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
+    if not (SERVICE_LAT_RANGE[0] <= lat <= SERVICE_LAT_RANGE[1] and SERVICE_LON_RANGE[0] <= lon <= SERVICE_LON_RANGE[1]):
+        raise HTTPException(status_code=400, detail="서비스 지역(대한민국) 밖의 좌표입니다. 한국 안에서 다시 시도해 주세요.")
     return lat, lon
 
 
@@ -470,10 +479,10 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     try:
         target_duration = float(req.get("target_duration_minutes", 30))
         speed_kmh = float(req.get("speed_kmh", 2.8))
-        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or not MIN_SPEED_KMH <= speed_kmh <= MAX_SPEED_KMH:
             raise ValueError()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 양수 보행 속도가 필요합니다.")
+        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 보행 속도({MIN_SPEED_KMH:g}~{MAX_SPEED_KMH:g}km/h)가 필요합니다.")
 
     return {
         "origin_lat": origin_lat,
@@ -923,7 +932,7 @@ def _resolve_walk_user_query(req: Dict[str, Any], dog_name: str, target_duration
 )
 def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
-    dog_name = req.get("dog_name", "강아지")
+    dog_name = str(req.get("dog_name", "강아지"))[:30]  # 5000자 이름이 그대로 통과하던 문제 (2026-10-30 QA)
     request_id = str(uuid4())
 
     params = _validate_and_parse_walk_plan_request(req)
@@ -1045,6 +1054,9 @@ def reroute_walk(req: RerouteRequest):
     - 신뢰도 0.70 미만 또는 severity=info 는 현 경로 유지(KEEP_ROUTE)
     - 응답 geojson 은 [lon, lat] LineString, 시작=현재 위치, 끝=목적지
     """
+    if req.pilot_park_id and req.pilot_park_id not in PILOT_PARK_CENTERS:
+        # 없는 공원 id 가 오류 없이 직선 경로로 처리되던 문제 (2026-10-30 QA)
+        raise HTTPException(status_code=422, detail="알 수 없는 공원입니다. 공원 식별자(pilot_park_id)를 확인해 주세요.")
     return reroute_around_hazard(req)
 
 
