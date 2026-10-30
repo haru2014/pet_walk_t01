@@ -41,6 +41,7 @@ const WALK_SHARE_MESSAGES: Record<string, string> = {
   WALK_NOT_FOUND: '계정에 아직 저장되지 않은 산책 기록이라 공개할 수 없어요.',
   ROUTE_TOO_SHORT_TO_MASK: '산책길이 짧아 집 근처 위치를 보호하고 나면 공유할 길이 남지 않아요.',
   INVALID_ROUTE: '공개할 수 있는 경로가 아니에요.',
+  WALK_SPEED_TOO_FAST: '평균 속도가 너무 빨라 산책 기록으로 공개할 수 없어요. 이동 수단이 섞였거나 GPS가 튄 기록일 수 있어요.',
   INVALID_WALK_ID: '산책 기록을 확인할 수 없어 공개하지 못했어요.',
   DB_NOT_CONNECTED: '지금은 서버가 준비되지 않았어요. 잠시 후 다시 시도해 주세요.',
   WALK_SHARE_DB_ERROR: '산책 기록을 커뮤니티에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
