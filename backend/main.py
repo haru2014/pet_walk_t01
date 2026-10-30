@@ -1112,17 +1112,33 @@ def forward_walk_safety(req: ForwardSafetyRequest):
 
 @app.post("/api/v1/community/share")
 def share_community_course(req: CommunityCourseShareRequest):
-    """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록."""
+    """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록.
+
+    - 마스킹 뒤 남는 점이 2개 미만이면 저장하지 않고 422 로 거절한다 (빈 경로가 성공으로 저장되던 문제, 이슈 #280).
+    - 거리·시간은 공개되는(마스킹된) 경로로 계산한다. 평균 시속 3.6km(분당 60m) 기준, 최소 10분. (1.4km·22분 고정값 문제, 이슈 #280)
+    """
     mask_result = apply_spatial_masking_to_course(
         req.raw_coordinates, masking_radius_m=200.0, snap_to_intersection=True
     )
-    current_count = len(community_repo.get_feeds())
+    masked_coords = mask_result["masked_coordinates"]
+    if len(masked_coords) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "ROUTE_TOO_SHORT_TO_MASK",
+                "message": "출발지 근처만 걸어서 개인정보 보호로 공유할 경로가 남지 않았어요.",
+            },
+        )
+    total_dist_m = sum(
+        _haversine_distance_meters(c1[1], c1[0], c2[1], c2[0])
+        for c1, c2 in zip(masked_coords[:-1], masked_coords[1:])
+    )
     new_feed = {
-        "course_id": f"feed_{current_count + 1}",
+        "course_id": f"feed_{uuid4().hex[:8]}",
         "title": req.course_title,
-        "masked_polyline": mask_result["masked_coordinates"],
-        "distance_m": 1400.0,
-        "duration_min": 22,
+        "masked_polyline": masked_coords,
+        "distance_m": round(total_dist_m),
+        "duration_min": max(10, round(total_dist_m / 60.0)),
         "rating": float(req.satisfaction_rating),
         "is_origin_masked": mask_result["is_masked"],
         "intersection_snapped": mask_result.get("intersection_snapped", False),
@@ -1187,39 +1203,6 @@ def share_walk_review(walk_id: str, authorization: Optional[str] = Header(defaul
 def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
     return _run_walk_share(unshare_walk, walk_id, authorization)
-
-
-@app.post("/api/v1/community/share", status_code=status.HTTP_201_CREATED)
-def share_community_course_endpoint(body: CommunityCourseShareRequest):
-    """[US-G2] 200m 공간 마스킹(Spatial Jittering)을 적용한 완주 코스를 커뮤니티 피드에 공유 등록."""
-    masked_result = apply_spatial_masking_to_course(body.raw_coordinates, masking_radius_m=200.0)
-    masked_coords = masked_result["masked_coordinates"]
-    
-    # 총 거리 및 예상 산책 시간 계산 (평균 시속 3.6km/h = 분당 60m 기준)
-    total_dist_m = sum(
-        _haversine_distance_meters(c1[1], c1[0], c2[1], c2[0])
-        for c1, c2 in zip(masked_coords[:-1], masked_coords[1:])
-    ) if len(masked_coords) > 1 else 1000.0
-    duration_min = max(10, round(total_dist_m / 60.0))
-
-    feed_item = {
-        "course_id": f"feed_{uuid4().hex[:8]}",
-        "title": body.course_title,
-        "masked_polyline": masked_coords,
-        "distance_m": round(total_dist_m),
-        "duration_min": duration_min,
-        "rating": float(body.satisfaction_rating),
-        "is_origin_masked": True,
-        "user_id": body.user_id,
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    saved_feed = community_repo.save_course(feed_item)
-    return {
-        "status": "success",
-        "message": "코스가 성공적으로 커뮤니티에 공유되었습니다.",
-        "feed": saved_feed,
-        "is_supabase": community_repo.is_connected(),
-    }
 
 
 @app.get("/api/v1/community/feed")
