@@ -222,6 +222,52 @@ describe('handleGuidancePoint - 경로 이탈 시 서버 재탐색 연동 및 �
     expect(applyRerouteSpy).not.toHaveBeenCalled();
   });
 
+  it('첫 재탐색 응답을 기다리는 동안 다음 GPS 점이 와도 재탐색 요청은 1번만 나간다 (#297)', async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    const requestRerouteSpy = vi.fn().mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    // 훅처럼 시작 알림에서 진행 중 표시를 켠다
+    let isRerouting = false;
+    const onRerouteStart = vi.fn(() => {
+      isRerouting = true;
+    });
+    const callbacks = {
+      speak: vi.fn(),
+      applyReroute: vi.fn(),
+      requestReroute: requestRerouteSpy,
+      onRerouteStart,
+    };
+    const stateWithStartChecked = {
+      ...INITIAL_GUIDANCE_STATE,
+      startChecked: true,
+      prevPosition: [127.382, 36.374] as [number, number],
+    };
+    const offRoutePoint = (timestamp: number): GpsPoint => ({
+      latitude: 36.375,
+      longitude: 127.385,
+      timestamp,
+      speedMps: 1.2,
+    });
+
+    // 1번째 점: 재탐색 시작, 서버 응답은 아직 오지 않음
+    const first = handleGuidancePoint(offRoutePoint(100_000), TEST_ROUTE, TEST_PINS, stateWithStartChecked, callbacks, isRerouting);
+    expect(onRerouteStart).toHaveBeenCalledTimes(1);
+    expect(isRerouting).toBe(true);
+
+    // 3초 뒤 2번째 점: 응답 대기 중이므로 요청하지 않음
+    const second = await handleGuidancePoint(offRoutePoint(103_000), TEST_ROUTE, TEST_PINS, stateWithStartChecked, callbacks, isRerouting);
+    expect(second.triggeredReroute).toBe(false);
+
+    resolveFirst({ status: 'REROUTED', needsReroute: false });
+    const firstRes = await first;
+    expect(firstRes.triggeredReroute).toBe(true);
+    expect(requestRerouteSpy).toHaveBeenCalledTimes(1);
+    expect(onRerouteStart).toHaveBeenCalledTimes(1);
+  });
+
   it('rerouteContext 전달 시 originMode, pilotParkId, 남은 산책 거리(remainingDistanceM)를 포함해 재탐색을 요청한다', async () => {
     const speakSpy = vi.fn();
     const applyRerouteSpy = vi.fn();
