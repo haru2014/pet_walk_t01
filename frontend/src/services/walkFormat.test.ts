@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { formatElapsed, calculateAverageSpeedKmH } from './walkFormat';
+import { formatElapsed, calculateAverageSpeedKmH, formatGpsWaitMessage } from './walkFormat';
+
+describe('GPS 대기 문구 (#297)', () => {
+  it('15초 전에는 확인 중 문구를 보여 준다', () => {
+    expect(formatGpsWaitMessage(0)).toBe('현재 GPS 위치를 확인하고 있어요.');
+    expect(formatGpsWaitMessage(14)).toBe('현재 GPS 위치를 확인하고 있어요.');
+  });
+
+  it('15초가 지나도 위치가 없으면 위치 설정 확인 안내로 바꾼다', () => {
+    expect(formatGpsWaitMessage(15)).toContain('위치를 아직 찾지 못했어요');
+    expect(formatGpsWaitMessage(600)).toContain('위치 설정을 확인해 주세요');
+  });
+});
 
 describe('경과 시간 포맷터', () => {
   it('초를 mm:ss로 변환해야 한다', () => {
