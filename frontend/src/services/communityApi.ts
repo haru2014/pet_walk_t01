@@ -193,6 +193,16 @@ export function toShareCoordinates(gpsTrack?: WalkRecord['gpsTrack']): [number, 
   return gpsTrack.map((p) => [p.lon, p.lat]);
 }
 
+export const SIMULATED_TRACK_SHARE_MESSAGE =
+  '웹 데모의 가상 보행 기록이라 실제 산책 경로로 공유할 수 없어요.';
+
+/** 코스 공유·공개 후기로 내보낼 수 없는 기록이면 이유 문구, 공유할 수 있으면 null (#281, #297) */
+export function getShareBlockMessage(record: Pick<WalkRecord, 'gpsTrack' | 'isSimulated'>): string | null {
+  if (record.isSimulated) return SIMULATED_TRACK_SHARE_MESSAGE;
+  if (!toShareCoordinates(record.gpsTrack)) return EMPTY_GPS_TRACK_SHARE_MESSAGE;
+  return null;
+}
+
 export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],

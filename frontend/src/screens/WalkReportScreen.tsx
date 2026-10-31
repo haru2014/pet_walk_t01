@@ -21,6 +21,7 @@ import { BookmarkedRoute } from '../types/bookmark';
 import { ShareCourseModal } from '../components/community/ShareCourseModal';
 import {
   EMPTY_GPS_TRACK_SHARE_MESSAGE,
+  getShareBlockMessage,
   shareCommunityCourse,
   toShareCoordinates,
 } from '../services/communityApi';
@@ -104,11 +105,12 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       }
       return;
     }
-    if (!toShareCoordinates(record.gpsTrack)) {
+    const blockMessage = getShareBlockMessage(record);
+    if (blockMessage) {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.alert(`[코스 공유 불가]\n${EMPTY_GPS_TRACK_SHARE_MESSAGE}`);
+        window.alert(`[코스 공유 불가]\n${blockMessage}`);
       } else {
-        Alert.alert('코스 공유 불가', EMPTY_GPS_TRACK_SHARE_MESSAGE);
+        Alert.alert('코스 공유 불가', blockMessage);
       }
       return;
     }
@@ -121,10 +123,11 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
       Alert.alert('회원 전용 기능', '커뮤니티 코스 공유는 회원만 가능합니다.');
       return;
     }
+    const blockMessage = getShareBlockMessage(record);
     const rawCoords = toShareCoordinates(record.gpsTrack);
-    if (!rawCoords) {
+    if (blockMessage || !rawCoords) {
       setShowShareModal(false);
-      Alert.alert('코스 공유 불가', EMPTY_GPS_TRACK_SHARE_MESSAGE);
+      Alert.alert('코스 공유 불가', blockMessage ?? EMPTY_GPS_TRACK_SHARE_MESSAGE);
       return;
     }
     setIsSharing(true);

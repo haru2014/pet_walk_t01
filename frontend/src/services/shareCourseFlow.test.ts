@@ -8,7 +8,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { hasVisibleCommunityRoute, shareCommunityCourse, toShareCoordinates } from './communityApi';
+import {
+  EMPTY_GPS_TRACK_SHARE_MESSAGE,
+  SIMULATED_TRACK_SHARE_MESSAGE,
+  getShareBlockMessage,
+  hasVisibleCommunityRoute,
+  shareCommunityCourse,
+  toShareCoordinates,
+} from './communityApi';
 import { WalkRecord } from '../types/storage';
 
 describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)', () => {
@@ -75,6 +82,16 @@ describe('완주 리포트 코스 커뮤니티 공유 연계 플로우 (US-G2)',
       [127.36, 36.362],
       [127.361, 36.363],
     ]);
+  });
+
+  it('웹 데모 가상 보행 기록은 경로가 있어도 공유를 막고 이유를 알려 준다 (#297)', () => {
+    const track = [
+      { lat: 36.362, lon: 127.36, timestamp: 1000 },
+      { lat: 36.363, lon: 127.361, timestamp: 2000 },
+    ];
+    expect(getShareBlockMessage({ gpsTrack: track, isSimulated: true })).toBe(SIMULATED_TRACK_SHARE_MESSAGE);
+    expect(getShareBlockMessage({ gpsTrack: [], isSimulated: false })).toBe(EMPTY_GPS_TRACK_SHARE_MESSAGE);
+    expect(getShareBlockMessage({ gpsTrack: track })).toBeNull();
   });
 
   it('마스킹 후 경로가 2점 미만이면 커뮤니티 지도에 그릴 경로가 없다 (#281)', () => {

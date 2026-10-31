@@ -328,6 +328,8 @@ export function useWalkGuidance(
   const [mode, setMode] = useState<WalkSessionMode>('route');
   const [currentPoint, setCurrentPoint] = useState<GpsPoint | null>(null);
   const [isOffRoute, setIsOffRoute] = useState(false);
+  /** 웹에서 위치 권한이 없어 가상 보행으로 기록 중인지 (실제 위치 아님, #297) */
+  const [isSimulatedLocation, setIsSimulatedLocation] = useState(false);
   const [guidanceMessage, setGuidanceMessage] = useState('경로 안내를 준비하고 있어요.');
   const [freeWalkSafety, setFreeWalkSafety] = useState<FreeWalkSafetyInfo>(UNKNOWN_SAFETY_INFO);
   const modeRef = useRef<WalkSessionMode>('route');
@@ -599,6 +601,7 @@ export function useWalkGuidance(
     if (result.ok) {
       modeRef.current = nextMode;
       setMode(nextMode);
+      setIsSimulatedLocation(result.mode === 'web_simulation');
       lastPointRef.current = null;
       lastRerouteAtRef.current = null;
       setIsOffRoute(false);
@@ -625,6 +628,7 @@ export function useWalkGuidance(
     modeRef.current = 'route';
     setMode('route');
     setIsOffRoute(false);
+    setIsSimulatedLocation(false);
     setStatus('idle');
   }, []);
 
@@ -675,6 +679,7 @@ export function useWalkGuidance(
     guidanceMessage,
     freeWalkSafety,
     isOffRoute,
+    isSimulatedLocation,
     poopEvents,
     poopCount: poopEvents.length,
     markPoop,
