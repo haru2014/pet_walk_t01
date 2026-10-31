@@ -26,7 +26,8 @@ export interface GpsPoint {
   readonly accuracyM?: number | null;
 }
 
-export type TrackingMode = 'background' | 'foreground';
+/** web_simulation: 웹에서 위치 권한이 없어 유림공원 기준 가상 보행으로 기록 중 (실제 위치 아님, #297) */
+export type TrackingMode = 'background' | 'foreground' | 'web_simulation';
 export type StartTrackingResult =
   | { readonly ok: true; readonly mode: TrackingMode }
   | { readonly ok: false; readonly reason: 'permission_denied' | 'error' };
@@ -226,7 +227,7 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
         console.warn('[locationService] 웹 브라우저 Geolocation 권한 획득 생략:', e);
       }
       startWebSimulation();
-      return { ok: true, mode: 'foreground' };
+      return { ok: true, mode: 'web_simulation' };
     }
 
     // 📱 모바일 네이티브 환경 (Android / iOS): Foreground Service 무중단 수집
@@ -244,7 +245,7 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
     console.warn('[locationService] 추적 시작 실패:', error);
     if (Platform.OS === 'web') {
       startWebSimulation();
-      return { ok: true, mode: 'foreground' };
+      return { ok: true, mode: 'web_simulation' };
     }
     return { ok: false, reason: 'error' };
   }

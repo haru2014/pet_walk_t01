@@ -387,6 +387,7 @@ export default function App() {
       ),
       safeSurfaceRatio: calculatedSafeRatio,
       gpsTrack,
+      ...(walk.isSimulatedLocation ? { isSimulated: true } : {}),
       poopCount: walk.poopCount,
       poopEvents: walk.poopEvents,
     };
@@ -584,6 +585,7 @@ export default function App() {
             mapPins={walk.activePins}
             originMode={resolvedOriginMode}
             isOffRoute={walk.isOffRoute}
+            isSimulatedLocation={walk.isSimulatedLocation}
             onRegenerateRoute={walk.regenerateFromCurrentLocation}
             onReroute={(res) => {
               walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);

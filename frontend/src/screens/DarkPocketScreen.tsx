@@ -45,6 +45,8 @@ export interface DarkPocketScreenProps {
   readonly onReroute?: (result: RerouteResult) => void;
   readonly originMode?: 'current_location' | 'park' | 'parking_pnr';
   readonly isOffRoute?: boolean;
+  /** 웹 데모 가상 보행 중 (실제 위치 아님, #297) */
+  readonly isSimulatedLocation?: boolean;
   readonly onRegenerateRoute?: () => Promise<boolean> | boolean | void;
 }
 
@@ -300,6 +302,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   onReroute,
   originMode = 'current_location',
   isOffRoute = false,
+  isSimulatedLocation = false,
   onRegenerateRoute,
 }) => {
   const { height } = useWindowDimensions();
@@ -407,6 +410,13 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <Text style={[styles.subtitle, isOvertime && styles.subtitleOvertime]}>
         {subtitle}
       </Text>
+      {isSimulatedLocation && (
+        <View style={styles.simulationBanner} accessibilityRole="alert">
+          <Text style={styles.simulationBannerText}>
+            웹 데모 · 가상 위치로 이동 중 (실제 위치 아님) · 커뮤니티 공유 불가
+          </Text>
+        </View>
+      )}
       {isFreeWalk && (
         <View style={[
           styles.safetyInfoBanner,
@@ -569,6 +579,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
+  simulationBanner: {
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    backgroundColor: 'rgba(251, 191, 36, 0.14)',
+  },
+  simulationBannerText: { color: '#FDE68A', fontSize: TYPOGRAPHY.caption, fontWeight: '700', textAlign: 'center' },
   safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
   safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: TYPOGRAPHY.caption, fontWeight: '700', textAlign: 'center' },
   guidanceRegion: { flex: 1, minHeight: 180, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 8, marginVertical: 8, gap: 8 },

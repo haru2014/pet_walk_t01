@@ -49,6 +49,8 @@ export interface WalkRecord {
   averageSpeedKmH: number;
   safeSurfaceRatio: number;
   gpsTrack: { lat: number; lon: number; timestamp: number }[];
+  /** 웹 데모에서 위치 권한 없이 만든 가상 보행 기록 (실제 위치 아님 — 공유·공개 불가, #297) */
+  isSimulated?: boolean;
   feedback?: WalkFeedback;
   poopCount?: number;
   poopEvents?: PoopEvent[];
