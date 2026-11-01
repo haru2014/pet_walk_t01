@@ -24,6 +24,7 @@ const G: React.ComponentType<any> = isWeb ? (props: any) => <g {...cleanWebProps
 const SvgText: React.ComponentType<any> = isWeb ? (props: any) => <text {...cleanWebProps(props)} /> : NativeSvgText;
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
+import { DirectionManeuver, getDirectionMarkers } from '../../services/directionMarkers';
 import { calculateOsmTiles } from '../../services/osmTileService';
 import { CourseSummaryCard } from './CourseSummaryCard';
 import { RealOsmWebView } from './RealOsmWebView';
@@ -51,12 +52,14 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
 }) => {
   const [mapMode, setMapMode] = useState<'course' | 'real_osm'>('course');
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [showDirectionMarkers, setShowDirectionMarkers] = useState(true);
 
   const allCoords = useMemo<LonLat[]>(
     () => route.features.flatMap((f: RouteSegmentFeature) => [...f.geometry.coordinates]),
     [route],
   );
   const summary = useMemo(() => buildCourseSummary(route, speedKmH), [route, speedKmH]);
+  const directionMarkers = useMemo(() => getDirectionMarkers(route, stepPins), [route, stepPins]);
 
   const project = useMemo(() => {
     if (allCoords.length === 0) return () => ({ x: 0, y: 0 });
@@ -131,15 +134,33 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
               );
             })}
 
-            {stepPins.map((pin) => {
+            {stepPins.filter((pin) => pin.kind === 'caution').map((pin) => {
               const pt = project(pin.position);
-              const color = pin.kind === 'caution' ? TOKENS.colors.routeCaution : TOKENS.colors.routeNormal;
               const isSelected = pin.id === selectedPinId;
               return (
                 <G key={pin.id}>
-                  <Circle cx={pt.x} cy={pt.y} r={isSelected ? 14 : 11} fill={color} stroke="#FFFFFF" strokeWidth="2.5" />
+                  <Circle cx={pt.x} cy={pt.y} r={isSelected ? 14 : 11} fill={TOKENS.colors.routeCaution} stroke="#FFFFFF" strokeWidth="2.5" />
                   <SvgText x={pt.x} y={pt.y + 4} textAnchor="middle" fontSize={isSelected ? '13' : '11'} fontWeight="bold" fill="#FFFFFF">
-                    {pin.kind === 'caution' ? '!' : '↱'}
+                    !
+                  </SvgText>
+                </G>
+              );
+            })}
+
+            {showDirectionMarkers && directionMarkers.map((marker) => {
+              const pt = project(marker.position);
+              return (
+                <G key={marker.id}>
+                  <Circle cx={pt.x} cy={pt.y} r={14} fill="#FFFFFF" stroke="#718276" strokeWidth="1.5" />
+                  <SvgText
+                    x={pt.x}
+                    y={pt.y + 6}
+                    textAnchor="middle"
+                    fontSize="20"
+                    fontWeight="700"
+                    fill="#596B5C"
+                  >
+                    {directionGlyph(marker.maneuver)}
                   </SvgText>
                 </G>
               );
@@ -167,6 +188,19 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             );
           })}
 
+          <TouchableOpacity
+            style={styles.directionToggle}
+            onPress={() => setShowDirectionMarkers((visible) => !visible)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: showDirectionMarkers }}
+            accessibilityLabel="방향표시 전부 표시"
+          >
+            <Text style={styles.directionToggleText}>방향표시 전부 표시</Text>
+            <View style={[styles.toggleTrack, showDirectionMarkers && styles.toggleTrackActive]}>
+              <View style={[styles.toggleThumb, showDirectionMarkers && styles.toggleThumbActive]} />
+            </View>
+          </TouchableOpacity>
+
           <RouteMapLegend />
 
           {selectedPin && (
@@ -183,6 +217,15 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     </View>
   );
 };
+
+function directionGlyph(maneuver: DirectionManeuver): string {
+  switch (maneuver) {
+    case 'left': return '↰';
+    case 'right': return '↱';
+    case 'uturn': return '↶';
+    case 'straight': return '↑';
+  }
+}
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'column' },
@@ -231,6 +274,36 @@ const styles = StyleSheet.create({
   },
   osmTile: { position: 'absolute', opacity: 0.95 },
   pinTouchTarget: { position: 'absolute', width: 32, height: 32, borderRadius: 16, zIndex: 10 },
+  directionToggle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 18,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  directionToggleText: { fontSize: 11, fontWeight: '600', color: TOKENS.colors.textMain },
+  toggleTrack: {
+    width: 30,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: '#D5D9D5',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleTrackActive: { backgroundColor: TOKENS.colors.primary },
+  toggleThumb: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#FFFFFF' },
+  toggleThumbActive: { alignSelf: 'flex-end' },
   briefingBanner: {
     position: 'absolute', bottom: 10, left: 10, right: 10,
     backgroundColor: TOKENS.colors.textMain, borderRadius: 12,

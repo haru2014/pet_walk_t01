@@ -90,4 +90,15 @@ describe('RouteMapView - Web SVG 렌더링 및 스타일 호환성 TDD', () => {
     // z-index: 2 및 position: absolute 스타일이 정상 반영됨
     expect(html).toContain('z-index:2');
   });
+
+  it('방향 전환 핀을 흰색 원형 아이콘으로 표시하고 표시 토글을 제공한다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView route={mockRoute} stepPins={mockPins} speedKmH={2.8} />,
+    );
+
+    expect(html).toContain('aria-label="방향표시 전부 표시"');
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('↱');
+    expect(html).toContain('fill="#FFFFFF"');
+  });
 });
