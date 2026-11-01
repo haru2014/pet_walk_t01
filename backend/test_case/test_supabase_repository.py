@@ -9,15 +9,18 @@ from agent.supabase_repository import community_repo, SupabaseCommunityRepositor
 def test_supabase_repository_fallback_and_get_feeds():
     """Supabase 미연결/오프라인 환경에서도 안전하게 기본 피드를 반환해야 한다."""
     repo = SupabaseCommunityRepository()
+    repo._client = None
     feeds = repo.get_feeds()
     assert len(feeds) >= 2
     assert feeds[0]["title"] == "성산근린공원 폭신한 숲길 루프"
     assert feeds[0]["is_origin_masked"] is True
+    assert feeds[0]["source"] == "demo"
 
 
 def test_supabase_repository_save_course():
     """커뮤니티 코스 저장 시 피드가 정상 누적되고 앞단에 추가되어야 한다."""
     repo = SupabaseCommunityRepository()
+    repo._client = None
     new_course = {
         "course_id": "test_feed_99",
         "title": "한강 망원나들목 그늘 산책로",
@@ -29,8 +32,10 @@ def test_supabase_repository_save_course():
     }
     saved = repo.save_course(new_course)
     assert saved["title"] == "한강 망원나들목 그늘 산책로"
+    assert saved["source"] == "unknown"
     feeds = repo.get_feeds()
     assert feeds[0]["title"] == "한강 망원나들목 그늘 산책로"
+    assert feeds[0]["source"] == "unknown"
 
 
 def test_raw_walk_share_client_requires_service_role_key(monkeypatch):
@@ -119,11 +124,13 @@ def test_get_feeds_combines_public_walk_reviews_without_exposing_private_fields(
     assert [feed["course_id"] for feed in feeds] == ["walk_walk-1", "course-1"]
     walk_feed = feeds[0]
     assert walk_feed["title"] == "그늘이 많고 편안한 길"
+    assert walk_feed["source"] == "supabase"
     assert walk_feed["masked_polyline"] == [[127.01, 37.51], [127.02, 37.52]]
     assert walk_feed["is_origin_masked"] is True
     assert "user_id" not in walk_feed
     assert "route_coords" not in walk_feed
     assert "public_route_coords" not in walk_feed
+    assert feeds[1]["source"] == "supabase"
 
 
 
@@ -155,7 +162,7 @@ def test_get_feeds_keeps_existing_courses_when_public_review_view_fails():
     repo = SupabaseCommunityRepository()
     repo._client = Client()
 
-    assert repo.get_feeds() == [{"course_id": "course-2"}]
+    assert repo.get_feeds() == [{"course_id": "course-2", "source": "supabase"}]
 
 
 def test_community_api_endpoints_via_testclient():
@@ -168,6 +175,10 @@ def test_community_api_endpoints_via_testclient():
     data_get = res_get.json()
     assert "feeds" in data_get
     assert len(data_get["feeds"]) >= 1
+    assert all(
+        feed["source"] in {"demo", "supabase", "unknown"}
+        for feed in data_get["feeds"]
+    )
 
     # 2. POST /api/v1/community/share
     share_payload = {

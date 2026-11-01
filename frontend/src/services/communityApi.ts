@@ -24,12 +24,24 @@ export interface CommunityFeedItem {
   readonly region_name?: string;
   readonly created_at?: string;
   readonly tags?: readonly string[];
+  readonly source?: CommunityFeedSource;
 }
+
+export type CommunityFeedSource = 'demo' | 'supabase' | 'unknown';
 
 export interface CommunityFeedResponse {
   readonly feeds: readonly CommunityFeedItem[];
   readonly is_supabase?: boolean;
 }
+
+function normalizeFeedSource(source: unknown): CommunityFeedSource {
+  return source === 'demo' || source === 'supabase' || source === 'unknown' ? source : 'unknown';
+}
+
+function getLocalDemoFeeds(): CommunityFeedItem[] {
+  return DEFAULT_FEEDS.map((feed) => ({ ...feed, source: 'demo' }));
+}
+
 const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
   {
     course_id: 'feed_1',
@@ -146,7 +158,8 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
 
     if (res.ok) {
       const data = await res.json();
-      const rawFeeds: CommunityFeedItem[] = data.feeds || DEFAULT_FEEDS;
+      const hasServerFeeds = Array.isArray(data.feeds);
+      const rawFeeds: CommunityFeedItem[] = hasServerFeeds ? data.feeds : getLocalDemoFeeds();
       const enrichedFeeds = rawFeeds.map((feed) => {
         // 분류된 메타데이터가 이미 있어도 오래된 앱/서버에서 저장된
         // 기본 지역값일 수 있으므로 경로 좌표로 매번 다시 판별한다.
@@ -158,6 +171,7 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
           region_name: meta.regionName,
           created_at: feed.created_at || new Date().toISOString(),
           tags: feed.tags && feed.tags.length > 0 ? feed.tags : ['안심산책', '이웃추천'],
+          source: normalizeFeedSource(feed.source),
         };
       });
       return {
@@ -171,7 +185,7 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
     clearTimeout(timeoutId);
   }
 
-  return { feeds: DEFAULT_FEEDS, is_supabase: false };
+  return { feeds: getLocalDemoFeeds(), is_supabase: false };
 }
 
 export const COMMUNITY_SHARE_ERROR_MESSAGE = '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';

@@ -8,6 +8,7 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
     expect(res.feeds.length).toBeGreaterThanOrEqual(2);
     expect(res.feeds[0].title).toContain('숲길');
     expect(res.is_supabase).toBe(false);
+    expect(res.feeds.every((feed) => feed.source === 'demo')).toBe(true);
   });
 
   it('서버 응답 성공 시 피드 목록을 올바르게 파싱해야 한다', async () => {
@@ -21,6 +22,7 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
           duration_min: 20,
           rating: 4.8,
           is_origin_masked: true,
+          source: 'supabase',
         },
       ],
       is_supabase: true,
@@ -33,7 +35,53 @@ describe('communityApi (커뮤니티 피드 연동 및 오프라인 폴백)', ()
     const res = await fetchCommunityFeeds();
     expect(res.feeds).toHaveLength(1);
     expect(res.feeds[0].title).toBe('유림 흙길');
+    expect(res.feeds[0].source).toBe('supabase');
     expect(res.is_supabase).toBe(true);
+  });
+
+  it('서버 응답의 데모 출처를 화면에서 사용할 수 있도록 보존한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        feeds: [{
+          course_id: 'demo_feed',
+          title: '서버 메모리 데모 코스',
+          masked_polyline: [[127.0, 37.5], [127.01, 37.51]],
+          distance_m: 1200,
+          duration_min: 20,
+          rating: 4.8,
+          is_origin_masked: true,
+          source: 'demo',
+        }],
+        is_supabase: true,
+      }),
+    } as Response);
+
+    const result = await fetchCommunityFeeds();
+
+    expect(result.feeds[0].source).toBe('demo');
+  });
+
+  it('기존 서버가 출처를 보내지 않으면 알 수 없음으로 유지한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        feeds: [{
+          course_id: 'legacy_feed',
+          title: '기존 서버 코스',
+          masked_polyline: [[127.0, 37.5], [127.01, 37.51]],
+          distance_m: 1200,
+          duration_min: 20,
+          rating: 4.8,
+          is_origin_masked: true,
+        }],
+        is_supabase: true,
+      }),
+    } as Response);
+
+    const result = await fetchCommunityFeeds();
+
+    expect(result.feeds[0].source).toBe('unknown');
   });
 
   it('오래된 잘못된 서울 메타데이터를 경로 좌표 기준 대전으로 교정해야 한다', async () => {
