@@ -40,6 +40,8 @@ export interface RouteStepPin {
   readonly instruction: string;
   /** Optional glyph override for map markers such as onboarding demo pins. */
   readonly icon?: string;
+  /** Renders a navigation turn pin with a circular white background. */
+  readonly directionMarker?: boolean;
   /** Heading clockwise from north, used by the live position marker. */
   readonly bearingDeg?: number;
   readonly title?: string;

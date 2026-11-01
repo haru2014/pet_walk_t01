@@ -104,6 +104,26 @@ describe('MapLibreMapView 및 인라인 템플릿 TDD 검증 (T-OFM-3, T-OFM-4)'
     expect(html).toContain('step-pin');
   });
 
+  it('모바일 HTML 템플릿은 방향 마커의 흰색 원형 스타일을 적용한다', () => {
+    const html = buildMapLibreHtml({
+      styleUrl: 'https://tiles.openfreemap.org/styles/liberty',
+      route: mockRoute,
+      stepPins: [{
+        id: 'direction-pin',
+        kind: 'turn',
+        position: [127.382, 36.432],
+        instruction: '좌회전하세요',
+        icon: '↰',
+        directionMarker: true,
+      }],
+      routeColors: THEME_MAP_ROUTE_COLORS.forest,
+    });
+
+    expect(html).toContain("if (pin.directionMarker)");
+    expect(html).toContain("el.style.backgroundColor = '#FFFFFF'");
+    expect(html).toContain("el.style.borderRadius = '50%'");
+  });
+
   it('웹 환경에서 MapLibreMapView가 충돌 없이 마운트되고 컨테이너 DOM을 렌더링해야 한다', () => {
     expect(() => {
       const html = renderToStaticMarkup(

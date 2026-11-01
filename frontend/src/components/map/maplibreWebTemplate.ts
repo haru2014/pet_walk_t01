@@ -392,6 +392,15 @@ export function buildMapLibreHtml({
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }
+              if (pin.directionMarker) {
+                el.style.backgroundColor = '#FFFFFF';
+                el.style.border = '1.5px solid #718276';
+                el.style.borderRadius = '50%';
+                el.style.boxShadow = '0 1px 5px rgba(0, 0, 0, 0.22)';
+                el.style.color = '#596B5C';
+                el.style.fontSize = '20px';
+                el.style.textShadow = 'none';
+              }
             }
             if (hasTitle) {
               el.innerText = '';
