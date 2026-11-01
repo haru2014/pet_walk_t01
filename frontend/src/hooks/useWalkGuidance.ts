@@ -277,6 +277,8 @@ export async function handleGuidancePoint(
     speak?: (event: GuidanceEvent) => void;
     applyReroute: (newRoute: RouteFeatureCollection, newPins?: readonly RouteStepPin[], voiceAlert?: string) => void;
     requestReroute?: typeof requestDeviationReroute;
+    /** 서버 응답을 기다리기 전에 호출 — 다음 GPS 점이 중복 재탐색하지 않도록 진행 중 표시를 먼저 켠다 (#297) */
+    onRerouteStart?: () => void;
   },
   isRerouting = false,
   rerouteContext?: GuidanceRerouteContext,
@@ -299,6 +301,7 @@ export async function handleGuidancePoint(
   );
 
   if (triggeredReroute) {
+    callbacks.onRerouteStart?.();
     await executeDeviationReroute({
       point,
       currentRoute,
@@ -325,6 +328,8 @@ export function useWalkGuidance(
   const [mode, setMode] = useState<WalkSessionMode>('route');
   const [currentPoint, setCurrentPoint] = useState<GpsPoint | null>(null);
   const [isOffRoute, setIsOffRoute] = useState(false);
+  /** 웹에서 위치 권한이 없어 가상 보행으로 기록 중인지 (실제 위치 아님, #297) */
+  const [isSimulatedLocation, setIsSimulatedLocation] = useState(false);
   const [guidanceMessage, setGuidanceMessage] = useState('경로 안내를 준비하고 있어요.');
   const [freeWalkSafety, setFreeWalkSafety] = useState<FreeWalkSafetyInfo>(UNKNOWN_SAFETY_INFO);
   const modeRef = useRef<WalkSessionMode>('route');
@@ -464,6 +469,7 @@ export function useWalkGuidance(
       speedKmH: optionsRef.current?.speedKmH,
       lastRerouteAtMs: lastRerouteAtRef.current,
     };
+    let startedReroute = false;
     void handleGuidancePoint(
       point,
       routeRef.current,
@@ -473,6 +479,11 @@ export function useWalkGuidance(
         speak: speakGuidanceEvent,
         applyReroute,
         requestReroute: requestDeviationReroute,
+        onRerouteStart: () => {
+          startedReroute = true;
+          isReroutingRef.current = true;
+          lastRerouteAtRef.current = point.timestamp;
+        },
       },
       rerouting,
       rerouteContext,
@@ -482,13 +493,10 @@ export function useWalkGuidance(
         setIsOffRoute(res.nextState.offRouteActive);
         void saveBackgroundGuidanceSession(routeRef.current, activePins, guidanceRef.current);
         if (res.guidanceMessage) setGuidanceMessage(res.guidanceMessage);
-        if (res.triggeredReroute) {
-          isReroutingRef.current = true;
-          lastRerouteAtRef.current = point.timestamp;
-        }
       })
       .finally(() => {
-        isReroutingRef.current = false;
+        // 이 점이 시작한 재탐색만 끝낸다. 다른 점의 처리가 끝났다고 진행 중 표시를 지우지 않는다 (#297)
+        if (startedReroute) isReroutingRef.current = false;
       });
   }, [activePins, applyReroute]);
 
@@ -593,6 +601,7 @@ export function useWalkGuidance(
     if (result.ok) {
       modeRef.current = nextMode;
       setMode(nextMode);
+      setIsSimulatedLocation(result.mode === 'web_simulation');
       lastPointRef.current = null;
       lastRerouteAtRef.current = null;
       setIsOffRoute(false);
@@ -619,6 +628,7 @@ export function useWalkGuidance(
     modeRef.current = 'route';
     setMode('route');
     setIsOffRoute(false);
+    setIsSimulatedLocation(false);
     setStatus('idle');
   }, []);
 
@@ -669,6 +679,7 @@ export function useWalkGuidance(
     guidanceMessage,
     freeWalkSafety,
     isOffRoute,
+    isSimulatedLocation,
     poopEvents,
     poopCount: poopEvents.length,
     markPoop,

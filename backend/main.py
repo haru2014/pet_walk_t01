@@ -40,7 +40,14 @@ from agent.park_walk_planner import (
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
 from agent.road_network_routes import V1_ROAD_ALIGNED_COORDS, osrm_status
-from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
+from agent.walk_limits import (
+    MAX_SPEED_KMH,
+    MAX_WALK_MINUTES,
+    MIN_SPEED_KMH,
+    MIN_WALK_MINUTES,
+    SERVICE_LAT_RANGE,
+    SERVICE_LON_RANGE,
+)
 from agent.supabase_repository import community_repo
 from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
@@ -446,6 +453,8 @@ def _parse_origin_coords(req: Dict[str, Any]) -> Tuple[float, float]:
 
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise HTTPException(status_code=400, detail="위도(-90~90) 또는 경도(-180~180)의 허용 범위를 초과했습니다.")
+    if not (SERVICE_LAT_RANGE[0] <= lat <= SERVICE_LAT_RANGE[1] and SERVICE_LON_RANGE[0] <= lon <= SERVICE_LON_RANGE[1]):
+        raise HTTPException(status_code=400, detail="서비스 지역(대한민국) 밖의 좌표입니다. 한국 안에서 다시 시도해 주세요.")
     return lat, lon
 
 
@@ -470,10 +479,10 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     try:
         target_duration = float(req.get("target_duration_minutes", 30))
         speed_kmh = float(req.get("speed_kmh", 2.8))
-        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or speed_kmh <= 0:
+        if not math.isfinite(target_duration) or not MIN_WALK_MINUTES <= target_duration <= MAX_WALK_MINUTES or not math.isfinite(speed_kmh) or not MIN_SPEED_KMH <= speed_kmh <= MAX_SPEED_KMH:
             raise ValueError()
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 양수 보행 속도가 필요합니다.")
+        raise HTTPException(status_code=400, detail=f"산책 시간({MIN_WALK_MINUTES}~{MAX_WALK_MINUTES}분)과 보행 속도({MIN_SPEED_KMH:g}~{MAX_SPEED_KMH:g}km/h)가 필요합니다.")
 
     return {
         "origin_lat": origin_lat,
@@ -923,7 +932,7 @@ def _resolve_walk_user_query(req: Dict[str, Any], dog_name: str, target_duration
 )
 def plan_walk_route(req: Dict[str, Any]):
     """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] LangGraph ReAct Walk Planning Agent 코어 연동 엔드포인트."""
-    dog_name = req.get("dog_name", "강아지")
+    dog_name = str(req.get("dog_name", "강아지"))[:30]  # 5000자 이름이 그대로 통과하던 문제 (2026-10-30 QA)
     request_id = str(uuid4())
 
     params = _validate_and_parse_walk_plan_request(req)
@@ -1045,6 +1054,9 @@ def reroute_walk(req: RerouteRequest):
     - 신뢰도 0.70 미만 또는 severity=info 는 현 경로 유지(KEEP_ROUTE)
     - 응답 geojson 은 [lon, lat] LineString, 시작=현재 위치, 끝=목적지
     """
+    if req.pilot_park_id and req.pilot_park_id not in PILOT_PARK_CENTERS:
+        # 없는 공원 id 가 오류 없이 직선 경로로 처리되던 문제 (2026-10-30 QA)
+        raise HTTPException(status_code=422, detail="알 수 없는 공원입니다. 공원 식별자(pilot_park_id)를 확인해 주세요.")
     return reroute_around_hazard(req)
 
 
@@ -1100,17 +1112,33 @@ def forward_walk_safety(req: ForwardSafetyRequest):
 
 @app.post("/api/v1/community/share")
 def share_community_course(req: CommunityCourseShareRequest):
-    """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록."""
+    """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록.
+
+    - 마스킹 뒤 남는 점이 2개 미만이면 저장하지 않고 422 로 거절한다 (빈 경로가 성공으로 저장되던 문제, 이슈 #280).
+    - 거리·시간은 공개되는(마스킹된) 경로로 계산한다. 평균 시속 3.6km(분당 60m) 기준, 최소 10분. (1.4km·22분 고정값 문제, 이슈 #280)
+    """
     mask_result = apply_spatial_masking_to_course(
         req.raw_coordinates, masking_radius_m=200.0, snap_to_intersection=True
     )
-    current_count = len(community_repo.get_feeds())
+    masked_coords = mask_result["masked_coordinates"]
+    if len(masked_coords) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "ROUTE_TOO_SHORT_TO_MASK",
+                "message": "출발지 근처만 걸어서 개인정보 보호로 공유할 경로가 남지 않았어요.",
+            },
+        )
+    total_dist_m = sum(
+        _haversine_distance_meters(c1[1], c1[0], c2[1], c2[0])
+        for c1, c2 in zip(masked_coords[:-1], masked_coords[1:])
+    )
     new_feed = {
-        "course_id": f"feed_{current_count + 1}",
+        "course_id": f"feed_{uuid4().hex[:8]}",
         "title": req.course_title,
-        "masked_polyline": mask_result["masked_coordinates"],
-        "distance_m": 1400.0,
-        "duration_min": 22,
+        "masked_polyline": masked_coords,
+        "distance_m": round(total_dist_m),
+        "duration_min": max(10, round(total_dist_m / 60.0)),
         "rating": float(req.satisfaction_rating),
         "is_origin_masked": mask_result["is_masked"],
         "intersection_snapped": mask_result.get("intersection_snapped", False),
@@ -1175,39 +1203,6 @@ def share_walk_review(walk_id: str, authorization: Optional[str] = Header(defaul
 def unshare_walk_review(walk_id: str, authorization: Optional[str] = Header(default=None)):
     """[US-G2 / #116] 공개한 산책 기록을 다시 비공개로 돌리고 공개용 좌표를 지운다."""
     return _run_walk_share(unshare_walk, walk_id, authorization)
-
-
-@app.post("/api/v1/community/share", status_code=status.HTTP_201_CREATED)
-def share_community_course_endpoint(body: CommunityCourseShareRequest):
-    """[US-G2] 200m 공간 마스킹(Spatial Jittering)을 적용한 완주 코스를 커뮤니티 피드에 공유 등록."""
-    masked_result = apply_spatial_masking_to_course(body.raw_coordinates, masking_radius_m=200.0)
-    masked_coords = masked_result["masked_coordinates"]
-    
-    # 총 거리 및 예상 산책 시간 계산 (평균 시속 3.6km/h = 분당 60m 기준)
-    total_dist_m = sum(
-        _haversine_distance_meters(c1[1], c1[0], c2[1], c2[0])
-        for c1, c2 in zip(masked_coords[:-1], masked_coords[1:])
-    ) if len(masked_coords) > 1 else 1000.0
-    duration_min = max(10, round(total_dist_m / 60.0))
-
-    feed_item = {
-        "course_id": f"feed_{uuid4().hex[:8]}",
-        "title": body.course_title,
-        "masked_polyline": masked_coords,
-        "distance_m": round(total_dist_m),
-        "duration_min": duration_min,
-        "rating": float(body.satisfaction_rating),
-        "is_origin_masked": True,
-        "user_id": body.user_id,
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    saved_feed = community_repo.save_course(feed_item)
-    return {
-        "status": "success",
-        "message": "코스가 성공적으로 커뮤니티에 공유되었습니다.",
-        "feed": saved_feed,
-        "is_supabase": community_repo.is_connected(),
-    }
 
 
 @app.get("/api/v1/community/feed")

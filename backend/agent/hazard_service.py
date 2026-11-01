@@ -13,7 +13,7 @@ import logging
 import math
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -371,6 +371,10 @@ def run_vision_inspection(image_bytes: bytes, filename: str, inspect_type: Inspe
 
 _memory_reports: List[Dict[str, Any]] = []
 
+# 위험 제보 유효 기간: 2026-12-31 24시(한국 시간)까지. 이 시각이 지나면 조회에서 빠진다 (2026-10-30 결정).
+# 예전에는 만료가 없어 오래된 제보가 계속 안내에 나왔다.
+HAZARD_VALID_UNTIL = datetime(2027, 1, 1, tzinfo=timezone(timedelta(hours=9)))
+
 
 class HazardReportRepository:
     """community_repo 와 같은 Supabase 클라이언트를 공유하되 hazard_reports 테이블을 다룬다."""
@@ -407,7 +411,7 @@ class HazardReportRepository:
             except Exception as e:  # 네트워크/스키마 오류 시 로컬 폴백
                 logger.warning(f"[Supabase] hazard_reports 저장 실패, 인메모리 폴백: {e}")
         _memory_reports.insert(0, report)
-        return report
+        return {**report, "expires_at": HAZARD_VALID_UNTIL.isoformat()}
 
     def nearby(self, lat: float, lon: float, radius_m: float, limit: int = 50) -> List[Dict[str, Any]]:
         source: List[Dict[str, Any]] = list(_memory_reports)
@@ -420,10 +424,13 @@ class HazardReportRepository:
             except Exception as e:
                 logger.warning(f"[Supabase] hazard_reports 조회 실패, 인메모리 폴백: {e}")
 
+        if datetime.now(timezone.utc) >= HAZARD_VALID_UNTIL:
+            return []
+        expires_at = HAZARD_VALID_UNTIL.isoformat()
         out = []
         for r in source:
             d = calculate_haversine_distance_m((lat, lon), (r["lat"], r["lon"]))
             if d <= radius_m:
-                out.append({**r, "distance_m": d})
+                out.append({**r, "distance_m": d, "expires_at": expires_at})
         out.sort(key=lambda r: r["distance_m"])
         return out[:limit]

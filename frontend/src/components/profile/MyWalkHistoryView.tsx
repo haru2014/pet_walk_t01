@@ -13,6 +13,7 @@ import { AppIcon } from '../common/AppIcon';
 import { DogAvatar } from '../common/DogAvatar';
 import { WalkRecord } from '../../types/storage';
 import { LocalStorageService } from '../../services/storage';
+import { SIMULATED_TRACK_SHARE_MESSAGE } from '../../services/communityApi';
 import { SupabaseService } from '../../services/supabaseService';
 import {
   WalkStatisticsService,
@@ -79,6 +80,11 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
   };
 
   const handleTogglePublic = async (record: WalkRecord) => {
+    // 가상 보행 기록은 공개로 바꿀 수 없다. 비공개로 되돌리는 것은 허용 (#297)
+    if (record.isSimulated && !(publicMap[record.id] ?? false)) {
+      Alert.alert('공개할 수 없는 기록이에요', SIMULATED_TRACK_SHARE_MESSAGE);
+      return;
+    }
     await SupabaseService.initSession();
     const shareAccess = SupabaseService.getWalkShareAccess();
     if (!shareAccess.ok) {

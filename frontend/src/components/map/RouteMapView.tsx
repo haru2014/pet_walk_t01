@@ -12,6 +12,7 @@ import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
+import { DirectionManeuver, getDirectionMarkers } from '../../services/directionMarkers';
 import { CourseSummaryCard } from './CourseSummaryCard';
 import { RouteMapLegend } from './RouteMapLegend';
 import { MapLibreMapView } from './MapLibreMapView';
@@ -58,6 +59,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   const { colors } = useAppTheme();
   const mapHeight = customMapHeight ?? MAP_HEIGHT;
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [showDirectionMarkers, setShowDirectionMarkers] = useState(true);
   const [isLegendOpen, setIsLegendOpen] = useState(defaultLegendOpen);
 
   const allCoords = useMemo<LonLat[]>(
@@ -65,6 +67,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     [route],
   );
   const summary = useMemo(() => buildCourseSummary(route, speedKmH), [route, speedKmH]);
+  const directionMarkers = useMemo(() => getDirectionMarkers(route, stepPins), [route, stepPins]);
   const hasTempData = useMemo(
     () => route.features.some((feature) => feature.properties.surfaceTempC != null),
     [route],
@@ -101,10 +104,26 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     [route],
   );
   const mapPins = useMemo(() => [...stepPins, ...routeHazardPins], [stepPins, routeHazardPins]);
+  const visibleMapPins = useMemo(() => {
+    const nonTurnPins = mapPins.filter((pin) => pin.kind !== 'turn');
+    if (!showDirectionMarkers) return nonTurnPins;
+
+    return [
+      ...nonTurnPins,
+      ...directionMarkers.map((marker) => ({
+        id: marker.id,
+        kind: 'turn' as const,
+        position: marker.position,
+        instruction: marker.stepPin?.instruction ?? '경로 방향 안내',
+        icon: directionGlyph(marker.maneuver),
+        directionMarker: true,
+      })),
+    ];
+  }, [directionMarkers, mapPins, showDirectionMarkers]);
 
   if (allCoords.length === 0 && !maskingCenter && mapPins.length === 0) return null;
 
-  const selectedPin = mapPins.find((pin) => pin.id === selectedPinId);
+  const selectedPin = visibleMapPins.find((pin) => pin.id === selectedPinId);
 
   return (
     <View style={fillContainer ? styles.fillContainer : styles.container}>
@@ -118,17 +137,34 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
       >
         <MapLibreMapView
           route={route}
-          stepPins={mapPins}
+          stepPins={visibleMapPins}
           maskingCenter={maskingCenter}
           width="100%"
           height={fillContainer ? '100%' : mapHeight}
           style={fillContainer ? { flex: 1, width: '100%', height: '100%', borderRadius: 0, borderWidth: 0 } : undefined}
           onPinSelect={(instruction) => {
-            const pin = mapPins.find((item) => item.instruction === instruction);
+            const pin = visibleMapPins.find((item) => item.instruction === instruction);
             setSelectedPinId(pin?.id ?? null);
             onPinSelect?.(instruction);
           }}
         />
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowDirectionMarkers((visible) => !visible)}
+          style={[
+            styles.directionToggle,
+            stairsCount != null ? styles.directionToggleBelowStairs : undefined,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: showDirectionMarkers }}
+          accessibilityLabel="방향표시 전부 표시"
+        >
+          <Text style={[styles.directionToggleText, { color: colors.textMain }]}>방향표시 전부 표시</Text>
+          <View style={[styles.toggleTrack, showDirectionMarkers && styles.toggleTrackActive]}>
+            <View style={[styles.toggleThumb, showDirectionMarkers && styles.toggleThumbActive]} />
+          </View>
+        </TouchableOpacity>
         {stairsCount != null && (
           <View
             pointerEvents="none"
@@ -223,6 +259,15 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   );
 };
 
+function directionGlyph(maneuver: DirectionManeuver): string {
+  switch (maneuver) {
+    case 'left': return '↰';
+    case 'right': return '↱';
+    case 'uturn': return '↶';
+    case 'straight': return '↑';
+  }
+}
+
 const styles = StyleSheet.create({
   container: { width: '100%', flexDirection: 'column', alignItems: 'center' },
   fillContainer: { flex: 1, width: '100%', height: '100%' },
@@ -235,6 +280,38 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
+  directionToggle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  directionToggleBelowStairs: { top: 46 },
+  directionToggleText: { fontSize: 11, fontWeight: '600' },
+  toggleTrack: {
+    width: 30,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: '#D5D9D5',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleTrackActive: { backgroundColor: TOKENS.colors.primary },
+  toggleThumb: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#FFFFFF' },
+  toggleThumbActive: { alignSelf: 'flex-end' },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,

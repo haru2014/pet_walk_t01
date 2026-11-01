@@ -121,6 +121,24 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
       .toEqual(['↰', '↱', '↶', '➤']);
   });
 
+  it('방향 마커에는 흰색 원형 배경과 테두리를 적용한다', () => {
+    const directionPin: RouteStepPin = {
+      id: 'direction',
+      kind: 'turn',
+      position: [127.381, 36.43],
+      instruction: '왼쪽으로 이동하세요',
+      icon: '↰',
+      directionMarker: true,
+    };
+
+    renderWebMarkers({}, MarkerClass, route, [directionPin], colors, vi.fn());
+    const marker = FakeMarker.created[1].options.element;
+
+    expect(marker.style.background).toBe('#FFFFFF');
+    expect(marker.style.border).toBe('1.5px solid #718276');
+    expect(marker.style.borderRadius).toBe('50%');
+  });
+
   it('제목형 핀은 아이콘/제목/상세 문구를 자식 요소로 구성한다', () => {
     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
     const titled = FakeMarker.created[3].options.element;

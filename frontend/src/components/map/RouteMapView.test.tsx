@@ -104,4 +104,13 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     expect(html).toContain('경사도');
     expect(html).toContain('아직 정보가 없어요');
   });
+
+  it('방향 전환 마커 표시 토글을 제공한다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView route={mockRoute} stepPins={mockPins} speedKmH={2.8} />,
+    );
+
+    expect(html).toContain('aria-label="방향표시 전부 표시"');
+    expect(html).toContain('role="switch"');
+  });
 });

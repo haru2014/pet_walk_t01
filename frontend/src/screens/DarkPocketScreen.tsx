@@ -12,7 +12,7 @@ import { Modal, StyleSheet, View, TouchableOpacity, useWindowDimensions } from '
 import { AppText as Text } from '../components/common/AppText';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 import { FreeWalkSafetyInfo, WalkStats } from '../hooks/useWalkGuidance';
-import { formatElapsed } from '../services/walkFormat';
+import { formatElapsed, formatGpsWaitMessage } from '../services/walkFormat';
 import { AppIcon } from '../components/common/AppIcon';
 import { VoiceQuickControlBar } from '../components/voice/VoiceQuickControlBar';
 import { AmbientNoiseMonitorService } from '../services/ambientNoiseMonitor';
@@ -45,6 +45,8 @@ export interface DarkPocketScreenProps {
   readonly onReroute?: (result: RerouteResult) => void;
   readonly originMode?: 'current_location' | 'park' | 'parking_pnr';
   readonly isOffRoute?: boolean;
+  /** 웹 데모 가상 보행 중 (실제 위치 아님, #297) */
+  readonly isSimulatedLocation?: boolean;
   readonly onRegenerateRoute?: () => Promise<boolean> | boolean | void;
 }
 
@@ -140,7 +142,8 @@ const PocketGuidanceSection: React.FC<{
   mapDisplayPins: readonly RouteStepPin[];
   guidanceMessage?: string;
   isCompactLayout: boolean;
-}> = ({ currentCoords, mapRoute, mapDisplayPins, guidanceMessage, isCompactLayout }) => (
+  gpsWaitMessage: string;
+}> = ({ currentCoords, mapRoute, mapDisplayPins, guidanceMessage, isCompactLayout, gpsWaitMessage }) => (
   <View style={[styles.guidanceRegion, isCompactLayout && styles.guidanceRegionCompact]}>
     <View style={styles.guidanceMap} accessibilityLabel="현재 위치와 진행 경로 지도">
       {currentCoords ? (
@@ -156,7 +159,7 @@ const PocketGuidanceSection: React.FC<{
       ) : (
         <View style={styles.guidanceMapEmpty}>
           <AppIcon name="location" size={30} color="#A7F3D0" />
-          <Text style={styles.guidanceMapLoading}>현재 위치를 확인하고 있어요.</Text>
+          <Text style={styles.guidanceMapLoading}>{gpsWaitMessage}</Text>
         </View>
       )}
     </View>
@@ -299,6 +302,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   onReroute,
   originMode = 'current_location',
   isOffRoute = false,
+  isSimulatedLocation = false,
   onRegenerateRoute,
 }) => {
   const { height } = useWindowDimensions();
@@ -388,6 +392,8 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
     setTimeout(() => setToastMsg(null), 3500);
   };
 
+  const gpsWaitMessage = formatGpsWaitMessage(stats.elapsedSec);
+
   const subtitle = formatDarkPocketSubtitle({
     isFreeWalk,
     isOvertime,
@@ -404,6 +410,13 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       <Text style={[styles.subtitle, isOvertime && styles.subtitleOvertime]}>
         {subtitle}
       </Text>
+      {isSimulatedLocation && (
+        <View style={styles.simulationBanner} accessibilityRole="alert">
+          <Text style={styles.simulationBannerText}>
+            웹 데모 · 가상 위치로 이동 중 (실제 위치 아님) · 커뮤니티 공유 불가
+          </Text>
+        </View>
+      )}
       {isFreeWalk && (
         <View style={[
           styles.safetyInfoBanner,
@@ -433,6 +446,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
           mapDisplayPins={mapDisplayPins}
           guidanceMessage={guidanceMessage}
           isCompactLayout={isCompactLayout}
+          gpsWaitMessage={gpsWaitMessage}
         />
       )}
 
@@ -528,7 +542,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
               style={styles.mapView}
             />
           ) : (
-            <View style={styles.mapEmpty}><Text style={styles.modalBody}>현재 GPS 위치를 확인하고 있어요.</Text></View>
+            <View style={styles.mapEmpty}><Text style={[styles.modalBody, styles.mapEmptyText]}>{gpsWaitMessage}</Text></View>
           )}
         </View>
       </Modal>
@@ -565,6 +579,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   safetyInfoAlert: { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.18)' },
+  simulationBanner: {
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    backgroundColor: 'rgba(251, 191, 36, 0.14)',
+  },
+  simulationBannerText: { color: '#FDE68A', fontSize: TYPOGRAPHY.caption, fontWeight: '700', textAlign: 'center' },
   safetyInfoUnavailable: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.14)' },
   safetyInfoText: { color: TOKENS.colors.pocketHudSubtle, fontSize: TYPOGRAPHY.caption, fontWeight: '700', textAlign: 'center' },
   guidanceRegion: { flex: 1, minHeight: 180, backgroundColor: '#17241E', borderWidth: 1.5, borderColor: '#2B885B', borderRadius: 16, padding: 8, marginVertical: 8, gap: 8 },
@@ -572,7 +596,7 @@ const styles = StyleSheet.create({
   guidanceMap: { flex: 1, minHeight: 100, overflow: 'hidden', borderRadius: 12, backgroundColor: '#1D4432' },
   guidanceMapView: { flex: 1 },
   guidanceMapEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  guidanceMapLoading: { color: '#A7F3D0', fontSize: TYPOGRAPHY.support, fontWeight: '700' },
+  guidanceMapLoading: { color: '#A7F3D0', fontSize: TYPOGRAPHY.support, fontWeight: '700', textAlign: 'center', paddingHorizontal: 12 },
   guidanceTextWrap: { width: '100%', alignItems: 'center', paddingVertical: 4 },
   guidanceLabel: { color: '#6EE7B7', fontSize: TYPOGRAPHY.label, fontWeight: '700', marginBottom: 3 },
   guidanceLabelCompact: { marginBottom: 1 },
@@ -638,6 +662,7 @@ const styles = StyleSheet.create({
   modalCloseText: { color: '#D1FAE5', fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   mapView: { flex: 1 },
   mapEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mapEmptyText: { textAlign: 'center', paddingHorizontal: 24 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', justifyContent: 'center', padding: 22 },
   actionModal: { width: '100%', maxWidth: 420, alignSelf: 'center', backgroundColor: '#19211C', borderColor: '#3B4C41', borderWidth: 1, borderRadius: 22, padding: 20 },
   modalBody: { color: TOKENS.colors.pocketHudSubtle, fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, marginTop: 10, marginBottom: 18 },

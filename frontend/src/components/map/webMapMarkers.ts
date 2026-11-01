@@ -79,6 +79,7 @@ function applyPinBaseStyle(
   hasTitle: boolean,
   isCurrentLoc: boolean,
   textColor: string,
+  isDirectionMarker: boolean,
 ): void {
   const textShadow = isCurrentLoc && !hasTitle ? undefined : '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
 
@@ -96,6 +97,17 @@ function applyPinBaseStyle(
     textAlign: 'center',
     textShadow,
   });
+  if (isDirectionMarker) {
+    Object.assign(element.style, {
+      background: '#FFFFFF',
+      border: '1.5px solid #718276',
+      borderRadius: '50%',
+      boxShadow: '0 1px 5px rgba(0, 0, 0, 0.22)',
+      color: '#596B5C',
+      fontSize: '20px',
+      textShadow: 'none',
+    });
+  }
 }
 
 function applyPinGraphic(
@@ -133,7 +145,7 @@ function createPinElement(pin: RouteStepPin, guidanceColor: string): HTMLElement
   element.textContent = pinLabel;
 
   const textColor = getPinTextColor(hasTitle, isCurrentLoc, guidanceColor);
-  applyPinBaseStyle(element, hasTitle, isCurrentLoc, textColor);
+  applyPinBaseStyle(element, hasTitle, isCurrentLoc, textColor, Boolean(pin.directionMarker));
 
   if (hasTitle) {
     fillTitleLayout(element, pin, guidanceColor);
