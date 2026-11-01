@@ -1,11 +1,12 @@
 # Gemini Code Assist 준수 지침 (GEMINI.md)
 
-본 문서는 **편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 기록·공유 플랫폼)** 개발 프로젝트에서 VSCode의 Gemini Code Assist 확장이 코드를 분석, 제안, 생성 및 리팩토링할 때 반드시 준수해야 하는 엔지니어링 지침입니다. AI 모델은 모든 응답에서 아래 핵심 원칙과 세부 기술 요구사항을 엄격하게 반영해야 합니다.
+본 문서는 **편안하개 (AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 기록·공유 플랫폼)** 개발 프로젝트에서 VSCode의 Gemini Code Assist 확장이 docs\02_편안하개_Team_building.md에 따라 member4의 역할을 지원하기 위해 코드를 분석, 제안, 생성 및 리팩토링할 때 반드시 준수해야 하는 엔지니어링 지침입니다. AI 모델은 모든 응답에서 아래 핵심 원칙과 세부 기술 요구사항을 엄격하게 반영해야 합니다.
 
 ---
 
 ## [핵심 원칙 0] 감정적인 표현 배제 및 작업 태도
 
+0. **[멤버4 역할 준수]**: Gemini는 docs\02_편안하개_Team_building.md에 따라 member4의 역할을 지원하기 위해 코드를 분석, 제안, 생성 및 리팩토링할 때 반드시 준수해야 하는 엔지니어링 지침입니다. AI 모델은 모든 응답에서 아래 핵심 원칙과 세부 기술 요구사항을 엄격하게 반영해야 합니다.
 1. **[감정 표현 배제]**: Gemini는 코드 구현, 개선 및 결함 처리를 할 때 감정 표현을 절대 하지 않습니다.
 2. **[명확한 한국어 제공]**: Gemini는 모든 답변을 명확하고 간결하며 논리적인 한국어로 제공합니다.
 3. **[배포 자율성 제한]**: `eas update`, `eas build`, Supabase 프로덕션 DDL 배포, n8n 프로덕션 웹훅 트리거 등 클라우드 배포/빌드/인프라 명령어는 **사용자의 명시적 요청이나 사전 승인 없이 임의로 자동 실행하지 않으며**, 필요한 경우 명령어 텍스트 및 가이드만 안내합니다.
@@ -47,22 +48,11 @@ Gemini는 새로운 코드를 제안하거나 기존 코드를 수정할 때, �
    - **Gemini 가용 모델 순차 선택 체인 (Cascading Fallback)**: 반드시 `GeminiModelSelector`를 통해 **1순위 `gemini-3.5-flash-lite` ➔ 2순위 `gemini-3.1-flash-lite` ➔ 3순위 `gemini-3.6-flash`** 순으로 자동 선택 호출하며, 구형 `gemini-1.5` 계열 호출은 전면 배제합니다.
    - **Pydantic V2 Strict & Structured JSON**: 모든 API 입출력은 Pydantic V2 스키마를 강제하고, 비전 분석 시 `response_mime_type="application/json"`을 적용하여 환각 없는 구조화된 데이터를 보장합니다.
 
-3. **디자인 시스템 및 스타일링 통일**:
-   - 컴포넌트 스타일링 시 `StyleSheet.create`를 사용하며, 공통 디자인 토큰을 엄격히 준수합니다.
-   - **노면 및 보행 환경별 표준 색상 규격 (Polyline & Badge)**:
-     - 흙/잔디길 (Dirt / Grass): 초록색 (`#10B981`)
-     - 흙길 (Dirt / Ground): 갈색 (`#92400E`)
-     - 우레탄/탄성포장 (Rubber / Cushion): 주황색 (`#F97316`)
-     - 보도블록 (Standard Paved): 파란색 (`#3B82F6`)
-     - 아스팔트 (Asphalt - 경고): 짙은 회색 (`#6B7280`)
-     - 위험 노면/급경사 (Hazard / Steep): 빨간색 (`#EF4444`)
-   - **야외 시인성 및 한 손 조작성**: 태양광 아래 시인성을 위해 저반사 아이보리 배경(`#FAFAFA`)과 고대비 차콜 텍스트(`#1E293B`)를 적용하고, 하단 50% Thumb Zone 및 48px 이상의 안전 터치 영역을 유지합니다.
-
-4. **네이밍 컨벤션 명문화**:
+3. **네이밍 컨벤션 명문화**:
    - 프론트엔드 파일명 및 컴포넌트명: PascalCase (`WalkMapScreen.tsx`, `SafetySummaryCard.tsx`)
    - 프론트엔드 함수, 변수, 훅명: camelCase (`useWalkTracking`, `isTrackingActive`)
    - 백엔드 파일명 및 함수/변수명: snake_case (`generate_loop_route`, `safety_score`)
-   - 데이터 모델 및 DB 필드명: 선언된 스키마 규칙에 맞게 정확히 일치시킵니다.
+   - 데이터 모델 및 DB 필드명: 선언된 스키마 규칙에 맞게 정확히 일치시킵니다.(docs\sql\supabase_schema.sql)
 
 ---
 
@@ -178,6 +168,19 @@ Gemini는 단일 파일이나 특정 코드 블록만을 고립적으로 분석�
 5. **5인 역할별 AI 페어 프로그래밍 자동 점검 체크리스트**:
    - ➔ [`docs/checklist/`](file:///d:/코디세이/pet_walk_t01/docs/checklist/) 및 [`.agents/rules/ai_pair_programming_rules.md`](file:///d:/코디세이/pet_walk_t01/.agents/rules/ai_pair_programming_rules.md) 참조
    - 내용: Member A(AI Agent Lead), Member B(Spatial Data/Thermal), Member C(Backend/Routing), Member D(Frontend/Mobile), Member E(UI/UX/Wellness) 상세 체크리스트.
+
+---
+
+## [핵심 원칙 8] 실제 데이터 우선 및 가상/데모 데이터 투명 고지 원칙 (Live Data First & Virtual Data Transparency)
+
+편안하개 프로젝트에서 모든 데이터는 실제 사용자를 대상으로 실제 서비스가 수행될 수 있도록 실제 동작하는 데이터를 기반으로 해야 합니다.
+
+1. **실제 동작 데이터 기반 서비스 원칙**:
+   - 모든 기상(기상청 단기예보, Open-Meteo 실시간 일사량/외기온, 에어코리아 실시간 대기질), 보행로(OpenStreetMap 정밀 도로망), 공간 정보(전국주차장정보 표준데이터), 커뮤니티(Supabase Cloud DB)는 실제 운영 데이터를 기반으로 연동·동작해야 합니다.
+2. **가상/데모/폴백 데이터 투명 고지 의무**:
+   - 외부 API 단절, 통신 장애, 오프라인 시연, 비회원 모드 등으로 인해 부득이하게 하드코딩되거나 데모를 위해 주입된 가상 데이터를 사용할 경우, **반드시 해당 항목의 API 페이로드(`data_source: "fallback_estimate"` 등) 및 UI 화면에 `[가상 데이터]`, `[가상 시뮬레이션 추정치]`, `[체험용 데모]`임을 명시적으로 표시(Badge, Tag, Notice)**해야 합니다.
+3. **데이터 출처 위장 금지**:
+   - 가상 모의 데이터 또는 로컬 규칙 엔진이 동작하고 있음에도 실제 기상청, 에어코리아, Gemini 실시간 분석 등으로 위장하거나 사용자가 실시간 관측치로 오인하게 유도하는 문구 노출을 엄격히 금지합니다.
 
 ---
 

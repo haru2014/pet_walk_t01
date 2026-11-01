@@ -11,6 +11,12 @@ export interface RouteSegmentProperties {
   readonly segmentType: SegmentType;
   readonly maxSlopePercent: number;
   readonly shaded: boolean;
+  /** Present when the source identifies stairs along this route segment. */
+  readonly hasStairs?: boolean;
+  /** 서버 필드. 보행 진행 방향 기준 부호 있는 경사(%). 미연결 시 확인 불가. */
+  readonly slopeSignedPercent?: number | null;
+  /** 서버 필드. 구간 지면온도(℃). 미연결 시 확인 불가. */
+  readonly surfaceTempC?: number | null;
 }
 
 export interface RouteSegmentFeature {
@@ -29,9 +35,17 @@ export interface RouteFeatureCollection {
 
 export interface RouteStepPin {
   readonly id: string;
-  readonly kind: 'turn' | 'caution';
+  readonly kind: 'turn' | 'caution' | 'safe';
   readonly position: LonLat;
   readonly instruction: string;
+  /** Optional glyph override for map markers such as onboarding demo pins. */
+  readonly icon?: string;
+  /** Renders a navigation turn pin with a circular white background. */
+  readonly directionMarker?: boolean;
+  /** Heading clockwise from north, used by the live position marker. */
+  readonly bearingDeg?: number;
+  readonly title?: string;
+  readonly detail?: string;
 }
 
 export interface CourseSummary {

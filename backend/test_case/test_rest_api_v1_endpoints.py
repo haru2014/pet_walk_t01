@@ -84,6 +84,119 @@ class TestWalkRerouteEndpoint:
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(severity="info"))
         assert res.json()["status"] == "KEEP_ROUTE"
 
+    def test_route_deviation_reroutes_from_current_position(self, client):
+        payload = {
+            "current_lat": 36.3745,
+            "current_lon": 127.3825,
+            "destination_lat": _DEST[0],
+            "destination_lon": _DEST[1],
+            "reroute_reason": "deviation",
+            "route_coordinates": [[_CUR[1], _CUR[0]], [_DEST[1], _DEST[0]]],
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["needs_reroute"] is True
+        assert "재탐색" in body["voice_alert"]
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert coords[0] == pytest.approx([127.3825, 36.3745])
+        assert coords[-1] == pytest.approx([_DEST[1], _DEST[0]])
+
+    def test_route_deviation_snaps_to_segment_not_vertex(self, client):
+        # 북쪽으로 향하는 긴 직선 코스(정점은 양 끝뿐). 중간에서 동쪽으로 벗어남.
+        route = [[127.0, 36.0], [127.0, 36.004]]
+        payload = {
+            "current_lat": 36.002,
+            "current_lon": 127.0003,
+            "destination_lat": 36.004,
+            "destination_lon": 127.0,
+            "reroute_reason": "deviation",
+            "route_coordinates": route,
+        }
+        body = client.post("/api/v1/walk/reroute", json=payload).json()
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        # 현재 위치 -> 선분 위 합류점(위도 36.002) -> 목적지
+        assert coords[0] == pytest.approx([127.0003, 36.002])
+        assert coords[1] == pytest.approx([127.0, 36.002], abs=1e-5)
+        assert coords[-1] == pytest.approx([127.0, 36.004])
+
+    def test_route_deviation_on_loop_uses_progress_to_continue_forward(self, client):
+        # 시작점=도착점인 순환 코스. 시작점 근처에서 이탈했을 때 진행 거리에 따라 합류 위치가 달라진다.
+        loop = [[127.0, 36.0], [127.0, 36.002], [127.002, 36.002], [127.002, 36.0], [127.0, 36.0]]
+        base = {
+            "current_lat": 36.0003,
+            "current_lon": 127.00003,
+            "destination_lat": 36.0,
+            "destination_lon": 127.0,
+            "reroute_reason": "deviation",
+            "route_coordinates": loop,
+        }
+        late = client.post("/api/v1/walk/reroute", json={**base, "progress_m": 640.0}).json()
+        late_coords = late["geojson"]["features"][0]["geometry"]["coordinates"]
+        # 거의 한 바퀴를 돈 뒤라면 코스 마지막(시작점 복귀) 구간으로 합류해 남은 거리가 짧다.
+        assert late["new_distance_m"] < 100
+        assert late_coords[-1] == pytest.approx([127.0, 36.0])
+
+        early = client.post("/api/v1/walk/reroute", json={**base, "progress_m": 0.0}).json()
+        # 진행 거리가 0이면 코스 처음 구간으로 합류해 코스 전체를 이어 간다.
+        assert early["new_distance_m"] > late["new_distance_m"]
+
+    def test_route_deviation_method_a_regenerates_current_location_return_loop(self, client):
+        # 방법 A: 현위치 기반 산책 모드에서 이탈 시 남은 산책 거리 기준 새 복귀 코스를 재생성
+        payload = {
+            "current_lat": 36.3635,
+            "current_lon": 127.3595,
+            "destination_lat": 36.3620,
+            "destination_lon": 127.3580,
+            "reroute_reason": "deviation",
+            "origin_mode": "current_location",
+            "remaining_distance_m": 750.0,
+            "route_coordinates": [[127.3580, 36.3620], [127.3610, 36.3640], [127.3580, 36.3620]],
+            "progress_m": 250.0,
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["reroute_strategy"] == "regenerate_to_origin"
+        assert body["route_source"] in ("osrm_live", "osrm_regenerated", "geometric_fallback", "offline_regenerated_loop")
+        assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert len(coords) >= 6
+        assert coords[0] == pytest.approx([127.3595, 36.3635], abs=1e-3)
+        assert coords[-1] == pytest.approx([127.3580, 36.3620], abs=1e-3)
+
+    def test_route_deviation_method_c_rejoins_via_park_walkway_network(self, client):
+        # 방법 C: 지정 공원 산책 모드에서 이탈 시 공원 산책로망(networkx 그래프)을 따라 코스에 합류
+        park_course = [
+            [127.3568, 36.3618],
+            [127.3585, 36.3625],
+            [127.3602, 36.3632],
+            [127.3568, 36.3618],
+        ]
+        payload = {
+            "current_lat": 36.3612,
+            "current_lon": 127.3582,
+            "destination_lat": 36.3618,
+            "destination_lon": 127.3568,
+            "reroute_reason": "deviation",
+            "origin_mode": "park",
+            "pilot_park_id": "yurim",
+            "route_coordinates": park_course,
+            "progress_m": 60.0,
+        }
+        res = client.post("/api/v1/walk/reroute", json=payload)
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["status"] == "REROUTED"
+        assert body["reroute_strategy"] == "park_network_rejoin"
+        assert body["route_source"] in ("park_graph_yurim", "osrm_live", "osrm_foot_rejoin", "segment_projection", "segment_projection_fallback")
+        assert isinstance(body["step_pins"], list) and len(body["step_pins"]) >= 1
+        coords = body["geojson"]["features"][0]["geometry"]["coordinates"]
+        assert coords[0] == pytest.approx([127.3582, 36.3612], abs=1e-4)
+        assert coords[-1] == pytest.approx([127.3568, 36.3618], abs=1e-4)
+
     def test_invalid_hazard_type_rejected(self, client):
         res = client.post("/api/v1/walk/reroute", json=_reroute_payload(hazard_type="lava"))
         assert res.status_code == 422
@@ -252,3 +365,31 @@ class TestParkingNearbyEndpoint:
         assert data["total_count"] == 0
 
 
+
+
+def test_osrm_failure_reason_is_recorded_and_reported_in_health(client, monkeypatch):
+    """OSRM 실패가 조용히 버려지지 않고 이유가 /health 에 남는다 (운영에서 대체 경로로 떨어지는 원인 확인용)."""
+    import urllib.error
+    import urllib.request
+    from agent import road_network_routes as rnr
+
+    def _timeout(*_args, **_kwargs):
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", _timeout)
+    before = rnr.osrm_status()["failure"]
+    assert rnr._fetch_osrm_foot_route_uncached([(36.33, 127.43), (36.34, 127.43)], 0.1) is None
+    status = client.get("/health").json()["osrm"]
+    assert status["failure"] == before + 1
+    assert "TimeoutError" in status["last_error"]
+    assert set(status) >= {"success", "failure", "last_error", "last_error_elapsed_ms", "circuit_open"}
+
+
+def test_walk_plan_reports_route_source_per_course(client):
+    res = client.post("/api/v1/walk/plan", json={
+        "origin_mode": "park", "pilot_park_id": "yurim",
+        "origin_lat": 36.3620608, "origin_lon": 127.3601379, "target_duration_minutes": 30,
+    })
+    assert res.status_code == 200
+    sources = res.json()["route_sources"]
+    assert len(sources) == 3 and all(source == "park_graph_yurim" for source in sources.values())

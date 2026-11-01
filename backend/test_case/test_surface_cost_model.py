@@ -21,6 +21,9 @@
 import pytest
 from typing import List, Dict, Any, Optional, Tuple
 
+# 계단 배제는 실제 구현(agent)을 검증한다.
+from agent.surface_slope_evaluator import filter_links_avoiding_stairs
+
 # 노면 기본 가중치 및 할인/페널티 상수
 SURFACE_BASE_WEIGHTS = {
     "grass": 0.6,
@@ -126,18 +129,6 @@ def calculate_link_cost(
         thermal_factor = 0.6  # 피크 일조 시간대 차광/저온 할인
 
     return length_m * base_weight * pref_factor * slope_factor * thermal_factor
-
-
-def filter_links_avoiding_stairs(links: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """[US-B1] 무장애길 - OSM 네트워크에서 계단(highway=steps) 링크 배제 및 메타데이터 반환."""
-    filtered = [l for l in links if l.get("highway") != "steps"]
-    metadata = {
-        "has_stairs": any(l.get("highway") == "steps" for l in filtered),
-        "stairs_data_source": "osm",
-        "confidence": 0.90,
-        "stairs_avoidance_applied": True
-    }
-    return filtered, metadata
 
 
 def calculate_course_slope_metrics(links: List[Dict[str, Any]]) -> Dict[str, float]:

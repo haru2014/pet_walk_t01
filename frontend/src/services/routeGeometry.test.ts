@@ -7,8 +7,10 @@ import { describe, it, expect } from 'vitest';
 import {
   haversineMeters,
   polylineLengthMeters,
+  flattenRouteCoordinates,
   buildCourseSummary,
   calculateRegionBounds,
+  calculateSafeSurfaceRatio,
 } from './routeGeometry';
 import { RouteFeatureCollection, LonLat } from '../types/route';
 import { SAMPLE_ROUTE } from './sampleRoute';
@@ -78,7 +80,7 @@ describe('routeGeometry - buildCourseSummary', () => {
     expect(summary.totalDistanceKm).toBeGreaterThan(0.8);
     expect(summary.totalDistanceKm).toBeLessThan(1.5);
     expect(summary.estimatedMinutes).toBeGreaterThan(15);
-    expect(summary.maxSlopePercent).toBe(7.8);
+    expect(summary.maxSlopePercent).toBe(2.2);
     expect(summary.shadeRatioPercent).toBeGreaterThan(0);
     expect(summary.shadeRatioPercent).toBeLessThanOrEqual(100);
   });
@@ -106,5 +108,109 @@ describe('routeGeometry - calculateRegionBounds', () => {
     expect(region.longitude).toBeCloseTo(127.03965, 3);
     expect(region.latitudeDelta).toBeGreaterThan(0);
     expect(region.longitudeDelta).toBeGreaterThan(0);
+  });
+
+  it('좌표가 없으면 서울숲이 아닌 기본 시범 공원(유림공원) 중심을 쓴다 (#281)', () => {
+    const region = calculateRegionBounds([]);
+    expect(region.latitude).toBeCloseTo(36.362, 2);
+    expect(region.longitude).toBeCloseTo(127.36, 2);
+  });
+});
+
+describe('routeGeometry - calculateSafeSurfaceRatio', () => {
+  it('빈 코스이거나 세그먼트가 없을 경우 기본값 0.85를 반환해야 한다', () => {
+    expect(calculateSafeSurfaceRatio(null)).toBe(0.85);
+    expect(calculateSafeSurfaceRatio({ type: 'FeatureCollection', features: [] })).toBe(0.85);
+  });
+
+  it('샘플 코스의 완만 노면율을 0.0~1.0 사이로 정확히 계산해야 한다', () => {
+    const ratio = calculateSafeSurfaceRatio(SAMPLE_ROUTE);
+    expect(ratio).toBeGreaterThan(0.5);
+    expect(ratio).toBeLessThanOrEqual(1.0);
+  });
+});
+
+describe('routeGeometry - flattenRouteCoordinates', () => {
+  it('null, undefined, 또는 빈 FeatureCollection에 대해 빈 배열을 반환한다', () => {
+    expect(flattenRouteCoordinates(null)).toEqual([]);
+    expect(flattenRouteCoordinates(undefined)).toEqual([]);
+    expect(flattenRouteCoordinates({ type: 'FeatureCollection', features: [] })).toEqual([]);
+  });
+
+  it('단일 세그먼트의 좌표 목록을 온전히 반환한다', () => {
+    const singleRoute: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.0, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.382, 36.374],
+              [127.383, 36.375],
+            ],
+          },
+        },
+      ],
+    };
+    expect(flattenRouteCoordinates(singleRoute)).toEqual([
+      [127.382, 36.374],
+      [127.383, 36.375],
+    ]);
+  });
+
+  it('여러 세그먼트 조각을 순서대로 연결하고 접합점의 중복 좌표를 제거한다 (#290)', () => {
+    const multiSegmentRoute: RouteFeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 1.0, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.380, 36.370],
+              [127.381, 36.371],
+              [127.382, 36.372],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { segmentType: 'caution', maxSlopePercent: 4.5, shaded: false },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.382, 36.372], // 세그먼트 1의 끝점과 동일
+              [127.383, 36.373],
+              [127.384, 36.374],
+            ],
+          },
+        },
+        {
+          type: 'Feature',
+          properties: { segmentType: 'safe', maxSlopePercent: 0.8, shaded: true },
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [127.384, 36.374], // 세그먼트 2의 끝점과 동일
+              [127.385, 36.375],
+            ],
+          },
+        },
+      ],
+    };
+
+    const flattened = flattenRouteCoordinates(multiSegmentRoute);
+    expect(flattened).toEqual([
+      [127.380, 36.370],
+      [127.381, 36.371],
+      [127.382, 36.372],
+      [127.383, 36.373],
+      [127.384, 36.374],
+      [127.385, 36.375],
+    ]);
+    expect(flattened).toHaveLength(6);
   });
 });

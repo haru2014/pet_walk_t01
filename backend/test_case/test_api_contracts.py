@@ -168,7 +168,7 @@ class TestRestApiV1Contracts:
         """커뮤니티 코스 공유 및 피드 DTO 계약 검증 (US-G2)."""
         share_payload = {
             "user_id": "usr-test-1",
-            "course_title": "보라매 흙길 둘레길",
+            "course_title": "유림 흙길 둘레길",
             "raw_coordinates": [[127.0, 37.5], [127.01, 37.51], [127.02, 37.52], [127.03, 37.53]],
             "satisfaction_rating": 5,
             "comment": "완만하고 그늘이 많아요"
@@ -178,7 +178,7 @@ class TestRestApiV1Contracts:
 
         feed_item_payload = {
             "course_id": "course-99",
-            "title": "보라매 흙길 둘레길",
+            "title": "유림 흙길 둘레길",
             "masked_polyline": [[127.01, 37.51], [127.02, 37.52]],
             "distance_m": 1200.0,
             "duration_min": 25,

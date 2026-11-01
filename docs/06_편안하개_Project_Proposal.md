@@ -23,7 +23,7 @@
 | 문제점 (Pain Points) | AI 및 데이터 기반 해결 방식 | 적용 기술 (필수 요건 충족) |
 |---|---|---|
 | **계단 통행으로 인한 관절 부담**<br>(소형견·노령견 관절 취약) | OSM 보행망의 `highway=steps` 속성을 사전에 필터링하여 **지도 데이터상 확인된 계단 구간을 최우선 배제(Hard Constraint)**하는 순환 경로 생성 (대체 경로 부재 시 사유 명시) | **OSM Steps Detector & Routing Adapter** |
-| **과도한 경사로 인한 보행 피로**<br>(가파른 오르막·내리막 부상 위험) | DEM 고도 데이터 및 라우팅 고도 프로파일을 연계하여 **최대 경사도(`max_slope_percent`)를 제어**, 완만한 평지 위주 경로 도출 | **Elevation/DEM Slope Analyzer** |
+| **과도한 경사로 인한 보행 피로**<br>(가파른 경사도 부상 위험) | DEM 고도 데이터 및 라우팅 고도 프로파일을 연계하여 **최대 경사도(`max_slope_percent`)를 제어**, 완만한 평지 위주 경로 도출 | **Elevation/DEM Slope Analyzer** |
 | **직사광선 노출 및 열 스트레스**<br>(여름철 복사열 및 탈진 위험) | 산책 일시와 위치 기반 태양 고도/방위각(SunCalc)과 확보 가능한 건물 형상 데이터를 결합하여 **시간대별 예상 그늘 구간을 우선 배정** | **Solar Model & Shade Estimator (Level 1~2)** |
 | **산책 중 폰 화면 주시의 위험성**<br>(리드줄 파지 중 화면 응시 시 낙상/사고) | 화면을 보며 걷는 위험을 원천 차단하기 위해, **주머니 속에서도 OSRM 스텝과 경로 속성을 결합해 회전 및 위험을 알려주는 백그라운드 핸즈프리 음성 안내** 제공 | **React Native Expo (Background GPS & Speech TTS)** |
 | **현장 돌발 장애물 및 시각적 위험**<br>(높은 턱, 공사 구간, 깨진 유리) | 산책 전/중 현장 사진을 **Vision AI가 분석하여 높은 턱·계단·보행 방해 요소를 감지**하고 안전 우회 경로 권장 | **Multimodal Vision Inspector** |

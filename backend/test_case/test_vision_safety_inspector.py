@@ -17,7 +17,8 @@ from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 SurfaceType = Literal["dirt", "grass", "rubber", "paved", "asphalt", "gravel"]
-HazardType = Literal["high_curb", "stairs", "construction", "broken_glass", "none"]
+# dog_danger: 들개·맹견 출몰 (앱 #228 이 그대로 보낸다, #227)
+HazardType = Literal["high_curb", "stairs", "construction", "broken_glass", "dog_danger", "none"]
 HazardSeverity = Literal["info", "warning", "danger"]
 
 
@@ -72,7 +73,7 @@ def evaluate_hazard_action(inspection: HazardInspectionResult) -> Dict[str, Any]
             "message": "신뢰도 부족으로 현 경로 유지"
         }
 
-    if inspection.hazard_type in ["high_curb", "stairs", "construction"] and inspection.severity in ["warning", "danger"]:
+    if inspection.hazard_type in ["high_curb", "stairs", "construction", "broken_glass", "dog_danger"] and inspection.severity in ["warning", "danger"]:
         return {
             "needs_reroute": True,
             "penalty_multiplier": 10.0,  # 해당 링크 비용 10배 가중치
@@ -116,9 +117,9 @@ class TestParkBoardInspector:
     """[US-D1] 공원 종합안내판 비전 분석 유효성 및 제약조건 변환 테스트."""
 
     def test_valid_park_board_output_parsed_successfully(self):
-        """정상적인 보라매공원 안내판 JSON 응답이 Pydantic 스키마를 올바르게 통과하는지 검증."""
+        """정상적인 유림공원 안내판 JSON 응답이 Pydantic 스키마를 올바르게 통과하는지 검증."""
         raw_json = {
-            "park_name": "보라매공원",
+            "park_name": "유림공원",
             "has_dirt_trail": True,
             "has_grass_zone": True,
             "dog_restricted_zones": ["생태연못 관찰데크", "어린이 놀이터"],
@@ -128,7 +129,7 @@ class TestParkBoardInspector:
             "requires_recapture": False
         }
         output = ParkBoardInspectionResult(**raw_json)
-        assert output.park_name == "보라매공원"
+        assert output.park_name == "유림공원"
         assert output.has_dirt_trail is True
         assert "생태연못 관찰데크" in output.dog_restricted_zones
         assert output.confidence_score == 0.92

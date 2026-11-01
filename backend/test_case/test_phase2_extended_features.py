@@ -284,7 +284,7 @@ class TestPhase2GamificationAndAmenity:
         """[US-18] 공원 세족장(Paw Wash Station) 커뮤니티 POI 등록 검증."""
         amenity = ParkAmenityPOI(
             amenity_id="amenity-wash-01",
-            park_name="보라매공원",
+            park_name="유림공원",
             amenity_type="paw_wash_station",
             lat=37.4912,
             lon=126.9201,

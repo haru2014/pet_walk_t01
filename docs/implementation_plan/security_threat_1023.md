@@ -1,0 +1,12 @@
+우선 조치가 필요한 항목
+1. 높음 — 공개 API를 통한 비용·자원 소모 가능성
+   산책 경로 생성, 음성 인식·의도 분석·TTS, 현장 검사 등 외부 AI나 경로 계산 자원을 사용할 수 있는 엔드포인트에 인증이나 요청 제한이 확인되지 않았습니다. 커뮤니티 코스 공유와 위험 제보도 공개 상태이며, 코스 요청의 좌표 배열에는 최대 길이 제한이 없습니다. 악의적인 반복 요청은 API 비용 증가, 서버 자원 고갈, 공개 피드 오염으로 이어질 수 있습니다. 근거: [backend/main.py (line 179)](/D:/cody/pet_walk_t01/backend/main.py:179), [backend/main.py (line 716)](/D:/cody/pet_walk_t01/backend/main.py:716), [backend/main.py (line 850)](/D:/cody/pet_walk_t01/backend/main.py:850), [backend/main.py (line 870)](/D:/cody/pet_walk_t01/backend/main.py:870), [backend/test_case/test_api_contracts.py (line 84)](/D:/cody/pet_walk_t01/backend/test_case/test_api_contracts.py:84).
+2. 높음 — 이미지 크기 제한 전에 파일 전체를 메모리에 읽음
+   현장 검사 API는 업로드를 모두 읽은 뒤 8MB 초과 여부를 확인합니다. 따라서 8MB 제한이 읽기 자체를 제한하지 못합니다. 큰 업로드가 반복되면 메모리 고갈 위험이 있습니다. [backend/main.py (line 850)](/D:/cody/pet_walk_t01/backend/main.py:850), [backend/main.py (line 863)](/D:/cody/pet_walk_t01/backend/main.py:863). 오디오 업로드는 읽기 단계에 별도 상한이 적용되어 있어 이미지 처리와 차이가 있습니다([backend/main.py (line 193)](/D:/cody/pet_walk_t01/backend/main.py:193)).
+3. 높음 — npm 의존성 감사에서 High 취약 패키지 확인
+   npm audit은 High 17건, Critical 0건을 보고했습니다. 이는 서로 다른 17개 독립 취약점이라기보다 전이 의존성까지 포함한 패키지 항목 수입니다. 확인한 근본 패키지는 node-forge@1.4.0과 braces@3.0.3입니다. GitHub 권고에 따르면 두 버전 모두 영향을 받으며, 점검 시점에는 수정 버전이 등록되지 않았습니다(node-forge 권고, braces 권고). braces는 Metro 파일 감시 도구 체인에, node-forge는 Expo 업데이트 서명 관련 체인에 포함됩니다. 실제 악용 가능성은 해당 기능의 사용 조건에 좌우되므로, 운영 앱에서 공격이 가능하다고 이 결과만으로 단정할 수는 없습니다.
+중간 우선순위
+4. 중간 — CORS가 모든 Origin·메서드·헤더를 허용
+   백엔드는 Origin 정규식 .*, 전체 메서드·헤더, credential 허용을 설정했습니다([backend/main.py (line 115)](/D:/cody/pet_walk_t01/backend/main.py:115)). FastAPI 문서는 허용 Origin을 명시하도록 안내하며, credentials 사용 시 wildcard 허용 설정에 주의해야 한다고 설명합니다(FastAPI CORS 문서). 현재 확인한 공개 엔드포인트는 인증이 없고, 기록 공개·해제 API는 Bearer 토큰을 확인합니다. 따라서 이 설정이 그 자체로 인증을 우회한다고 볼 수는 없지만, 임의 웹사이트를 신뢰 Origin으로 취급하는 과도한 정책입니다.
+5. 중간 — 로그인 토큰과 산책 위치 기록이 비암호화 AsyncStorage에 저장
+   Supabase 세션은 AsyncStorage를 사용해 영속화되고([supabaseService.ts (line 59)](/D:/cody/pet_walk_t01/frontend/src/services/supabaseService.ts:59)), 로컬 산책 기록에는 GPS 궤적이 포함됩니다([storage.ts (line 65)](/D:/cody/pet_walk_t01/frontend/src/services/storage.ts:65), [storage types (line 42)](/D:/cody/pet_walk_t01/frontend/src/types/storage.ts:42)). AsyncStorage는 비암호화 저장소로 문서화되어 있습니다(Async Storage 문서). 기기가 탈취되거나 저장 데이터에 접근 가능한 상황에서는 세션 토큰과 위치 기록이 노출될 수 있습니다.

@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { AppIcon } from '../common/AppIcon';
 
 export interface RecentWalkCardProps {
@@ -66,13 +67,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.sectionTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     letterSpacing: -0.3,
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.label,
     fontWeight: '600',
     color: TOKENS.colors.primary,
   },
@@ -105,13 +106,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: TOKENS.colors.textMain,
     marginBottom: 2,
   },
   cardMeta: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.caption,
     color: TOKENS.colors.textMuted,
   },
 });

@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { TOKENS } from '../../theme/tokens';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { AppText as Text } from '../common/AppText';
+import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { RecommendedCourse } from '../../types/walkSettings';
 
 export interface AlternativeCourseListProps {
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  toggleText: { fontSize: 13, fontWeight: '600', color: TOKENS.colors.primaryDark },
+  toggleText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: TOKENS.colors.primaryDark },
   list: { gap: 8, marginBottom: 16 },
   card: {
     backgroundColor: TOKENS.colors.surface,
@@ -75,8 +76,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primaryLight },
-  name: { fontSize: 14, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
-  meta: { fontSize: 12, color: TOKENS.colors.textMuted },
+  name: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, marginBottom: 2 },
+  meta: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted },
   radio: {
     width: 20,
     height: 20,
@@ -88,5 +89,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioSelected: { borderColor: TOKENS.colors.primary, backgroundColor: TOKENS.colors.primary },
-  check: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  check: { color: '#FFFFFF', fontSize: TYPOGRAPHY.caption, fontWeight: '800' },
 });

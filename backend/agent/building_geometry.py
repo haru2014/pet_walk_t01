@@ -6,8 +6,29 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 from shapely.geometry import LineString, Point, Polygon
+
+
+def _extract_polygons_from_feature(feature: Dict[str, Any]) -> List[Polygon]:
+    """GeoJSON 단일 Feature에서 유효한 Polygon 목록을 추출한다."""
+    geom = feature.get("geometry", {})
+    gtype = geom.get("type")
+    coords = geom.get("coordinates", [])
+    if not coords:
+        return []
+
+    polygons: List[Polygon] = []
+    if gtype == "Polygon":
+        poly = Polygon(coords[0])
+        if poly.is_valid and not poly.is_empty:
+            polygons.append(poly)
+    elif gtype == "MultiPolygon":
+        for part in coords:
+            poly = Polygon(part[0])
+            if poly.is_valid and not poly.is_empty:
+                polygons.append(poly)
+    return polygons
 
 
 def load_building_polygons(geojson_path: str | Path) -> List[Polygon]:
@@ -21,20 +42,58 @@ def load_building_polygons(geojson_path: str | Path) -> List[Polygon]:
 
     polygons: List[Polygon] = []
     for feature in data.get("features", []):
-        geom = feature.get("geometry", {})
-        gtype = geom.get("type")
-        coords = geom.get("coordinates", [])
-        if gtype == "Polygon" and coords:
-            # coords[0] 은 외곽 링
-            poly = Polygon(coords[0])
-            if poly.is_valid and not poly.is_empty:
-                polygons.append(poly)
-        elif gtype == "MultiPolygon" and coords:
-            for part in coords:
-                poly = Polygon(part[0])
-                if poly.is_valid and not poly.is_empty:
-                    polygons.append(poly)
+        polygons.extend(_extract_polygons_from_feature(feature))
     return polygons
+
+
+def _check_segment_against_polygon(
+    idx: int,
+    line: LineString,
+    mid_pt: Point,
+    poly_idx: int,
+    poly: Polygon,
+    coords: Tuple[Sequence[float], Sequence[float]],
+    tolerance: float,
+) -> Dict[str, Any] | None:
+    """단일 선분과 단일 건물 폴리곤 간의 관통 여부를 검사한다."""
+    if poly.contains(mid_pt):
+        return {
+            "segment_index": idx,
+            "coords": [list(coords[0]), list(coords[1])],
+            "polygon_index": poly_idx,
+            "reason": "midpoint_inside_building",
+        }
+
+    inter = line.intersection(poly)
+    if not inter.is_empty and inter.geom_type in ("LineString", "MultiLineString"):
+        boundary_dist = inter.distance(poly.boundary)
+        if boundary_dist > tolerance or poly.buffer(-1e-6).intersects(inter):
+            return {
+                "segment_index": idx,
+                "coords": [list(coords[0]), list(coords[1])],
+                "polygon_index": poly_idx,
+                "reason": "crosses_building_interior",
+            }
+    return None
+
+
+def _find_segment_penetration(
+    idx: int,
+    p1: Sequence[float],
+    p2: Sequence[float],
+    polygons: Sequence[Polygon],
+    tolerance: float,
+) -> Dict[str, Any] | None:
+    """선분이 어떤 건물 폴리곤이라도 관통하는지 검사한다."""
+    line = LineString([p1, p2])
+    mid_pt = Point((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+    for poly_idx, poly in enumerate(polygons):
+        penetration = _check_segment_against_polygon(
+            idx, line, mid_pt, poly_idx, poly, (p1, p2), tolerance
+        )
+        if penetration is not None:
+            return penetration
+    return None
 
 
 def count_building_penetrations(
@@ -56,35 +115,9 @@ def count_building_penetrations(
     for idx in range(total_segments):
         p1 = coords[idx]
         p2 = coords[idx + 1]
-        line = LineString([p1, p2])
-
-        # 선분 중점
-        mid_pt = Point((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
-
-        for poly_idx, poly in enumerate(polygons):
-            # 중점이 건물 폴리곤 내부(경계선 제외)에 있는 경우 -> 완전 관통
-            if poly.contains(mid_pt):
-                penetrations.append({
-                    "segment_index": idx,
-                    "coords": [list(p1), list(p2)],
-                    "polygon_index": poly_idx,
-                    "reason": "midpoint_inside_building",
-                })
-                break
-
-            # 선분과 폴리곤의 교차가 1차원 선분 형태(LineString)로 내부를 가로지르는 경우
-            inter = line.intersection(poly)
-            if not inter.is_empty and inter.geom_type in ("LineString", "MultiLineString"):
-                # 단순히 건물 벽면 경계(Boundary)에 접하거나 스치는 경우는 제외 (보도와 건물벽이 붙어있는 경우 허용)
-                boundary_dist = inter.distance(poly.boundary)
-                if boundary_dist > tolerance or poly.buffer(-1e-6).intersects(inter):
-                    penetrations.append({
-                        "segment_index": idx,
-                        "coords": [list(p1), list(p2)],
-                        "polygon_index": poly_idx,
-                        "reason": "crosses_building_interior",
-                    })
-                    break
+        penetration = _find_segment_penetration(idx, p1, p2, polygons, tolerance)
+        if penetration is not None:
+            penetrations.append(penetration)
 
     penetration_count = len(penetrations)
     penetration_ratio = (penetration_count / total_segments) if total_segments > 0 else 0.0
@@ -97,5 +130,5 @@ def verify_building_avoidance(
     max_allowed_ratio: float = 0.0,
 ) -> bool:
     """건물 관통 선분 비율이 허용치(기본 0.0%) 이하인지 검증한다."""
-    count, total, ratio, _ = count_building_penetrations(coords, polygons)
+    _, _, ratio, _ = count_building_penetrations(coords, polygons)
     return ratio <= max_allowed_ratio

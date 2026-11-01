@@ -4,13 +4,14 @@
  */
 
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { TOKENS } from '../../theme/tokens';
+import { useAppTheme } from '../../theme/themeManager';
 
 export interface CardWrapperProps {
   children: ReactNode;
   variant?: 'elevated' | 'flat' | 'highlight';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
 
@@ -20,10 +21,22 @@ export const CardWrapper: React.FC<CardWrapperProps> = ({
   style,
   onPress,
 }) => {
+  const { colors } = useAppTheme();
+
+  const dynamicVariantStyle: ViewStyle =
+    variant === 'highlight'
+      ? {
+          backgroundColor: colors.primaryLight,
+          borderColor: colors.primaryMint,
+        }
+      : {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        };
+
   const containerStyle = [
     styles.base,
-    variant === 'flat' && styles.flat,
-    variant === 'highlight' && styles.highlight,
+    dynamicVariantStyle,
     variant === 'elevated' && styles.elevated,
     style,
   ];
@@ -43,24 +56,14 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: TOKENS.borderRadius.card,
     padding: 16,
-    backgroundColor: TOKENS.colors.surface,
     borderWidth: 1,
-    borderColor: TOKENS.colors.border,
   },
   elevated: {
-    shadowColor: TOKENS.colors.primary,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 3,
   },
-  flat: {
-    backgroundColor: TOKENS.colors.surface,
-    borderColor: TOKENS.colors.border,
-    elevation: 0,
-  },
-  highlight: {
-    backgroundColor: TOKENS.colors.primaryLight,
-    borderColor: TOKENS.colors.primaryMint,
-  },
 });
+

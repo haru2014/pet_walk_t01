@@ -13,12 +13,18 @@ import logging
 import math
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from test_case.test_api_contracts import calculate_haversine_distance_m
+from agent.deviation_reroute import (
+    build_current_location_regenerated_route,
+    build_park_network_rejoin_route,
+    collect_projections,
+    select_projection,
+)
 from test_case.test_vision_safety_inspector import (
     HazardInspectionResult,
     HazardSeverity,
@@ -43,13 +49,20 @@ class RerouteRequest(BaseModel):
     current_lon: float = Field(..., ge=-180.0, le=180.0)
     destination_lat: float = Field(..., ge=-90.0, le=90.0)
     destination_lon: float = Field(..., ge=-180.0, le=180.0)
-    hazard_lat: float = Field(..., ge=-90.0, le=90.0)
-    hazard_lon: float = Field(..., ge=-180.0, le=180.0)
-    hazard_type: HazardType = "high_curb"
-    severity: HazardSeverity = "warning"
+    hazard_lat: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    hazard_lon: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    hazard_type: Optional[HazardType] = "high_curb"
+    severity: Optional[HazardSeverity] = "warning"
     confidence: float = Field(0.9, ge=0.0, le=1.0)
     # 현재 안내 중인 경로 좌표열 [[lon, lat], ...]. 없으면 현재 위치→목적지 직선을 기준으로 함.
     route_coordinates: Optional[List[List[float]]] = None
+    reroute_reason: Optional[str] = "hazard"
+    # 경로 이탈 직전까지 코스 위에서 진행한 거리(m). 순환 코스에서 앞쪽 합류 지점을 고르는 데 사용.
+    progress_m: Optional[float] = Field(None, ge=0.0)
+    # 산책 출발 모드 ('current_location': 방법 A 현위치→출발지 재생성, 'park'/'parking_pnr': 방법 C 보행망 합류)
+    origin_mode: Optional[Literal["current_location", "park", "parking_pnr"]] = None
+    pilot_park_id: Optional[str] = None
+    remaining_distance_m: Optional[float] = Field(None, ge=0.0)
 
 
 class HazardReportRequest(BaseModel):
@@ -72,6 +85,7 @@ _HAZARD_LABEL_KO = {
     "stairs": "야외 계단",
     "construction": "공사",
     "broken_glass": "유리 파편",
+    "dog_danger": "들개·맹견",
 }
 _HAZARD_CLEARANCE_M = 60.0   # 이 거리 안의 기존 경로점은 제거
 _DETOUR_OFFSET_M = 80.0      # 위험점에서 수직으로 비켜갈 거리
@@ -136,9 +150,96 @@ def build_detour_route(req: RerouteRequest) -> Dict[str, Any]:
     }
 
 
+def build_deviation_route(req: RerouteRequest) -> Dict[str, Any]:
+    """경로 이탈 시 출발 모드에 맞춰 현위치 기반 재생성(방법 A) 또는 보행망 합류(방법 C) 경로를 산출한다."""
+    if req.origin_mode == "current_location":
+        return build_current_location_regenerated_route(
+            current_lat=req.current_lat,
+            current_lon=req.current_lon,
+            destination_lat=req.destination_lat,
+            destination_lon=req.destination_lon,
+            route_coordinates=req.route_coordinates,
+            progress_m=req.progress_m,
+            remaining_distance_m=req.remaining_distance_m,
+        )
+
+    if req.origin_mode in ("park", "parking_pnr") or req.pilot_park_id:
+        return build_park_network_rejoin_route(
+            current_lat=req.current_lat,
+            current_lon=req.current_lon,
+            destination_lat=req.destination_lat,
+            destination_lon=req.destination_lon,
+            route_coordinates=req.route_coordinates,
+            progress_m=req.progress_m,
+            pilot_park_id=req.pilot_park_id,
+        )
+
+    start = [req.current_lon, req.current_lat]
+    end = [req.destination_lon, req.destination_lat]
+    base = req.route_coordinates or [start, end]
+    if base[-1] != end:
+        base = base + [end]
+
+    join = select_projection(collect_projections(base, req.current_lat, req.current_lon), req.progress_m)
+    if join is None:
+        coords = [start, end]
+    else:
+        rest = [list(pt) for pt in base[join["next_index"]:]]
+        if rest and calculate_haversine_distance_m(
+            (join["point"][1], join["point"][0]), (rest[0][1], rest[0][0])
+        ) < 1.0:
+            rest.pop(0)
+        coords = [start, list(join["point"])] + rest
+
+    return {
+        "coordinates": coords,
+        "distance_m": _polyline_length_m(coords),
+        "hazard_clearance_m": 0.0,
+        "reroute_strategy": "segment_rejoin",
+        "route_source": "segment_projection",
+        "step_pins": [],
+        "voice_alert": "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
+    }
+
+
 def reroute_around_hazard(req: RerouteRequest) -> Dict[str, Any]:
-    """[US-D2] 위험 판정 → 10배 페널티/차단 → 우회 경로 산출. 응답에 측정 지연시간 포함."""
+    """[US-D2] 위험 판정 또는 경로 이탈 시 안전 우회/복귀 경로 재산출. 응답에 측정 지연시간 포함."""
     started = time.perf_counter()
+
+    # 경로 이탈(deviation) 또는 위험 좌표 미지정 시 즉시 복귀/재생성 재탐색 처리
+    if req.reroute_reason == "deviation" or req.hazard_lat is None or req.hazard_lon is None:
+        detour = build_deviation_route(req)
+        strategy = detour.get("reroute_strategy", "segment_rejoin")
+        route_source = detour.get("route_source", "segment_projection")
+        return {
+            "status": "REROUTED",
+            "needs_reroute": True,
+            "penalty_multiplier": 1.0,
+            "voice_alert": detour.get("voice_alert") or "경로를 재탐색했습니다. 안전한 새 경로로 안내합니다.",
+            "blocked_hazard": None,
+            "reroute_strategy": strategy,
+            "route_source": route_source,
+            "step_pins": detour.get("step_pins") or [],
+            "geojson": {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "segmentType": "reroute",
+                            "reason": "deviation",
+                            "rerouteStrategy": strategy,
+                            "routeSource": route_source,
+                        },
+                        "geometry": {"type": "LineString", "coordinates": detour["coordinates"]},
+                    }
+                ],
+            },
+            "new_distance_m": detour["distance_m"],
+            "hazard_clearance_m": None,
+            "latency_seconds": round(time.perf_counter() - started, 3),
+        }
+
     inspection = HazardInspectionResult(
         hazard_type=req.hazard_type,
         severity=req.severity,
@@ -223,7 +324,7 @@ def _mock_hazard_result(filename: str) -> HazardInspectionResult:
     )
 
 
-def _mock_park_board_result(filename: str) -> ParkBoardInspectionResult:
+def _mock_park_board_result() -> ParkBoardInspectionResult:
     return ParkBoardInspectionResult(
         park_name="샘플 근린공원",
         has_dirt_trail=True,
@@ -242,12 +343,13 @@ def run_vision_inspection(image_bytes: bytes, filename: str, inspect_type: Inspe
     라이브(GEMINI_API_KEY 설정) 구현은 2번 데이터 담당의 Gemini 캐스케이드 체인이 이 함수에 연결된다.
     현재는 mock 결과를 돌려 API 계약을 고정한다.
     """
+    logger.debug("비전 판독 요청 수신: filename=%s, byte_size=%d", filename, len(image_bytes))
     live = vision_available()
     if inspect_type == "park_board":
-        result = _mock_park_board_result(filename)
+        result = _mock_park_board_result()
         return {
             "inspect_type": inspect_type,
-            "is_live_vision": False,  # TODO(2번 데이터): Gemini 라이브 체인 연결 시 True
+            "is_live_vision": False,  # 참고(2번 데이터): Gemini 라이브 체인 연결 시 True로 전환
             "model": "mock" if not live else "gemini-chain-pending",
             "result": result.model_dump(),
             "routing_constraints": process_park_board_constraints(result),
@@ -268,6 +370,10 @@ def run_vision_inspection(image_bytes: bytes, filename: str, inspect_type: Inspe
 # ==========================================
 
 _memory_reports: List[Dict[str, Any]] = []
+
+# 위험 제보 유효 기간: 2026-12-31 24시(한국 시간)까지. 이 시각이 지나면 조회에서 빠진다 (2026-10-30 결정).
+# 예전에는 만료가 없어 오래된 제보가 계속 안내에 나왔다.
+HAZARD_VALID_UNTIL = datetime(2027, 1, 1, tzinfo=timezone(timedelta(hours=9)))
 
 
 class HazardReportRepository:
@@ -305,7 +411,7 @@ class HazardReportRepository:
             except Exception as e:  # 네트워크/스키마 오류 시 로컬 폴백
                 logger.warning(f"[Supabase] hazard_reports 저장 실패, 인메모리 폴백: {e}")
         _memory_reports.insert(0, report)
-        return report
+        return {**report, "expires_at": HAZARD_VALID_UNTIL.isoformat()}
 
     def nearby(self, lat: float, lon: float, radius_m: float, limit: int = 50) -> List[Dict[str, Any]]:
         source: List[Dict[str, Any]] = list(_memory_reports)
@@ -318,10 +424,13 @@ class HazardReportRepository:
             except Exception as e:
                 logger.warning(f"[Supabase] hazard_reports 조회 실패, 인메모리 폴백: {e}")
 
+        if datetime.now(timezone.utc) >= HAZARD_VALID_UNTIL:
+            return []
+        expires_at = HAZARD_VALID_UNTIL.isoformat()
         out = []
         for r in source:
             d = calculate_haversine_distance_m((lat, lon), (r["lat"], r["lon"]))
             if d <= radius_m:
-                out.append({**r, "distance_m": d})
+                out.append({**r, "distance_m": d, "expires_at": expires_at})
         out.sort(key=lambda r: r["distance_m"])
         return out[:limit]

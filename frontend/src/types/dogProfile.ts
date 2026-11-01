@@ -3,7 +3,7 @@
  * 반려견 프로필 타입 및 속도 모델 (US-A2, US-A3)
  */
 
-export type JointCareLevel = 0 | 1 | 2; // 0: 일반, 1: 주의, 2: 적극보호
+export type JointCareLevel = 0 | 1 | 2 | 3; // 0: 일반, 1: 주의, 2: 적극보호, 3: 고위험
 
 export interface DogProfile {
   id: string;
@@ -20,6 +20,29 @@ export interface DogProfile {
   updatedAt: string;
 }
 
+/** 산책 기록 및 북마크 저장 시 보존되는 반려견 스펙 요약 DTO */
+export interface WalkDogSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly breed: string;
+  readonly ageYears: number;
+  readonly weightKg: number;
+  readonly jointCareLevel: JointCareLevel;
+  readonly photoUri?: string;
+}
+
+export function toWalkDogSummary(dog: DogProfile): WalkDogSummary {
+  return {
+    id: dog.id,
+    name: dog.name,
+    breed: dog.breed || '반려견',
+    ageYears: dog.ageYears,
+    weightKg: dog.weightKg,
+    jointCareLevel: dog.jointCareLevel,
+    photoUri: dog.photoUri,
+  };
+}
+
 export function calculateRecommendedSpeedKmH(
   weightKg: number,
   ageYears: number,
@@ -34,7 +57,7 @@ export function calculateRecommendedSpeedKmH(
 
   // 관절 안심 케어 수준에 따른 감속
   if (jointCareLevel === 1) baseSpeed *= 0.90;
-  else if (jointCareLevel === 2) baseSpeed *= 0.80;
+  else if (jointCareLevel >= 2) baseSpeed *= 0.80;
 
   return Math.round(baseSpeed * 10) / 10;
 }
@@ -44,6 +67,7 @@ export function getJointCareLabel(level: JointCareLevel): string {
     case 0: return '일반 활력 보행';
     case 1: return '관절 안심 케어 (주의)';
     case 2: return '관절 집중 안심 케어 (적극보호)';
+    case 3: return '관절 고위험 안심 케어';
   }
 }
 

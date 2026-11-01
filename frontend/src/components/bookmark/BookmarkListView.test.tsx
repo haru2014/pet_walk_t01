@@ -10,12 +10,27 @@ import { BookmarkService } from '../../services/bookmarkService';
 import { BookmarkedRoute } from '../../types/bookmark';
 import { SAMPLE_ROUTE, SAMPLE_STEP_PINS } from '../../services/sampleRoute';
 
+vi.mock('react-native-webview', () => ({
+  WebView: 'WebView',
+  default: 'WebView',
+}));
+vi.mock('../map/RouteMapView', () => ({
+  RouteMapView: () => React.createElement('div', { 'data-route-map': 'true' }),
+}));
+
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('svg', props),
   Polyline: (props: any) => React.createElement('polyline', props),
   Circle: (props: any) => React.createElement('circle', props),
   G: (props: any) => React.createElement('g', props),
   Text: (props: any) => React.createElement('text', props),
+}));
+
+vi.mock('../../services/photoPickerService', () => ({
+  DOG_AVATAR_PRESETS: [
+    { id: 'golden', emoji: '🦮', label: '골든', color: '#FDF6E2' },
+  ],
+  pickDogPhoto: vi.fn(),
 }));
 
 const mockBookmark: BookmarkedRoute = {

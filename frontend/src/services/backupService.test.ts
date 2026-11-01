@@ -9,6 +9,36 @@ import { LocalStorageService } from './storage';
 import { DogProfile } from '../types/dogProfile';
 import { STORAGE_KEYS } from '../types/storage';
 
+const { documentPickerMock, expoFileMock, sharingAvailableMock, shareAsyncMock } = vi.hoisted(() => ({
+  documentPickerMock: vi.fn(),
+  expoFileMock: {
+    create: vi.fn(),
+    delete: vi.fn(),
+    text: vi.fn(async () => '{"profile":{"name":"초코"}}'),
+    write: vi.fn(),
+    uri: 'file:///cache/backup.json',
+  },
+  sharingAvailableMock: vi.fn(async () => true),
+  shareAsyncMock: vi.fn(async () => undefined),
+}));
+
+vi.mock('expo-document-picker', () => ({ getDocumentAsync: documentPickerMock }));
+vi.mock('expo-file-system', () => ({
+  File: class {
+    uri = expoFileMock.uri;
+    exists = false;
+    create = expoFileMock.create;
+    delete = expoFileMock.delete;
+    text = expoFileMock.text;
+    write = expoFileMock.write;
+  },
+  Paths: { cache: 'file:///cache' },
+}));
+vi.mock('expo-sharing', () => ({
+  isAvailableAsync: sharingAvailableMock,
+  shareAsync: shareAsyncMock,
+}));
+
 const memoryStore = new Map<string, string>();
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -39,6 +69,9 @@ const mockDog: DogProfile = {
 describe('US-A2 BackupService - 프로필 JSON 백업 및 복원', () => {
   beforeEach(() => {
     memoryStore.clear();
+    vi.clearAllMocks();
+    expoFileMock.text.mockResolvedValue('{"profile":{"name":"초코"}}');
+    sharingAvailableMock.mockResolvedValue(true);
   });
 
   it('프로필을 JSON 문자열로 내보낼 수 있어야 한다', () => {
@@ -82,5 +115,38 @@ describe('US-A2 BackupService - 프로필 JSON 백업 및 복원', () => {
     expect(inStorage).not.toBeNull();
     expect(inStorage?.name).toBe('초코');
     expect(inStorage?.weightKg).toBe(4.2);
+  });
+
+  it('모바일 백업 파일을 만들고 시스템 공유 시트로 전달한다', async () => {
+    const saved = await BackupService.downloadUnifiedBackupJsonFile(mockDog, []);
+
+    expect(saved).toBe(true);
+    expect(expoFileMock.create).toHaveBeenCalledOnce();
+    expect(expoFileMock.write).toHaveBeenCalledWith(expect.stringContaining('"name": "초코"'));
+    expect(shareAsyncMock).toHaveBeenCalledWith(
+      expoFileMock.uri,
+      expect.objectContaining({ mimeType: 'application/json' })
+    );
+  });
+
+  it('시스템 파일 선택기에서 선택한 JSON 파일을 읽는다', async () => {
+    documentPickerMock.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///picked/backup.json', name: 'backup.json' }],
+    });
+
+    const content = await BackupService.pickBackupJsonFile();
+
+    expect(content).toBe('{"profile":{"name":"초코"}}');
+    expect(documentPickerMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: ['application/json', 'public.json'],
+      copyToCacheDirectory: true,
+    }));
+  });
+
+  it('파일 선택기 취소는 오류 없이 null로 처리한다', async () => {
+    documentPickerMock.mockResolvedValue({ canceled: true, assets: null });
+
+    await expect(BackupService.pickBackupJsonFile()).resolves.toBeNull();
   });
 });

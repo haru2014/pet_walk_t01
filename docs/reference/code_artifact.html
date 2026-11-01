@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>편안하개 - 다크포켓 모드 UI 개선 시안</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    
+    * {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    /* OLED 초절전 딥 블랙 배경 팔레트 */
+    :root {
+      --bg-dark: #101513;
+      --card-dark: #19211c;
+      --card-border: #28362e;
+      --gold-primary: #f2ad42;
+      --gold-sub: #cfa156;
+      --mint-accent: #27c980;
+      --alert-red: #d33838;
+      --pocket-blue: #2272eb;
+    }
+
+    body {
+      background-color: #080a09;
+    }
+
+    /* 포켓 모드 특화 터치 피드백 */
+    .pocket-tap {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pocket-tap:active {
+      transform: scale(0.96);
+      filter: brightness(1.2);
+    }
+
+    /* 슬라이드 업 팝업 트랜지션 */
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+    }
+
+    /* 깜빡임 애니메이션 (HUD 실시간 안내) */
+    @keyframes pulse-direction {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.75; transform: scale(0.97); }
+    }
+    .hud-pulse {
+      animation: pulse-direction 3s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center min-h-screen p-2 sm:p-6 text-gray-100">
+
+  <!-- 스마트폰 프레임 Mockup -->
+  <div class="relative w-full max-w-[412px] h-[890px] bg-[#101513] rounded-[48px] overflow-hidden shadow-2xl border-[6px] border-[#222b26] flex flex-col justify-between">
+    
+    <!-- 1. 스마트폰 상단 상태 표시줄 (Status Bar) -->
+    <header class="px-6 pt-3 pb-1 flex justify-between items-center text-xs text-gray-400 select-none z-10">
+      <div class="flex items-center gap-1 font-semibold text-gray-300">
+        <span id="current-clock">08:24</span>
+        <span class="text-[10px] ml-1 text-emerald-400 font-normal">SKT 5G</span>
+      </div>
+      <!-- 전면 카메라 펀치홀 -->
+      <div class="w-4 h-4 bg-black rounded-full border border-gray-800"></div>
+      <div class="flex items-center gap-2 text-gray-300">
+        <i data-lucide="bell-off" class="w-3.5 h-3.5 text-gray-500"></i>
+        <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+        <span class="text-[11px] font-medium">52%</span>
+        <i data-lucide="battery" class="w-4 h-4 fill-gray-300"></i>
+      </div>
+    </header>
+
+    <!-- 2. 다크포켓 모드 메인 스크롤 콘텐츠 영역 -->
+    <main class="flex-1 px-4 py-1.5 flex flex-col justify-between overflow-y-auto no-scrollbar">
+
+      <!-- 상단 타이틀 및 모드 정보 -->
+      <div class="text-center pt-1">
+        <div class="inline-flex items-center gap-1.5 justify-center">
+          <span class="text-xl">🐾</span>
+          <h1 class="text-[19px] font-bold tracking-tight text-[#f3b552]">
+            고양이5와 안심 산책 중
+          </h1>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-0.5">
+          다크포켓 모드 작동 중 · <span class="text-emerald-400">발바닥 안심 지면온도 (24.2°C)</span>
+        </p>
+      </div>
+
+      <!-- 음소거 / 짖음 감지 퀵 컨트롤 -->
+      <div class="space-y-1.5 mt-2">
+        <div class="flex gap-2">
+          <!-- 긴급 원터치 음소거 -->
+          <button id="btn-mute" onclick="toggleMute()" class="flex-1 pocket-tap bg-[#17221c] border border-[#a87a2d] hover:border-[#f2ad42] rounded-2xl px-3.5 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div id="mute-icon-box" class="w-9 h-9 rounded-full bg-[#203328] flex items-center justify-center text-emerald-400">
+                <i data-lucide="volume-2" class="w-5 h-5"></i>
+              </div>
+              <div class="text-left">
+                <div class="text-[13px] font-bold text-[#f2ad42]" id="mute-text">긴급 원터치 음소거 (80%)</div>
+                <div class="text-[10px] text-gray-400">돌발/짖음 시 터치하여 즉시 음소거</div>
+              </div>
+            </div>
+          </button>
+          <!-- 보이스 전환 -->
+          <button onclick="openModal('voice-modal')" class="w-[74px] pocket-tap bg-[#1d2721] border border-[#3b4c41] rounded-2xl flex flex-col items-center justify-center py-2">
+            <i data-lucide="sparkles" class="w-4 h-4 text-[#f2ad42] mb-0.5"></i>
+            <span class="text-[11px] font-semibold text-gray-300">보이스</span>
+          </button>
+        </div>
+
+        <!-- 스마트 짖음 감지 상태바 -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex-1 bg-[#131b17] border border-[#23352a] rounded-full px-3 py-1 flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span class="text-[11px] text-gray-300 truncate">스마트 짖음 자동 음소거 켜짐 (73dB ↑)</span>
+          </div>
+          <button onclick="simulateBark()" class="pocket-tap px-3 py-1 bg-[#231e17] border border-[#6b5028] rounded-full text-[11px] font-medium text-[#e4b363] flex items-center gap-1 shrink-0">
+            <span>📢</span> 짖음 테스트
+          </button>
+        </div>
+      </div>
+
+      <!-- [신규 개선 요소 1] Turn-by-Turn 진행 방향 표시 HUD (예: 120m 앞 좌회전) -->
+      <section class="mt-2.5 bg-gradient-to-r from-[#17241e] via-[#1a2922] to-[#17241e] border-2 border-[#2b885b] rounded-2xl p-3 shadow-lg hud-pulse relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <!-- 회전/방향 심볼 -->
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center shadow-md border border-emerald-400/40 text-white shrink-0">
+              <i data-lucide="corner-up-left" class="w-7 h-7 stroke-[2.6]"></i>
+            </div>
+            <!-- 내비게이션 텍스트 가이드 -->
+            <div class="text-left">
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-[20px] font-black text-white tracking-tight" id="nav-dist">120m</span>
+                <span class="text-[14px] font-bold text-emerald-300">앞 좌회전</span>
+              </div>
+              <div class="text-[11px] text-emerald-100/90 font-medium flex items-center gap-1 mt-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                <span id="nav-detail">솔숲 그늘길 코스 진입 (완만 노면 94%)</span>
+              </div>
+            </div>
+          </div>
+          <!-- 다음 이동 힌트 뱃지 -->
+          <div class="text-right pl-2 border-l border-emerald-800/60 shrink-0">
+            <span class="text-[9px] uppercase tracking-wider text-gray-400 block font-semibold">다음 안내</span>
+            <div class="text-[11px] text-amber-300 font-semibold flex items-center justify-end gap-0.5 mt-0.5">
+              <span>80m</span>
+              <i data-lucide="arrow-up" class="w-3 h-3"></i>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 산책 수치 메트릭스 (OLED 고대비 황금색 타이포그래피) -->
+      <div class="my-auto py-2 flex flex-col justify-around gap-1">
+        <!-- 1) 경과 시간 -->
+        <div class="text-center">
+          <span class="text-[12px] font-medium text-gray-400 tracking-wide">경과 시간</span>
+          <div id="stat-timer" class="text-[46px] leading-tight font-black tracking-tight text-[#f2ad42] font-mono drop-shadow-sm">
+            08:42
+          </div>
+        </div>
+
+        <!-- 2) 이동 거리 -->
+        <div class="text-center">
+          <span class="text-[12px] font-medium text-gray-400 tracking-wide">이동 거리</span>
+          <div class="flex items-baseline justify-center gap-1">
+            <span id="stat-dist" class="text-[46px] leading-tight font-black tracking-tight text-[#f2ad42] font-mono drop-shadow-sm">
+              0.84
+            </span>
+            <span class="text-lg font-bold text-[#f2ad42]">km</span>
+          </div>
+        </div>
+
+        <!-- 3) 현재 속도 -->
+        <div class="text-center">
+          <span class="text-[12px] font-medium text-gray-400 tracking-wide">현재 속도</span>
+          <div class="flex items-baseline justify-center gap-1">
+            <span id="stat-speed" class="text-[44px] leading-tight font-black tracking-tight text-[#f2ad42] font-mono drop-shadow-sm">
+              3.6
+            </span>
+            <span class="text-lg font-bold text-[#f2ad42]">km/h</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 배변 마킹 & 위험 제보 액션 버튼 -->
+      <div class="space-y-1.5 mt-1">
+        <div class="text-center text-[10px] text-gray-500 font-medium flex items-center justify-center gap-1">
+          <span>🐾</span> 배변 시 아래 버튼을 가볍게 탭하세요
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="recordPoo()" class="pocket-tap bg-[#1c241f] border border-[#3c4a40] hover:border-amber-600/70 rounded-xl py-2.5 flex items-center justify-center gap-2">
+            <span class="text-lg">💩</span>
+            <span class="text-xs font-bold text-gray-200">대변 마킹</span>
+            <span id="poo-count" class="hidden text-[10px] bg-amber-800/80 text-amber-200 px-1.5 py-0.2 rounded-full font-bold">1</span>
+          </button>
+          <button onclick="recordPee()" class="pocket-tap bg-[#182329] border border-[#2b424f] hover:border-cyan-600/70 rounded-xl py-2.5 flex items-center justify-center gap-2">
+            <span class="text-lg">💧</span>
+            <span class="text-xs font-bold text-gray-200">소변 마킹</span>
+            <span id="pee-count" class="hidden text-[10px] bg-sky-900/80 text-sky-200 px-1.5 py-0.2 rounded-full font-bold">2</span>
+          </button>
+        </div>
+        <button onclick="openModal('hazard-modal')" class="w-full pocket-tap bg-[#261717] border border-[#7a2e2e] hover:border-red-500 rounded-xl py-2 flex items-center justify-center gap-1.5 text-red-300 text-xs font-bold">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-red-400"></i>
+          <span>위험 제보 & 안전 우회</span>
+        </button>
+      </div>
+
+      <!-- [신규 개선 요소 2] "밀어서 잠금 해제" 완전 대체: 3대 핵심 액션 버튼 영역 -->
+      <section class="mt-2.5 pt-2 border-t border-[#1f2923]">
+        <div class="grid grid-cols-3 gap-2">
+          
+          <!-- 버튼 1: 지도 보기 -->
+          <button onclick="openModal('map-modal')" class="pocket-tap bg-[#14231b] hover:bg-[#1b3025] border-2 border-[#2f7d54] rounded-2xl py-3 px-1 flex flex-col items-center justify-center gap-1 shadow-md group">
+            <div class="w-9 h-9 rounded-full bg-[#1b3527] flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+              <i data-lucide="map" class="w-5 h-5"></i>
+            </div>
+            <span class="text-[12px] font-bold text-emerald-300 tracking-tight">지도 보기</span>
+          </button>
+
+          <!-- 버튼 2: 산책 종료 -->
+          <button onclick="openModal('end-modal')" class="pocket-tap bg-[#2c1d1d] hover:bg-[#3d2424] border-2 border-[#9b3a3a] rounded-2xl py-3 px-1 flex flex-col items-center justify-center gap-1 shadow-md group">
+            <div class="w-9 h-9 rounded-full bg-[#462323] flex items-center justify-center text-red-300 group-hover:scale-105 transition-transform">
+              <i data-lucide="square" class="w-5 h-5 fill-current"></i>
+            </div>
+            <span class="text-[12px] font-bold text-red-300 tracking-tight">산책 종료</span>
+          </button>
+
+          <!-- 버튼 3: 긴급 복구 -->
+          <button onclick="openModal('emergency-modal')" class="pocket-tap bg-[#17202b] hover:bg-[#1e2c3c] border-2 border-[#376899] rounded-2xl py-3 px-1 flex flex-col items-center justify-center gap-1 shadow-md group">
+            <div class="w-9 h-9 rounded-full bg-[#20344b] flex items-center justify-center text-sky-400 group-hover:scale-105 transition-transform">
+              <i data-lucide="shield-alert" class="w-5 h-5"></i>
+            </div>
+            <span class="text-[12px] font-bold text-sky-300 tracking-tight">긴급 복구</span>
+          </button>
+
+        </div>
+        
+        <p class="text-[10px] text-center text-gray-500 mt-1 font-normal">
+          주머니 속 오작동 방지 터치 보정이 적용되어 있습니다
+        </p>
+      </section>
+
+    </main>
+
+    <!-- 3. 안드로이드 소프트웨어 내비게이션 바 -->
+    <footer class="h-11 px-12 flex justify-between items-center text-gray-500 border-t border-[#18201a] bg-[#0c100e]">
+      <button class="hover:text-gray-300 focus:outline-none">
+        <i data-lucide="menu" class="w-4 h-4"></i>
+      </button>
+      <button class="hover:text-gray-300 focus:outline-none">
+        <div class="w-3.5 h-3.5 rounded-full border-2 border-current"></div>
+      </button>
+      <button class="hover:text-gray-300 focus:outline-none">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+      </button>
+    </footer>
+
+    <!-- ================= MODALS (상호작용 확인용 팝업) ================= -->
+
+    <!-- 지도 보기 모달 -->
+    <div id="map-modal" class="hidden absolute inset-0 modal-backdrop z-50 flex flex-col justify-end p-3 transition-opacity">
+      <div class="bg-[#141c17] border border-[#2f5c43] rounded-3xl p-5 shadow-2xl flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-[#24372c]">
+          <div class="flex items-center gap-2">
+            <span class="p-2 rounded-xl bg-emerald-950 text-emerald-400">
+              <i data-lucide="map-pin" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <h3 class="text-sm font-bold text-white">실시간 안심 산책 지도</h3>
+              <p class="text-[11px] text-gray-400">완만 노면 및 그늘 경로 하이라이트</p>
+            </div>
+          </div>
+          <button onclick="closeModal('map-modal')" class="p-1 text-gray-400 hover:text-white">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <!-- 지도 그래픽 시뮬레이션 -->
+        <div class="w-full h-48 bg-[#0b120e] rounded-2xl my-4 relative overflow-hidden border border-[#22362a] flex items-center justify-center">
+          <!-- 격자 및 경로 시각화 -->
+          <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#27c980_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          <svg class="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 50 150 Q 120 70 200 110 T 350 40" fill="none" stroke="#27c980" stroke-width="5" stroke-linecap="round" stroke-dasharray="6,4" />
+            <circle cx="200" cy="110" r="8" fill="#f2ad42" stroke="#ffffff" stroke-width="2"/>
+          </svg>
+          <div class="z-10 bg-[#121c16]/90 border border-emerald-500/40 px-3 py-1.5 rounded-full text-xs text-emerald-300 font-semibold shadow-lg">
+            🐾 현재 안심 솔숲길 주행 중
+          </div>
+        </div>
+        <button onclick="closeModal('map-modal')" class="w-full py-3 bg-[#236846] hover:bg-emerald-600 rounded-xl font-bold text-white text-xs">
+          포켓 모드로 돌아가기
+        </button>
+      </div>
+    </div>
+
+    <!-- 산책 종료 모달 -->
+    <div id="end-modal" class="hidden absolute inset-0 modal-backdrop z-50 flex items-center justify-center p-5">
+      <div class="bg-[#1b1515] border border-[#782f2f] rounded-3xl p-5 w-full text-center shadow-2xl">
+        <div class="w-12 h-12 rounded-full bg-[#411b1b] text-red-400 flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="square" class="w-6 h-6 fill-current"></i>
+        </div>
+        <h3 class="text-base font-bold text-white mb-1">산책을 종료하시겠어요?</h3>
+        <p class="text-xs text-gray-400 mb-4 leading-relaxed">
+          총 산책 시간 <span class="text-amber-400 font-bold" id="end-modal-time">08:42</span> 동안<br/>
+          <span class="text-emerald-400 font-bold" id="end-modal-dist">0.84 km</span>를 안전하게 함께 걸었습니다.
+        </p>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="closeModal('end-modal')" class="py-2.5 bg-[#2a2424] hover:bg-neutral-800 text-gray-300 rounded-xl text-xs font-semibold">
+            계속 산책하기
+          </button>
+          <button onclick="confirmFinishWalk()" class="py-2.5 bg-[#af2d2d] hover:bg-red-600 text-white rounded-xl text-xs font-bold">
+            기록 저장 및 종료
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 긴급 복구 모달 -->
+    <div id="emergency-modal" class="hidden absolute inset-0 modal-backdrop z-50 flex items-center justify-center p-5">
+      <div class="bg-[#111922] border border-[#2b5883] rounded-3xl p-5 w-full text-left shadow-2xl">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-10 h-10 rounded-full bg-[#1b344c] text-sky-400 flex items-center justify-center shrink-0">
+            <i data-lucide="life-buoy" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">긴급 상황 및 시스템 복구</h3>
+            <p class="text-[10px] text-gray-400">네트워크 두절 / 센서 튕김 대응 모드</p>
+          </div>
+        </div>
+        <div class="space-y-2 mb-4">
+          <button onclick="recoverGps()" class="w-full text-left p-3 rounded-xl bg-[#162330] border border-[#2c4b69] hover:border-sky-400 flex justify-between items-center">
+            <div>
+              <div class="text-xs font-bold text-sky-200">🛰️ GPS 및 거리 측정 재동기화</div>
+              <div class="text-[10px] text-gray-400">백그라운드 궤적 누락 강제 복원</div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400"></i>
+          </button>
+          <button onclick="callHospital()" class="w-full text-left p-3 rounded-xl bg-[#261717] border border-[#6b2c2c] hover:border-red-400 flex justify-between items-center">
+            <div>
+              <div class="text-xs font-bold text-red-300">🏥 가장 가까운 24시 동물병원 연결</div>
+              <div class="text-[10px] text-gray-400">반경 1.2km 내 응급 센터 바로 안내</div>
+            </div>
+            <i data-lucide="phone-call" class="w-4 h-4 text-red-400"></i>
+          </button>
+        </div>
+        <button onclick="closeModal('emergency-modal')" class="w-full py-2.5 bg-[#1b2b3b] text-gray-300 rounded-xl text-xs font-semibold text-center">
+          닫기
+        </button>
+      </div>
+    </div>
+
+    <!-- 위험 제보 모달 -->
+    <div id="hazard-modal" class="hidden absolute inset-0 modal-backdrop z-50 flex items-center justify-center p-5">
+      <div class="bg-[#1e1515] border border-[#833232] rounded-3xl p-5 w-full text-center">
+        <i data-lucide="alert-octagon" class="w-10 h-10 text-red-400 mx-auto mb-2"></i>
+        <h4 class="text-sm font-bold text-white mb-1">인근 보행 위험 요소 제보</h4>
+        <p class="text-[11px] text-gray-400 mb-3">다른 반려인들이 이 구역을 우회하도록 공유합니다</p>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+          <button onclick="submitHazard('깨진 유리/날카로운 이물질')" class="p-2 bg-[#2d1b1b] border border-[#522525] rounded-lg text-gray-200 font-medium">🍶 깨진 유리</button>
+          <button onclick="submitHazard('공사구간/진동 노면')" class="p-2 bg-[#2d1b1b] border border-[#522525] rounded-lg text-gray-200 font-medium">🚧 공사 소음</button>
+          <button onclick="submitHazard('사나운 들개/맹견 출몰')" class="p-2 bg-[#2d1b1b] border border-[#522525] rounded-lg text-gray-200 font-medium">🐕 맹견 출몰</button>
+          <button onclick="submitHazard('과열 아스팔트 (고온 위험)')" class="p-2 bg-[#2d1b1b] border border-[#522525] rounded-lg text-gray-200 font-medium">🔥 뜨거운 바닥</button>
+        </div>
+        <button onclick="closeModal('hazard-modal')" class="w-full py-2 bg-neutral-800 text-gray-300 rounded-xl text-xs">취소</button>
+      </div>
+    </div>
+
+    <!-- 토스트 알림창 -->
+    <div id="toast" class="absolute top-12 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-emerald-500/80 text-emerald-300 text-xs px-4 py-2 rounded-full shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-50 flex items-center gap-2">
+      <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+      <span id="toast-msg">기록되었습니다</span>
+    </div>
+
+  </div>
+
+  <script>
+    // Lucide 아이콘 초기화
+    lucide.createIcons();
+
+    // 1. 실시간 시계 & 산책 타이머 시뮬레이션
+    let secondsElapsed = 522; // 08:42 기준 시작
+    let distanceKm = 0.84;
+    let speed = 3.6;
+    let isMuted = false;
+    let pooCount = 0;
+    let peeCount = 0;
+
+    setInterval(() => {
+      secondsElapsed++;
+      const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+      const s = String(secondsElapsed % 60).padStart(2, '0');
+      document.getElementById('stat-timer').innerText = `${m}:${s}`;
+      
+      // 약간의 거리/속도 가변 시뮬레이션
+      if (secondsElapsed % 5 === 0) {
+        distanceKm = (parseFloat(distanceKm) + 0.01).toFixed(2);
+        document.getElementById('stat-dist').innerText = distanceKm;
+        
+        // 120m 앞 좌회전 거리 감소 시뮬레이션
+        const distEl = document.getElementById('nav-dist');
+        let currentNavDist = parseInt(distEl.innerText);
+        if (currentNavDist > 10) {
+          distEl.innerText = `${currentNavDist - 5}m`;
+        }
+      }
+    }, 1000);
+
+    // 상단 시간 시계 동기화
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('current-clock').innerText = `${hours}:${minutes}`;
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+
+    // 2. 음소거 토글
+    function toggleMute() {
+      isMuted = !isMuted;
+      const text = document.getElementById('mute-text');
+      const iconBox = document.getElementById('mute-icon-box');
+      if (isMuted) {
+        text.innerText = "음소거 적용 중 (Muted)";
+        text.classList.remove('text-[#f2ad42]');
+        text.classList.add('text-red-400');
+        iconBox.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
+        showToast("🔇 원터치 즉시 음소거가 활성화되었습니다.");
+      } else {
+        text.innerText = "긴급 원터치 음소거 (80%)";
+        text.classList.remove('text-red-400');
+        text.classList.add('text-[#f2ad42]');
+        iconBox.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5 text-emerald-400"></i>';
+        showToast("🔊 기본 안내 음량으로 복원되었습니다.");
+      }
+      lucide.createIcons();
+    }
+
+    // 3. 짖음 테스트 시뮬레이션
+    function simulateBark() {
+      showToast("📢 78dB 짖음 감지! 2초간 안내 음성이 자동 소음 감소되었습니다.");
+    }
+
+    // 4. 배변 기록 카운트
+    function recordPoo() {
+      pooCount++;
+      const el = document.getElementById('poo-count');
+      el.innerText = pooCount;
+      el.classList.remove('hidden');
+      showToast(`💩 대변 배변 위치가 GPS 좌표와 함께 기록되었습니다 (${pooCount}회)`);
+    }
+
+    function recordPee() {
+      peeCount++;
+      const el = document.getElementById('pee-count');
+      el.innerText = peeCount;
+      el.classList.remove('hidden');
+      showToast(`💧 소변 배변 위치가 마킹되었습니다 (${peeCount}회)`);
+    }
+
+    // 5. 모달 컨트롤
+    function openModal(modalId) {
+      if (modalId === 'end-modal') {
+        document.getElementById('end-modal-time').innerText = document.getElementById('stat-timer').innerText;
+        document.getElementById('end-modal-dist').innerText = `${distanceKm} km`;
+      }
+      document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function confirmFinishWalk() {
+      closeModal('end-modal');
+      showToast("🎉 산책이 안전하게 완료되어 통계에 저장되었습니다!");
+    }
+
+    function recoverGps() {
+      closeModal('emergency-modal');
+      showToast("🛰️ GPS 센서 보정 완료! 최신 경로 120m가 복구되었습니다.");
+    }
+
+    function callHospital() {
+      closeModal('emergency-modal');
+      showToast("📞 '24시 다정동물의료센터(042-xxx-xxxx)' 안내 화면으로 전환합니다.");
+    }
+
+    function submitHazard(name) {
+      closeModal('hazard-modal');
+      showToast(`⚠️ [${name}] 위험 요소를 지도에 제보 등록했습니다.`);
+    }
+
+    // 6. 커스텀 토스트 알림창
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      toastMsg.innerText = message;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2400);
+    }
+  </script>
+</body>
+</html>

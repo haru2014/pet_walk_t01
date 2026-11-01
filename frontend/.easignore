@@ -1,0 +1,31 @@
+# EAS Build Ignore Configuration
+# Exclude files from EAS Build upload archive
+
+# Dependencies
+node_modules/
+
+# Presentations & Office Documents (PPT / PPTX)
+*.ppt
+*.pptx
+**/*.ppt
+**/*.pptx
+
+# Non-build folders & docs
+docs/
+error/
+scratch/
+*.log
+
+# Tests
+**/*.test.*
+**/*.spec.*
+**/__tests__/
+
+# Local & environment files
+.env.local
+*.tsbuildinfo
+
+# Expo / build output
+.expo/
+dist/
+web-build/

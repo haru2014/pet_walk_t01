@@ -1,0 +1,93 @@
+# ✅ [팀원 4 TODO] 김승현 (Frontend & Mobile App Lead) — 2026-10-18
+
+> 파일: `docs/member4/2026-10-18_member4_todo.md`  
+> 생성: 2026-10-18 23:23 KST · `python scripts/generate_member4_report.py`  
+> 근거: 팀원 PR 본문 최근 60건 + [`docs/implementation_plan/김승현_향후_구현계획.md`](/docs/implementation_plan/김승현_향후_구현계획.md)  
+> 완료한 항목은 `[ ]` → `[x]` 로 바꿔 두면 다음 생성 때도 완료 상태가 유지됩니다.
+
+## 📊 요약
+
+| 구분 | 남은 일 | 전체 |
+|---|:---:|:---:|
+| 팀원 PR 요청 | **5** | 6 |
+| 계획서 남은 구현 | **4** | 4 |
+| 🔴 긴급(P0/오류·충돌 관련) | **3** | - |
+| ✅ 완료 체크 | 1 | 10 |
+
+---
+
+## 1. 팀원 PR에서 요청받은 확인·후속 작업
+
+### [PR #120](https://github.com/haru2014/pet_walk_t01/pull/120) fix(weather): 흙 지면온도 상승폭 8.0 → 12.6℃ (기상청 관측 맨땅 적합, US-B2)
+> 요청자 @hippie-jin · 병합 2026-10-18
+
+- [x] 🟡 홈 골든타임 위젯이 "흙길 / 잔디" 한 칸에 잔디 온도를 보여 줍니다. <!-- key:pr120-809fe9b4 -->
+  - 관측 기준으로 한여름 한낮(기온 30℃)에는 잔디 34℃, 흙 42.6℃라서, 흙길이 실제보다 약 8℃ 시원하게 보일 수 있습니다.
+  - 흙과 잔디를 나눠 보여 주거나 "잔디" 단독 표기로 바꾸는 방안을 검토해 주시면 좋겠습니다.
+
+### [PR #115](https://github.com/haru2014/pet_walk_t01/pull/115) fix(privacy): 200m 마스킹 재진입 차단 + 로그 출발 좌표 축소 (US-G2, 마스킹 감사)
+> 요청자 @hippie-jin · 병합 2026-10-18
+
+- [x] 🟡 마스킹 코드(#33)를 고쳤습니다. 기존 테스트(교차로·코너 스냅)는 그대로 통과합니다. 의도와 다른 부분이 있으면 말씀해 주세요. <!-- key:pr115-28fed897 -->
+  - 의견 없음
+
+### [PR #113](https://github.com/haru2014/pet_walk_t01/pull/113) feat(data): 경로 생성에 비·12시간 예보 전달 + 후보별 실측 경사·노면(course_profiles)
+> 요청자 @hippie-jin · 병합 2026-10-18
+
+- [x] 🟡 앱 카드에서 "알 수 없음" 값을 표시하는 방식 (승현님과 협의) <!-- key:pr113-976f43c3 -->
+  - 앱 카드에서 "알 수 없음" 표시를 담당한 `routeInfo.ts`의 `formatSlopeDisplay`, `formatSurfaceDisplay` 함수를 `docs/implementation_plan/김승현_향후_구현계획.md`에 새로 추가한 "경사도/노면 정보 없음" 표시 지침에 맞게 정리하고, 해당 함수들을 실제로 사용하는 `RecommendedCourseCard`·`RouteReasonCard`도 검증한 뒤 `test` 폴더에 새 테스트 파일을 만들어 두었습니다.
+  - 이 파일이 이 PR을 가져와서 생기는 충돌을 수정하는 데 도움이 되면 좋겠습니다.
+
+### [PR #104](https://github.com/haru2014/pet_walk_t01/pull/104) fix(weather): Open-Meteo 실패 시 /walk/plan·/weather/heat-risk 500 수정
+> 요청자 @hippie-jin · 병합 2026-10-18
+
+- [x] 🔴 `feat/member4` 브랜치에도 같은 줄을 `except (OSError, ValueError, KeyError):`로 바꾸는 커밋이 있습니다. 다음 PR에서 이 줄이 충돌하면 이 PR 쪽(`OpenMeteoError` 포함)으로 맞춰 주세요. 그렇지 않으면 500이 다시 생깁니… <!-- key:pr104-a3553990 -->
+  - 의견 없음
+- [x] 🔴 `timeout=0.3`초는 운영(Render)에서 Open-Meteo 응답보다 짧아 보정이 거의 항상 실패할 수 있습니다. 값 조정은 승현님 판단에 맡깁니다(이 PR에서는 바꾸지 않음). <!-- key:pr104-f1a38724 -->
+  - 8초로 수정
+### [PR #49](https://github.com/haru2014/pet_walk_t01/pull/49) feat(data): 공영주차장 데이터를 공식 표준데이터 기준으로 정리하고 읽기·검증·반경 검색 모듈 추가 (US-G1)
+> 요청자 @hippie-jin · 병합 2026-10-14
+
+- [x] 🟡 기존 주차장 목록(`parkingApi.ts`, `main.py`)의 좌표·주소와 공식 자료의 차이를 확인해 주세요. <!-- key:pr49-b3328d80 -->
+  - 공공데이터포털 전국주차장정보표준데이터(15012896) 및 대전시 공원 누리집 공식 안내 기준으로 기존 11개 주차장 정밀 대조 완료
+  - 정밀 대조 보고서 작성 완료: `docs/reports/2026-10-19_공영주차장_공식_표준데이터_대조_보고서.md`
+  - 주요 차이 발견:
+    1) **도안호수공원**: 레거시 좌표(`pkg_doan_01/02`)가 도안동 공식 주차장보다 2.1~2.4km 북쪽(작은내수변공원)으로 치우침 → 대전시 공원 누리집 안내 공원 주차장 A/B/C(`opr_doan_a~c`, 원신흥동/도안동)로 대체 필요
+    2) **유림·송강공원**: 레거시 5곳 중 4곳이 보행망 100m 기준 초과(118m~693m)로 422 실패 → 공식 `std_186-1-000005`(유림 30m), `std_186-2-000002`(송강 32m)만 200 OK 출발 가능
+    3) **세종호수공원**: 레거시 4곳이 구 연기면 세종리 지번 주소 사용(공식 공원 주소: 다솜로 216), 공식 어진동 주차장과 0.5~1.3km 이격
+  - 프론트엔드 조치: `parking.ts` 메타데이터 및 `verified_only` 옵션 추가, `parkingApi.ts`에 공식 9개 주차장 통합 반영 및 오프라인 폴백 연동, `parkingApi.test.ts` (13 passed) 및 백엔드 `test_parking_lots.py` (69 passed) 완료
+
+---
+
+## 2. 계획서 기준 남은 구현
+
+### 🔴 P0
+
+- [x] api.ts의 공원 검증 실패/폴백과 PlanSourceBadge를 점검해 미검증 코스를 정상 추천으로 표시하지 않도록 서버와 E2E 검증한다. <!-- key:plan-bac8a2c7 -->
+  - 실제 Render 운영 서버(/api/v1/walk/plan) E2E 검증 완료 (유림공원 3개 후보 루프 validation.passed=true 확인, 미검증 공원 요청 시 422 BOUNDARY_DATA_UNAVAILABLE 거부 및 RoutePlanError 발생 확인)
+  - PlanSourceBadge.test.tsx 및 CourseRecommendationView.test.tsx 단위 테스트 추가 완료 (미검증 코스 노출 차단 및 Live/Offline 뱃지 검증)
+
+### 🟡 P1
+
+- [x] 위험 제보→보행망 우회→경로 교체→TTS 및 실제 보행 경로 기반 긴급 복귀를 구현한다. <!-- key:plan-d0807fb3 -->
+  - `HazardReportModal.tsx` 현장 위험 제보 UI(공사구역, 높은턱, 파편, 들개출몰) 및 [안전 우회 / 긴급 복귀] 액션 구현
+  - `hazardApi.ts` 구현: POST /api/v1/hazards 제보, POST /api/v1/walk/reroute 우회 재산출 및 오프라인 로컬 기하 폴백 연동
+  - `DarkPocketScreen.tsx` 및 `App.tsx` 연동: HUD 내 위험 제보 버튼, 지도 경로 실시간 갱신 및 TTSNavigationService 안내 발화
+  - 단위 테스트 완료: `hazardApi.test.ts` (6 passed), `HazardReportModal.test.tsx` (2 passed), TypeScript(`tsc --noEmit`) 무오류 검증
+- [ ] 지도 크기 변경·재진입·테마·타일 장애를 Web/실기기에서 검증한다. <!-- key:plan-c5a74f42 -->
+- [ ] GPS 백그라운드 1시간·권한 거부·재시작, 네이티브 소음 입력 범위를 검증한다. <!-- key:plan-1ac48752 -->
+
+---
+
+## 3. 일정 마일스톤
+
+| 기간 | 상태 | 인수 조건 |
+|---|:---:|---|
+| 10/17~10/18 | 오늘 마감 | P0 재현 요청·응답·데이터 검증표·오류 처리 결과를 남기고 협업 담당자와 확인 |
+| 10/19~10/25 | 예정 (D-1) | P1 구현 및 통합 검증. 외부 서비스·실기기 결과는 단위 테스트와 별도 기록 |
+| 10/26~10/30 | 예정 (D-8) | 최신 전수 테스트, 배포 SHA/APK ID, 미해결 결함·데이터 출처를 근거로 Code Freeze 승인 |
+| 10/31~11/07 | 예정 (D-13) | 검증된 대전·세종 거점 중심 5인 CBT. 참여자·세부 회차는 확정 후 기록 |
+| 11/08 | 예정 (D-21) | 담당 구현·검증 보고서와 최종 산출물 제출 |
+
+---
+*`scripts/generate_member4_report.py` 로 자동 생성*

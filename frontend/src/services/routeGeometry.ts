@@ -12,6 +12,7 @@ import {
   LonLat,
   RouteFeatureCollection,
 } from '../types/route';
+import { DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 const EARTH_RADIUS_M = 6371000;
 
@@ -47,6 +48,29 @@ export function polylineLengthMeters(coords: readonly LonLat[]): number {
 }
 
 /**
+ * GeoJSON FeatureCollection의 모든 LineString 세그먼트 좌표를 순서대로 이어 붙인다.
+ * 세그먼트 간 접합점(이전 세그먼트의 끝점과 다음 세그먼트의 시작점)이 동일한 경우 중복을 제거한다.
+ */
+export function flattenRouteCoordinates(
+  collection?: RouteFeatureCollection | null,
+): [number, number][] {
+  if (!collection?.features || collection.features.length === 0) return [];
+  const result: [number, number][] = [];
+  for (const feature of collection.features) {
+    const coords = feature.geometry?.coordinates;
+    if (!Array.isArray(coords)) continue;
+    for (const pt of coords) {
+      if (!Array.isArray(pt) || pt.length < 2) continue;
+      const last = result.at(-1);
+      if (!last || last[0] !== pt[0] || last[1] !== pt[1]) {
+        result.push([pt[0], pt[1]]);
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * GeoJSON 세그먼트로부터 코스 요약(거리/시간/최대 경사/그늘 비율)을 계산한다.
  * @param speedKmH 반려견 권장 속도 (km/h)
  */
@@ -79,11 +103,44 @@ export function buildCourseSummary(
 }
 
 /**
+ * GeoJSON 세그먼트로부터 완만 노면율(0.0 ~ 1.0)을 계산한다.
+ * segmentType === 'safe' 또는 maxSlopePercent <= 3.5% 완만 경사 세그먼트의 거리 가중 비율 산출.
+ */
+export function calculateSafeSurfaceRatio(collection: RouteFeatureCollection | undefined | null): number {
+  if (!collection?.features || collection.features.length === 0) {
+    return 0.85;
+  }
+  let totalM = 0;
+  let safeM = 0;
+
+  for (const feature of collection.features) {
+    const coords = feature.geometry?.coordinates ?? [];
+    if (coords.length < 2) continue;
+    const lengthM = polylineLengthMeters(coords);
+    totalM += lengthM;
+
+    const props = feature.properties;
+    const isSafe =
+      props?.segmentType === 'safe' ||
+      ((props?.maxSlopePercent ?? 999) <= 3.5 && props?.segmentType !== 'caution');
+
+    if (isSafe) {
+      safeM += lengthM;
+    }
+  }
+
+  if (totalM <= 0) return 0.85;
+  return Math.round((safeM / totalM) * 100) / 100;
+}
+
+/**
  * react-native-maps MapView Region 계산 (중심점 + delta)
  */
 export function calculateRegionBounds(coords: readonly LonLat[], paddingFactor = 1.3): RegionBounds {
   if (coords.length === 0) {
-    return { latitude: 37.5443, longitude: 127.0374, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    // 좌표가 없으면 기본 시범 공원(대전 유림공원) 중심 (#281)
+    const { lat, lon } = DEFAULT_PILOT_PARK.center;
+    return { latitude: lat, longitude: lon, latitudeDelta: 0.01, longitudeDelta: 0.01 };
   }
 
   const lons = coords.map((c) => c[0]);

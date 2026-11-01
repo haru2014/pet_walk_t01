@@ -77,5 +77,13 @@ export class LocalStorageService {
     );
     return this.setItem(STORAGE_KEYS.WALK_HISTORY, updated);
   }
+
+  static async updateWalkRecordRemoteId(recordId: string, remoteId: string): Promise<boolean> {
+    const history = await this.getWalkHistory();
+    const updated = history.map((record) =>
+      record.id === recordId ? { ...record, remoteId } : record
+    );
+    return this.setItem(STORAGE_KEYS.WALK_HISTORY, updated);
+  }
 }
 

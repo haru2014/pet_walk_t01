@@ -4,7 +4,8 @@
  */
 
 import React, { ReactNode } from 'react';
-import { Text, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { AppText as Text } from './AppText';
 import { TOKENS } from '../../theme/tokens';
 
 export interface GradientButtonProps {
@@ -24,6 +25,12 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   disabled = false,
   style,
 }) => {
+  const isTextLike =
+    typeof children === 'string' ||
+    typeof children === 'number' ||
+    (Array.isArray(children) &&
+      children.every((c) => typeof c === 'string' || typeof c === 'number' || c == null));
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
@@ -38,7 +45,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
         style,
       ]}
     >
-      {typeof children === 'string' ? (
+      {isTextLike ? (
         <Text style={[styles.text, size === 'lg' && styles.textLg]}>{children}</Text>
       ) : (
         children

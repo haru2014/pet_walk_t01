@@ -33,6 +33,131 @@ def test_supabase_repository_save_course():
     assert feeds[0]["title"] == "한강 망원나들목 그늘 산책로"
 
 
+def test_raw_walk_share_client_requires_service_role_key(monkeypatch):
+    repo = SupabaseCommunityRepository()
+    repo._client = object()
+
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    assert repo.raw_client() is None
+
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "server-secret")
+    assert repo.raw_client() is repo._client
+
+
+def test_walk_share_storage_readiness_checks_table_columns_and_public_view(monkeypatch):
+    class Query:
+        def select(self, *_args):
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            return type("Response", (), {"data": []})()
+
+    class Client:
+        def table(self, name):
+            assert name in {"walk_records", "public_walk_reviews_v"}
+            return Query()
+
+    repo = SupabaseCommunityRepository()
+    repo._client = Client()
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "server-secret")
+
+    assert repo.walk_share_storage_ready() is True
+
+
+def test_get_feeds_combines_public_walk_reviews_without_exposing_private_fields():
+    """공개 후기 뷰의 마스킹 경로는 기존 코스와 함께 피드에 노출한다."""
+    class Query:
+        def __init__(self, data):
+            self.data = data
+
+        def select(self, *_args):
+            return self
+
+        def order(self, *_args, **_kwargs):
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            return type("Response", (), {"data": self.data})()
+
+    class Client:
+        def table(self, name):
+            if name == "community_courses":
+                return Query([{
+                    "course_id": "course-1",
+                    "title": "기존 커뮤니티 코스",
+                    "masked_polyline": [[127.0, 37.5], [127.1, 37.6]],
+                    "distance_m": 1000,
+                    "duration_min": 20,
+                    "rating": 4.5,
+                    "is_origin_masked": True,
+                    "created_at": "2025-01-01T00:00:00+00:00",
+                }])
+            return Query([{
+                "id": "walk-1",
+                "course_id": "internal-course-id",
+                "distance_m": 1250,
+                "duration_min": 25,
+                "rating": 4.8,
+                "note": "그늘이 많고 편안한 길",
+                "public_route_coords": [[127.01, 37.51], [127.02, 37.52]],
+                "walked_on": "2025-02-01",
+                "user_id": "private-user-id",
+                "route_coords": [[127.0, 37.5], [127.03, 37.53]],
+            }])
+
+    repo = SupabaseCommunityRepository()
+    repo._client = Client()
+
+    feeds = repo.get_feeds()
+
+    assert [feed["course_id"] for feed in feeds] == ["walk_walk-1", "course-1"]
+    walk_feed = feeds[0]
+    assert walk_feed["title"] == "그늘이 많고 편안한 길"
+    assert walk_feed["masked_polyline"] == [[127.01, 37.51], [127.02, 37.52]]
+    assert walk_feed["is_origin_masked"] is True
+    assert "user_id" not in walk_feed
+    assert "route_coords" not in walk_feed
+    assert "public_route_coords" not in walk_feed
+
+
+
+
+def test_get_feeds_keeps_existing_courses_when_public_review_view_fails():
+    """공개 후기 뷰 조회 오류가 기존 코스 피드까지 막지 않아야 한다."""
+    class Query:
+        def __init__(self, name):
+            self.name = name
+
+        def select(self, *_args):
+            return self
+
+        def order(self, *_args, **_kwargs):
+            return self
+
+        def limit(self, *_args):
+            return self
+
+        def execute(self):
+            if self.name == "public_walk_reviews_v":
+                raise RuntimeError("view unavailable")
+            return type("Response", (), {"data": [{"course_id": "course-2"}]})()
+
+    class Client:
+        def table(self, name):
+            return Query(name)
+
+    repo = SupabaseCommunityRepository()
+    repo._client = Client()
+
+    assert repo.get_feeds() == [{"course_id": "course-2"}]
+
+
 def test_community_api_endpoints_via_testclient():
     """FastAPI REST 엔드포인트를 통한 커뮤니티 피드 조회 및 200m 마스킹 등록 검증."""
     client = TestClient(app)

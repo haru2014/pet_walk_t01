@@ -1,90 +1,201 @@
 /**
  * [편안하개 - PetWalk]
- * 모바일 홈 탭 화면 (Screen-01, US-A1, US-A2, US-B2, US-E3)
+ * 모바일 홈 화면 (디자인 시안 02번 Dusty Amber & Sage Green - Phase 2 개선)
+ * (docs/reference/UI개선/prompt/UI오류수정_계획.md 기준)
  *
- * 환영 인사, 활성 반려견 카드, 지면온도 골든타임 위젯, AI 플래너 배너, 최근 산책 요약
+ * 1. 상단 좌측 버튼/빈 공간 제거 및 갈색 카드 내 알림 버튼 이관
+ * 2. 갈색 카드 타이틀 '바로 산책하기' 적용
+ * 3. Trail info 카드 터치 시 기존 골든타임 모달(WeatherDetailModal, SSOT) 연동
+ * 4. 지도 flex: 1 반응형 및 무스크롤 레이아웃
  */
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TOKENS } from '../theme/tokens';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { DogProfile } from '../types/dogProfile';
-import { CardWrapper } from '../components/common/CardWrapper';
-import { HomeDogCard } from '../components/home/HomeDogCard';
-import { GoldenTimeWidget } from '../components/home/GoldenTimeWidget';
-import { AiPlannerBanner } from '../components/home/AiPlannerBanner';
-import { RecentWalkCard } from '../components/home/RecentWalkCard';
-import { FeedbackContextService, FeedbackSummaryPayload } from '../services/feedbackContext';
-import { AppIcon } from '../components/common/AppIcon';
+import { FeedbackSummaryPayload } from '../services/feedbackContext';
+import { fetchHeatRiskForecast } from '../services/weatherApi';
+import { HeatRiskResponse } from '../types/weather';
+import { LocalStorageService } from '../services/storage';
+import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
+import { warmupBackendServer } from '../services/apiClient';
+import { getCurrentLocationCoords } from '../services/locationService';
+import { useAppTheme } from '../theme/themeManager';
+
+import { HomeParkWalkCardN2 } from '../components/home/HomeParkWalkCardN2';
+import { HomeTrailInfoCardN2 } from '../components/home/HomeTrailInfoCardN2';
+import {
+  WeatherDetailModal,
+  computeWeatherModalProps,
+} from '../components/home/GoldenTimeWidget';
+import { HomeNotificationModal } from '../components/home/HomeNotificationModal';
+import { getNearbyHazardReports, NearbyHazardReport } from '../services/hazardApi';
 
 export interface HomeScreenProps {
   dog: DogProfile;
+  dogs?: readonly DogProfile[];
+  selectedDogId?: string;
+  onSelectDog?: (dogId: string) => void;
+  onAddDog?: () => void;
   feedbackSummary: FeedbackSummaryPayload | null;
   onPressProfile: () => void;
   onStartWalk: () => void;
   onOpenPlanner: () => void;
+  onOpenStats?: () => void;
+  onOpenNotification?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   dog,
+  dogs,
+  selectedDogId: _selectedDogId,
+  onSelectDog,
+  onAddDog: _onAddDog,
   feedbackSummary,
   onPressProfile,
   onStartWalk,
   onOpenPlanner,
+  onOpenStats,
+  onOpenNotification,
 }) => {
+  const { colors } = useAppTheme();
+  const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats | null>(null);
+  const [weatherModalVisible, setWeatherModalVisible] = useState(false);
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
+  const [nearbyHazards, setNearbyHazards] = useState<NearbyHazardReport[]>([]);
+  const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
+
+  useEffect(() => {
+    warmupBackendServer();
+    let isMounted = true;
+    void getCurrentLocationCoords(4000).then((res) => {
+      if (isMounted && res.ok && res.coords) {
+        setUserCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+      }
+    });
+    void fetchHeatRiskForecast(36.3628, 127.3592)
+      .then((res) => {
+        if (isMounted) {
+          setWeather(res);
+          setIsLoadingWeather(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsLoadingWeather(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const lat = userCoords?.lat ?? 36.3628;
+    const lon = userCoords?.lon ?? 127.3592;
+    void getNearbyHazardReports(lat, lon, 300)
+      .then((reports) => {
+        if (isMounted) setNearbyHazards(reports);
+      })
+      .catch(() => {
+        // 네트워크 장애 시 빈 제보 목록 유지
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [userCoords?.lat, userCoords?.lon]);
+
+  const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
+
+  useEffect(() => {
+    let isMounted = true;
+    void LocalStorageService.getWalkHistory().then((history) => {
+      if (!isMounted) return;
+      setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [dog.id]);
+
+  const handlePressNotification = () => {
+    setHasUnreadNotification(false);
+    setNotificationModalVisible(true);
+    onOpenNotification?.();
+  };
+
   return (
-    <View style={styles.container}>
-      {/* 환영 인사 */}
-      <View style={styles.greetingSection}>
-        <Text style={styles.greetingSub}>오늘도 편안하게,</Text>
-        <View style={styles.greetingMainRow}><Text style={styles.greetingMain}>우리 아이와 걸어요.</Text><AppIcon name="paw" size={20} color={TOKENS.colors.primary} /></View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 1. 상단 테마 메인 배경 영역 (마스코트 및 메인 카드) */}
+      <View style={[styles.topSageSection, { backgroundColor: colors.primaryDark }]}>
+        {/* 자연 톤 오로라/메시 블렌딩 데코 (중심이 어긋난 다중 타원으로 은은한 유기적 깊이감 형성) */}
+        <View pointerEvents="none" style={styles.ambientAuraTop} />
+        <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+        <View pointerEvents="none" style={styles.ambientAuraBottom} />
+        <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
+
+        <HomeParkWalkCardN2
+          dog={dog}
+          dogs={dogs}
+          onSelectDog={onSelectDog}
+          onPressProfile={onPressProfile}
+          onPressNotification={handlePressNotification}
+          hasUnreadNotification={hasUnreadNotification}
+          onStartWalk={onStartWalk}
+          courseName="바로 산책하기"
+          userCoords={userCoords}
+        />
       </View>
 
-      {/* 메인 반려견 카드 (Screen-01) */}
-      <HomeDogCard
-        profile={dog}
-        onPressProfile={onPressProfile}
+      {/* 2. 하단 시트 영역 (Trail info + Leaf Green 안심 지표) */}
+      <HomeTrailInfoCardN2
+        weather={weather}
+        isLoadingWeather={isLoadingWeather}
+        dog={dog}
+        feedbackSummary={feedbackSummary}
+        weeklyStats={weeklyStats}
+        onOpenStats={onOpenStats}
+        onOpenPlanner={onOpenPlanner}
+        onOpenWeatherModal={() => setWeatherModalVisible(true)}
+      />
+
+      {/* 3. Trail info 터치 시 열리는 기존 골든타임 상세 모달 (SSOT 재사용) */}
+      <WeatherDetailModal
+        visible={weatherModalVisible}
+        onClose={() => setWeatherModalVisible(false)}
+        colors={colors}
+        quotient={modalProps.quotient}
+        subtitleText={modalProps.subtitleText}
+        currentAirTemp={modalProps.currentAirTemp}
+        roundedSurfaceTemp={modalProps.roundedSurfaceTemp}
+        riskLevel={modalProps.riskLevel}
+        popPercent={modalProps.popPercent}
+        airQualityColor={modalProps.airQualityColor}
+        airQualityLabel={modalProps.airQualityLabel}
+        airQuality={modalProps.airQuality}
+        isTomorrow={modalProps.isTomorrow}
+        timeRangeDisplay={modalProps.timeRangeDisplay}
+        weather={weather}
+      />
+
+      {/* 4. 종 아이콘(🔔) 터치 시 열리는 안심 산책 스마트 알림 센터 모달 */}
+      <HomeNotificationModal
+        visible={notificationModalVisible}
+        onClose={() => setNotificationModalVisible(false)}
+        weather={weather}
+        dog={dog}
+        weeklyStats={weeklyStats}
+        nearbyHazards={nearbyHazards}
+        onOpenWeatherModal={() => {
+          setNotificationModalVisible(false);
+          setWeatherModalVisible(true);
+        }}
         onStartWalk={onStartWalk}
+        onOpenPlanner={onOpenPlanner}
       />
-
-      {/* 오늘의 산책 골든타임 위젯 (Screen-01) */}
-      <GoldenTimeWidget
-        currentTimeLabel="15:30"
-        startTimeLabel="14:00"
-        endTimeLabel="17:00"
-        progressPercent={52}
-        statusNotice="현재 15:30 · 산책 추천 시간대"
-      />
-
-      {/* AI 산책 도우미 배너 (Screen-01) */}
-      <AiPlannerBanner
-        onPress={onOpenPlanner}
-        examplePrompt='"30분 정도 걷고 싶어"'
-      />
-
-      {/* 최근 산책 요약 카드 (Screen-01) */}
-      <RecentWalkCard
-        title="오늘의 산책"
-        distanceKm={2.4}
-        durationMinutes={38}
-        safeRatioPercent={72}
-        onPress={onStartWalk}
-      />
-
-      {/* 최근 피드백 AI 보정 알림 */}
-      {feedbackSummary && (
-        <CardWrapper variant="flat" style={{ marginBottom: 14 }}>
-          <Text style={styles.cardHeaderTitle}>🤖 최근 피드백 AI 맞춤 보정</Text>
-          <Text style={styles.cardBodyText}>
-            • 최근 분석: {feedbackSummary.recent_walk_count}회{'\n'}
-            • 경사 불만족: {feedbackSummary.slope_dissatisfaction_count}회{'\n'}
-            • 최대 경사도 보정치: {feedbackSummary.recommended_max_slope_offset}%
-          </Text>
-          <Text style={styles.aiQuote}>
-            "{FeedbackContextService.generateBriefingNotice(feedbackSummary)}"
-          </Text>
-        </CardWrapper>
-      )}
     </View>
   );
 };
@@ -93,40 +204,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  greetingSection: {
-    marginBottom: 16,
-    marginTop: 4,
+  topSageSection: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  greetingSub: {
-    fontSize: 14,
-    color: TOKENS.colors.textMuted,
-    marginBottom: 4,
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -50,
+    right: -40,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  greetingMain: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: TOKENS.colors.textMain,
-    letterSpacing: -0.5,
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -15,
+    right: 25,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  greetingMainRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: TOKENS.colors.textMain,
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -60,
+    left: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(0, 0, 0, 0.07)',
   },
-  cardBodyText: {
-    fontSize: 12,
-    color: TOKENS.colors.textMuted,
-    lineHeight: 18,
-    marginTop: 6,
-  },
-  aiQuote: {
-    fontSize: 12,
-    color: TOKENS.colors.primaryDark,
-    fontStyle: 'italic',
-    marginTop: 8,
-    paddingLeft: 4,
-    borderLeftWidth: 2,
-    borderLeftColor: TOKENS.colors.primary,
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -20,
+    left: 20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
   },
 });

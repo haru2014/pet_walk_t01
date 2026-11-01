@@ -12,7 +12,7 @@ React Native (Expo SDK 57) 기반의 시선 해방(Eyes-Free) 핸즈프리 모�
 - **Map & Route Visualization**: `react-native-maps` / SVG 기반 3색 Polyline 분기 렌더링
 - **Local-First Persistence**: `@편안하개:*` 프리픽스 기반 `AsyncStorage` (개인정보 및 궤적 로컬 영구 보관)
 - **Zero-Install Web Demo**: Expo Web 무충돌 브라우저 렌더링 지원 (`npm run web`)
-- **Deployment**: EAS Build (Android Standalone APK 1회 패키징) & EAS Update (`expo-updates` 무선 OTA 실시간 핫픽스)
+- **Deployment**: EAS Build (Android preview APK) & EAS Update (`expo-updates` 호환 런타임 대상 무선 업데이트)
 
 ---
 
@@ -84,7 +84,7 @@ npm run export:android
 
 ### 3.5 단위 테스트 및 타입 검사
 ```bash
-# Vitest 단위 테스트 81개 실행 (100% Pass)
+# Vitest 단위 테스트 72개 파일, 422개 테스트 실행
 npm test
 
 # TypeScript 정적 타입 검사 (0 Errors)
@@ -95,12 +95,12 @@ npm run check
 
 ## 📱 4. EAS 빌드 및 무선 OTA 배포 (Member D)
 
-본 프로젝트는 **EAS(Expo Application Services)**와 연동되어 클라우드 자동 빌드 및 무선 무점검 핫픽스 체계를 갖추고 있습니다.
+본 프로젝트는 **EAS(Expo Application Services)**를 사용합니다. Android preview 빌드는 `preview` 채널을 구독하고, `app.json`의 `appVersion` 런타임 정책에 따라 같은 런타임 버전의 OTA 업데이트를 받습니다.
 
 - **EAS Project**: `@pettrail/petwalk-production` (`52ded2f2-d6e7-420f-9c9f-3d999f262454`)
 - **Package ID**: `com.petwalk.app`
 - **배포 대시보드**: [Expo 대시보드 바로가기](https://expo.dev/accounts/pettrail/projects/petwalk-production)
-- **최신 Standalone APK**: [APK 다운로드 링크 (Build ID: cbf76e84...)](https://expo.dev/artifacts/eas/N6VL_NxLIfMFroFS-Kmul-JtlDUP1bVw4H3riyr1OHs.apk)
+- **현재 EAS preview APK**: [APK 다운로드 (Build ID: fb705957-87f7-4a09-9006-f8da4df59794)](https://expo.dev/artifacts/eas/h-R2a_ScDhYTcv1JQjzw3imfeaJVuozp2tChyEmOBZA.apk) — Android, Expo SDK 57, 앱/런타임 버전 `1.0.1`, 채널 `preview`
 
 ### 4.1 테스터용 독립 실행형 APK 빌드 (EAS Build)
 에뮬레이터가 없는 팀원 및 5인 필드 테스터용 Standalone `.apk` 생성:
@@ -113,9 +113,20 @@ npm run build:apk
 npx eas-cli build:view
 ```
 
-### 4.2 무선 무점검 실시간 핫픽스 (EAS Update)
-스마트폰에 앱이 이미 설치된 상태에서 JS/UI 코드를 앱 재설치 없이 5초 내 실시간 반영:
+### 4.2 무선 업데이트 (EAS Update)
+JS/UI 변경은 같은 EAS 프로젝트의 `preview` 채널에 게시됩니다. 설치된 앱이 이 채널을 구독하고 업데이트와 런타임 버전이 호환되어야 합니다. 업데이트는 앱 시작 시 확인·다운로드되며, 다운로드가 끝난 후 앱을 다시 시작하면 적용됩니다. 백그라운드에서 즉시 화면이 바뀌는 방식은 아닙니다.
+
 ```bash
+# frontend/ 디렉터리에서 실행
 npm run ota:update
-# 또는: npx eas-cli update --branch preview --message "UI 핫픽스 실시간 반영"
+# 또는 명시적으로 채널을 지정:
+npx eas-cli update --channel preview --message "UI 핫픽스"
 ```
+
+적용 확인 순서:
+
+1. 명령 출력에서 업데이트가 `preview` 채널/브랜치, 런타임 `1.0.1`, Android 대상으로 게시됐는지 확인합니다.
+2. 설치된 APK가 EAS preview 빌드인지 확인합니다. Expo Go와 웹 데모는 이 APK의 OTA 확인 방법과 다릅니다.
+3. 앱을 완전히 종료하고 다시 엽니다. 업데이트 다운로드와 적용이 한 번에 되지 않으면 한 번 더 종료 후 실행합니다.
+
+앱 버전이나 네이티브 모듈 등 네이티브 런타임이 바뀌면 OTA만으로 적용할 수 없습니다. 이 경우 새 preview APK를 빌드해 설치해야 합니다.

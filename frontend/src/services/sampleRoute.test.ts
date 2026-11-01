@@ -45,12 +45,12 @@ describe('sampleRoute & getCoursePlanById', () => {
     expect(course3.route).toEqual(ROUTE_COURSE_3);
     expect(course3.stepPins).toEqual(STEP_PINS_COURSE_3);
 
-    // 각 코스의 첫 번째 좌표는 동일 출발지(서울숲 입구)지만 중간 경로는 상이해야 함
-    expect(course1.route.features[0].geometry.coordinates[0]).toEqual([127.0374, 37.5443]);
-    expect(course2.route.features[0].geometry.coordinates[0]).toEqual([127.0374, 37.5443]);
-    expect(course3.route.features[0].geometry.coordinates[0]).toEqual([127.0374, 37.5443]);
+    // 각 코스의 첫 번째 좌표는 동일 출발지(유림공원 부설주차장)지만 중간 경로는 상이해야 함
+    expect(course1.route.features[0].geometry.coordinates[0]).toEqual([127.3592, 36.3628]);
+    expect(course2.route.features[0].geometry.coordinates[0]).toEqual([127.3592, 36.3628]);
+    expect(course3.route.features[0].geometry.coordinates[0]).toEqual([127.3592, 36.3628]);
 
-    // 중간 경로는 서로 다른 좌표를 지남
+    // 중간 경로는 서로 다른 경로를 지남
     expect(course2.route).not.toEqual(course1.route);
     expect(course3.route).not.toEqual(course1.route);
     expect(course3.route).not.toEqual(course2.route);

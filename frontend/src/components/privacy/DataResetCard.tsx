@@ -6,11 +6,12 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { AppText as Text } from '../common/AppText';
 import { CardWrapper } from '../common/CardWrapper';
 import { confirmAction } from '../../services/confirm';
 import { AppIcon } from '../common/AppIcon';
-import { TOKENS } from '../../theme/tokens';
+import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 
 export interface DataResetCardProps {
   onReset: () => Promise<void>;
@@ -76,15 +77,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
   title: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
     color: '#991B1B',
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   description: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: '#7F1D1D',
-    lineHeight: 16,
+    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
     marginTop: 4,
     marginBottom: 12,
   },
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   messageText: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.support,
     color: '#065F46',
     fontWeight: '600',
   },
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#DC2626',
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.button,
     fontWeight: '700',
   },
   buttonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
