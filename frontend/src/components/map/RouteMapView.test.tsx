@@ -113,4 +113,20 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     expect(html).toContain('aria-label="방향표시 전부 표시"');
     expect(html).toContain('role="switch"');
   });
+
+  it('방향 토글을 지도 내부 좌하단의 간결한 테마 컨트롤로 렌더링한다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView
+        route={mockRoute}
+        stepPins={mockPins}
+        speedKmH={2.8}
+        fillContainer
+      />,
+    );
+
+    expect(html).toContain('aria-label="방향표시 전부 표시"');
+    expect(html).toMatch(/r-bottom-[\w-]+/);
+    expect(html).toMatch(/r-left-[\w-]+/);
+    expect(html).not.toContain('경로 방향 마커 표시');
+  });
 });

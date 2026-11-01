@@ -135,7 +135,7 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     const marker = FakeMarker.created[1].options.element;
 
     expect(marker.style.background).toBe('#FFFFFF');
-    expect(marker.style.border).toBe('1.5px solid #718276');
+    expect(marker.style.border).toBe('1px solid #718276');
     expect(marker.style.borderRadius).toBe('50%');
   });
 
