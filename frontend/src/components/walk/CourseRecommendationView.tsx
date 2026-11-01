@@ -251,27 +251,32 @@ const CourseSafetyMetricsBar: React.FC<CourseSafetyMetricsBarProps> = ({ course,
 
   return (
     <View style={[styles.metricsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-      <View style={styles.metricItem}>
-        <Text style={styles.metricIcon}>🌿</Text>
-        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>폭신</Text>
+      <View style={[styles.metricItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.metricLabelRow}>
+          <Text style={styles.metricIcon}>🌿</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>폭신</Text>
+        </View>
         <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{surfaceValue}</Text>
       </View>
-      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-      <View style={styles.metricItem}>
-        <Text style={styles.metricIcon}>🪜</Text>
-        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
+      <View style={[styles.metricItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.metricLabelRow}>
+          <Text style={styles.metricIcon}>🪜</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
+        </View>
         <Text style={[styles.metricValue, { color: colors.textMain }]}>{stairsValue}</Text>
       </View>
-      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-      <View style={styles.metricItem}>
-        <Text style={styles.metricIcon}>📐</Text>
-        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>경사</Text>
+      <View style={[styles.metricItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.metricLabelRow}>
+          <Text style={styles.metricIcon}>📐</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>경사</Text>
+        </View>
         <Text style={[styles.metricValue, { color: colors.textMain }]}>{slopeValue}</Text>
       </View>
-      <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
-      <View style={styles.metricItem}>
-        <Text style={styles.metricIcon}>🌳</Text>
-        <Text style={[styles.metricLabel, { color: colors.textMuted }]}>그늘</Text>
+      <View style={[styles.metricItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.metricLabelRow}>
+          <Text style={styles.metricIcon}>🌳</Text>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>그늘</Text>
+        </View>
         <Text style={[styles.metricValue, { color: colors.textMain }]}>{shadeValue}</Text>
       </View>
     </View>
@@ -970,7 +975,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
   mainScroll: { flex: 1 },
   mainScrollContent: { flexGrow: 1 },
-  mapSection: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
+  mapSection: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 6 },
   attributionContainer: {
     paddingHorizontal: 14,
     paddingVertical: 3,
@@ -982,9 +987,9 @@ const styles = StyleSheet.create({
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 10,
-    gap: 6,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 7,
   },
   sheetHeaderRow: {
     flexDirection: 'row',
@@ -1005,10 +1010,9 @@ const styles = StyleSheet.create({
   courseChipScore: { fontWeight: '800' },
   bookmarkButton: { height: 32 },
   courseHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 5,
     marginTop: 2,
     marginBottom: 2,
   },
@@ -1041,8 +1045,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   courseMetricBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
     flexShrink: 0,
@@ -1066,24 +1071,29 @@ const styles = StyleSheet.create({
   metricsBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    gap: 6,
+    padding: 7,
+    borderRadius: 10,
     borderWidth: 1,
   },
   metricItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 0,
+    minHeight: 48,
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
   },
-  metricIcon: { fontSize: 11 },
+  metricLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metricIcon: { fontSize: 12 },
   metricLabel: { fontSize: TYPOGRAPHY.caption, fontWeight: '600' },
   metricValue: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
-  metricDivider: { width: 1, height: 14, marginHorizontal: 2 },
   bottomActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1093,7 +1103,7 @@ const styles = StyleSheet.create({
   regenerateButton: {
     paddingHorizontal: 12,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -1106,10 +1116,11 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 14,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 2,
   },
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   startButtonText: { fontSize: TYPOGRAPHY.button, fontWeight: '700', letterSpacing: -0.2 },
 });
-
