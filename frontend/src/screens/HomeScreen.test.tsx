@@ -4,10 +4,11 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { HomeScreen } from './HomeScreen';
+import { HomeScreen, resolveHomeScreenWeatherCoords } from './HomeScreen';
 import { DEFAULT_DOGS } from '../types/dogProfile';
+import { PILOT_PARKS, DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 vi.mock('expo-task-manager', () => ({
   defineTask: vi.fn(),
@@ -158,5 +159,71 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
     );
 
     expect(html).toContain('aria-label="알림"');
+  });
+
+  describe('resolveHomeScreenWeatherCoords - 사용자 위치 및 선택 공원 폴백 연동 (#281)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('사용자 GPS 위치를 정상 획득하면 사용자 위치 좌표와 isGps: true를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: true,
+        coords: { latitude: 37.5665, longitude: 126.9780, accuracy: 10 },
+      });
+
+      const coords = await resolveHomeScreenWeatherCoords('sejong', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: 37.5665,
+        lon: 126.9780,
+        isGps: true,
+      });
+      expect(mockGetLocation).toHaveBeenCalledWith(4000);
+    });
+
+    it('사용자 GPS 위치 획득 실패 시 선택한 공원 좌표와 isGps: false를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: 'permission_denied',
+      });
+
+      const sejongPark = PILOT_PARKS.find((p) => p.id === 'sejong')!;
+      const coords = await resolveHomeScreenWeatherCoords('sejong', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: sejongPark.center.lat,
+        lon: sejongPark.center.lon,
+        isGps: false,
+      });
+    });
+
+    it('사용자 GPS 실패 및 공원 미지정 시 기본 유림공원 좌표를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: 'timeout',
+      });
+
+      const coords = await resolveHomeScreenWeatherCoords(undefined, mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: DEFAULT_PILOT_PARK.center.lat,
+        lon: DEFAULT_PILOT_PARK.center.lon,
+        isGps: false,
+      });
+    });
+
+    it('위치 조회 중 예외 발생 시에도 크래시 없이 선택 공원 좌표로 안전하게 폴백한다', async () => {
+      const mockGetLocation = vi.fn().mockRejectedValue(new Error('Location provider crashed'));
+
+      const doanPark = PILOT_PARKS.find((p) => p.id === 'doan')!;
+      const coords = await resolveHomeScreenWeatherCoords('doan', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: doanPark.center.lat,
+        lon: doanPark.center.lon,
+        isGps: false,
+      });
+    });
   });
 });

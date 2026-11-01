@@ -682,6 +682,7 @@ export default function App() {
                       setMyProfileSubTab('walk_records');
                       setActiveTab('마이');
                     }}
+                    pilotParkId={preferences.pilotParkId}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (
