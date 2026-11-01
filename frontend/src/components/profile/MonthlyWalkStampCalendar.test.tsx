@@ -28,7 +28,7 @@ const makeRecord = (id: string, completedAt: string): WalkRecord => ({
 describe('MonthlyWalkStampCalendar', () => {
   const now = new Date('2026-10-14T12:00:00.000Z');
 
-  it('shows the month title, Sunday-first grid, actual completion stamps and concise weekly summary', () => {
+  it('shows the monthly calendar and stamps without a duplicate weekly summary', () => {
     const records = [
       makeRecord('walk-1', '2026-10-12T10:00:00.000Z'),
       makeRecord('walk-2', '2026-10-12T12:00:00.000Z'),
@@ -43,7 +43,8 @@ describe('MonthlyWalkStampCalendar', () => {
     expect(html).toContain('이번 달 산책 스탬프');
     expect(html).toContain('2026년 10월');
     expect(html).toContain('이번 달 2일 산책 완료');
-    expect(html).toContain('이번 주');
+    expect(html).not.toContain('이번 주');
+    expect(html).not.toContain('0/7일 달성 · 산책 0회');
     expect(html).toContain('일');
     expect(html).toContain('토');
     expect(html).toContain('data-icon="paw"');

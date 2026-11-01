@@ -18,7 +18,6 @@ export interface MonthlyWalkStampCalendarProps {
 
 export const MonthlyWalkStampCalendar: React.FC<MonthlyWalkStampCalendarProps> = ({
   records,
-  weeklyStats,
   now,
 }) => {
   const { colors } = useAppTheme();
@@ -140,12 +139,6 @@ export const MonthlyWalkStampCalendar: React.FC<MonthlyWalkStampCalendarProps> =
         {calendar.completedDays === 0 && (
           <Text style={[styles.emptyMessage, { color: colors.textMuted }]}>이 달에는 아직 산책 기록이 없어요.</Text>
         )}
-        <View style={[styles.weekSummary, { borderTopColor: colors.borderSoft }]}>
-          <Text style={[styles.weekSummaryLabel, { color: colors.textMuted }]}>이번 주</Text>
-          <Text style={[styles.weekSummaryText, { color: colors.textMain }]}>
-            {weeklyStats.completedDays}/{weeklyStats.targetDays}일 달성 · 산책 {weeklyStats.totalWalks}회
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -187,7 +180,4 @@ const styles = StyleSheet.create({
   monthCountBadge: { minHeight: 36, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: TOKENS.borderRadius.badge, paddingHorizontal: 12, gap: 6 },
   monthCountText: { fontSize: TYPOGRAPHY.support, fontWeight: '800' },
   emptyMessage: { fontSize: TYPOGRAPHY.caption },
-  weekSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
-  weekSummaryLabel: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
-  weekSummaryText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
 });
