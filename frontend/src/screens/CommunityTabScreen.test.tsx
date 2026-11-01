@@ -48,6 +48,7 @@ const mockFeeds: communityApi.CommunityFeedItem[] = [
       [126.908, 37.571],
     ],
     is_origin_masked: true,
+    source: 'demo',
     created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['마포안심길', '숲길산책'],
   },
@@ -65,6 +66,7 @@ const mockFeeds: communityApi.CommunityFeedItem[] = [
       [127.042, 37.548],
     ],
     is_origin_masked: true,
+    source: 'supabase',
     created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['서울숲명소', '평지보행'],
   },
@@ -82,6 +84,7 @@ const mockFeeds: communityApi.CommunityFeedItem[] = [
       [126.981, 37.569],
     ],
     is_origin_masked: false,
+    source: 'unknown',
     created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['도심산책', '포장도로'],
   },
@@ -114,7 +117,7 @@ describe('CommunityTabScreen (기간 필터 및 안심 코스 찜 기능)', () =
     expect(html).toContain('자택 위치 안심 보호 (출발·도착지 200m)');
   });
 
-  it('커뮤니티 피드 아이템에 북마크(찜하기) 버튼과 랜드마크/보호 뱃지가 복원되어 표시된다', () => {
+  it('커뮤니티 피드의 위치·접근성 자물쇠·데모 뱃지를 한 줄에 표시하고 찜하기를 유지한다', () => {
     const html = renderToStaticMarkup(<CommunityTabScreen initialFeeds={mockFeeds} />);
 
     // 찜하기 버튼(BookmarkToggleButton - '즐겨찾기 추가' / '즐겨찾기' accessibilityLabel)
@@ -122,7 +125,25 @@ describe('CommunityTabScreen (기간 필터 및 안심 코스 찜 기능)', () =
     expect(html).toContain('성산공원 둘레길 코스');
     expect(html).toContain('1.8km · ⏱️ 약 25분');
     expect(html).toContain('⭐ 4.8');
-    expect(html).toContain('🔒 200m 보호');
+    expect(html).toContain('성산근린공원 · 서울 마포구');
+    expect(html).toContain('aria-label="자택 위치 200m 보호"');
+    expect(html).toContain('aria-label="가상 데모"');
+    expect(html).toContain('자택 위치 안심 보호 (출발·도착지 200m)');
+    expect(html).not.toContain('🔒 200m 보호');
+    expect(html).toContain('🔒 자택 위치 안심 보호 (출발·도착지 200m)');
+    expect(html.match(/aria-label="가상 데모"/g)).toHaveLength(1);
+    expect(html.match(/🔒/g)).toHaveLength(3);
+  });
+
+  it('가상 데모 배지는 source가 demo인 카드에만 표시한다', () => {
+    const renderSource = (source: communityApi.CommunityFeedItem['source']) => {
+      const feed = { ...mockFeeds[0], source };
+      return renderToStaticMarkup(<CommunityTabScreen initialFeeds={[feed]} />);
+    };
+
+    expect(renderSource('demo')).toContain('aria-label="가상 데모"');
+    expect(renderSource('supabase')).not.toContain('aria-label="가상 데모"');
+    expect(renderSource('unknown')).not.toContain('aria-label="가상 데모"');
   });
 
   it('기간 필터가 최근 7일일 때 7일 이내 코스만 선별하여 목록에 표시한다', () => {

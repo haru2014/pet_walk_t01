@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
 import { AppText as Text } from '../components/common/AppText';
+import { AppIcon } from '../components/common/AppIcon';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
 import { useAppTheme } from '../theme/themeManager';
 import { CardWrapper } from '../components/common/CardWrapper';
@@ -397,21 +398,34 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                 <View style={styles.landmarkRow}>
                   {feed.landmark_name && (
                     <View style={[styles.landmarkChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
-                      <Text style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont, color: colors.primaryDark }]}>
-                        📍 {feed.landmark_name}{feed.region_name ? ` · ${feed.region_name}` : ''}
-                      </Text>
+                      <View style={styles.landmarkChipContent}>
+                        <AppIcon name="location" size={13} color={colors.primaryDark} />
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={[styles.landmarkChipText, { fontSize: community.metricBadgeFont, color: colors.primaryDark }]}
+                        >
+                          {feed.landmark_name}{feed.region_name ? ` · ${feed.region_name}` : ''}
+                        </Text>
+                      </View>
                     </View>
                   )}
                   {feed.is_origin_masked && (
-                    <View style={[styles.maskedChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
-                      <Text style={[styles.maskedChipText, { fontSize: Math.max(9, community.metricBadgeFont - 1), color: colors.primaryDark }]}>
-                        🔒 200m 보호
-                      </Text>
+                    <View
+                      style={[styles.maskedChip, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
+                      accessibilityRole="image"
+                      accessibilityLabel="자택 위치 200m 보호"
+                    >
+                      <Text>🔒</Text>
                     </View>
                   )}
-                  {!isSupabase && (
-                    <View style={[styles.demoBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-                      <Text style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1), color: colors.primaryDark }]}>
+                  {feed.source === 'demo' && (
+                    <View
+                      style={[styles.demoBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+                      accessibilityRole="text"
+                      accessibilityLabel="가상 데모"
+                    >
+                      <Text numberOfLines={1} style={[styles.demoBadgeText, { fontSize: Math.max(9, community.metricBadgeFont - 1), color: colors.primaryDark }]}>
                         가상 데모
                       </Text>
                     </View>
@@ -718,39 +732,40 @@ const styles = StyleSheet.create({
   },
   topActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   bookmarkWrapper: { padding: 2 },
-  landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, marginRight: 8 },
+  landmarkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap', flex: 1, minWidth: 0, marginRight: 8 },
   landmarkChip: {
-    backgroundColor: '#EFF6FF',
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
   },
-  landmarkChipText: { fontSize: TYPOGRAPHY.label, color: '#1D4ED8', fontWeight: '700' },
+  landmarkChipContent: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  landmarkChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', flexShrink: 1, minWidth: 0 },
   feedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   feedTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700', color: TOKENS.colors.textMain, flex: 1, marginRight: 8 },
   maskedChip: {
-    backgroundColor: '#F0FDF4',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    width: 28,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    flexShrink: 0,
   },
-  maskedChipText: { fontSize: TYPOGRAPHY.label, color: '#16A34A', fontWeight: '700' },
   demoBadge: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
+    flexShrink: 0,
   },
   demoBadgeText: {
     fontSize: TYPOGRAPHY.label,
-    color: '#92400E',
     fontWeight: '700',
+    flexShrink: 0,
   },
   feedMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   feedMetaText: { fontSize: TYPOGRAPHY.caption, color: TOKENS.colors.textMuted, fontWeight: '500' },
