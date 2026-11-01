@@ -29,6 +29,7 @@ import {
 } from '../components/home/GoldenTimeWidget';
 import { HomeNotificationModal } from '../components/home/HomeNotificationModal';
 import { getNearbyHazardReports, NearbyHazardReport } from '../services/hazardApi';
+import { getPilotParkById } from '../types/pilotParks';
 
 export interface HomeScreenProps {
   dog: DogProfile;
@@ -42,6 +43,28 @@ export interface HomeScreenProps {
   onOpenPlanner: () => void;
   onOpenStats?: () => void;
   onOpenNotification?: () => void;
+  pilotParkId?: string;
+}
+
+/**
+ * 홈 날씨 및 주변 안전 정보 조회에 사용할 시작 좌표를 결정한다 (#281).
+ * 1. 사용자 GPS 좌표(4초 이내) 획득 성공 시 사용자 위치 좌표 반환
+ * 2. 실패/권한 거부/타임아웃 시 선택한 공원(또는 기본 유림공원) 중심 좌표 반환
+ */
+export async function resolveHomeScreenWeatherCoords(
+  pilotParkId?: string,
+  getLocation = getCurrentLocationCoords,
+): Promise<{ lat: number; lon: number; isGps: boolean }> {
+  const fallbackPark = getPilotParkById(pilotParkId);
+  try {
+    const res = await getLocation(4000);
+    if (res.ok && res.coords) {
+      return { lat: res.coords.latitude, lon: res.coords.longitude, isGps: true };
+    }
+  } catch (err) {
+    console.warn('[HomeScreen] 현재 위치 조회 실패 (선택 공원 폴백 사용):', err);
+  }
+  return { lat: fallbackPark.center.lat, lon: fallbackPark.center.lon, isGps: false };
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -56,6 +79,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenPlanner,
   onOpenStats,
   onOpenNotification,
+  pilotParkId,
 }) => {
   const { colors } = useAppTheme();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
@@ -67,35 +91,42 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [nearbyHazards, setNearbyHazards] = useState<NearbyHazardReport[]>([]);
   const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
 
+  const fallbackPark = useMemo(() => getPilotParkById(pilotParkId), [pilotParkId]);
+
   useEffect(() => {
     warmupBackendServer();
     let isMounted = true;
-    void getCurrentLocationCoords(4000).then((res) => {
-      if (isMounted && res.ok && res.coords) {
-        setUserCoords({ lon: res.coords.longitude, lat: res.coords.latitude });
+
+    void (async () => {
+      const coords = await resolveHomeScreenWeatherCoords(pilotParkId);
+      if (!isMounted) return;
+
+      if (coords.isGps) {
+        setUserCoords({ lon: coords.lon, lat: coords.lat });
       }
-    });
-    void fetchHeatRiskForecast(36.3628, 127.3592)
-      .then((res) => {
+
+      try {
+        const weatherRes = await fetchHeatRiskForecast(coords.lat, coords.lon);
         if (isMounted) {
-          setWeather(res);
+          setWeather(weatherRes);
           setIsLoadingWeather(false);
         }
-      })
-      .catch(() => {
+      } catch {
         if (isMounted) {
           setIsLoadingWeather(false);
         }
-      });
+      }
+    })();
+
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [fallbackPark.center.lat, fallbackPark.center.lon, pilotParkId]);
 
   useEffect(() => {
     let isMounted = true;
-    const lat = userCoords?.lat ?? 36.3628;
-    const lon = userCoords?.lon ?? 127.3592;
+    const lat = userCoords?.lat ?? fallbackPark.center.lat;
+    const lon = userCoords?.lon ?? fallbackPark.center.lon;
     void getNearbyHazardReports(lat, lon, 300)
       .then((reports) => {
         if (isMounted) setNearbyHazards(reports);
@@ -106,7 +137,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [userCoords?.lat, userCoords?.lon]);
+  }, [userCoords?.lat, userCoords?.lon, fallbackPark.center.lat, fallbackPark.center.lon]);
 
   const modalProps = useMemo(() => computeWeatherModalProps(weather), [weather]);
 
