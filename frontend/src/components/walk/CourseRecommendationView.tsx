@@ -6,7 +6,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
  * 1. 상단: 뒤로가기 & '추천 산책 코스' 헤더 + 실시간 AI 맞춤 코스 뱃지
  * 2. 상단 브리핑: "✨ {dog.name}에게 맞는 산책 코스를 찾았어요." & 안내문 & 조건 태그 칩들
  * 3. 중앙: 실시간 보행로 지도 (flex: 1로 뷰포트에 유연 적응하여 스크롤 배제)
- * 4. 하단 카드: 대체 코스 칩(추천 1/2/3) + 즐겨찾기 + 거리/시간/3대 안심 지표 + 추천 사유
+ * 4. 하단 카드: 대체 코스 미리보기 + 즐겨찾기 + 코스 요약 및 안심 지표
  * 5. 하단 Thumb Zone: [이 코스로 산책 시작하기] 버튼
  */
 
@@ -22,7 +22,6 @@ import { useAppResponsive } from '../../hooks/useAppResponsive';
 import { AppIcon } from '../common/AppIcon';
 import { AppScreenHeader } from '../common/AppScreenHeader';
 import { CoursePlan } from '../../types/bookmark';
-import { buildCourseSummary } from '../../services/routeGeometry';
 import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
 import { formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
@@ -34,7 +33,7 @@ import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
 import { mergeCurrentLocationPin } from '../../services/locationPinHelper';
 import { getCurrentLocationCoords } from '../../services/locationService';
-import { analyzeCourseLaps, formatCourseLapSummary, mergeLoopStartPin } from '../../services/courseLapInfo';
+import { analyzeCourseLaps, mergeLoopStartPin } from '../../services/courseLapInfo';
 import { WORLDCOVER_ATTRIBUTION } from '../../constants/legalTerms';
 import { getPilotParkById } from '../../types/pilotParks';
 import { WalkPlanLoadingView } from './WalkPlanLoadingView';
@@ -460,13 +459,21 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
               surfaceColor={colors.background}
               borderColor={colors.border}
             />
-            <Text numberOfLines={1} style={[styles.coursePreviewName, { color: colors.textMain }]}>
-              {formatCourseDisplayName(c.name)}
-            </Text>
-            <Text numberOfLines={1} style={[styles.coursePreviewMeta, { color: colors.textMuted }]}>
-              {c.distanceKm} · 약 {c.estimatedMinutes}분{score == null ? '' : ` · ${score}점`}
-            </Text>
-            {(characteristic || freshCourseIds.has(c.id)) && (
+            {isSelected ? (
+              <Text numberOfLines={1} style={[styles.coursePreviewSelected, { color: colors.primaryDark }]}>
+                선택된 코스
+              </Text>
+            ) : (
+              <>
+                <Text numberOfLines={1} style={[styles.coursePreviewName, { color: colors.textMain }]}>
+                  {formatCourseDisplayName(c.name)}
+                </Text>
+                <Text numberOfLines={1} style={[styles.coursePreviewMeta, { color: colors.textMuted }]}>
+                  {c.distanceKm} · 약 {c.estimatedMinutes}분{score == null ? '' : ` · ${score}점`}
+                </Text>
+              </>
+            )}
+            {!isSelected && (characteristic || freshCourseIds.has(c.id)) && (
               <Text numberOfLines={1} style={[styles.coursePreviewTag, { color: colors.primaryDark }]}>
                 {freshCourseIds.has(c.id) && characteristic
                   ? `NEW · ${characteristic}`
@@ -482,141 +489,39 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
 
 interface CourseHeaderTitleRowProps {
   currentCourse: RecommendedCourse;
-  selectedCourseIndex: number;
-  activeSummary: { totalDistanceKm: number; estimatedMinutes: number };
+  lapInfo: ReturnType<typeof analyzeCourseLaps>;
   colors: ReturnType<typeof useAppTheme>['colors'];
   courseRecommend: ReturnType<typeof useAppResponsive>['courseRecommend'];
 }
 
 const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
   currentCourse,
-  selectedCourseIndex,
-  activeSummary,
+  lapInfo,
   colors,
   courseRecommend,
 }) => {
-  const featureBadge = getCourseFeatureBadge(currentCourse, selectedCourseIndex);
+  const lapCount = currentCourse.lapCount ?? lapInfo?.lapCount;
+  const distanceLabel = `${currentCourse.distanceKm.trim().replace(/\s*km$/i, '')}km`;
   return (
     <View style={styles.courseHeaderRow}>
-      <View style={styles.courseTitleWrapper}>
-        <Text
-          style={[styles.courseName, { color: colors.textMain, fontSize: courseRecommend.courseTitleSize }]}
-          numberOfLines={1}
-        >
-          {formatCourseDisplayName(currentCourse.name)}
-        </Text>
-        {featureBadge ? (
-          <View style={[styles.featureBadge, { backgroundColor: featureBadge.bgColor }]}>
-            <Text style={styles.featureBadgeIcon}>{featureBadge.icon}</Text>
-            <Text style={[styles.featureBadgeText, { color: featureBadge.color }]}>
-              {featureBadge.label}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      <View
-        style={[
-          styles.courseMetricBadge,
-          { backgroundColor: colors.primaryWash, borderColor: colors.border },
-        ]}
+      <Text
+        style={[styles.courseName, { color: colors.textMain, fontSize: Math.min(16, courseRecommend.courseTitleSize) }]}
+        numberOfLines={1}
       >
-        <Text
-          style={[
-            styles.courseMetaText,
-            { color: colors.primaryDark, fontSize: courseRecommend.metricLabelSize },
-          ]}
-        >
-          {activeSummary.totalDistanceKm.toFixed(1)}km · 약 {activeSummary.estimatedMinutes}분
-        </Text>
-      </View>
+        {formatCourseDisplayName(currentCourse.name)}
+      </Text>
+      <Text
+        style={[
+          styles.courseMetaText,
+          { color: colors.primaryDark, fontSize: Math.min(12, Math.max(10, courseRecommend.metricLabelSize)) },
+        ]}
+        numberOfLines={1}
+      >
+        {lapCount && lapCount > 1 ? `🔄 ${lapCount}바퀴 · ` : ''}
+        {distanceLabel} · 약 {currentCourse.estimatedMinutes}분
+      </Text>
     </View>
   );
-};
-
-interface CourseReasonAndLapSectionProps {
-  lapInfo: ReturnType<typeof analyzeCourseLaps>;
-  currentCourse: RecommendedCourse;
-  colors: ReturnType<typeof useAppTheme>['colors'];
-  courseRecommend: ReturnType<typeof useAppResponsive>['courseRecommend'];
-}
-
-const CourseReasonAndLapSection: React.FC<CourseReasonAndLapSectionProps> = ({
-  lapInfo,
-  currentCourse,
-  colors,
-  courseRecommend,
-}) => {
-  const noticeCaption = currentCourse.notice ? (
-    <Text
-      numberOfLines={1}
-      ellipsizeMode="tail"
-      style={[
-        styles.reasonText,
-        {
-          color: lapInfo ? colors.primaryDark : colors.textMain,
-          fontSize: Math.max(11, (courseRecommend.metricLabelSize ?? 13) - 2),
-          opacity: 0.9,
-          marginTop: lapInfo || currentCourse.reason ? 3 : 0,
-        },
-      ]}
-    >
-      {`💡 ${currentCourse.notice}`}
-    </Text>
-  ) : null;
-
-  if (lapInfo) {
-    return (
-      <View
-        accessibilityLabel="순환 코스 반복 안내"
-        style={[styles.reasonBox, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}
-      >
-        <Text
-          style={[
-            styles.reasonText,
-            {
-              color: colors.primaryDark,
-              fontSize: courseRecommend.metricLabelSize,
-              lineHeight: courseRecommend.metricLabelSize * 1.35,
-            },
-          ]}
-        >
-          {`🔄 ${formatCourseLapSummary(lapInfo)}`}
-        </Text>
-        {noticeCaption}
-      </View>
-    );
-  }
-
-  if (currentCourse.reason) {
-    return (
-      <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <Text
-          style={[
-            styles.reasonText,
-            {
-              color: colors.textMain,
-              fontSize: courseRecommend.metricLabelSize,
-              lineHeight: courseRecommend.metricLabelSize * 1.35,
-            },
-          ]}
-          numberOfLines={2}
-        >
-          💡 {formatCourseReasonText(currentCourse.reason, currentCourse.name, currentCourse.lapCount, currentCourse.lapCycleMeters)}
-        </Text>
-        {noticeCaption}
-      </View>
-    );
-  }
-
-  if (noticeCaption) {
-    return (
-      <View style={[styles.reasonBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        {noticeCaption}
-      </View>
-    );
-  }
-
-  return null;
 };
 
 export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> = ({
@@ -802,10 +707,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     return pins;
   }, [activePlan.stepPins, lapInfo, isCurrentLocOrigin, gpsCoords]);
   const plan: CoursePlan = useMemo(() => ({ route: activeRoute, stepPins: activePins }), [activeRoute, activePins]);
-  const activeSummary = useMemo(
-    () => buildCourseSummary(activeRoute, dog.speedKmH),
-    [activeRoute, dog.speedKmH],
-  );
   const bookmarkCandidate = useMemo(
     () => (currentCourse ? createBookmark(currentCourse, plan, toWalkDogSummary(dog)) : null),
     [currentCourse, plan, dog],
@@ -886,7 +787,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       ) : null}
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
-      <View style={[styles.bottomCard, { paddingVertical: scale(4, 6, 8), paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomCard, { paddingVertical: scale(3, 4, 5), paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         {/* Course previews stay below the map and scroll independently. */}
         <View style={styles.sheetHeaderRow}>
           <CoursePreviewCardRow
@@ -900,22 +801,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
         </View>
 
-        {/* 코스 명칭 및 핵심 보행 수치 (거리 / 시간) 한 줄 통합 헤더 */}
+        {/* 코스명과 반복 횟수·거리·시간을 두 줄로 간결하게 표시 */}
         <CourseHeaderTitleRow
           currentCourse={currentCourse}
-          selectedCourseIndex={selectedCourseIndex}
-          activeSummary={activeSummary}
-          colors={colors}
-          courseRecommend={courseRecommend}
-        />
-        {/* 순환 코스: 모두 비슷한 거리·시간에서 코스를 구별할 수 있도록 바퀴 수와 반복 구간을 명시 */}
-        <CourseReasonAndLapSection
           lapInfo={lapInfo}
-          currentCourse={currentCourse}
           colors={colors}
           courseRecommend={courseRecommend}
         />
-
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         <CourseSafetyMetricsBar course={currentCourse} colors={colors} />
 
@@ -998,8 +890,8 @@ const styles = StyleSheet.create({
   headerVoiceBar: { marginTop: 0, alignSelf: 'auto' },
   briefingSection: {
     paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
     borderBottomWidth: 1,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
@@ -1040,9 +932,9 @@ const styles = StyleSheet.create({
   bottomCard: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: 8,
-    gap: 5,
+    paddingTop: 4,
+    paddingBottom: 5,
+    gap: 3,
     flexShrink: 0,
   },
   sheetHeaderRow: {
@@ -1050,11 +942,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  coursePreviewScroll: { flex: 1, minWidth: 0, height: 86, marginRight: 8 },
+  coursePreviewScroll: { flex: 1, minWidth: 0, height: 72, marginRight: 8 },
   coursePreviewRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
   coursePreviewCard: {
     width: 112,
-    minHeight: 86,
+    minHeight: 72,
     borderRadius: 10,
     borderWidth: 1.5,
     padding: 5,
@@ -1062,7 +954,7 @@ const styles = StyleSheet.create({
   },
   routePreview: {
     width: '100%',
-    height: 31,
+    height: 23,
     borderRadius: 6,
     borderWidth: 1,
     alignItems: 'center',
@@ -1073,49 +965,19 @@ const styles = StyleSheet.create({
   coursePreviewName: { fontSize: 11, fontWeight: '700' },
   coursePreviewMeta: { fontSize: 9, fontWeight: '600' },
   coursePreviewTag: { fontSize: 9, fontWeight: '700' },
+  coursePreviewSelected: { fontSize: 10, fontWeight: '700' },
   bookmarkButton: { height: 32 },
   courseHeaderRow: {
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 5,
-    marginTop: 2,
-    marginBottom: 2,
-  },
-  courseTitleWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 1,
+    marginVertical: 1,
     minWidth: 0,
   },
   courseName: {
     fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '800',
     flexShrink: 1,
-  },
-  featureBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 2,
-    flexShrink: 0,
-  },
-  featureBadgeIcon: {
-    fontSize: 10,
-  },
-  featureBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  courseMetricBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexShrink: 0,
   },
   scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   scoreBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '800' },
@@ -1146,7 +1008,7 @@ const styles = StyleSheet.create({
   metricItem: {
     flex: 1,
     minWidth: 0,
-    minHeight: 38,
+    minHeight: 34,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 1,
