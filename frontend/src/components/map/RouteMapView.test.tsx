@@ -21,6 +21,11 @@ vi.mock('react-native-webview', () => ({
   WebView: (props: any) => React.createElement('div', { 'data-testid': 'mock-webview', ...props }),
   default: (props: any) => React.createElement('div', { 'data-testid': 'mock-webview', ...props }),
 }));
+vi.mock('./MapLibreMapView', () => ({
+  MapLibreMapView: ({ height }: { height: number | string }) => (
+    <div data-testid="mock-maplibre-map" data-map-height={height} style={{ width: '100%', height: '100%' }} />
+  ),
+}));
 vi.mock('maplibre-gl', () => ({
   default: {
     Map: vi.fn().mockImplementation(() => ({
@@ -128,5 +133,19 @@ describe('RouteMapView - MapLibre 렌더링 및 스타일 호환성', () => {
     expect(html).toMatch(/r-bottom-[\w-]+/);
     expect(html).toMatch(/r-left-[\w-]+/);
     expect(html).not.toContain('경로 방향 마커 표시');
+  });
+
+  it('호출 화면에서 지정한 미리보기 높이를 지도와 오버레이 기준에 적용한다', () => {
+    const html = renderToStaticMarkup(
+      <RouteMapView
+        route={mockRoute}
+        stepPins={mockPins}
+        speedKmH={2.8}
+        mapHeight={195}
+      />,
+    );
+
+    expect(html).toContain('data-map-height="195"');
+    expect(html).toContain('aria-label="방향표시 전부 표시"');
   });
 });
