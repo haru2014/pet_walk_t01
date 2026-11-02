@@ -79,7 +79,11 @@ export const VoiceSettingCard: React.FC<VoiceSettingCardProps> = ({ style }) => 
             </View>
             <View style={styles.voiceTextGroup}>
               <View style={styles.voiceNameRow}>
-                <Text style={[styles.voiceName, { color: colors.textMain }]}>
+                <Text
+                  style={[styles.voiceName, { color: colors.textMain }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {currentProfile.label}
                 </Text>
                 <View style={[styles.toneBadge, { backgroundColor: colors.primaryLight }]}>
@@ -88,7 +92,7 @@ export const VoiceSettingCard: React.FC<VoiceSettingCardProps> = ({ style }) => 
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.voiceDesc, { color: colors.textMuted }]} numberOfLines={1}>
+              <Text style={[styles.voiceDesc, { color: colors.textMuted }]} numberOfLines={2}>
                 {currentProfile.description}
               </Text>
             </View>
@@ -184,38 +188,41 @@ const styles = StyleSheet.create({
   voicePreviewBox: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 10,
+    padding: 8,
     marginTop: 4,
   },
   voiceInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+    gap: 6,
   },
   voiceIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   voiceTextGroup: {
     flex: 1,
+    minWidth: 0,
   },
   voiceNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   voiceName: {
     fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: '700',
+    flexShrink: 1,
   },
   toneBadge: {
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 8,
+    flexShrink: 0,
   },
   toneBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -226,8 +233,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   previewBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    flexShrink: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
