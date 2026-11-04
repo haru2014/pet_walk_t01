@@ -84,8 +84,8 @@ function applyPinBaseStyle(
   const textShadow = isCurrentLoc && !hasTitle ? undefined : '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
 
   Object.assign(element.style, {
-    width: hasTitle ? 'auto' : '32px',
-    height: hasTitle ? 'auto' : '32px',
+    width: hasTitle ? 'auto' : (isDirectionMarker ? '28px' : '32px'),
+    height: hasTitle ? 'auto' : (isDirectionMarker ? '28px' : '32px'),
     background: 'transparent',
     border: 'transparent',
     boxShadow: 'none',

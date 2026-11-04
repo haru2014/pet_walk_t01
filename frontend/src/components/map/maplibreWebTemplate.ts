@@ -12,6 +12,7 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
 import { MapRouteColors } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
 import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
+import { ADAPTIVE_MARKER_CSS, ZOOM_THRESHOLD_DETAIL } from './adaptiveMarkerStyles';
 
 export interface BuildMapLibreHtmlOptions {
   readonly styleUrl: string;
@@ -112,32 +113,7 @@ export function buildMapLibreHtml({
     }
     .step-pin:active { transform: scale(1.2); }
     
-        /* 적응형 방향 마커 (줌 >= 14.5 상세/보행 뷰: 28px 볼드 마커) */
-    .direction-marker {
-      width: 28px !important;
-      height: 28px !important;
-      background-color: #FFFFFF !important;
-      border: 1px solid #718276 !important;
-      border-radius: 50% !important;
-      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22) !important;
-      color: #596B5C !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      padding: 0 !important;
-      transition: width 0.15s ease, height 0.15s ease, box-shadow 0.15s ease;
-    }
-    .direction-marker .arrow-svg-large { display: block !important; }
-    .direction-marker .arrow-svg-mini { display: none !important; }
-
-    /* 줌 < 14.5 축소 뷰 (전체 코스 조망): 10.5px 미니멀 점 마커 */
-    .zoom-compact-markers .direction-marker {
-      width: 10.5px !important;
-      height: 10.5px !important;
-      box-shadow: 0 0.5px 1px rgba(34, 48, 38, 0.12) !important;
-    }
-    .zoom-compact-markers .direction-marker .arrow-svg-large { display: none !important; }
-    .zoom-compact-markers .direction-marker .arrow-svg-mini { display: block !important; }
+    ${ADAPTIVE_MARKER_CSS}
 
     .start-marker {
       background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 13px;
@@ -209,7 +185,7 @@ export function buildMapLibreHtml({
         const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
         const container = typeof map.getContainer === 'function' ? map.getContainer() : (typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('map') : null);
         if (!container || !container.classList) return;
-        if (currentZoom < 14.5) {
+        if (currentZoom < ${ZOOM_THRESHOLD_DETAIL}) {
           container.classList.add('zoom-compact-markers');
         } else {
           container.classList.remove('zoom-compact-markers');

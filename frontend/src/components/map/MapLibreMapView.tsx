@@ -23,6 +23,7 @@ import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
 import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
 import { getRouteStepPinIcon } from './routeStepIcon';
 import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
+import { ensureAdaptiveMarkerStyles, updateMarkerZoomMode } from './adaptiveMarkerStyles';
 
 function getRouteBounds(routeData: RouteFeatureCollection): [[number, number], [number, number]] | null {
   const coordinates = routeData.features.flatMap((feature) => feature.geometry.coordinates);
@@ -146,6 +147,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
         // DOM markers and controls need MapLibre's layout stylesheet.
         await ensureMapLibreStylesheet();
+        ensureAdaptiveMarkerStyles();
         if (isDisposed || !webContainerRef.current) return;
 
         // Expo Metro does not provide MapLibre v6's inferred worker URL. Serve the
@@ -179,6 +181,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
         });
 
         webMapInstanceRef.current = mapInstance;
+        mapInstance.on('zoom', () => {
+          updateMarkerZoomMode(mapInstance, webContainerRef.current);
+        });
 
         registerMissingStyleImageResolver(mapInstance);
 
@@ -263,6 +268,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
             (instruction) => latestOnPinSelectRef.current?.(instruction),
           );
 
+          updateMarkerZoomMode(mapInstance, webContainerRef.current);
           latestOnMapLoadedRef.current?.();
         });
       } catch {
@@ -302,6 +308,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       );
     };
     void updateMarkers();
+    updateMarkerZoomMode(map, webContainerRef.current);
     if (routeBounds && !userInteractedWithMapRef.current) {
       map.fitBounds(routeBounds, { padding: 40, duration: 700 });
     } else if (initialCenter ?? maskingCenter) {
