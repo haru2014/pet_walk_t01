@@ -37,11 +37,15 @@ def test_two_lap_courses_come_before_three_or_more(park):
         assert laps[0] <= PREFERRED_LAP_REPEATS, laps
 
 
+def test_extra_lap_notice_fits_in_one_card_line():
+    assert len(main.EXTRA_LAP_NOTICE_TEXT.format(laps=4)) <= 20
+
+
 def test_extra_lap_notice_is_added_only_for_three_or_more_laps():
     courses = [{"reason": "a"}, {"reason": "b"}, {"reason": "c"}]
     cands = [SimpleNamespace(lap_count=1), SimpleNamespace(lap_count=2), SimpleNamespace(lap_count=3)]
     main._add_extra_lap_notice(courses, cands)
     assert "notice" not in courses[0] and "notice" not in courses[1]
-    assert courses[2]["notice"] == "공원이 작아 같은 길을 3바퀴 돌아요."
+    assert courses[2]["notice"] == "공원이 작아 3바퀴 돌아요."
     assert "3바퀴" in courses[2]["reason"]
 

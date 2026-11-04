@@ -823,7 +823,7 @@ def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) ->
             _append_notice(course, WINDING_NOTICE_TEXT)
 
 
-EXTRA_LAP_NOTICE_TEXT = "공원이 작아 같은 길을 {laps}바퀴 돌아요."
+EXTRA_LAP_NOTICE_TEXT = "공원이 작아 {laps}바퀴 돌아요."
 
 
 def _add_extra_lap_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
