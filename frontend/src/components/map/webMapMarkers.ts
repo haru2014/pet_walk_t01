@@ -100,7 +100,7 @@ function applyPinBaseStyle(
   if (isDirectionMarker) {
     Object.assign(element.style, {
       background: '#FFFFFF',
-      border: '1.5px solid #718276',
+      border: '1px solid #718276',
       borderRadius: '50%',
       boxShadow: '0 1px 5px rgba(0, 0, 0, 0.22)',
       color: '#596B5C',
