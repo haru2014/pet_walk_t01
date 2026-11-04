@@ -321,17 +321,21 @@ export function buildMapLibreHtml({
         const guidanceColor = activeColors.mapGuidance || activeColors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
 
         function getLargeArrowSvg(icon, color) {
+          const filter = 'filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);';
+          if (icon === '↑') {
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 14 23 L 14 10" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="7,12 14,3 21,12" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          }
           if (icon === '↱') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 8 22 L 8 13 Q 8 8 13 8 L 15 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="13,2 26,8 13,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 6 22 L 6 13 Q 6 8 11 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="12,2 25,8 12,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '↰') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 20 22 L 20 13 Q 20 8 15 8 L 13 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="15,2 2,8 15,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 22 22 L 22 13 Q 22 8 17 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="16,2 3,8 16,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '↶') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 19 22 L 19 12 Q 19 6 13.5 6 Q 8 6 8 12 L 8 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="2,13 8,25 14,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 21.5 22 L 21.5 12 Q 21.5 6 16 6 Q 10.5 6 10.5 12 L 10.5 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="4.5,13 10.5,25 16.5,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '➤') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><polygon points="26,14 4,4 9,14 4,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           return null;
         }
@@ -396,6 +400,10 @@ export function buildMapLibreHtml({
                 el.style.color = '#596B5C';
                 el.style.fontSize = '20px';
                 el.style.textShadow = 'none';
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.style.padding = '0';
               }
               const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
               if (arrowSvg) {

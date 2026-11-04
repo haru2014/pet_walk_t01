@@ -106,6 +106,10 @@ function applyPinBaseStyle(
       color: '#596B5C',
       fontSize: '20px',
       textShadow: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0',
     });
   }
 }
