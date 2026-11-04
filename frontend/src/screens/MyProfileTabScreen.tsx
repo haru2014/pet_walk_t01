@@ -65,30 +65,18 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
   onSignOut,
 }) => {
   if (currentUser) {
+    if (!onSignOut) return null;
     return (
       <View style={styles.authBtnGroup}>
-        {onOpenAuthModal && (
-          <TouchableOpacity
-            onPress={() => onOpenAuthModal('signin')}
-            style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}
-            accessibilityRole="button"
-            accessibilityLabel="계정 전환"
-            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-          >
-            <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>계정 전환</Text>
-          </TouchableOpacity>
-        )}
-        {onSignOut && (
-          <TouchableOpacity
-            onPress={onSignOut}
-            style={[styles.accountBtn, styles.logoutBtn, { borderColor: colors.border }]}
-            accessibilityRole="button"
-            accessibilityLabel="로그아웃"
-            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-          >
-            <Text style={[styles.accountBtnText, { color: colors.textMuted }]}>로그아웃</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={onSignOut}
+          style={[styles.accountBtn, styles.logoutBtn, { borderColor: colors.border }]}
+          accessibilityRole="button"
+          accessibilityLabel="로그아웃"
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          <Text style={[styles.accountBtnText, { color: colors.textMuted }]}>로그아웃</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -502,26 +490,9 @@ const ThemeAccountSubTabSection: React.FC<ThemeAccountSubTabSectionProps> = ({
     nestedScrollEnabled={true}
   >
     <CardWrapper variant="flat" style={styles.accountCard}>
-      {/* 1번째 줄: 타이틀 + 상태 뱃지 + 우측 액션 버튼 */}
+      {/* 1번째 줄: 타이틀 + 우측 액션 버튼 */}
       <View style={styles.accountHeaderRow}>
-        <View style={styles.accountTitleGroup}>
-          <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
-          <View
-            style={[
-              styles.accountBadge,
-              { backgroundColor: currentUser ? '#ECFDF5' : '#F3F4F6' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.accountBadgeText,
-                { color: currentUser ? '#059669' : '#6B7280' },
-              ]}
-            >
-              {currentUser ? '동기화됨' : '게스트'}
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
         <AccountAuthActions
           currentUser={currentUser}
           colors={colors}
@@ -913,10 +884,7 @@ const styles = StyleSheet.create({
   filterChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: '#6B7280' },
   accountCard: { marginBottom: 10, paddingVertical: 10 },
   accountHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  accountTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   accountTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
-  accountBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  accountBadgeText: { fontSize: TYPOGRAPHY.micro, fontWeight: '700' },
   accountSubRow: { marginTop: 6 },
   accountSubtitle: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   authBtnGroup: { flexDirection: 'row', gap: 6, flexShrink: 0 },
