@@ -126,6 +126,10 @@ export interface RecommendedCourse {
   slopeSource?: 'dem' | 'approximation' | 'unknown';
   lapCount?: number;
   lapCycleMeters?: number | null;
+  /** 서버가 알려 준 순환 진입점 [lon, lat] (서버 loop_entry_point). 순환 시작·끝 핀 위치로 쓴다. */
+  loopEntryPoint?: readonly [number, number] | null;
+  /** 출발점에서 순환 진입점까지 거리(m) (서버 approach_distance_m) */
+  approachDistanceM?: number | null;
   differenceTag?: string;
   notice?: string;
 }
