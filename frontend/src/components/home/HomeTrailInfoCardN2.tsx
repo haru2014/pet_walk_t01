@@ -1,5 +1,5 @@
 import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { HeatRiskResponse } from '../../types/weather';
@@ -8,21 +8,9 @@ import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
 import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
+import { computeWalkQuotient } from '../../services/walkQuotient';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
 import bushImg from '../../../assets/ui_n2/bush.png';
-
-function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; grade: string } {
-  if (!weather) return { score: 92, grade: '매우 좋음' };
-  const temp = weather.current_surface_temp ?? 25.0;
-  if (weather.current_risk_level === 'DANGER' || temp > 45) return { score: 38, grade: '주의' };
-  if (weather.current_risk_level === 'CAUTION' || temp > 35) return { score: 65, grade: '보통' };
-  if ((weather.pop ?? 0) >= 60) return { score: 62, grade: '보통' };
-  if (weather.is_current_golden && temp <= 28) {
-    const s = Math.max(90, Math.min(98, Math.round(96 - Math.abs(temp - 24) * 1.5)));
-    return { score: s, grade: '매우 좋음' };
-  }
-  return { score: 85, grade: '좋음' };
-}
 
 function resolveTrailAuraColor(isGolden: boolean, isDark: boolean): string {
   if (isGolden) {
@@ -61,7 +49,9 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
     ? `노면 온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n산책하기 좋은 시간이에요.`
     : `노면 온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
 
-  const walkIndex = computeWalkIndex(weather);
+  // 상세보기(WeatherDetailModal)와 같은 계산식(SSOT)을 써야 두 화면의 산책 점수·상태가 일치한다.
+  const walkQuotient = useMemo(() => computeWalkQuotient(weather), [weather]);
+  const walkIndex = { score: walkQuotient.score, grade: walkQuotient.statusLabel };
 
   return (
     <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
