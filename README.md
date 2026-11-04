@@ -2,14 +2,14 @@
 > **AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼**  
 > *"견주에게는 시선과 두 손의 자유를, 반려견에게는 관절 안심 발걸음을"*
 
-> **현재 코드 기준 (2026-10-25):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시할 수 있습니다. 실제 배포 상태와 테스트 통과 수는 이 갱신에서 확인하지 않았으므로 아래의 배포 링크와 누적 테스트 수는 **마지막 기록값**으로 봐 주세요. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 실행·배포 안내는 [백엔드 가이드](docs/09_백엔드_서버_실행_배포_가이드.md)를 참고하세요.
+> **현재 코드 기준 (2026-11-04):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시합니다. 최근 지도 마커의 직진 벡터 화살표 광학 정렬 및 코스 추천 상단 찜하기 UI 최적화가 적용되었으며, 17종 최신 실제 구동 화면 갤러리가 체계적으로 구축되었습니다. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 스크린샷 갤러리는 [스크린샷 안내](docs/screenshots/README.md)를 참고하세요.
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-796%20passed%2C%205%20skipped-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-406%2F406%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-948%20collected-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-566%2F566%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -171,7 +171,7 @@ open mockup/index.html
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 마지막 기록 (70개 파일, 406개 통과; 현재 HEAD에서는 재실행하지 않음)
+# 2. 프론트엔드 Vitest 최신 기록 (87개 파일, 566개 전원 통과 100% PASS)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
@@ -280,25 +280,41 @@ graph TB
 
 ### 5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)
 
-편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 최신 실제 구동 화면 모음입니다. (고화질 원본: [`docs/screenshots/`](docs/screenshots/))
+편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 2026년 11월 4일 최신 실제 구동 대표 화면 모음입니다. (고화질 원본 및 상세 명세: [`docs/screenshots/README.md`](docs/screenshots/README.md))
 
-#### 🌟 1. 메인 홈 & 실시간 지면열 리포트 & 코스 탐색
-| 01. 메인 홈 화면 | 02. 오늘의 산책 날씨 리포트 | 03. 맞춤 산책 조건 설정 | 04. 추천 산책 코스 프리뷰 |
+#### 🌟 1. 메인 홈 & 실시간 지면열 날씨 리포트 (홈 탭)
+| 02-A. 메인 홈 (날씨 로딩 중) | 02-B. 메인 홈 (날씨 정상 로드) | 02-1. 오늘의 산책 날씨 리포트 모달 |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/02_home_screen_weather_loading.png" width="220" alt="메인 홈 날씨 로딩 중"/> | <img src="docs/screenshots/02_home_screen_weather_loaded.png" width="220" alt="메인 홈 날씨 로드 완료"/> | <img src="docs/screenshots/02-1_golden_time_weather_detail_modal.png" width="220" alt="오늘의 산책 날씨 리포트"/> |
+| **반려견 맞춤 대시보드**<br>• "오늘도 편안하게, 우리 강아지와 걸어요"<br>• 활성 반려견(고양이5) 카드<br>• 원터치 자유 산책 시작 버튼 | **산책 지수 & 골든타임**<br>• **오늘 강아지 산책지수 90점** 골든타임 배지<br>• 기온·노면 체감온도 및 상세 날씨 팝업<br>• 맞춤 추천 산책길 바로가기 | **정밀 노면 발바닥 체감온도 분석**<br>• 4대 환경 메트릭 (기온/체감/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교** (아스팔트 21.2℃, 보도블록 20.4℃, 흙 20.1℃, 잔디 18.4℃)<br>• 100점 만점 안심 시간대 브리핑 |
+
+#### 🌟 2. 맞춤 산책 조건 설정 & 추천 코스 프리뷰 (산책 탭)
+| 03. 맞춤 산책 조건 설정 | 03-1. 산책 경로 생성 중 로딩 | 04-1. 추천 코스 프리뷰 (마커 OFF) | 04-2. 추천 코스 프리뷰 (마커 ON) |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/02_home_screen1.png" width="200" alt="메인 홈 화면"/> | <img src="docs/screenshots/02-1_golden_time_report1.png" width="200" alt="오늘의 산책 날씨 리포트"/> | <img src="docs/screenshots/03_walk_settings1.png" width="200" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/04_course_recommendation1.png" width="200" alt="추천 산책 코스 프리뷰"/> |
-| **반려견 맞춤 대시보드**<br>• 초코(골든 리트리버) 준비 카드<br>• **산책지수 100점** 골든타임 위젯<br>• 7일 산책 달성도 게이지 | **정밀 날씨 분석 모달**<br>• 4대 환경 메트릭 (기온/지면열/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교**<br>• 기상청·에어코리아 공식 출처 | **산책 조건 다중 선택**<br>• 목표 시간 슬라이더 (15~120분)<br>• 6대 선호 보행길 원터치 칩<br>• 대전·세종 5대 공원 거점 연계 | **실시간 AI 코스 요약**<br>• 실제 OSM 도로망 경로 라인<br>• 웨이포인트 핀 및 구간 분석<br>• 완만길/폭신한 길 비율 요약 |
+| <img src="docs/screenshots/03_walk_settings_park_and_time.png" width="180" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/03-1_route_generating_loading.png" width="180" alt="산책 경로 생성 로딩"/> | <img src="docs/screenshots/04-1_course_recommendation_markers_off.png" width="180" alt="추천 산책 코스 마커 OFF"/> | <img src="docs/screenshots/04-2_course_recommendation_markers_on.png" width="180" alt="추천 산책 코스 마커 ON"/> |
+| **자연어 & 명소 둘레길**<br>• 자연어 음성/텍스트 입력<br>• 현재 위치 / 지정 명소 탭<br>• 30분 등 시간 간편 설정 | **실시간 탐색 피드백**<br>• "산책하기 좋은 길을 찾고 있어요"<br>• 노면·그늘·경사도 분석 중 | **경로 전체 조망 & 찜하기**<br>• 도안호수공원 순환 코스 프리뷰<br>• **제목 라인 통합 찜하기(♡) 버튼**<br>• 가로 100% 온전한 코스 카드 폭 | **고정밀 벡터 방향 마커**<br>• 구간별 **볼드 직진 벡터 화살표(↑)**<br>• 28px 광학 중앙 정렬 마커<br>• 1px 안심 세이지 테두리 시인성 |
 
-#### 🌟 2. 4단계 온보딩 위저드 플로우
-| 01-1. 서비스 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 안내 | 01-4. 온보딩 완료 축하 |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_onboarding_wizard1.png" width="200" alt="온보딩 1단계"/> | <img src="docs/screenshots/01_onboarding_wizard2.png" width="200" alt="온보딩 2단계"/> | <img src="docs/screenshots/01_onboarding_wizard3.png" width="200" alt="온보딩 3단계"/> | <img src="docs/screenshots/01_onboarding_wizard4.png" width="200" alt="온보딩 4단계"/> |
-| **투명한 이용 약관**<br>• 필수 이용약관 & 개인정보 동의<br>• Local-First 프라이버시 원칙 | **강아지 프로필 등록**<br>• 이름, 견종, 생년월일, 체중<br>• 관절 케어 필요 수준 설정 | **위치 정보 권한 동의**<br>• 산책 시작 안내용 한정 수집<br>• 200m 마스킹 원칙 사전 고지 | **산책 준비 완료**<br>• 프로필 세팅 완료 축하<br>• 원터치 메인 홈 화면 진입 |
+#### 🌟 3. 실시간 보행 내비게이션 & 산책 제어
+| 06-1. 산책 진행 중 (다크 포켓 모드) | 06-2. 산책 종료 확인 모달 |
+| :---: | :---: |
+| <img src="docs/screenshots/06-1_walk_in_progress_dark_pocket_mode.png" width="220" alt="다크 포켓 모드"/> | <img src="docs/screenshots/06-2_walk_in_progress_stop_modal.png" width="220" alt="산책 종료 확인 모달"/> |
+| **초절전 시선 해방(Eyes-Free) 내비게이션**<br>• True Black OLED 배터리 절전 뷰<br>• 실시간 거리, 경과 시간, 보행 페이스 HUD<br>• 원터치 배변/소변 기록 및 실시간 GPS 추적 | **안전 산책 종료 다이얼로그**<br>• 주머니 속 오터치 방지 확인 팝업<br>• 산책 계속하기 및 안전 종료 분기 |
 
-#### 🌟 3. 마이 프로필 & 안심 커뮤니티 피드
-| 08-1. 반려견 프로필 관리 | 08-2. 3대 테마 선택기 | 08-3. 완주 산책 활동 리포트 | 08-4. 설정 및 데이터 관리 | 09. 커뮤니티 안심 피드 |
+#### 🌟 4. 마이 탭 (프로필, 6대 컬러 테마, 월간 스탬프 & 통계, AI 음성 설정, 약관)
+| 08-1. 프로필 관리 | 08-2. 6대 테마 & 계정 | 08-3A. 월간 스탬프 달력 | 08-3B. 활동 통계 & 완주 기록 | 08-4. AI 길안내 음성 설정 |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/08-1_my_profile1.png" width="160" alt="반려견 프로필 관리"/> | <img src="docs/screenshots/08-2_my_theme1.png" width="160" alt="3대 테마 선택기"/> | <img src="docs/screenshots/08-3_my_walk_report.png" width="160" alt="완주 산책 활동 리포트"/> | <img src="docs/screenshots/08-4_my_setting1.png" width="160" alt="설정 및 데이터 관리"/> | <img src="docs/screenshots/09_community_feed1.png" width="160" alt="커뮤니티 안심 피드"/> |
-| **강아지 맞춤 케어**<br>• 나이/체중/성별 관리<br>• 다견 가정을 위한 전환 | **야외 시인성 테마**<br>• 숲길 / 비비드 / 다크 테마<br>• 눈부심 방지 고대비 토큰 | **보행 통계 & 상세 지도**<br>• GPS 경로·배변 지도 뷰어<br>• 찜한 코스 원터치 재산책 | **프라이버시 & 무결성**<br>• AI 음성 안내 설정<br>• CSV/JSON 내보내기 & 초기화 | **200m 공간 마스킹**<br>• 복합 기간 필터(7/30일/전체)<br>• 안심 코스 찜하기(즐겨찾기) |
+| <img src="docs/screenshots/08-1_my_tab_profile_edit.png" width="160" alt="프로필 관리"/> | <img src="docs/screenshots/08-2_my_tab_theme_and_account.png" width="160" alt="테마 및 계정"/> | <img src="docs/screenshots/08-3_my_tab_activity_stamps.png" width="160" alt="월간 스탬프 달력"/> | <img src="docs/screenshots/08-3_my_tab_activity_history.png" width="160" alt="활동 통계 및 완주 기록"/> | <img src="docs/screenshots/08-4_my_tab_settings_voice.png" width="160" alt="AI 음성 설정"/> |
+| **반려견 안심 케어**<br>• 대표 사진/이름/나이/체중<br>• 관절 안심 케어 수준 관리<br>• 다견 원터치 전환 | **6종 비주얼 스타일**<br>• 더스티 앰버 & 세이지 그린<br>• 숲길, 비비드, 다크포켓, 바다<br>• 간편 계정 전환 및 로그아웃 | **월간 보행 달력**<br>• 이번 달 산책 스탬프 캘린더<br>• 발자국 스탬프로 달성도 시각화<br>• 완주 기록 / 찜한 코스 탭 | **보행 통계 & 완주 카드**<br>• 최근 7일/30일/전체 통계 집계<br>• 편안한 길 비율(81%) 분석<br>• 완주 인증 카드 및 이웃 후기 공유 | **맞춤형 4종 AI 보이스**<br>• 차분한 안심 톤 등 목소리 4종<br>• 실시간 미리듣기 및 음량 슬라이더<br>• 산책길 추천 미리보기 테스트 |
+
+> [!NOTE]
+> • 마이페이지 내 **서비스 이용약관 모달**([`08-5_my_service_terms_modal.png`](docs/screenshots/08-5_my_service_terms_modal.png)) 및 **개인정보보호정책 모달**([`08-5_my_privacy_policy_modal.png`](docs/screenshots/08-5_my_privacy_policy_modal.png))을 통해 투명한 Local-First 프라이버시 정책을 고지합니다.  
+> • 이전 온보딩 위저드 4단계 화면은 [`docs/screenshots/old/`](docs/screenshots/old/) 디렉터리에 보관되어 있습니다.
+
+#### 🌟 5. 커뮤니티 안심 피드 (200m 공간 지터링 마스킹)
+| 09. 커뮤니티 코스 피드 |
+| :---: |
+| <img src="docs/screenshots/09_community_feed_course_list.png" width="240" alt="커뮤니티 안심 피드"/> |
+| **이웃들이 공유한 안심 산책로 (자택 200m 공간 보호)**<br>• 자택 노출 방지를 위한 출발·도착지 200m 자동 공간 지터링 및 절단 마스킹<br>• 대전·세종 주요 랜드마크 필터 및 최근 7일/30일/전체 기간 복합 필터링<br>• 이웃 코스 원터치 찜하기(즐겨찾기) 및 경로 지도 바로보기 |
 
 ---
 
@@ -718,6 +734,19 @@ graph LR
 
 최근 관련 변경은 `d66661c`(순환 구간·바퀴 안내)와 `fdbe678`(2·3번 대안 코스 재생성)입니다.
 
+### 6.7 📊 2026-11-04 최신 UI/UX 고도화 및 품질 개선 현황
+
+2026년 11월 4일 실제 현장 구동 검증 및 사용자 피드백을 반영하여 모바일 프론트엔드 UI/UX 완성도와 벡터 지도 시각화를 전면 고도화했습니다.
+
+| 구분 | 고도화 항목 | 주요 개선 내용 및 기술 구현 | 관련 파일 |
+| :--- | :--- | :--- | :--- |
+| **UI/UX 최적화** | **코스 추천 찜하기 버튼 재배치 및 가로 폭 100% 확보** | • 상단 코스 카드 행에 가로 스크롤을 좁히던 찜하기 버튼을 선택된 코스 헤더 라인(`CourseInfoCard`)으로 통합 이동<br>• 추천 코스 카드들이 모바일 가로 100% 온전한 카드 너비를 확보하여 시각적 답답함 해소 및 스크롤 사용성 극대화 | `CourseRecommendationView.tsx`, `CourseInfoCard.tsx` |
+| **지도 시각화** | **28px 볼드 방향 벡터 마커 및 직진 화살표 일체화** | • WebView 지도 템플릿(`maplibreWebTemplate.ts`) 내 10.5px 점 마커를 28px 볼드 방향 벡터 마커로 복원<br>• 직진 구간에 얇은 기본 화살표 대신 볼드 직진 벡터 화살표(`↑`, 22px / fill `#166534`) 및 광학적 중앙 정렬(Optical Centering)을 적용하여 원형 마커 내 정중앙 일체감 구현<br>• 미려한 1px 안심 세이지 테두리(`1px solid #718276`)로 지도 위 시인성 극대화 | `webMapMarkers.ts`, `maplibreWebTemplate.ts`, `webMapMarkers.test.ts` |
+| **날씨 & 지면열** | **노면별 발바닥 체감온도 4종 정밀 분석 모달** | • 메인 홈 90~100점 산책 지수 카드 터치 시 표출되는 정밀 날씨 리포트 모달 고도화<br>• 기온, 체감 지면열, 일사량(W/m²), 미세먼지 수치 표출<br>• **아스팔트, 보도블록, 흙, 잔디** 4대 노면 종류별 발바닥 예상 체감온도 실시간 산출 및 안심 색상 태그 바인딩 | `GoldenTimeWidget.tsx`, `HomeScreen.tsx` |
+| **개인화 & 마이** | **마이페이지 4대 탭 체계 및 약관 모달 완성** | • **프로필 탭**: 반려견 대표 사진, 이름, 나이, 체중, 관절 안심 케어 수준 관리<br>• **테마·계정 탭**: 더스티 앰버, 숲길, 비비드, 다크 포켓, 바다 등 6종 비주얼 스타일 실시간 전환<br>• **활동 탭**: 월간 산책 스탬프 달력 캘린더 및 최근 7일/30일/전체 보행 통계/완주 인증 카드<br>• **설정 탭**: 4종 AI 길안내 음성 선택, 미리듣기 및 볼륨 조절 슬라이더<br>• 서비스 이용약관 및 개인정보보호정책 전문 모달 연동 | `MyProfileScreen.tsx`, `MonthlyWalkStampCalendar.tsx`, `MyWalkHistoryView.tsx` |
+| **문서 & 갤러리** | **최신 구동 스크린샷 17종 체계화** | • `KakaoTalk_` 임시 캡처 17종을 사용자 여정별 표준 파일명으로 일괄 정리 및 리네임<br>• `docs/screenshots/README.md` 및 프로젝트 루트 `README.md` 갤러리 전면 동기화 | `docs/screenshots/` |
+| **품질 검증** | **프론트엔드 Vitest 566개 전원 통과** | • 프론트엔드 87개 테스트 파일, **566 / 566 테스트 100% PASS**<br>• TypeScript 컴파일 무결성 검증 통과 (**0 Errors**) | `frontend` |
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)
@@ -775,7 +804,7 @@ cd frontend && npm test
 | [`docs/implementation_plan/노희선_향후_구현계획.md`](docs/implementation_plan/노희선_향후_구현계획.md) | 3번 노희선(서버 / Backend & Spatial Routing Lead) 향후 주차별 구현 계획서 | 서버 / REST API |
 | [`docs/implementation_plan/김승현_향후_구현계획.md`](docs/implementation_plan/김승현_향후_구현계획.md) | 4번 김승현(앱 / Frontend & Mobile App Lead) 향후 주차별 구현 계획서 | 모바일 / EAS 배포 |
 | [`docs/implementation_plan/김정님_향후_구현계획.md`](docs/implementation_plan/김정님_향후_구현계획.md) | 5번 김정님(UI / UI/UX & Experience Lead) 향후 주차별 구현 계획서 | UI/UX / 5인 CBT |
-| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 9종 갤러리 및 상세 설명 | 화면 갤러리 |
+| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 17종 갤러리 및 상세 설명 | 화면 갤러리 |
 
 ---
 

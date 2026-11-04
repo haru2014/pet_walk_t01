@@ -35,7 +35,7 @@ from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
 from agent.park_route_validation import RoutePlanningError, build_park_graph, resolve_park_start, validate_park_route
 from agent.route_geometry import haversine_m
 from agent.park_walk_planner import (
-    SAME_ROUTE_OVERLAP, WINDING_RATIO_NOTICE, plan_park_walk_candidates, route_edge_set, routes_overlap, winding_ratio,
+    PREFERRED_LAP_REPEATS, SAME_ROUTE_OVERLAP, WINDING_RATIO_NOTICE, plan_park_walk_candidates, route_edge_set, routes_overlap, winding_ratio,
 )
 from agent.park_walk_planner import _overlap as _route_overlap
 from agent.route_steps import build_turn_steps
@@ -823,6 +823,19 @@ def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) ->
             _append_notice(course, WINDING_NOTICE_TEXT)
 
 
+EXTRA_LAP_NOTICE_TEXT = "공원이 작아 {laps}바퀴 돌아요."
+
+
+def _add_extra_lap_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
+    """같은 순환로를 3바퀴 이상 도는 코스는 불가피한 이유를 카드에 알린다 (#257)."""
+    for course, cand in zip(courses, candidates):
+        laps = getattr(cand, "lap_count", 1) or 1
+        if laps > PREFERRED_LAP_REPEATS:
+            text = EXTRA_LAP_NOTICE_TEXT.format(laps=laps)
+            course["reason"] = f"{course.get('reason', '')}\n{text}".strip()
+            _append_notice(course, text)
+
+
 def _build_walk_plan_response(
     agent_result: Any,
     request_id: str,
@@ -860,6 +873,7 @@ def _build_walk_plan_response(
         scored = agent_result.all_scored_candidates or []
         _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
         _add_winding_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
+        _add_extra_lap_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(

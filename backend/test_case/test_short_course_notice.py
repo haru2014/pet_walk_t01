@@ -93,8 +93,15 @@ def test_songgang_120_every_card_has_notice_field():
     assert all(len(c["notice"]) <= 20 for c in courses)  # 앱 카드에 한 줄로 보이는 길이 (#263)
 
 
-def test_songgang_60_cards_have_no_notice_field():
-    assert not any("notice" in c for c in _plan_courses("songgang", 60))
+def test_songgang_20_cards_have_no_notice_field():
+    assert not any("notice" in c for c in _plan_courses("songgang", 20))
+
+
+def test_songgang_60_cards_have_short_course_notice_instead_of_extra_laps():
+    """#257: 송강 60분은 3바퀴 이상 돌지 않고 2바퀴 코스로 끝나므로, 짧다는 안내만 붙고 바퀴 안내는 붙지 않는다."""
+    courses = _plan_courses("songgang", 60)
+    assert all("산책로가 짧아" in c["notice"] for c in courses)
+    assert not any("바퀴 돌아요" in c["notice"] for c in courses)
 
 
 def _plan_courses(park, minutes):
