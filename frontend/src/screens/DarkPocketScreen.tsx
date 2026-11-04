@@ -23,6 +23,7 @@ import { createEmergencyReturnRoute } from '../services/hazardApi';
 import { RerouteResult } from '../types/hazard';
 import { RouteFeatureCollection, RouteStepPin } from '../types/route';
 import { MapLibreMapView } from '../components/map/MapLibreMapView';
+import { resolvePrivacyMaskCenter } from '../services/privacyMask';
 
 export interface DarkPocketScreenProps {
   readonly dogName: string;
@@ -138,19 +139,20 @@ const SmartBarkSection: React.FC<{
 
 const PocketGuidanceSection: React.FC<{
   currentCoords?: { lat: number; lon: number } | null;
+  startCoords?: { lat: number; lon: number } | null;
   mapRoute: RouteFeatureCollection;
   mapDisplayPins: readonly RouteStepPin[];
   guidanceMessage?: string;
   isCompactLayout: boolean;
   gpsWaitMessage: string;
-}> = ({ currentCoords, mapRoute, mapDisplayPins, guidanceMessage, isCompactLayout, gpsWaitMessage }) => (
+}> = ({ currentCoords, startCoords, mapRoute, mapDisplayPins, guidanceMessage, isCompactLayout, gpsWaitMessage }) => (
   <View style={[styles.guidanceRegion, isCompactLayout && styles.guidanceRegionCompact]}>
     <View style={styles.guidanceMap} accessibilityLabel="현재 위치와 진행 경로 지도">
       {currentCoords ? (
         <MapLibreMapView
           route={mapRoute}
           stepPins={mapDisplayPins}
-          maskingCenter={[currentCoords.lon, currentCoords.lat]}
+          maskingCenter={resolvePrivacyMaskCenter(startCoords, currentCoords)}
           width="100%"
           height="100%"
           style={styles.guidanceMapView}
@@ -442,6 +444,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
       {!isFreeWalk && (
         <PocketGuidanceSection
           currentCoords={currentCoords}
+          startCoords={startCoords}
           mapRoute={mapRoute}
           mapDisplayPins={mapDisplayPins}
           guidanceMessage={guidanceMessage}
@@ -536,7 +539,7 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
             <MapLibreMapView
               route={mapRoute}
               stepPins={mapDisplayPins}
-              maskingCenter={[currentCoords.lon, currentCoords.lat]}
+              maskingCenter={resolvePrivacyMaskCenter(startCoords, currentCoords)}
               width="100%"
               height="100%"
               style={styles.mapView}

@@ -83,3 +83,59 @@ describe('courseLapInfo - 순환 코스 바퀴 수와 반복 구간 분석', () 
     expect(mergeLoopStartPin(once, null)).toBe(once);
   });
 });
+
+describe('courseLapInfo - 서버 구간 분할과 서버 진입점 정보', () => {
+  /** 서버 build_segmented_geojson 처럼 at 위치에서 구간을 나누고, 다음 구간 첫 점에 경계점을 다시 넣는다. */
+  function splitRoute(coords: LonLat[], at: number[]): RouteFeatureCollection {
+    const features: RouteFeatureCollection['features'][number][] = [];
+    let start = 0;
+    [...at, coords.length - 1].forEach((end) => {
+      features.push({
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 1, shaded: true },
+        geometry: { type: 'LineString', coordinates: coords.slice(start, end + 1) },
+      });
+      start = end;
+    });
+    return { type: 'FeatureCollection', features };
+  }
+
+  const twoLapCoords: LonLat[] = [P0, P1, E, C1, C2, C3, E, C1, C2, C3, E, P1, P0];
+
+  it('구간이 순환 진입점에서 나뉘어도 진입점을 찾는다 (경계점 중복 제거)', () => {
+    const entryIndex = 6; // 첫 바퀴가 끝나는 진입점에서 구간이 바뀜
+    const info = analyzeCourseLaps(splitRoute(twoLapCoords, [entryIndex]), 2, 480);
+    expect(info).not.toBeNull();
+    expect(info!.entry).toEqual(E);
+  });
+
+  it('구간이 여러 번 나뉘어도 결과가 한 구간일 때와 같다', () => {
+    const single = analyzeCourseLaps(routeOf(twoLapCoords), 2, 480);
+    const split = analyzeCourseLaps(splitRoute(twoLapCoords, [2, 4, 6, 9]), 2, 480);
+    expect(split).toEqual(single);
+  });
+
+  it('서버가 순환 진입점과 진입 거리를 주면 좌표로 추정하지 않고 그대로 쓴다', () => {
+    const info = analyzeCourseLaps(splitRoute(twoLapCoords, [2, 6]), 2, 480, {
+      loopEntryPoint: E,
+      approachDistanceM: 222,
+    });
+    expect(info).not.toBeNull();
+    expect(info!.entry).toEqual(E);
+    expect(info!.approachMeters).toBe(222);
+    expect(info!.lapCycleMeters).toBe(480);
+  });
+
+  it('서버 진입점이 있으면 좌표 모양으로 진입점을 못 찾는 경로에서도 핀을 만든다', () => {
+    // 진입점이 바퀴 수 + 1번 나오지 않는 (예: 단순화로 점이 빠진) 경로
+    const irregular: LonLat[] = [P0, P1, E, C1, C2, C3, C1, C2, C3, E, P1, P0];
+    expect(analyzeCourseLaps(routeOf(irregular), 2, 480)).toBeNull();
+    const info = analyzeCourseLaps(routeOf(irregular), 2, 480, { loopEntryPoint: E, approachDistanceM: null });
+    expect(info?.entry).toEqual(E);
+    expect(info!.approachMeters).toBeGreaterThan(150);
+  });
+
+  it('서버 진입점이 있어도 1바퀴 코스에는 핀을 만들지 않는다', () => {
+    expect(analyzeCourseLaps(routeOf(twoLapCoords), 1, 480, { loopEntryPoint: E })).toBeNull();
+  });
+});

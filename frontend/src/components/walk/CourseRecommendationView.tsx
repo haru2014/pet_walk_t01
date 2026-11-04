@@ -677,8 +677,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   };
   // 같은 순환로를 여러 바퀴 도는 코스는 바퀴 수·순환 구간을 카드와 지도에 함께 표시한다.
   const lapInfo = useMemo(
-    () => analyzeCourseLaps(activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters),
-    [activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters],
+    () => analyzeCourseLaps(activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters, {
+      loopEntryPoint: currentCourse?.loopEntryPoint,
+      approachDistanceM: currentCourse?.approachDistanceM,
+    }),
+    [activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters, currentCourse?.loopEntryPoint, currentCourse?.approachDistanceM],
   );
   const activePins = useMemo(() => {
     const pins = mergeLoopStartPin(activePlan.stepPins, lapInfo);
