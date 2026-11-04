@@ -4,23 +4,27 @@
 
 ---
 
-## 📱 1. 최신 실제 구동 화면 갤러리 (2026년 10월 18일 최신판)
+## 📱 1. 최신 실제 구동 화면 갤러리 (2026년 11월 4일 최신판)
 
 | 번호 | 화면명 | 파일명 | 핵심 기능 및 사용자 가치 |
 | :---: | :--- | :--- | :--- |
-| **01-1** | **온보딩 1단계: 약관 동의** | [`01_onboarding_wizard1.png`](01_onboarding_wizard1.png) | • 서비스 이용약관 및 개인정보 처리방침 필수 동의<br>• Local-First 프라이버시 원칙 투명 안내 |
-| **01-2** | **온보딩 2단계: 프로필 등록** | [`01_onboarding_wizard2.png`](01_onboarding_wizard2.png) | • 반려견 이름, 견종, 생년월일, 몸무게 등록<br>• 관절 안심 케어 필요 여부 선택으로 맞춤 보행 속도 산출 |
-| **01-3** | **온보딩 3단계: 위치 동의** | [`01_onboarding_wizard3.png`](01_onboarding_wizard3.png) | • 산책 시작을 위한 위치 정보 권한 동의 안내<br>• 기기 로컬 안전 보관 및 200m 마스킹 원칙 사전 고지 |
-| **01-4** | **온보딩 4단계: 완료 안내** | [`01_onboarding_wizard4.png`](01_onboarding_wizard4.png) | • 프로필 등록 완료 축하 및 산책 준비 안내<br>• 원터치 메인 홈 화면 진입 |
-| **02** | **메인 홈 화면** | [`02_home_screen1.png`](02_home_screen1.png) | • "오늘도 편안하게, 우리 강아지와 걸어요." 헤더<br>• 활성 반려견(고양이3, 골든 리트리버) 준비 카드 및 산책 시작 버튼<br>• **오늘 강아지 산책지수 100점** 골든타임 위젯<br>• 이번 주 7일 산책 달성도 게이지 |
-| **02-1** | **오늘의 산책 날씨 리포트** | [`02-1_golden_time_report1.png`](02-1_golden_time_report1.png) | • 산책지수 카드 터치 시 표출되는 정밀 날씨 모달<br>• 4대 환경 메트릭 (현재 기온, 체감 지면열, 강수확률, 미세먼지)<br>• **노면별 발바닥 체감온도 실시간 비교** (아스팔트, 보도블록, 흙길/잔디)<br>• 기상청·에어코리아 공식 출처 표기 |
-| **03** | **맞춤 산책 조건 설정** | [`03_walk_settings1.png`](03_walk_settings1.png) | • 목표 산책 시간 원터치 칩 및 슬라이더<br>• 6대 안심 보행 환경 다중 선택 (폭신한 길, 그늘길, 계단 피하기 등)<br>• 출발 거점 공원(대전 3대 공원 & 세종 2대 공원) 선택 |
-| **04** | **추천 산책 코스 프리뷰** | [`04_course_recommendation1.png`](04_course_recommendation1.png) | • 실제 OSM 도로망 기반 무장애·관절 안심 순환로<br>• 구간별 노면 특성 분기 표시 및 웨이포인트 핀<br>• 예상 시간, 총 거리, 폭신한 길 비율 요약 |
-| **08-1** | **마이 탭 - 반려견 프로필** | [`08-1_my_profile1.png`](08-1_my_profile1.png) | • 반려견 안심 케어 프로필 상세 관리 (나이, 체중, 맞춤 속도)<br>• 다견 가정을 위한 원터치 프로필 전환 및 신규 등록 |
-| **08-2** | **마이 탭 - 3대 안심 테마** | [`08-2_my_theme1.png`](08-2_my_theme1.png) | • 숲길 테마(Forest Green), 비비드 테마, 다크 테마 선택기<br>• 야외 주간 시인성 및 야간 눈부심 방지 최적화 |
-| **08-3** | **마이 탭 - 완주 산책 기록** | [`08-3_my_walk_report.png`](08-3_my_walk_report.png) | • 지난 산책 활동 기록 타임라인 및 주간/월간 보행 통계<br>• 만족도 피드백 요약 및 찜한 코스 원터치 재산책 |
-| **08-4** | **마이 탭 - 설정 및 데이터** | [`08-4_my_setting1.png`](08-4_my_setting1.png) | • AI 음성 안내 설정, 위치기반서비스 투명 약관 전문<br>• 로컬 프로필 JSON 백업/복원 및 데이터 영구 초기화 |
-| **09** | **커뮤니티 안심 피드** | [`09_community_feed1.png`](09_community_feed1.png) | • 동네 이웃 보호자들이 직접 걷고 공유한 안심 산책로<br>• **자택 200m 공간 지터링 & 교차로 스냅 자동 마스킹**<br>• 실시간 서버 연동 및 오프라인 자동 폴백 듀얼 모드 |
+| **02-A** | **메인 홈 (날씨 로딩 중)** | [`02_home_screen_weather_loading.png`](02_home_screen_weather_loading.png) | • "오늘도 편안하게, 우리 강아지와 걸어요." 헤더<br>• 활성 반려견(고양이5) 카드 및 원터치 자유 산책 시작 |
+| **02-B** | **메인 홈 (날씨 정상 로드)** | [`02_home_screen_weather_loaded.png`](02_home_screen_weather_loaded.png) | • **오늘 강아지 산책지수 90점** 골든타임 배지 표출<br>• 기온, 체감온도 및 맞춤 추천 산책길 바로가기 |
+| **02-1** | **오늘의 산책 날씨 리포트** | [`02-1_golden_time_weather_detail_modal.png`](02-1_golden_time_weather_detail_modal.png) | • 산책지수 카드 터치 시 표출되는 정밀 날씨 모달<br>• 4대 환경 메트릭 (현재 기온, 노면 체감온도, 강수확률, 미세먼지)<br>• **노면 종류별 발바닥 체감온도 실시간 비교** (아스팔트, 보도블록, 흙, 잔디) |
+| **03** | **맞춤 산책 조건 설정** | [`03_walk_settings_park_and_time.png`](03_walk_settings_park_and_time.png) | • 자연어 음성/텍스트 조건 입력 ("25분만 그늘진 흙길로 유림공원 한 바퀴")<br>• 현재 위치 기반 / 지정 명소 둘레길 탭 및 시간 선택 (30분 등) |
+| **03-1** | **산책 경로 생성 중 로딩** | [`03-1_route_generating_loading.png`](03-1_route_generating_loading.png) | • "산책하기 좋은 길을 찾고 있어요" 로딩 화면<br>• 관절 안심·노면 분석·그늘길 계산 실시간 피드백 |
+| **04-1** | **추천 산책 코스 (마커 숨김)** | [`04-1_course_recommendation_markers_off.png`](04-1_course_recommendation_markers_off.png) | • 도안호수공원 순환 코스 지도 전체 조망 프리뷰<br>• 예상 시간, 총 거리, 완만한 길 비율 요약 및 찜하기 버튼 |
+| **04-2** | **추천 산책 코스 (방향 마커 표출)** | [`04-2_course_recommendation_markers_on.png`](04-2_course_recommendation_markers_on.png) | • 구간별 볼드 직진/회전 방향 벡터 화살표 마커 표시<br>• 가로 스크롤 가능한 상세 코스 카드 및 산책 시작 버튼 |
+| **06-1** | **산책 진행 중 (다크 포켓 모드)** | [`06-1_walk_in_progress_dark_pocket_mode.png`](06-1_walk_in_progress_dark_pocket_mode.png) | • 야외 시인성 및 OLED 절전을 위한 다크 내비게이션 뷰<br>• 실시간 보행 경로 추적, 거리/시간/페이스 및 배변 기록 기능 |
+| **06-2** | **산책 종료 확인 모달** | [`06-2_walk_in_progress_stop_modal.png`](06-2_walk_in_progress_stop_modal.png) | • 산책 일시정지 및 산책 종료 최종 확인 다이얼로그 |
+| **08-1** | **마이 탭 - 반려견 프로필 관리** | [`08-1_my_tab_profile_edit.png`](08-1_my_tab_profile_edit.png) | • 반려견 대표 사진, 이름, 나이, 체중 등록<br>• 관절 안심 케어 수준 선택 (일반/주의/적극보호) 및 다견 관리 |
+| **08-2** | **마이 탭 - 테마 및 계정** | [`08-2_my_tab_theme_and_account.png`](08-2_my_tab_theme_and_account.png) | • 로그인 계정 상태 확인 및 전환/로그아웃<br>• 6종 비주얼 컬러 테마 (더스티 앰버, 숲길, 다크 포켓, 바다 등) 선택 |
+| **08-3A** | **마이 탭 - 이번 달 산책 스탬프** | [`08-3_my_tab_activity_stamps.png`](08-3_my_tab_activity_stamps.png) | • 월간 산책 달력 및 발자국 스탬프 달성 기록 |
+| **08-3B** | **마이 탭 - 산책 통계 및 완주 기록** | [`08-3_my_tab_activity_history.png`](08-3_my_tab_activity_history.png) | • 최근 7일/30일/전체 산책 횟수, 총 거리, 총 시간, 편안한 길 비율<br>• 완주 인증 카드 및 이웃 후기 공유 기능 |
+| **08-4** | **마이 탭 - 음성 안내 및 설정** | [`08-4_my_tab_settings_voice.png`](08-4_my_tab_settings_voice.png) | • 4종 AI 길안내 음성 선택, 미리듣기 및 볼륨 조절<br>• 산책길 추천 맞춤 조건 테스트 |
+| **08-5A** | **마이 탭 - 이용약관 모달** | [`08-5_my_service_terms_modal.png`](08-5_my_service_terms_modal.png) | • 서비스 이용약관 전문 안내 팝업 모달 |
+| **08-5B** | **마이 탭 - 개인정보보호정책 모달** | [`08-5_my_privacy_policy_modal.png`](08-5_my_privacy_policy_modal.png) | • 개인정보 처리방침 전문 안내 팝업 모달 |
+| **09** | **커뮤니티 안심 피드** | [`09_community_feed_course_list.png`](09_community_feed_course_list.png) | • 동네 이웃 보호자들이 직접 걷고 공유한 안심 산책로 피드<br>• **자택 200m 공간 지터링 & 자동 마스킹** 보호 안내<br>• 지역별 필터 및 코스 찜하기/지도 미리보기 |
 
 ---
 
