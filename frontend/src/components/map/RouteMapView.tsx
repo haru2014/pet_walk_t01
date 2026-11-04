@@ -40,6 +40,8 @@ export interface RouteMapViewProps {
   readonly showLegend?: boolean;
   /** 테스트 및 초기 모달 상태 제어용 */
   readonly defaultLegendOpen?: boolean;
+  /** 방향 마커 토글 버튼 표시 여부 (추천 산책 코스 화면에서만 기본 노출) */
+  readonly showDirectionToggle?: boolean;
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -55,6 +57,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   maskingCenter,
   showLegend = true,
   defaultLegendOpen = false,
+  showDirectionToggle = false,
 }) => {
   const { colors } = useAppTheme();
   const mapHeight = customMapHeight ?? MAP_HEIGHT;
@@ -130,16 +133,18 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
       onPress={() => setShowDirectionMarkers((visible) => !visible)}
       style={[
         styles.directionToggle,
-        { backgroundColor: colors.surface, borderColor: colors.border },
+        {
+          backgroundColor: showDirectionMarkers ? colors.primaryWash : colors.surface,
+          borderColor: showDirectionMarkers ? colors.primary : colors.border,
+        },
       ]}
       accessibilityRole="switch"
       accessibilityState={{ checked: showDirectionMarkers }}
       accessibilityLabel="방향표시 전부 표시"
     >
-      <Text style={[styles.directionToggleText, { color: colors.textMain }]}>방향표시 전부 표시</Text>
-      <View style={[styles.toggleTrack, showDirectionMarkers && styles.toggleTrackActive]}>
-        <View style={[styles.toggleThumb, showDirectionMarkers && styles.toggleThumbActive]} />
-      </View>
+      <Text style={[styles.directionToggleIcon, { color: showDirectionMarkers ? colors.primaryDark : colors.textMuted }]}>
+        🧭
+      </Text>
     </TouchableOpacity>
   );
 
@@ -166,7 +171,6 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             onPinSelect?.(instruction);
           }}
         />
-        {directionToggle}
         {stairsCount != null && (
           <View
             pointerEvents="none"
@@ -181,22 +185,32 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           </View>
         )}
 
-        {/* 지도 우측 하단 미니멀 플로팅 범례 버튼 (지도 가림 최소화 & 네이버/카카오맵 표준 UX) */}
-        {showLegend && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsLegendOpen(true)}
+        {/* 지도 우측 하단 플로팅 컨트롤 그룹 (방향 토글 + 범례 세로 1열 스택) */}
+        {(showDirectionToggle || showLegend) && (
+          <View
+            pointerEvents="box-none"
             style={[
-              styles.floatingLegendBtn,
-              selectedPin ? styles.floatingLegendBtnRaised : undefined,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              styles.floatingControlGroup,
+              selectedPin ? styles.floatingControlGroupRaised : undefined,
             ]}
-            accessibilityRole="button"
-            accessibilityLabel="지도 범례 안내 보기"
           >
-            <Text style={styles.floatingLegendIcon}>🎨</Text>
-            <Text style={[styles.floatingLegendText, { color: colors.textMain }]}>범례</Text>
-          </TouchableOpacity>
+            {showDirectionToggle && directionToggle}
+            {showLegend && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsLegendOpen(true)}
+                style={[
+                  styles.floatingLegendBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="지도 범례 안내 보기"
+              >
+                <Text style={styles.floatingLegendIcon}>🎨</Text>
+                <Text style={[styles.floatingLegendText, { color: colors.textMain }]}>범례</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* 지도 범례 팝업 오버레이 (지도 내부 캔버스 위에 뜨는 레이어 팝업 UX) */}
@@ -282,36 +296,32 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
-  directionToggle: {
+  floatingControlGroup: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
+    bottom: 28,
+    right: 10,
     zIndex: 11,
-    flexDirection: 'row',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  floatingControlGroupRaised: {
+    bottom: 74,
+  },
+  directionToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  directionToggleText: { fontSize: 10, fontWeight: '600' },
-  toggleTrack: {
-    width: 30,
-    height: 17,
-    borderRadius: 9,
-    backgroundColor: '#D5D9D5',
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleTrackActive: { backgroundColor: TOKENS.colors.primary },
-  toggleThumb: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#FFFFFF' },
-  toggleThumbActive: { alignSelf: 'flex-end' },
+  directionToggleIcon: { fontSize: 18 },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,
@@ -324,10 +334,6 @@ const styles = StyleSheet.create({
   },
   stairsOverlayText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   floatingLegendBtn: {
-    position: 'absolute',
-    bottom: 26,
-    right: 28,
-    zIndex: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -341,14 +347,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  floatingLegendBtnRaised: {
-    bottom: 72,
-  },
   floatingLegendIcon: {
-    fontSize: 12,
+    fontSize: 13,
   },
   floatingLegendText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   briefingBanner: {
@@ -407,10 +410,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   modalHeaderIcon: {
-    fontSize: 15,
+    fontSize: 16,
   },
   modalHeaderTitle: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
   },
   modalCloseBtn: {

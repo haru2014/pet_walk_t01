@@ -259,10 +259,10 @@ const CourseSafetyMetricsBar: React.FC<CourseSafetyMetricsBarProps> = ({ course,
         </View>
         <Text numberOfLines={1} style={[styles.metricValue, { color: colors.primaryDark }]}>{surfaceValue}</Text>
       </View>
-      <View style={[styles.metricItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.metricItem, styles.metricItemWide, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.metricLabelRow}>
           <Text style={styles.metricIcon}>🪜</Text>
-          <Text numberOfLines={1} style={[styles.metricLabel, { color: colors.textMuted }]}>계단</Text>
+          <Text numberOfLines={1} style={[styles.metricLabel, { color: colors.textMuted }]}>확인된 계단</Text>
         </View>
         <Text numberOfLines={1} style={[styles.metricValue, { color: colors.textMain }]}>{stairsValue}</Text>
       </View>
@@ -297,33 +297,24 @@ const CourseBriefingSection: React.FC<CourseBriefingSectionProps> = ({
   safetyBriefingText,
   conditionLabels,
   colors,
-  courseRecommend,
+  courseRecommend: _courseRecommend,
 }) => (
   <View style={[styles.briefingSection, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
     <View style={styles.titleRow}>
       <AppIcon name="sparkle" size={16} color={colors.primaryDark} />
-      <Text style={[styles.briefingTitle, { color: colors.textMain, fontSize: courseRecommend.briefingTitleSize }]}>
+      <Text style={[styles.briefingTitle, { color: colors.textMain, fontSize: 16 }]}>
         {dogName}에게 맞는 산책 코스를 찾았어요.
       </Text>
     </View>
-    {safetyBriefingText ? (
-      <View style={[styles.safetyCardBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <Text style={styles.safetyCardIcon}>{getWeatherEmoji(safetyBriefingText)}</Text>
-        <Text
-          style={[
-            styles.safetyCardText,
-            {
-              color: colors.textMain,
-              fontSize: courseRecommend.briefingSubSize,
-              lineHeight: courseRecommend.briefingSubSize * 1.38,
-            },
-          ]}
-        >
-          {safetyBriefingText}
-        </Text>
-      </View>
-    ) : null}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScrollRow} contentContainerStyle={styles.tagScrollContent}>
+      {safetyBriefingText ? (
+        <View style={[styles.safetyChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <Text style={styles.safetyChipIcon}>{getWeatherEmoji(safetyBriefingText)}</Text>
+          <Text numberOfLines={1} style={[styles.safetyChipText, { color: colors.textMain }]}>
+            {safetyBriefingText}
+          </Text>
+        </View>
+      ) : null}
       {conditionLabels.map((lbl) => (
         <View
           key={lbl}
@@ -332,7 +323,7 @@ const CourseBriefingSection: React.FC<CourseBriefingSectionProps> = ({
             { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint, borderWidth: 1 },
           ]}
         >
-          <Text style={[styles.tagText, { color: colors.primaryDark, fontSize: courseRecommend.altCourseChipFont }]}>{lbl}</Text>
+          <Text style={[styles.tagText, { color: colors.primaryDark }]}>{lbl}</Text>
         </View>
       ))}
     </ScrollView>
@@ -421,7 +412,6 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
   onSelectCourse,
   freshCourseIds,
   colors,
-  routeForCourse,
 }) => {
   return (
     <ScrollView
@@ -453,27 +443,13 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={`${formatCourseDisplayName(c.name)}, ${c.distanceKm}, 약 ${c.estimatedMinutes}분`}
           >
-            <CoursePreviewLine
-              route={routeForCourse(c, idx)}
-              color={colors.primary}
-              surfaceColor={colors.background}
-              borderColor={colors.border}
-            />
-            {isSelected ? (
-              <Text numberOfLines={1} style={[styles.coursePreviewSelected, { color: colors.primaryDark }]}>
-                선택된 코스
-              </Text>
-            ) : (
-              <>
-                <Text numberOfLines={1} style={[styles.coursePreviewName, { color: colors.textMain }]}>
-                  {formatCourseDisplayName(c.name)}
-                </Text>
-                <Text numberOfLines={1} style={[styles.coursePreviewMeta, { color: colors.textMuted }]}>
-                  {c.distanceKm} · 약 {c.estimatedMinutes}분{score == null ? '' : ` · ${score}점`}
-                </Text>
-              </>
-            )}
-            {!isSelected && (characteristic || freshCourseIds.has(c.id)) && (
+            <Text numberOfLines={1} style={[styles.coursePreviewName, { color: isSelected ? colors.primaryDark : colors.textMain, fontWeight: isSelected ? '800' : '700' }]}>
+              {formatCourseDisplayName(c.name)}
+            </Text>
+            <Text numberOfLines={1} style={[styles.coursePreviewMeta, { color: isSelected ? colors.primaryDark : colors.textMuted }]}>
+              {c.distanceKm} · 약 {c.estimatedMinutes}분{score == null ? '' : ` · ${score}점`}
+            </Text>
+            {(characteristic || freshCourseIds.has(c.id)) && (
               <Text numberOfLines={1} style={[styles.coursePreviewTag, { color: colors.primaryDark }]}>
                 {freshCourseIds.has(c.id) && characteristic
                   ? `NEW · ${characteristic}`
@@ -764,8 +740,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           route={activeRoute}
           stepPins={activePins}
           speedKmH={dog.speedKmH}
-          stairsCount={currentCourse.stairsCount}
           fillContainer
+          showDirectionToggle
           onStart={() => onStartWalk(currentCourse, plan)}
           onPinSelect={onPinSelect}
         />
@@ -894,33 +870,23 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     borderBottomWidth: 1,
   },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-  briefingTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.3 },
-  safetyCardBox: {
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  briefingTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
+  tagScrollRow: { flexDirection: 'row' },
+  tagScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  safetyChip: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 9,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
-    marginTop: 3,
-    marginBottom: 6,
-    gap: 6,
   },
-  safetyCardIcon: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 1,
-  },
-  safetyCardText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.support,
-    lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
-    letterSpacing: -0.1,
-  },
-  tagScrollRow: { flexDirection: 'row' },
-  tagChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginRight: 6 },
-  tagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
+  safetyChipIcon: { fontSize: 12 },
+  safetyChipText: { fontSize: 12, fontWeight: '700', letterSpacing: -0.1 },
+  tagChip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  tagText: { fontSize: 12, fontWeight: '700' },
   mapSection: { flex: 1, minHeight: 0, width: '100%', alignItems: 'stretch' },
   attributionContainer: {
     paddingHorizontal: 14,
@@ -942,15 +908,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  coursePreviewScroll: { flex: 1, minWidth: 0, height: 72, marginRight: 8 },
-  coursePreviewRow: { flexDirection: 'row', gap: 6, alignItems: 'stretch' },
+  coursePreviewScroll: { flex: 1, minWidth: 0, height: 50, marginRight: 8 },
+  coursePreviewRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   coursePreviewCard: {
-    width: 112,
-    minHeight: 72,
+    width: 145,
+    minHeight: 46,
     borderRadius: 10,
     borderWidth: 1.5,
-    padding: 5,
-    gap: 2,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    justifyContent: 'center',
   },
   routePreview: {
     width: '100%',
@@ -962,9 +929,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   routePreviewUnavailable: { fontSize: 8, fontWeight: '600' },
-  coursePreviewName: { fontSize: 11, fontWeight: '700' },
-  coursePreviewMeta: { fontSize: 9, fontWeight: '600' },
-  coursePreviewTag: { fontSize: 9, fontWeight: '700' },
+  coursePreviewName: { fontSize: 13, fontWeight: '700' },
+  coursePreviewMeta: { fontSize: 11.5, fontWeight: '600' },
+  coursePreviewTag: { fontSize: 10, fontWeight: '700' },
   coursePreviewSelected: { fontSize: 10, fontWeight: '700' },
   bookmarkButton: { height: 32 },
   courseHeaderRow: {
@@ -998,26 +965,39 @@ const styles = StyleSheet.create({
   metricsBar: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    justifyContent: 'space-around',
-    gap: 2,
-    paddingVertical: 4,
-    paddingHorizontal: 3,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
     borderRadius: 8,
     borderWidth: 1,
   },
   metricItem: {
     flex: 1,
     minWidth: 0,
-    minHeight: 34,
-    justifyContent: 'center',
+    minHeight: 36,
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 1,
-    paddingHorizontal: 1,
+    justifyContent: 'center',
+    gap: 2,
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  metricLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  metricIcon: { fontSize: 10 },
-  metricLabel: { fontSize: 9, fontWeight: '600' },
-  metricValue: { fontSize: 10, fontWeight: '700' },
+  metricItemWide: {
+    flex: 1.25,
+  },
+  metricLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  metricIcon: { fontSize: 11 },
+  metricLabel: { fontSize: 11.5, fontWeight: '600', letterSpacing: -0.2 },
+  metricValue: { fontSize: 13.5, fontWeight: '800', letterSpacing: -0.2 },
   bottomActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
