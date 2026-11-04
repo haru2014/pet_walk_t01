@@ -28,7 +28,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from uuid import UUID
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple
 
 from agent.walk_planning_agent import run_walk_planning_agent
 from agent.pilot_park_routes import PILOT_PARK_CENTERS, resolve_pilot_park_key
@@ -786,8 +786,16 @@ def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
 SHORT_COURSE_RATIO = 0.8
 
 
-def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any], target_distance_m: float) -> None:
-    """공원 보행로가 짧아 목표보다 짧은 코스가 나오면 카드의 안내 줄(reason)에 이유를 알린다 (#229)."""
+def _add_short_course_notice(
+    courses: List[Dict[str, Any]],
+    candidates: List[Any],
+    target_distance_m: float,
+    skip_indexes: Optional[Set[int]] = None,
+) -> None:
+    """공원 보행로가 짧아 목표보다 짧은 코스가 나오면 카드의 안내 줄(reason)에 이유를 알린다 (#229).
+
+    skip_indexes: 이미 '2바퀴 제한' 안내가 붙은 카드. 같은 카드에 이유가 다른 안내를 겹쳐 붙이지 않는다.
+    """
     if not candidates or not target_distance_m:
         return
     # 목표 길이에 가까운 코스가 하나라도 있으면(예: 다시 추천에서 고정되는 1안) 짧은 대안 카드에는 알리지 않는다 (#259).
@@ -797,7 +805,9 @@ def _add_short_course_notice(courses: List[Dict[str, Any]], candidates: List[Any
     notice = f"이 공원은 산책로가 짧아 최대 약 {longest}분 코스예요. 더 걷고 싶다면 같은 길을 한 바퀴 더 돌아보세요."
     # 앱 카드는 공간이 좁아 한 줄(20자 안팎)로 보여 줄 짧은 문구를 notice 로 따로 보낸다 (#263).
     short_notice = f"산책로가 짧아 최대 약 {longest}분이에요"
-    for course, cand in zip(courses, candidates):
+    for index, (course, cand) in enumerate(zip(courses, candidates)):
+        if skip_indexes and index in skip_indexes:
+            continue
         repeat_desc = _lap_description(getattr(cand, "lap_count", 1) or 1, getattr(cand, "lap_cycle_m", None))
         course["reason"] = f"{notice}\n{repeat_desc}" if repeat_desc else notice
         _append_notice(course, short_notice)
@@ -823,17 +833,52 @@ def _add_winding_notice(courses: List[Dict[str, Any]], candidates: List[Any]) ->
             _append_notice(course, WINDING_NOTICE_TEXT)
 
 
-EXTRA_LAP_NOTICE_TEXT = "공원이 작아 {laps}바퀴 돌아요."
+# 플래너가 순환 코스 길이로 허용하는 상한 (park_walk_planner._compute_candidates 의 target * 1.25 와 같은 값)
+LAP_MAX_LENGTH_RATIO = 1.25
+LAP_LIMIT_NOTICE_TEXT = "{laps}바퀴까지만 돌아 약 {minutes}분이에요"
+LAP_LIMIT_REASON_TEXT = "같은 길을 너무 여러 번 돌지 않도록 {laps}바퀴까지만 추천해요. 더 걷고 싶다면 한 바퀴 더 돌아보세요."
 
 
-def _add_extra_lap_notice(courses: List[Dict[str, Any]], candidates: List[Any]) -> None:
-    """같은 순환로를 3바퀴 이상 도는 코스는 불가피한 이유를 카드에 알린다 (#257)."""
-    for course, cand in zip(courses, candidates):
+def _is_shortened_by_lap_limit(cand: Any, target_distance_m: float) -> bool:
+    """2바퀴 제한(#257) 때문에 설정한 산책 시간을 채우지 못한 코스인지.
+
+    - 이미 최대 바퀴 수(2바퀴)를 돌고 있고
+    - 목표 거리의 SHORT_COURSE_RATIO(80%)에 못 미치며
+    - 한 바퀴를 더 돌면(플래너 허용 길이 안에서) 목표에 더 가까워지는 경우
+    """
+    if not target_distance_m:
+        return False
+    laps = getattr(cand, "lap_count", 1) or 1
+    cycle_m = getattr(cand, "lap_cycle_m", None) or 0.0
+    distance_m = getattr(cand, "total_distance_m", 0.0) or 0.0
+    if laps < PREFERRED_LAP_REPEATS or cycle_m <= 0:
+        return False
+    if distance_m >= target_distance_m * SHORT_COURSE_RATIO:
+        return False
+    one_more_lap_m = distance_m + cycle_m
+    if one_more_lap_m > target_distance_m * LAP_MAX_LENGTH_RATIO:
+        return False
+    return abs(one_more_lap_m - target_distance_m) < abs(target_distance_m - distance_m)
+
+
+def _add_lap_limit_notice(courses: List[Dict[str, Any]], candidates: List[Any], target_distance_m: float) -> Set[int]:
+    """2바퀴 제한으로 설정한 산책 시간보다 짧아진 코스 카드에 그 이유를 알린다 (#257).
+
+    카드마다 따로 판단한다. 다른 카드가 목표 시간을 채워도(#259) 이 카드가 짧아진 이유는 사실이므로 알린다.
+    안내를 붙인 카드의 순서(index) 집합을 돌려준다.
+    """
+    marked: Set[int] = set()
+    for index, (course, cand) in enumerate(zip(courses, candidates)):
+        if not _is_shortened_by_lap_limit(cand, target_distance_m):
+            continue
         laps = getattr(cand, "lap_count", 1) or 1
-        if laps > PREFERRED_LAP_REPEATS:
-            text = EXTRA_LAP_NOTICE_TEXT.format(laps=laps)
-            course["reason"] = f"{course.get('reason', '')}\n{text}".strip()
-            _append_notice(course, text)
+        minutes = int(getattr(cand, "estimated_duration_minutes", 0) or 0)
+        reason = LAP_LIMIT_REASON_TEXT.format(laps=laps)
+        repeat_desc = _lap_description(laps, getattr(cand, "lap_cycle_m", None))
+        course["reason"] = f"{reason}\n{repeat_desc}" if repeat_desc else reason
+        _append_notice(course, LAP_LIMIT_NOTICE_TEXT.format(laps=laps, minutes=minutes))
+        marked.add(index)
+    return marked
 
 
 def _build_walk_plan_response(
@@ -871,9 +916,10 @@ def _build_walk_plan_response(
     }
     if park_mode:
         scored = agent_result.all_scored_candidates or []
-        _add_short_course_notice(resp_data["courses"], [x.candidate for x in scored[:3]], target_distance_m)
-        _add_winding_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
-        _add_extra_lap_notice(resp_data["courses"], [x.candidate for x in scored[:3]])
+        top_candidates = [x.candidate for x in scored[:3]]
+        lap_limited = _add_lap_limit_notice(resp_data["courses"], top_candidates, target_distance_m)
+        _add_short_course_notice(resp_data["courses"], top_candidates, target_distance_m, skip_indexes=lap_limited)
+        _add_winding_notice(resp_data["courses"], top_candidates)
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
     logger.info(
