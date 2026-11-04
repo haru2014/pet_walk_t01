@@ -1,0 +1,103 @@
+{
+  "id": "quarterly-business-review",
+  "title": "2026년 3분기 경영 실적 보고",
+  "subtitle": "지속 가능한 성장과 엔터프라이즈 시장 지배력 확대",
+  "presenter": "경영기획실",
+  "organization": "Corporate Strategy",
+  "date": "2026. Q3",
+  "theme": "modern-business",
+  "layout": "16x9",
+  "slides": [
+    {
+      "layout": "cover",
+      "category": "Quarterly Review",
+      "title": "2026년 3분기 경영 실적 보고",
+      "subtitle": "지속 가능한 성장과 글로벌 엔터프라이즈 시장 지배력 확대",
+      "presenter": "경영전략본부",
+      "organization": "Presentation Enterprise",
+      "date": "2026. 10"
+    },
+    {
+      "layout": "metrics",
+      "category": "Key Highlights",
+      "title": "3분기 주요 재무 성과",
+      "subtitle": "매출과 수익성 모두 분기 사상 최대 실적 달성",
+      "metrics": [
+        {
+          "label": "분기 매출액",
+          "value": "420억",
+          "change": "▲ 28% YoY",
+          "description": "클라우드 구독 매출 비중이 전체의 68%를 차지하며 안정적 성장 견인"
+        },
+        {
+          "label": "영업 이익률",
+          "value": "16.5%",
+          "change": "▲ 3.2%p 개선",
+          "description": "운영 자동화 및 서버 인프라 최적화를 통한 원가 구조 개선"
+        },
+        {
+          "label": "엔터프라이즈 신규 고객",
+          "value": "45개사",
+          "change": "목표 대비 125%",
+          "description": "금융 및 제조 대기업 중심의 대형 라이선스 계약 성공"
+        }
+      ]
+    },
+    {
+      "layout": "columns-2",
+      "category": "Strategic Focus",
+      "title": "성장 동력 및 주요 성과 분석",
+      "subtitle": "엔터프라이즈 부문의 성장이 전체 실적을 주도",
+      "columns": [
+        {
+          "tag": "Enterprise SaaS",
+          "title": "대형 고객사 확보 가속화",
+          "points": [
+            "국내 10대 그룹 중 6개사 솔루션 도입 완료",
+            "고객당 평균 매출(ARPU) 전년 대비 42% 증가",
+            "엔터프라이즈 고객 유지율(Net Retention) 118% 기록"
+          ]
+        },
+        {
+          "tag": "Global Expansion",
+          "title": "글로벌 시장 진출 기반 마련",
+          "points": [
+            "북미 현지 파트너십 3건 체결 완료",
+            "일본 도쿄 데이터센터 리전 오픈 및 현지화 완료",
+            "SOC2 Type II 및 ISO 27001 국제 보안 인증 취득"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "timeline",
+      "category": "Q4 Action Plan",
+      "title": "4분기 핵심 실행 과제",
+      "subtitle": "연간 목표 초과 달성을 위한 로드맵",
+      "steps": [
+        {
+          "date": "10월",
+          "title": "AI 기능 정식 배포",
+          "description": "자연어 데이터 쿼리 및 자동 리포팅 기능 엔터프라이즈 플랜 적용"
+        },
+        {
+          "date": "11월",
+          "title": "글로벌 파트너 데이",
+          "description": "북미/일본 리셀러 및 SI 파트너 대상 컨퍼런스 개최"
+        },
+        {
+          "date": "12월",
+          "title": "연간 결산 및 2027 전략",
+          "description": "연간 매출 목표 1,500억 달성 점검 및 차년도 사업계획 확정"
+        }
+      ]
+    },
+    {
+      "layout": "closing",
+      "title": "감사합니다",
+      "subtitle": "Q&A 및 질의응답",
+      "contact": "문의: ir@example.com  |  02-1234-5678"
+    }
+  ]
+}
+

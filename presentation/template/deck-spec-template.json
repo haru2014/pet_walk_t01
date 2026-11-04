@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "id": "deck-spec-template",
+  "title": "슬라이드 명세 템플릿 (Deck Specification)",
+  "subtitle": "모든 지원 레이아웃의 구조 및 속성 예시",
+  "theme": "modern-business",
+  "layout": "16x9",
+  "slides": [
+    {
+      "layout": "cover",
+      "category": "Category Badge",
+      "title": "발표 메인 제목",
+      "subtitle": "발표의 핵심 목적을 설명하는 부제목",
+      "presenter": "발표자 성명 / 직책",
+      "organization": "소속 기관 / 부서",
+      "date": "2026. 10"
+    },
+    {
+      "layout": "agenda",
+      "category": "Agenda",
+      "title": "목차 (Agenda)",
+      "subtitle": "발표의 주요 목차와 개요",
+      "items": [
+        { "title": "아젠다 1", "description": "첫 번째 주제 요약" },
+        { "title": "아젠다 2", "description": "두 번째 주제 요약" },
+        { "title": "아젠다 3", "description": "세 번째 주제 요약" },
+        { "title": "아젠다 4", "description": "네 번째 주제 요약" }
+      ]
+    },
+    {
+      "layout": "section",
+      "sectionNumber": "01",
+      "title": "섹션 제목 (간지)",
+      "subtitle": "이 섹션에서 다룰 핵심 메시지 요약"
+    },
+    {
+      "layout": "key-message",
+      "category": "Core Principle",
+      "title": "핵심 메시지 슬라이드",
+      "subtitle": "청중에게 가장 강하게 전달해야 할 단 하나의 결론",
+      "statement": "템플릿 기반 자동화를 통해 제작 시간을 75% 단축하고 디자인 일관성을 확보합니다.",
+      "points": [
+        "반복적인 도형 배치 및 폰트 설정 작업 제거",
+        "비즈니스 목적에 부합하는 네이티브 PPTX 출력"
+      ]
+    },
+    {
+      "layout": "columns-2",
+      "category": "Comparison",
+      "title": "2단 비교 레이아웃 (AS-IS vs TO-BE)",
+      "subtitle": "두 개념 또는 현황과 개선안을 대조하여 표현",
+      "highlightSecond": true,
+      "columns": [
+        {
+          "tag": "Before",
+          "title": "기존 문제점",
+          "points": ["슬라이드 간 서식 불일치", "많은 수작업 시간 소요"]
+        },
+        {
+          "tag": "After",
+          "title": "개선 결과",
+          "points": ["일관된 디자인 토큰 적용", "생성 후 네이티브 편집 가능"]
+        }
+      ]
+    },
+    {
+      "layout": "columns-3",
+      "category": "Features",
+      "title": "3단 카드 레이아웃 (Core Pillars)",
+      "subtitle": "3가지 주요 특징이나 전략 축을 병렬로 설명",
+      "columns": [
+        {
+          "tag": "Pillar 1",
+          "title": "범용 입력 지원",
+          "points": ["Markdown, 보고서, 회의록 지원", "데이터 핵심 포인트 자동 추출"]
+        },
+        {
+          "tag": "Pillar 2",
+          "title": "테마 시스템",
+          "points": ["4가지 사전 정의 테마", "16:9 및 4:3 비율 선택 가능"]
+        },
+        {
+          "tag": "Pillar 3",
+          "title": "고품질 출력",
+          "points": ["PptxGenJS 기반 네이티브 생성", "발표자 노트 및 메타데이터 지원"]
+        }
+      ]
+    },
+    {
+      "layout": "cards-4",
+      "category": "Overview",
+      "title": "4단 그리드 카드 (2x2)",
+      "subtitle": "4개의 영역이나 세부 실행 과제를 균형 있게 배치",
+      "cards": [
+        { "title": "1. 기획 및 분석", "description": "입력 원본 자료 검토 및 핵심 논리 구조화" },
+        { "title": "2. 템플릿 매핑", "description": "정보 유형에 최적화된 레이아웃 선택" },
+        { "title": "3. 자동 생성", "description": "엔진 CLI를 통한 즉각적인 PPTX 렌더링" },
+        { "title": "4. 검토 및 편집", "description": "오피스 프로그램에서 필요시 자유롭게 수정" }
+      ]
+    },
+    {
+      "layout": "timeline",
+      "category": "Process",
+      "title": "타임라인 / 로드맵 레이아웃",
+      "subtitle": "단계별 진행 과정이나 마일스톤을 시각화",
+      "steps": [
+        { "date": "Q1", "title": "엔진 설계", "description": "테마 및 레이아웃 컴포넌트 아키텍처 수립" },
+        { "date": "Q2", "title": "템플릿 확장", "description": "비즈니스, 테크, 파스텔 테마 구축" },
+        { "date": "Q3", "title": "CLI 및 자동화", "description": "원클릭 PPTX 생성 파이프라인 개발" },
+        { "date": "Q4", "title": "실전 적용", "description": "전사 발표 자료 제작 지원 및 고도화" }
+      ]
+    },
+    {
+      "layout": "metrics",
+      "category": "KPI",
+      "title": "핵심 지표 / 성과 (Metrics)",
+      "subtitle": "정량적 수치와 성과를 돋보이게 표현",
+      "metrics": [
+        { "label": "제작 시간 절감", "value": "75%", "change": "▲ 4x 고속화", "description": "슬라이드 제작 공수 획기적 단축" },
+        { "label": "템플릿 종류", "value": "4종", "change": "+ 11개 레이아웃", "description": "모든 도메인 발표 대응 가능" },
+        { "label": "사용자 만족도", "value": "98점", "change": "최고 등급 달성", "description": "편집 용이성 및 디자인 완성도 호평" }
+      ]
+    },
+    {
+      "layout": "table",
+      "category": "Comparison Table",
+      "title": "테이블 레이아웃 (비교 및 상세 데이터)",
+      "subtitle": "구조화된 표를 네이티브 표 객체로 렌더링",
+      "headers": ["구분", "기존 방식", "템플릿 엔진"],
+      "rows": [
+        ["제작 방식", "수작업 복사/붙여넣기", "데이터 기반 자동 조립"],
+        ["디자인 일관성", "작업자 숙련도에 따라 편차", "사전 정의된 테마 토큰으로 보장"],
+        ["유지보수", "내용 변경 시 전체 서식 재조정", "데이터 수정 후 재빌드 즉시 반영"]
+      ]
+    },
+    {
+      "layout": "closing",
+      "title": "Thank You",
+      "subtitle": "질의응답 및 토론",
+      "contact": "문의: presentation-lab@example.com"
+    }
+  ]
+}
+

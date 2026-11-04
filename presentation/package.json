@@ -1,0 +1,25 @@
+{
+  "name": "petwalk-presentation",
+  "version": "1.0.0",
+  "description": "편안하개(PetWalk) 프로젝트 발표 자료 생성기 (범용 PPTX 엔진 기반)",
+  "main": "engine/index.js",
+  "scripts": {
+    "generate": "node engine/cli.js",
+    "example:business": "node engine/cli.js --deck examples/business-report/deck.json --theme modern-business --out output/quarterly-business-review.pptx",
+    "example:tech": "node engine/cli.js --deck examples/tech-pitch/deck.json --theme tech-dark --out output/ai-platform-pitch.pptx",
+    "example:pastel": "node engine/cli.js --deck examples/business-report/deck.json --theme warm-pastel --out output/business-pastel-review.pptx",
+    "generate:petwalk": "node engine/cli.js --deck input/petwalk-deck.json --theme petwalk --out output/편안하개_프로젝트_발표.pptx"
+  },
+  "keywords": [
+    "pptx",
+    "presentation",
+    "template",
+    "slides",
+    "pptxgenjs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}

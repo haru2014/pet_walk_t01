@@ -1,0 +1,42 @@
+{
+  "id": "petwalk",
+  "name": "PetWalk Dusty Amber & Sage (편안하개 브랜드)",
+  "description": "편안하개 앱 기본 테마(더스티 앰버 & 세이지 그린, frontend/src/theme/tokens.ts dusty_amber)를 옮긴 발표 템플릿. 한글 가독성을 위해 Pretendard를 사용합니다.",
+  "layout": "4x3",
+  "supportedLayouts": ["4x3", "16x9"],
+  "fonts": {
+    "title": "Pretendard",
+    "fallbackTitle": "Pretendard",
+    "body": "Pretendard",
+    "fallbackBody": "Pretendard",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "F5EFE0",
+    "surface": "FDFAF4",
+    "surfaceSubtle": "F0F5F1",
+    "border": "E5DCC9",
+    "borderActive": "8C9E7D",
+    "primary": "5A7361",
+    "accent": "5A7361",
+    "accentLight": "E3ECE4",
+    "secondary": "CFA052",
+    "secondaryLight": "F7ECCF",
+    "tertiary": "49657A",
+    "tertiaryLight": "D4E4E6",
+    "quaternary": "8C9E7D",
+    "quaternaryLight": "F0F5F1",
+    "textPrimary": "2D3A31",
+    "textSecondary": "3E5244",
+    "textMuted": "566659",
+    "textInverse": "FFFFFF",
+    "badgeBg": "E3ECE4",
+    "badgeText": "3E5244",
+    "highlightBg": "F7ECCF",
+    "highlightText": "8A5A12"
+  },
+  "metrics": {
+    "cardRadius": 0.18,
+    "badgeRadius": 0.1
+  }
+}
