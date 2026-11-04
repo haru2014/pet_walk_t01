@@ -1,0 +1,634 @@
+From 5524c2924e68fbc55f7ed4e047c158e6c24d5150 Mon Sep 17 00:00:00 2001
+From: true9090 <true9090@gmail.com>
+Date: Wed, 4 Nov 2026 19:09:51 +0900
+Subject: [PATCH] =?UTF-8?q?fix(map):=20=EB=B0=A9=ED=96=A5=20=EB=A7=88?=
+ =?UTF-8?q?=EC=BB=A4=EA=B0=80=20=EA=B2=B9=EC=B9=98=EC=A7=80=20=EC=95=8A?=
+ =?UTF-8?q?=EC=9D=84=20=EB=95=8C=EB=A7=8C=20=EC=83=81=EC=84=B8=20=EB=A7=88?=
+ =?UTF-8?q?=EC=BB=A4=EB=A1=9C=20=EC=A0=84=ED=99=98=ED=95=98=EA=B3=A0=20?=
+ =?UTF-8?q?=EC=83=89=EC=83=81=20=ED=86=B5=EC=9D=BC=20(#319)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 원인: 상세(28px) 마커 전환을 고정 줌 14.5만으로 판정. 방향 마커 최소 간격은 32m인데
+  줌 14.5에서 28px ≈ 150m라서 마커가 겹친 상태에서도 상세 마커로 바뀜
+- 수정: 줌 하한(14.5) + 화면상 방향 마커 최소 간격 >= 32px(지름 28 + 여백 4)일 때만 상세 마커
+  (Web MapLibreMapView / Native WebView 템플릿 동일 규칙, 같은 지점 중복 마커는 판정 제외)
+- 상세 마커 화살표 색을 테마 안내색(주황 #EA580C)에서 원거리 마커 색(#26352B)으로 통일
+- 테스트 추가: 겹침 판정, 줌 전환, 색상
+
+Fixes #319
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_018VQjPzfH2JiBGpGfEpq1wk
+---
+ .../src/components/map/MapLibreMapView.tsx    |   8 +-
+ .../map/adaptiveMarkerStyles.test.ts          |  87 +++++++++++-
+ .../components/map/adaptiveMarkerStyles.ts    | 125 ++++++++++++++++--
+ .../map/maplibreWebTemplate.test.ts           |  99 ++++++++++++++
+ .../src/components/map/maplibreWebTemplate.ts |  49 ++++++-
+ frontend/src/components/map/routeStepIcon.ts  |   5 +-
+ .../src/components/map/webMapMarkers.test.ts  |  15 +++
+ frontend/src/components/map/webMapMarkers.ts  |   6 +-
+ 8 files changed, 366 insertions(+), 28 deletions(-)
+
+diff --git a/frontend/src/components/map/MapLibreMapView.tsx b/frontend/src/components/map/MapLibreMapView.tsx
+index 0b645e2..5cc685d 100644
+--- a/frontend/src/components/map/MapLibreMapView.tsx
++++ b/frontend/src/components/map/MapLibreMapView.tsx
+@@ -23,7 +23,7 @@ import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
+ import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
+ import { getRouteStepPinIcon } from './routeStepIcon';
+ import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
+-import { ensureAdaptiveMarkerStyles, updateMarkerZoomMode } from './adaptiveMarkerStyles';
++import { ensureAdaptiveMarkerStyles, getDirectionMarkerPositions, updateMarkerZoomMode } from './adaptiveMarkerStyles';
+ 
+ function getRouteBounds(routeData: RouteFeatureCollection): [[number, number], [number, number]] | null {
+   const coordinates = routeData.features.flatMap((feature) => feature.geometry.coordinates);
+@@ -182,7 +182,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
+ 
+         webMapInstanceRef.current = mapInstance;
+         mapInstance.on('zoom', () => {
+-          updateMarkerZoomMode(mapInstance, webContainerRef.current);
++          updateMarkerZoomMode(mapInstance, webContainerRef.current, getDirectionMarkerPositions(latestPinsRef.current));
+         });
+ 
+         registerMissingStyleImageResolver(mapInstance);
+@@ -268,7 +268,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
+             (instruction) => latestOnPinSelectRef.current?.(instruction),
+           );
+ 
+-          updateMarkerZoomMode(mapInstance, webContainerRef.current);
++          updateMarkerZoomMode(mapInstance, webContainerRef.current, getDirectionMarkerPositions(currentPins));
+           latestOnMapLoadedRef.current?.();
+         });
+       } catch {
+@@ -308,7 +308,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
+       );
+     };
+     void updateMarkers();
+-    updateMarkerZoomMode(map, webContainerRef.current);
++    updateMarkerZoomMode(map, webContainerRef.current, getDirectionMarkerPositions(directionalPins));
+     if (routeBounds && !userInteractedWithMapRef.current) {
+       map.fitBounds(routeBounds, { padding: 40, duration: 700 });
+     } else if (initialCenter ?? maskingCenter) {
+diff --git a/frontend/src/components/map/adaptiveMarkerStyles.test.ts b/frontend/src/components/map/adaptiveMarkerStyles.test.ts
+index 098ab66..48894f0 100644
+--- a/frontend/src/components/map/adaptiveMarkerStyles.test.ts
++++ b/frontend/src/components/map/adaptiveMarkerStyles.test.ts
+@@ -1,11 +1,50 @@
+ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+ import {
+   ADAPTIVE_MARKER_CSS,
++  DIRECTION_MARKER_COLOR,
++  MIN_DETAIL_SEPARATION_PX,
+   ZOOM_THRESHOLD_DETAIL,
+   ensureAdaptiveMarkerStyles,
++  getDirectionMarkerPositions,
++  minMarkerSeparationPx,
++  shouldUseDetailMarkers,
+   updateMarkerZoomMode,
+ } from './adaptiveMarkerStyles';
+ 
++/** 웹 메르카토르 투영을 흉내 내는 테스트용 지도 (줌에 따라 화면 거리 2배씩 증가) */
++function createProjectingMap(zoom: number) {
++  const worldSize = 512 * 2 ** zoom;
++  return {
++    getZoom: () => zoom,
++    project: ([lng, lat]: [number, number]) => {
++      const x = ((lng + 180) / 360) * worldSize;
++      const sin = Math.sin((lat * Math.PI) / 180);
++      const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize;
++      return { x, y };
++    },
++  };
++}
++
++function createClassContainer(initial: string[] = []) {
++  const classes = new Set<string>(initial);
++  return {
++    classes,
++    classList: {
++      add: (c: string) => classes.add(c),
++      remove: (c: string) => classes.delete(c),
++      contains: (c: string) => classes.has(c),
++    },
++  };
++}
++
++// 세종 중앙공원 부근, 동서로 약 32m(방향 마커 최소 간격) 떨어진 두 마커
++const LAT = 36.4315;
++const METERS_PER_DEG_LNG = 111320 * Math.cos((LAT * Math.PI) / 180);
++const MARKERS_32M_APART: [number, number][] = [
++  [127.38, LAT],
++  [127.38 + 32 / METERS_PER_DEG_LNG, LAT],
++];
++
+ describe('적응형 하이브리드 방향 마커 스타일 및 줌 제어 (adaptiveMarkerStyles)', () => {
+   const globalWithDoc = globalThis as unknown as { document?: any };
+ 
+@@ -93,5 +132,51 @@ describe('적응형 하이브리드 방향 마커 스타일 및 줌 제어 (adap
+     updateMarkerZoomMode(map, container as any);
+     expect(classes.has('zoom-compact-markers')).toBe(false);
+   });
+-});
+ 
++  describe('#319 겹침 기반 상세 마커 전환', () => {
++    it('줌 >= 14.5 라도 32m 간격 마커가 화면에서 겹치면 원거리 마커를 유지한다', () => {
++      const map = createProjectingMap(15);
++      expect(minMarkerSeparationPx(MARKERS_32M_APART, map.project)).toBeLessThan(MIN_DETAIL_SEPARATION_PX);
++      expect(shouldUseDetailMarkers(map, MARKERS_32M_APART)).toBe(false);
++
++      const container = createClassContainer();
++      updateMarkerZoomMode(map, container as any, MARKERS_32M_APART);
++      expect(container.classes.has('zoom-compact-markers')).toBe(true);
++    });
++
++    it('마커가 겹치지 않을 만큼 확대되면 상세 마커로 전환된다', () => {
++      const map = createProjectingMap(18);
++      expect(minMarkerSeparationPx(MARKERS_32M_APART, map.project)).toBeGreaterThanOrEqual(MIN_DETAIL_SEPARATION_PX);
++      expect(shouldUseDetailMarkers(map, MARKERS_32M_APART)).toBe(true);
++
++      const container = createClassContainer(['zoom-compact-markers']);
++      updateMarkerZoomMode(map, container as any, MARKERS_32M_APART);
++      expect(container.classes.has('zoom-compact-markers')).toBe(false);
++    });
++
++    it('간격이 넉넉해도 줌 하한(14.5) 미만이면 원거리 마커를 유지한다', () => {
++      const farApart: [number, number][] = [[127.30, LAT], [127.45, LAT]];
++      expect(shouldUseDetailMarkers(createProjectingMap(14), farApart)).toBe(false);
++    });
++
++    it('같은 지점에 포개진 마커(순환 코스 중복)는 겹침 판정에서 제외한다', () => {
++      const map = createProjectingMap(16);
++      const stacked: [number, number][] = [[127.38, LAT], [127.38, LAT]];
++      expect(minMarkerSeparationPx(stacked, map.project)).toBe(Infinity);
++      expect(shouldUseDetailMarkers(map, stacked)).toBe(true);
++    });
++
++    it('방향 마커 핀의 좌표만 추린다', () => {
++      const positions = getDirectionMarkerPositions([
++        { position: [127.1, 36.1], directionMarker: true },
++        { position: [127.2, 36.2] },
++        { position: [127.3, 36.3], directionMarker: true },
++      ]);
++      expect(positions).toEqual([[127.1, 36.1], [127.3, 36.3]]);
++    });
++
++    it('방향 마커 공통 색상은 원거리 마커 색(#26352B)이다', () => {
++      expect(DIRECTION_MARKER_COLOR).toBe('#26352B');
++    });
++  });
++});
+diff --git a/frontend/src/components/map/adaptiveMarkerStyles.ts b/frontend/src/components/map/adaptiveMarkerStyles.ts
+index 84a7cae..ceecd70 100644
+--- a/frontend/src/components/map/adaptiveMarkerStyles.ts
++++ b/frontend/src/components/map/adaptiveMarkerStyles.ts
+@@ -1,20 +1,41 @@
+ /**
+  * [편안하개 - PetWalk]
+- * 적응형(Adaptive) 하이브리드 방향 마커 스타일 및 줌 제어 (T-OFM-3, T-OFM-4, #315, 4bb313e)
++ * 적응형(Adaptive) 하이브리드 방향 마커 스타일 및 줌 제어 (T-OFM-3, T-OFM-4, #315, 4bb313e, #319)
+  *
+- * 1. 전체 코스 축소 뷰 (줌 < 14.5): 10.5px 미니멀 점 마커로 지도 및 경로 가림 방지
+- * 2. 상세/보행 안내 뷰 (줌 >= 14.5): 28px 고시인성 볼드 벡터 화살표 마커로 명확한 길안내 제공
++ * 1. 원거리(축소) 뷰: 10.5px 미니멀 점 마커로 지도 및 경로 가림 방지
++ * 2. 상세/보행 안내 뷰: 28px 볼드 벡터 화살표 마커로 명확한 길안내 제공
+  *
+- * Web(MapLibre WebGL)과 Mobile(react-native-webview) 모두 동일한 CSS 규칙과 줌 임계치를 공유합니다.
++ * #319: 고정 줌(14.5)만으로 전환하면 방향 마커 간격(최소 32m)보다 28px 마커가 훨씬 커서
++ * (줌 14.5에서 28px ≈ 150m) 마커가 겹친 상태에서도 상세 마커로 바뀌었습니다.
++ * 이제 줌 하한(14.5)을 넘고, 화면상 방향 마커끼리의 최소 간격이 28px 마커가
++ * 겹치지 않는 거리(마커 지름 + 여백) 이상일 때만 상세 마커로 전환합니다.
++ *
++ * Web(MapLibre WebGL)과 Mobile(react-native-webview) 모두 동일한 CSS 규칙과 임계치를 공유합니다.
+  */
+ 
++/** 상세 마커로 전환할 수 있는 최소 줌(하한). 이 값 이상이어도 마커가 겹치면 원거리 마커를 유지합니다. */
+ export const ZOOM_THRESHOLD_DETAIL = 14.5;
+ 
++/** 상세(확대) 방향 마커 지름(px) */
++export const DETAIL_MARKER_SIZE_PX = 28;
++
++/** 상세 마커끼리 확보할 최소 여백(px) */
++export const DETAIL_MARKER_GAP_PX = 4;
++
++/** 상세 마커로 전환하기 위한 화면상 마커 중심 간 최소 거리(px) */
++export const MIN_DETAIL_SEPARATION_PX = DETAIL_MARKER_SIZE_PX + DETAIL_MARKER_GAP_PX;
++
++/** 이 거리(m) 이내의 마커는 같은 지점(순환 코스 중복 등)으로 보고 겹침 판정에서 제외합니다. */
++export const SAME_SPOT_METERS = 2;
++
++/** 방향 마커 화살표 색상 (원거리/상세 마커 공통) */
++export const DIRECTION_MARKER_COLOR = '#26352B';
++
+ export const ADAPTIVE_MARKER_CSS = `
+-  /* 적응형 방향 마커 (줌 >= 14.5 상세/보행 뷰: 28px 볼드 마커) */
++  /* 적응형 방향 마커 (상세/보행 뷰: 28px 볼드 마커) */
+   .direction-marker {
+-    width: 28px !important;
+-    height: 28px !important;
++    width: ${DETAIL_MARKER_SIZE_PX}px !important;
++    height: ${DETAIL_MARKER_SIZE_PX}px !important;
+     background-color: #FFFFFF !important;
+     border: 1px solid #718276 !important;
+     border-radius: 50% !important;
+@@ -29,7 +50,7 @@ export const ADAPTIVE_MARKER_CSS = `
+   .direction-marker .arrow-svg-large { display: block !important; }
+   .direction-marker .arrow-svg-mini { display: none !important; }
+ 
+-  /* 줌 < 14.5 축소 뷰 (전체 코스 조망): 10.5px 미니멀 점 마커 (kululu81 4bb313e 반영) */
++  /* 원거리 뷰 (전체 코스 조망 또는 마커가 겹치는 줌): 10.5px 미니멀 점 마커 (kululu81 4bb313e 반영) */
+   .zoom-compact-markers .direction-marker {
+     width: 10.5px !important;
+     height: 10.5px !important;
+@@ -39,6 +60,72 @@ export const ADAPTIVE_MARKER_CSS = `
+   .zoom-compact-markers .direction-marker .arrow-svg-mini { display: block !important; }
+ `;
+ 
++export type MarkerLngLat = readonly [number, number];
++
++interface ScreenPoint {
++  readonly x: number;
++  readonly y: number;
++}
++
++function approxMeters(a: MarkerLngLat, b: MarkerLngLat): number {
++  const meanLat = ((a[1] + b[1]) / 2) * Math.PI / 180;
++  const dx = (b[0] - a[0]) * Math.cos(meanLat) * 111320;
++  const dy = (b[1] - a[1]) * 110540;
++  return Math.sqrt(dx * dx + dy * dy);
++}
++
++function toScreenPoint(projected: unknown): ScreenPoint | null {
++  if (!projected) return null;
++  if (Array.isArray(projected)) {
++    const [x, y] = projected as number[];
++    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
++  }
++  const { x, y } = projected as { x?: number; y?: number };
++  return typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
++}
++
++/**
++ * 화면에 투영된 방향 마커들 중 가장 가까운 두 마커의 중심 간 거리(px)를 반환합니다.
++ * 같은 지점(SAME_SPOT_METERS 이내)에 놓인 마커 쌍은 서로 완전히 포개져 하나로 보이므로 제외합니다.
++ * 비교할 쌍이 없으면 Infinity를 반환합니다.
++ */
++export function minMarkerSeparationPx(
++  positions: readonly MarkerLngLat[],
++  project: (lngLat: [number, number]) => unknown,
++): number {
++  const points: { lngLat: MarkerLngLat; screen: ScreenPoint }[] = [];
++  positions.forEach((lngLat) => {
++    const screen = toScreenPoint(project([lngLat[0], lngLat[1]]));
++    if (screen) points.push({ lngLat, screen });
++  });
++
++  let min = Infinity;
++  for (let i = 0; i < points.length; i += 1) {
++    for (let j = i + 1; j < points.length; j += 1) {
++      const dx = points[i].screen.x - points[j].screen.x;
++      const dy = points[i].screen.y - points[j].screen.y;
++      const distance = Math.sqrt(dx * dx + dy * dy);
++      if (distance >= min) continue;
++      if (approxMeters(points[i].lngLat, points[j].lngLat) <= SAME_SPOT_METERS) continue;
++      min = distance;
++    }
++  }
++  return min;
++}
++
++/**
++ * 현재 지도 상태에서 상세(28px) 방향 마커를 써도 되는지 판단합니다.
++ * - 줌이 하한(ZOOM_THRESHOLD_DETAIL) 미만이면 항상 원거리 마커
++ * - 줌 하한 이상이어도 화면상 마커 간격이 MIN_DETAIL_SEPARATION_PX 미만이면 원거리 마커
++ */
++export function shouldUseDetailMarkers(map: any, positions: readonly MarkerLngLat[] = []): boolean {
++  const currentZoom = typeof map?.getZoom === 'function' ? map.getZoom() : 15;
++  if (currentZoom < ZOOM_THRESHOLD_DETAIL) return false;
++  if (positions.length < 2 || typeof map?.project !== 'function') return true;
++  const separation = minMarkerSeparationPx(positions, (lngLat) => map.project(lngLat));
++  return separation >= MIN_DETAIL_SEPARATION_PX;
++}
++
+ /**
+  * 웹 환경(Expo Web) 브라우저 DOM head에 적응형 마커 CSS를 주입합니다.
+  */
+@@ -53,18 +140,28 @@ export function ensureAdaptiveMarkerStyles(): void {
+ }
+ 
+ /**
+- * 지도의 현재 줌 레벨에 따라 컨테이너 요소의 zoom-compact-markers 클래스를 토글합니다.
++ * 지도의 줌 레벨과 방향 마커 간 화면 거리에 따라 컨테이너 요소의 zoom-compact-markers 클래스를 토글합니다.
++ * @param positions 방향 마커(directionMarker) 좌표 목록. 생략하면 줌 하한만으로 판단합니다.
+  */
+-export function updateMarkerZoomMode(map: any, container?: HTMLElement | null): void {
++export function updateMarkerZoomMode(
++  map: any,
++  container?: HTMLElement | null,
++  positions: readonly MarkerLngLat[] = [],
++): void {
+   if (!map) return;
+-  const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
+   const target = container ?? (typeof map.getContainer === 'function' ? map.getContainer() : null);
+   if (!target || !target.classList) return;
+ 
+-  if (currentZoom < ZOOM_THRESHOLD_DETAIL) {
+-    target.classList.add('zoom-compact-markers');
+-  } else {
++  if (shouldUseDetailMarkers(map, positions)) {
+     target.classList.remove('zoom-compact-markers');
++  } else {
++    target.classList.add('zoom-compact-markers');
+   }
+ }
+ 
++/** 핀 목록에서 적응형 방향 마커 좌표만 추립니다. */
++export function getDirectionMarkerPositions(
++  pins: readonly { readonly position: MarkerLngLat; readonly directionMarker?: boolean }[] | null | undefined,
++): MarkerLngLat[] {
++  return (pins ?? []).filter((pin) => pin.directionMarker).map((pin) => pin.position);
++}
+diff --git a/frontend/src/components/map/maplibreWebTemplate.test.ts b/frontend/src/components/map/maplibreWebTemplate.test.ts
+index a44c0d7..ebf2b4b 100644
+--- a/frontend/src/components/map/maplibreWebTemplate.test.ts
++++ b/frontend/src/components/map/maplibreWebTemplate.test.ts
+@@ -274,3 +274,102 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
+     expect(html).toContain('font-weight: 900');
+   });
+ });
++
++describe('MapLibre WebView 템플릿 적응형 방향 마커 (#319)', () => {
++  const LAT = 36.4315;
++  const METERS_PER_DEG_LNG = 111320 * Math.cos((LAT * Math.PI) / 180);
++  const directionPins: RouteStepPin[] = [
++    { id: 'd1', kind: 'turn', position: [127.38, LAT], instruction: '경로 방향 안내', icon: '↱', directionMarker: true },
++    { id: 'd2', kind: 'turn', position: [127.38 + 32 / METERS_PER_DEG_LNG, LAT], instruction: '경로 방향 안내', icon: '↑', directionMarker: true },
++  ];
++
++  function bootAdaptiveTemplate(initialZoom: number) {
++    const html = buildMapLibreHtml({
++      styleUrl: PRIMARY_STYLE, route, stepPins: directionPins, routeColors: THEME_MAP_ROUTE_COLORS.forest,
++    });
++    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
++    const handlers: Record<string, Handler[]> = {};
++    const sources: Record<string, unknown> = {};
++    const classes = new Set<string>();
++    const container = {
++      classList: {
++        add: (c: string) => classes.add(c),
++        remove: (c: string) => classes.delete(c),
++      },
++    };
++    const markerElements: any[] = [];
++    let zoom = initialZoom;
++
++    const map = {
++      on(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
++      once(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
++      emit(name: string, arg?: unknown) { [...(handlers[name] ?? [])].forEach((fn) => fn(arg)); },
++      addControl() { },
++      addSource(id: string, source: unknown) { sources[id] = source; },
++      addLayer() { },
++      getSource(id: string) { return sources[id]; },
++      getLayer() { return true; },
++      setPaintProperty() { },
++      fitBounds() { },
++      getZoom: () => zoom,
++      getContainer: () => container,
++      project([lng, lat]: [number, number]) {
++        const worldSize = 512 * 2 ** zoom;
++        const sin = Math.sin((lat * Math.PI) / 180);
++        return {
++          x: ((lng + 180) / 360) * worldSize,
++          y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
++        };
++      },
++    };
++    const fakeMapLibre = {
++      Map: function FakeMap() { return map; },
++      Marker: function FakeMarker(options: { element: any }) {
++        markerElements.push(options.element);
++        return { setLngLat() { return this; }, addTo() { return this; }, remove() { } };
++      },
++      AttributionControl: function FakeControl() { },
++    };
++    const fakeDocument = {
++      createElement: () => ({ style: {}, className: '', appendChild() { } }),
++      addEventListener() { },
++    };
++    new Function('window', 'document', 'maplibregl', 'setTimeout', 'clearTimeout', script)(
++      { addEventListener() { } }, fakeDocument, fakeMapLibre, () => 0, () => undefined,
++    );
++
++    return {
++      classes,
++      markerElements,
++      zoomTo(next: number) { zoom = next; map.emit('zoom'); },
++      load() { map.emit('load'); },
++    };
++  }
++
++  it('줌 15에서 마커가 겹치면 원거리(점) 마커를 유지하고, 겹치지 않을 만큼 확대되면 상세 마커로 바뀐다', () => {
++    const view = bootAdaptiveTemplate(15);
++    view.load();
++    expect(view.classes.has('zoom-compact-markers')).toBe(true);
++
++    view.zoomTo(15.8); // 32m ≈ 29px → 28px 마커가 아직 겹침
++    expect(view.classes.has('zoom-compact-markers')).toBe(true);
++
++    view.zoomTo(18);
++    expect(view.classes.has('zoom-compact-markers')).toBe(false);
++
++    view.zoomTo(14);
++    expect(view.classes.has('zoom-compact-markers')).toBe(true);
++  });
++
++  it('상세 방향 마커 화살표는 테마 안내색(주황)이 아닌 원거리 마커와 같은 색으로 그린다', () => {
++    const view = bootAdaptiveTemplate(18);
++    view.load();
++    const directionEls = view.markerElements.filter((el) => String(el.className).includes('direction-marker'));
++    expect(directionEls).toHaveLength(2);
++    directionEls.forEach((el) => {
++      const large = /<svg class="arrow-svg-large"[\s\S]*?<\/svg>/.exec(el.innerHTML)?.[0] ?? '';
++      expect(large).toContain('#26352B');
++      expect(large).not.toContain(THEME_MAP_ROUTE_COLORS.forest.mapGuidance as string);
++    });
++  });
++});
+diff --git a/frontend/src/components/map/maplibreWebTemplate.ts b/frontend/src/components/map/maplibreWebTemplate.ts
+index ef71768..4e38cff 100644
+--- a/frontend/src/components/map/maplibreWebTemplate.ts
++++ b/frontend/src/components/map/maplibreWebTemplate.ts
+@@ -12,7 +12,13 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
+ import { MapRouteColors } from '../../constants/mapStyles';
+ import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
+ import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
+-import { ADAPTIVE_MARKER_CSS, ZOOM_THRESHOLD_DETAIL } from './adaptiveMarkerStyles';
++import {
++  ADAPTIVE_MARKER_CSS,
++  DIRECTION_MARKER_COLOR,
++  MIN_DETAIL_SEPARATION_PX,
++  SAME_SPOT_METERS,
++  ZOOM_THRESHOLD_DETAIL,
++} from './adaptiveMarkerStyles';
+ 
+ export interface BuildMapLibreHtmlOptions {
+   readonly styleUrl: string;
+@@ -180,15 +186,43 @@ export function buildMapLibreHtml({
+         attributionControl: false,
+         interactive: payload.interactive !== false,
+       });
++      // #319: 줌 하한(${ZOOM_THRESHOLD_DETAIL}) 이상이고, 화면상 방향 마커 간 최소 간격이
++      // ${MIN_DETAIL_SEPARATION_PX}px(상세 마커 지름 + 여백) 이상일 때만 상세 마커로 전환 (adaptiveMarkerStyles.ts와 동일 규칙)
++      function minDirectionMarkerSeparationPx() {
++        if (typeof map.project !== 'function') return Infinity;
++        const points = [];
++        (currentPins || []).forEach(function(pin) {
++          if (!pin || !pin.directionMarker || !pin.position) return;
++          const p = map.project([pin.position[0], pin.position[1]]);
++          if (!p || !isFinite(p.x) || !isFinite(p.y)) return;
++          points.push({ lngLat: pin.position, x: p.x, y: p.y });
++        });
++        let min = Infinity;
++        for (let i = 0; i < points.length; i += 1) {
++          for (let j = i + 1; j < points.length; j += 1) {
++            const dx = points[i].x - points[j].x;
++            const dy = points[i].y - points[j].y;
++            const distance = Math.sqrt(dx * dx + dy * dy);
++            if (distance >= min) continue;
++            const meanLat = ((points[i].lngLat[1] + points[j].lngLat[1]) / 2) * Math.PI / 180;
++            const mx = (points[j].lngLat[0] - points[i].lngLat[0]) * Math.cos(meanLat) * 111320;
++            const my = (points[j].lngLat[1] - points[i].lngLat[1]) * 110540;
++            if (Math.sqrt(mx * mx + my * my) <= ${SAME_SPOT_METERS}) continue;
++            min = distance;
++          }
++        }
++        return min;
++      }
+       function updateMarkerZoomMode() {
+         if (!map) return;
+         const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
+         const container = typeof map.getContainer === 'function' ? map.getContainer() : (typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('map') : null);
+         if (!container || !container.classList) return;
+-        if (currentZoom < ${ZOOM_THRESHOLD_DETAIL}) {
+-          container.classList.add('zoom-compact-markers');
+-        } else {
++        const useDetail = currentZoom >= ${ZOOM_THRESHOLD_DETAIL} && minDirectionMarkerSeparationPx() >= ${MIN_DETAIL_SEPARATION_PX};
++        if (useDetail) {
+           container.classList.remove('zoom-compact-markers');
++        } else {
++          container.classList.add('zoom-compact-markers');
+         }
+       }
+       map.on('zoom', updateMarkerZoomMode);
+@@ -352,7 +386,7 @@ export function buildMapLibreHtml({
+             large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+           }
+ 
+-          const miniColor = '#26352B';
++          const miniColor = '${DIRECTION_MARKER_COLOR}';
+           let mini = '';
+           const miniStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
+           if (icon === '↑') {
+@@ -435,7 +469,8 @@ export function buildMapLibreHtml({
+                 el.style.justifyContent = 'center';
+                 el.style.padding = '0';
+               }
+-              const arrowSvg = getAdaptiveArrowSvg(iconStr, guidanceColor);
++              // #319: 방향 마커는 원거리(점) 마커와 같은 색으로 표시 (테마 안내색 주황 → 공통 방향 마커 색)
++              const arrowSvg = getAdaptiveArrowSvg(iconStr, pin.directionMarker ? '${DIRECTION_MARKER_COLOR}' : guidanceColor);
+               if (arrowSvg) {
+                 el.innerHTML = arrowSvg;
+               }
+@@ -482,6 +517,8 @@ export function buildMapLibreHtml({
+             markers.push(m);
+           });
+         }
++        // 핀이 바뀌면 마커 간격도 바뀌므로 상세/원거리 마커 모드를 다시 판정
++        updateMarkerZoomMode();
+       }
+ 
+       // 모바일(React Native)로부터의 동적 메시지 수신 처리
+diff --git a/frontend/src/components/map/routeStepIcon.ts b/frontend/src/components/map/routeStepIcon.ts
+index 3e2ccf1..24a04e4 100644
+--- a/frontend/src/components/map/routeStepIcon.ts
++++ b/frontend/src/components/map/routeStepIcon.ts
+@@ -1,4 +1,5 @@
+ import { RouteStepPin } from '../../types/route';
++import { DIRECTION_MARKER_COLOR } from './adaptiveMarkerStyles';
+ 
+ const DEFAULT_PIN_ICONS: Record<RouteStepPin['kind'], string> = {
+   caution: '!',
+@@ -52,7 +53,7 @@ export function getLargeArrowSvg(icon: string, color: string): string | null {
+ /**
+  * 전체 경로 조망 시 지도 및 경로선 가림을 방지하는 초소형 미니멀 벡터 화살표를 반환합니다. (줌 < 14.5 축소 뷰)
+  */
+-export function getMiniArrowSvg(icon: string, color = '#26352B'): string | null {
++export function getMiniArrowSvg(icon: string, color = DIRECTION_MARKER_COLOR): string | null {
+   const svgStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
+   if (icon === '↑') {
+     return `${svgStart}<path d="M6 10V4" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/><path d="M3 5L6 2L9 5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+@@ -75,7 +76,7 @@ export function getMiniArrowSvg(icon: string, color = '#26352B'): string | null
+ /**
+  * 줌 레벨에 따라 CSS로 자동 전환되는 적응형 듀얼 벡터 화살표 마크업을 반환합니다.
+  */
+-export function getAdaptiveArrowSvg(icon: string, largeColor: string, miniColor = '#26352B'): string | null {
++export function getAdaptiveArrowSvg(icon: string, largeColor: string = DIRECTION_MARKER_COLOR, miniColor = DIRECTION_MARKER_COLOR): string | null {
+   const large = getLargeArrowSvg(icon, largeColor);
+   const mini = getMiniArrowSvg(icon, miniColor);
+   if (!large && !mini) return null;
+diff --git a/frontend/src/components/map/webMapMarkers.test.ts b/frontend/src/components/map/webMapMarkers.test.ts
+index cb445e0..f6c3ec4 100644
+--- a/frontend/src/components/map/webMapMarkers.test.ts
++++ b/frontend/src/components/map/webMapMarkers.test.ts
+@@ -139,6 +139,21 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
+     expect(marker.style.borderRadius).toBe('50%');
+   });
+ 
++  it('방향 마커 화살표는 테마 안내색이 아닌 원거리 마커와 같은 색으로 그린다 (#319)', () => {
++    const directionPin: RouteStepPin = {
++      id: 'direction', kind: 'turn', position: [127.381, 36.43], instruction: '경로 방향 안내', icon: '↱', directionMarker: true,
++    };
++    (FakeElement.prototype as unknown as { innerHTML: string }).innerHTML = '';
++
++    renderWebMarkers({}, MarkerClass, route, [directionPin], colors, vi.fn());
++    const html = (FakeMarker.created[1].options.element as unknown as { innerHTML: string }).innerHTML;
++    const large = /<svg class="arrow-svg-large"[\s\S]*?<\/svg>/.exec(html)?.[0] ?? '';
++
++    expect(large).toContain('#26352B');
++    expect(large).not.toContain(colors.mapGuidance as string);
++    delete (FakeElement.prototype as unknown as { innerHTML?: string }).innerHTML;
++  });
++
+   it('제목형 핀은 아이콘/제목/상세 문구를 자식 요소로 구성한다', () => {
+     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
+     const titled = FakeMarker.created[3].options.element;
+diff --git a/frontend/src/components/map/webMapMarkers.ts b/frontend/src/components/map/webMapMarkers.ts
+index 21f4885..03f2ac2 100644
+--- a/frontend/src/components/map/webMapMarkers.ts
++++ b/frontend/src/components/map/webMapMarkers.ts
+@@ -9,6 +9,7 @@ import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
+ import { MapRouteColors } from '../../constants/mapStyles';
+ import { RemovableHandle } from './webMapLifecycle';
+ import { getRouteStepPinIcon, getLargeArrowSvg, getAdaptiveArrowSvg } from './routeStepIcon';
++import { DIRECTION_MARKER_COLOR } from './adaptiveMarkerStyles';
+ 
+ /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
+ export interface MarkerLike extends RemovableHandle {
+@@ -133,7 +134,10 @@ function applyPinGraphic(
+     }
+     return;
+   }
+-  const arrowSvg = pin.directionMarker ? getAdaptiveArrowSvg(pinLabel, textColor) : getLargeArrowSvg(pinLabel, textColor);
++  // #319: 방향 마커는 원거리(점) 마커와 상세 마커가 같은 색을 쓰도록 테마 안내색(주황) 대신 공통 색을 사용합니다.
++  const arrowSvg = pin.directionMarker
++    ? getAdaptiveArrowSvg(pinLabel, DIRECTION_MARKER_COLOR, DIRECTION_MARKER_COLOR)
++    : getLargeArrowSvg(pinLabel, textColor);
+   if (arrowSvg) {
+     element.innerHTML = arrowSvg;
+   }
+-- 
+2.43.0
+
