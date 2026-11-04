@@ -112,6 +112,33 @@ export function buildMapLibreHtml({
     }
     .step-pin:active { transform: scale(1.2); }
     
+        /* 적응형 방향 마커 (줌 >= 14.5 상세/보행 뷰: 28px 볼드 마커) */
+    .direction-marker {
+      width: 28px !important;
+      height: 28px !important;
+      background-color: #FFFFFF !important;
+      border: 1px solid #718276 !important;
+      border-radius: 50% !important;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22) !important;
+      color: #596B5C !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 !important;
+      transition: width 0.15s ease, height 0.15s ease, box-shadow 0.15s ease;
+    }
+    .direction-marker .arrow-svg-large { display: block !important; }
+    .direction-marker .arrow-svg-mini { display: none !important; }
+
+    /* 줌 < 14.5 축소 뷰 (전체 코스 조망): 10.5px 미니멀 점 마커 */
+    .zoom-compact-markers .direction-marker {
+      width: 10.5px !important;
+      height: 10.5px !important;
+      box-shadow: 0 0.5px 1px rgba(34, 48, 38, 0.12) !important;
+    }
+    .zoom-compact-markers .direction-marker .arrow-svg-large { display: none !important; }
+    .zoom-compact-markers .direction-marker .arrow-svg-mini { display: block !important; }
+
     .start-marker {
       background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 13px;
       text-align: center; white-space: nowrap;
@@ -177,6 +204,19 @@ export function buildMapLibreHtml({
         attributionControl: false,
         interactive: payload.interactive !== false,
       });
+      function updateMarkerZoomMode() {
+        if (!map) return;
+        const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
+        const container = typeof map.getContainer === 'function' ? map.getContainer() : (typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('map') : null);
+        if (!container || !container.classList) return;
+        if (currentZoom < 14.5) {
+          container.classList.add('zoom-compact-markers');
+        } else {
+          container.classList.remove('zoom-compact-markers');
+        }
+      }
+      map.on('zoom', updateMarkerZoomMode);
+
       map.on('move', function(event) {
         if (event && event.originalEvent) userInteractedWithMap = true;
       });
@@ -208,6 +248,7 @@ export function buildMapLibreHtml({
         const loadedBounds = computeBounds(currentRoute);
         if (loadedBounds) {
           map.fitBounds(loadedBounds, { padding: 40, duration: 600 });
+          updateMarkerZoomMode();
         }
         postToReactNative('MAP_LOADED', { ok: true });
       }
@@ -320,24 +361,36 @@ export function buildMapLibreHtml({
         const activeColors = colors || payload.routeColors || {};
         const guidanceColor = activeColors.mapGuidance || activeColors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
 
-        function getLargeArrowSvg(icon, color) {
+        function getAdaptiveArrowSvg(icon, color) {
           const filter = 'filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);';
+          let large = '';
           if (icon === '↑') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 14 23 L 14 10" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="7,12 14,3 21,12" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 14 23 L 14 10" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="7,12 14,3 21,12" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↱') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 6 22 L 6 13 Q 6 8 11 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="12,2 25,8 12,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↰') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 22 22 L 22 13 Q 22 8 17 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="16,2 3,8 16,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↶') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 21.5 22 L 21.5 12 Q 21.5 6 16 6 Q 10.5 6 10.5 12 L 10.5 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="4.5,13 10.5,25 16.5,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '➤') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
-          if (icon === '↱') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 6 22 L 6 13 Q 6 8 11 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="12,2 25,8 12,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+
+          const miniColor = '#26352B';
+          let mini = '';
+          const miniStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
+          if (icon === '↑') {
+            mini = miniStart + '<path d="M6 10V4" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M3 5L6 2L9 5" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↱') {
+            mini = miniStart + '<path d="M2 10V7Q2 5 4 5H5" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M4 2L10 5L4 8V2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '↰') {
+            mini = miniStart + '<path d="M10 10V7Q10 5 8 5H7" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M8 2L2 5L8 8V2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '↶') {
+            mini = miniStart + '<path d="M10 10V5Q10 2 7 2Q4 2 4 5V6" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M2 5L4 9L6 5H2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '➤') {
+            mini = miniStart + '<path d="M10.5 6L1.5 2L3.5 6L1.5 10Z" fill="' + miniColor + '"/></svg>';
           }
-          if (icon === '↰') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 22 22 L 22 13 Q 22 8 17 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="16,2 3,8 16,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '↶') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 21.5 22 L 21.5 12 Q 21.5 6 16 6 Q 10.5 6 10.5 12 L 10.5 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="4.5,13 10.5,25 16.5,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '➤') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          return null;
+          return (large || mini) ? (large + mini) : null;
         }
 
         // 출발/도착 마커
@@ -393,6 +446,7 @@ export function buildMapLibreHtml({
               el.style.border = 'transparent';
               el.style.boxShadow = 'none';
               if (pin.directionMarker) {
+                el.className += ' direction-marker';
                 el.style.backgroundColor = '#FFFFFF';
                 el.style.border = '1px solid #718276';
                 el.style.borderRadius = '50%';
@@ -405,7 +459,7 @@ export function buildMapLibreHtml({
                 el.style.justifyContent = 'center';
                 el.style.padding = '0';
               }
-              const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
+              const arrowSvg = getAdaptiveArrowSvg(iconStr, guidanceColor);
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }

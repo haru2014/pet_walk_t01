@@ -8,7 +8,7 @@
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { RemovableHandle } from './webMapLifecycle';
-import { getRouteStepPinIcon, getLargeArrowSvg } from './routeStepIcon';
+import { getRouteStepPinIcon, getLargeArrowSvg, getAdaptiveArrowSvg } from './routeStepIcon';
 
 /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
 export interface MarkerLike extends RemovableHandle {
@@ -98,6 +98,7 @@ function applyPinBaseStyle(
     textShadow,
   });
   if (isDirectionMarker) {
+    element.className = (element.className ? element.className + ' ' : '') + 'direction-marker';
     Object.assign(element.style, {
       background: '#FFFFFF',
       border: '1px solid #718276',
@@ -132,7 +133,7 @@ function applyPinGraphic(
     }
     return;
   }
-  const arrowSvg = getLargeArrowSvg(pinLabel, textColor);
+  const arrowSvg = pin.directionMarker ? getAdaptiveArrowSvg(pinLabel, textColor) : getLargeArrowSvg(pinLabel, textColor);
   if (arrowSvg) {
     element.innerHTML = arrowSvg;
   }
