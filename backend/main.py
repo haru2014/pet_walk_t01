@@ -1178,7 +1178,8 @@ def share_community_course(req: CommunityCourseShareRequest):
     - 거리·시간은 공개되는(마스킹된) 경로로 계산한다. 평균 시속 3.6km(분당 60m) 기준, 최소 10분. (1.4km·22분 고정값 문제, 이슈 #280)
     """
     mask_result = apply_spatial_masking_to_course(
-        req.raw_coordinates, masking_radius_m=200.0, snap_to_intersection=True
+        req.raw_coordinates, masking_radius_m=200.0, snap_to_intersection=True,
+        privacy_anchors=[p for p in (req.walk_start_point, req.walk_end_point) if p],
     )
     masked_coords = mask_result["masked_coordinates"]
     if len(masked_coords) < 2:
