@@ -39,10 +39,10 @@ def test_origin_mode_current_location_via_agent():
 
 
 def test_origin_mode_park_via_agent():
-    """진입 경로 2: 지정 공원 둘레길(park) 에이전트 실행 검증."""
+    """진입 경로 2: 지정 명소 둘레길 에이전트 실행 검증."""
     # 대전 유림공원 중심 좌표 (36.3628, 127.3592)
     result = run_walk_planning_agent(
-        user_query="초코와 30분 공원 둘레길 산책하고 싶어요",
+        user_query="초코와 30분 명소 둘레길 산책하고 싶어요",
         client_dog_context={
             "dog_id": "dog-choco",
             "name": "초코",
