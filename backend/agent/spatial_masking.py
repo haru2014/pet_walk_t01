@@ -232,6 +232,7 @@ def apply_spatial_masking_to_course(
     coordinates: List[List[float]],
     masking_radius_m: float = 200.0,
     snap_to_intersection: bool = True,
+    privacy_anchors: Optional[List[List[float]]] = None,
 ) -> Dict[str, Any]:
     """[US-G2] 출발지/도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹.
 
@@ -239,6 +240,9 @@ def apply_spatial_masking_to_course(
         coordinates: [[lon, lat], ...] 형식의 원본 보행 궤적 좌표 리스트
         masking_radius_m: 최소 절단 반경 (기본 200m)
         snap_to_intersection: 교차로/분기점 노드로 스냅 확장 여부 (기본 True)
+        privacy_anchors: 좌표열 양 끝과 별도로 반드시 가릴 지점 [[lon, lat], ...].
+            앱이 보내는 실제 산책 시작·완료 지점이다. 경로 이탈 후 재탐색 등으로 좌표열의 첫·끝 점이
+            산책 시작·완료 지점과 달라도 집 근처 200m 가 노출되지 않게 한다.
 
     Returns:
         마스킹된 좌표 및 프라이버시 보호 메타데이터
@@ -254,6 +258,11 @@ def apply_spatial_masking_to_course(
 
     origin = (coordinates[0][1], coordinates[0][0])  # (lat, lon)
     destination = (coordinates[-1][1], coordinates[-1][0])
+    anchor_centers = [
+        (float(anchor[1]), float(anchor[0]))
+        for anchor in (privacy_anchors or [])
+        if anchor is not None and len(anchor) >= 2
+    ]
 
     start_idx, end_idx = _find_boundary_cut_indices(
         coordinates, origin, destination, masking_radius_m
@@ -300,7 +309,10 @@ def apply_spatial_masking_to_course(
     trimmed_start = start_cut_idx
     trimmed_end = (len(coordinates) - 1) - end_cut_idx
     # 경로 중간이 출발지·도착지 반경 안으로 다시 들어오면 그 부분을 끊는다 (집 앞 재통과 노출 차단)
-    final_coords, reentry_removed = _drop_reentry(final_coords, [origin, destination], masking_radius_m)
+    # 산책 시작·완료 지점(privacy_anchors) 반경도 함께 가린다.
+    final_coords, reentry_removed = _drop_reentry(
+        final_coords, [origin, destination, *anchor_centers], masking_radius_m
+    )
 
     return {
         "masked_coordinates": final_coords,
