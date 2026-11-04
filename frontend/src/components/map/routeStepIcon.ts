@@ -1,4 +1,5 @@
 import { RouteStepPin } from '../../types/route';
+import { DIRECTION_MARKER_COLOR } from './adaptiveMarkerStyles';
 
 const DEFAULT_PIN_ICONS: Record<RouteStepPin['kind'], string> = {
   caution: '!',
@@ -52,7 +53,7 @@ export function getLargeArrowSvg(icon: string, color: string): string | null {
 /**
  * 전체 경로 조망 시 지도 및 경로선 가림을 방지하는 초소형 미니멀 벡터 화살표를 반환합니다. (줌 < 14.5 축소 뷰)
  */
-export function getMiniArrowSvg(icon: string, color = '#26352B'): string | null {
+export function getMiniArrowSvg(icon: string, color = DIRECTION_MARKER_COLOR): string | null {
   const svgStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
   if (icon === '↑') {
     return `${svgStart}<path d="M6 10V4" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/><path d="M3 5L6 2L9 5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -75,7 +76,7 @@ export function getMiniArrowSvg(icon: string, color = '#26352B'): string | null 
 /**
  * 줌 레벨에 따라 CSS로 자동 전환되는 적응형 듀얼 벡터 화살표 마크업을 반환합니다.
  */
-export function getAdaptiveArrowSvg(icon: string, largeColor: string, miniColor = '#26352B'): string | null {
+export function getAdaptiveArrowSvg(icon: string, largeColor: string = DIRECTION_MARKER_COLOR, miniColor = DIRECTION_MARKER_COLOR): string | null {
   const large = getLargeArrowSvg(icon, largeColor);
   const mini = getMiniArrowSvg(icon, miniColor);
   if (!large && !mini) return null;

@@ -9,6 +9,7 @@ import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { RemovableHandle } from './webMapLifecycle';
 import { getRouteStepPinIcon, getLargeArrowSvg, getAdaptiveArrowSvg } from './routeStepIcon';
+import { DIRECTION_MARKER_COLOR } from './adaptiveMarkerStyles';
 
 /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
 export interface MarkerLike extends RemovableHandle {
@@ -133,7 +134,10 @@ function applyPinGraphic(
     }
     return;
   }
-  const arrowSvg = pin.directionMarker ? getAdaptiveArrowSvg(pinLabel, textColor) : getLargeArrowSvg(pinLabel, textColor);
+  // #319: 방향 마커는 원거리(점) 마커와 상세 마커가 같은 색을 쓰도록 테마 안내색(주황) 대신 공통 색을 사용합니다.
+  const arrowSvg = pin.directionMarker
+    ? getAdaptiveArrowSvg(pinLabel, DIRECTION_MARKER_COLOR, DIRECTION_MARKER_COLOR)
+    : getLargeArrowSvg(pinLabel, textColor);
   if (arrowSvg) {
     element.innerHTML = arrowSvg;
   }

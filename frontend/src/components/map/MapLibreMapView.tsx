@@ -23,7 +23,7 @@ import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
 import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
 import { getRouteStepPinIcon } from './routeStepIcon';
 import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
-import { ensureAdaptiveMarkerStyles, updateMarkerZoomMode } from './adaptiveMarkerStyles';
+import { ensureAdaptiveMarkerStyles, getDirectionMarkerPositions, updateMarkerZoomMode } from './adaptiveMarkerStyles';
 
 function getRouteBounds(routeData: RouteFeatureCollection): [[number, number], [number, number]] | null {
   const coordinates = routeData.features.flatMap((feature) => feature.geometry.coordinates);
@@ -182,7 +182,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
         webMapInstanceRef.current = mapInstance;
         mapInstance.on('zoom', () => {
-          updateMarkerZoomMode(mapInstance, webContainerRef.current);
+          updateMarkerZoomMode(mapInstance, webContainerRef.current, getDirectionMarkerPositions(latestPinsRef.current));
         });
 
         registerMissingStyleImageResolver(mapInstance);
@@ -268,7 +268,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
             (instruction) => latestOnPinSelectRef.current?.(instruction),
           );
 
-          updateMarkerZoomMode(mapInstance, webContainerRef.current);
+          updateMarkerZoomMode(mapInstance, webContainerRef.current, getDirectionMarkerPositions(currentPins));
           latestOnMapLoadedRef.current?.();
         });
       } catch {
@@ -308,7 +308,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       );
     };
     void updateMarkers();
-    updateMarkerZoomMode(map, webContainerRef.current);
+    updateMarkerZoomMode(map, webContainerRef.current, getDirectionMarkerPositions(directionalPins));
     if (routeBounds && !userInteractedWithMapRef.current) {
       map.fitBounds(routeBounds, { padding: 40, duration: 700 });
     } else if (initialCenter ?? maskingCenter) {

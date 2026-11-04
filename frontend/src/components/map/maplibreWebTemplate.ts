@@ -12,7 +12,13 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
 import { MapRouteColors } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
 import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
-import { ADAPTIVE_MARKER_CSS, ZOOM_THRESHOLD_DETAIL } from './adaptiveMarkerStyles';
+import {
+  ADAPTIVE_MARKER_CSS,
+  DIRECTION_MARKER_COLOR,
+  MIN_DETAIL_SEPARATION_PX,
+  SAME_SPOT_METERS,
+  ZOOM_THRESHOLD_DETAIL,
+} from './adaptiveMarkerStyles';
 
 export interface BuildMapLibreHtmlOptions {
   readonly styleUrl: string;
@@ -180,15 +186,43 @@ export function buildMapLibreHtml({
         attributionControl: false,
         interactive: payload.interactive !== false,
       });
+      // #319: 줌 하한(${ZOOM_THRESHOLD_DETAIL}) 이상이고, 화면상 방향 마커 간 최소 간격이
+      // ${MIN_DETAIL_SEPARATION_PX}px(상세 마커 지름 + 여백) 이상일 때만 상세 마커로 전환 (adaptiveMarkerStyles.ts와 동일 규칙)
+      function minDirectionMarkerSeparationPx() {
+        if (typeof map.project !== 'function') return Infinity;
+        const points = [];
+        (currentPins || []).forEach(function(pin) {
+          if (!pin || !pin.directionMarker || !pin.position) return;
+          const p = map.project([pin.position[0], pin.position[1]]);
+          if (!p || !isFinite(p.x) || !isFinite(p.y)) return;
+          points.push({ lngLat: pin.position, x: p.x, y: p.y });
+        });
+        let min = Infinity;
+        for (let i = 0; i < points.length; i += 1) {
+          for (let j = i + 1; j < points.length; j += 1) {
+            const dx = points[i].x - points[j].x;
+            const dy = points[i].y - points[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance >= min) continue;
+            const meanLat = ((points[i].lngLat[1] + points[j].lngLat[1]) / 2) * Math.PI / 180;
+            const mx = (points[j].lngLat[0] - points[i].lngLat[0]) * Math.cos(meanLat) * 111320;
+            const my = (points[j].lngLat[1] - points[i].lngLat[1]) * 110540;
+            if (Math.sqrt(mx * mx + my * my) <= ${SAME_SPOT_METERS}) continue;
+            min = distance;
+          }
+        }
+        return min;
+      }
       function updateMarkerZoomMode() {
         if (!map) return;
         const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
         const container = typeof map.getContainer === 'function' ? map.getContainer() : (typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('map') : null);
         if (!container || !container.classList) return;
-        if (currentZoom < ${ZOOM_THRESHOLD_DETAIL}) {
-          container.classList.add('zoom-compact-markers');
-        } else {
+        const useDetail = currentZoom >= ${ZOOM_THRESHOLD_DETAIL} && minDirectionMarkerSeparationPx() >= ${MIN_DETAIL_SEPARATION_PX};
+        if (useDetail) {
           container.classList.remove('zoom-compact-markers');
+        } else {
+          container.classList.add('zoom-compact-markers');
         }
       }
       map.on('zoom', updateMarkerZoomMode);
@@ -352,7 +386,7 @@ export function buildMapLibreHtml({
             large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
 
-          const miniColor = '#26352B';
+          const miniColor = '${DIRECTION_MARKER_COLOR}';
           let mini = '';
           const miniStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
           if (icon === '↑') {
@@ -435,7 +469,8 @@ export function buildMapLibreHtml({
                 el.style.justifyContent = 'center';
                 el.style.padding = '0';
               }
-              const arrowSvg = getAdaptiveArrowSvg(iconStr, guidanceColor);
+              // #319: 방향 마커는 원거리(점) 마커와 같은 색으로 표시 (테마 안내색 주황 → 공통 방향 마커 색)
+              const arrowSvg = getAdaptiveArrowSvg(iconStr, pin.directionMarker ? '${DIRECTION_MARKER_COLOR}' : guidanceColor);
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }
@@ -482,6 +517,8 @@ export function buildMapLibreHtml({
             markers.push(m);
           });
         }
+        // 핀이 바뀌면 마커 간격도 바뀌므로 상세/원거리 마커 모드를 다시 판정
+        updateMarkerZoomMode();
       }
 
       // 모바일(React Native)로부터의 동적 메시지 수신 처리
