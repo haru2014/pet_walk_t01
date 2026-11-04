@@ -1,0 +1,42 @@
+{
+  "id": "lesson-plan",
+  "name": "Lesson Plan (교육용 수업 플랜)",
+  "description": "교실 및 사내 교육에 최적화된 4단계(Warm-up, Learn, Practice, Exit ticket) 진행 트랙 기반의 교육용 템플릿",
+  "layout": "4x3",
+  "fonts": {
+    "title": "Pretendard",
+    "fallbackTitle": "Pretendard",
+    "body": "Pretendard",
+    "fallbackBody": "Pretendard",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "FFFFFF",
+    "surface": "F1F5FB",
+    "surfaceSubtle": "F8FAFD",
+    "border": "D6DEEA",
+    "borderActive": "2E6BD9",
+    "primary": "1E2B4A",
+    "accent": "2E6BD9",
+    "accentLight": "E4EDFC",
+    "secondary": "16A06F",
+    "secondaryLight": "DDF4EA",
+    "textPrimary": "1E2B4A",
+    "textSecondary": "3B4763",
+    "textMuted": "6E7891",
+    "textInverse": "FFFFFF",
+    "phaseWarmup": "FFB020",
+    "phaseWarmupSoft": "FFF1D2",
+    "phaseLearn": "2E6BD9",
+    "phaseLearnSoft": "E4EDFC",
+    "phasePractice": "16A06F",
+    "phasePracticeSoft": "DDF4EA",
+    "phaseExit": "E4483F",
+    "phaseExitSoft": "FCE3E1",
+    "phaseUpcoming": "E6EBF2"
+  },
+  "metrics": {
+    "cardRadius": 0.15,
+    "badgeRadius": 0.08
+  }
+}

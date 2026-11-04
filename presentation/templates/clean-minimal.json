@@ -1,0 +1,38 @@
+{
+  "id": "clean-minimal",
+  "name": "Clean Minimal (에디토리얼 미니멀)",
+  "description": "간결한 여백과 모노크롬, 따뜻한 오렌지/앰버 포인트를 살린 정제된 발표용 템플릿",
+  "layout": "16x9",
+  "fonts": {
+    "title": "Pretendard",
+    "fallbackTitle": "Arial",
+    "body": "Pretendard",
+    "fallbackBody": "Arial",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "FAFAFA",
+    "surface": "FFFFFF",
+    "surfaceSubtle": "F4F4F5",
+    "border": "E5E5E5",
+    "borderActive": "A3A3A3",
+    "primary": "171717",
+    "accent": "EA580C",
+    "accentLight": "FFEDD5",
+    "secondary": "525252",
+    "secondaryLight": "F5F5F5",
+    "textPrimary": "171717",
+    "textSecondary": "404040",
+    "textMuted": "737373",
+    "textInverse": "FFFFFF",
+    "badgeBg": "F4F4F5",
+    "badgeText": "171717",
+    "highlightBg": "FFEDD5",
+    "highlightText": "C2410C"
+  },
+  "metrics": {
+    "cardRadius": 0.08,
+    "badgeRadius": 0.04
+  }
+}
+
