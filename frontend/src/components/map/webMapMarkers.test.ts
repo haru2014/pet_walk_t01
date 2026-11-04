@@ -139,6 +139,21 @@ describe('웹 지도 마커 렌더링 (MapLibreMapView 분리 모듈)', () => {
     expect(marker.style.borderRadius).toBe('50%');
   });
 
+  it('방향 마커 화살표는 테마 안내색이 아닌 원거리 마커와 같은 색으로 그린다 (#319)', () => {
+    const directionPin: RouteStepPin = {
+      id: 'direction', kind: 'turn', position: [127.381, 36.43], instruction: '경로 방향 안내', icon: '↱', directionMarker: true,
+    };
+    (FakeElement.prototype as unknown as { innerHTML: string }).innerHTML = '';
+
+    renderWebMarkers({}, MarkerClass, route, [directionPin], colors, vi.fn());
+    const html = (FakeMarker.created[1].options.element as unknown as { innerHTML: string }).innerHTML;
+    const large = /<svg class="arrow-svg-large"[\s\S]*?<\/svg>/.exec(html)?.[0] ?? '';
+
+    expect(large).toContain('#26352B');
+    expect(large).not.toContain(colors.mapGuidance as string);
+    delete (FakeElement.prototype as unknown as { innerHTML?: string }).innerHTML;
+  });
+
   it('제목형 핀은 아이콘/제목/상세 문구를 자식 요소로 구성한다', () => {
     renderWebMarkers({}, MarkerClass, route, pins, colors, vi.fn());
     const titled = FakeMarker.created[3].options.element;
