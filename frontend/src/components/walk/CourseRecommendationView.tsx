@@ -468,6 +468,7 @@ interface CourseHeaderTitleRowProps {
   lapInfo: ReturnType<typeof analyzeCourseLaps>;
   colors: ReturnType<typeof useAppTheme>['colors'];
   courseRecommend: ReturnType<typeof useAppResponsive>['courseRecommend'];
+  bookmarkCandidate: ReturnType<typeof createBookmark> | null;
 }
 
 const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
@@ -475,27 +476,31 @@ const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
   lapInfo,
   colors,
   courseRecommend,
+  bookmarkCandidate,
 }) => {
   const lapCount = currentCourse.lapCount ?? lapInfo?.lapCount;
   const distanceLabel = `${currentCourse.distanceKm.trim().replace(/\s*km$/i, '')}km`;
   return (
     <View style={styles.courseHeaderRow}>
-      <Text
-        style={[styles.courseName, { color: colors.textMain, fontSize: Math.min(16, courseRecommend.courseTitleSize) }]}
-        numberOfLines={1}
-      >
-        {formatCourseDisplayName(currentCourse.name)}
-      </Text>
-      <Text
-        style={[
-          styles.courseMetaText,
-          { color: colors.primaryDark, fontSize: Math.min(12, Math.max(10, courseRecommend.metricLabelSize)) },
-        ]}
-        numberOfLines={1}
-      >
-        {lapCount && lapCount > 1 ? `🔄 ${lapCount}바퀴 · ` : ''}
-        {distanceLabel} · 약 {currentCourse.estimatedMinutes}분
-      </Text>
+      <View style={styles.courseTitleCol}>
+        <Text
+          style={[styles.courseName, { color: colors.textMain, fontSize: Math.min(16, courseRecommend.courseTitleSize) }]}
+          numberOfLines={1}
+        >
+          {formatCourseDisplayName(currentCourse.name)}
+        </Text>
+        <Text
+          style={[
+            styles.courseMetaText,
+            { color: colors.primaryDark, fontSize: Math.min(12, Math.max(10, courseRecommend.metricLabelSize)) },
+          ]}
+          numberOfLines={1}
+        >
+          {lapCount && lapCount > 1 ? `🔄 ${lapCount}바퀴 · ` : ''}
+          {distanceLabel} · 약 {currentCourse.estimatedMinutes}분
+        </Text>
+      </View>
+      <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
     </View>
   );
 };
@@ -764,25 +769,23 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
       {/* 4. 하단 코스 요약 & 대체 코스 & Thumb Zone 시작 버튼 */}
       <View style={[styles.bottomCard, { paddingVertical: scale(3, 4, 5), paddingHorizontal: courseRecommend.cardPaddingH, backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        {/* Course previews stay below the map and scroll independently. */}
-        <View style={styles.sheetHeaderRow}>
-          <CoursePreviewCardRow
-            courses={courses}
-            selectedCourseIndex={selectedCourseIndex}
-            onSelectCourse={setSelectedCourseIndex}
-            freshCourseIds={freshCourseIds}
-            colors={colors}
-            routeForCourse={routeForCourse}
-          />
-          <BookmarkToggleButton bookmark={bookmarkCandidate} style={styles.bookmarkButton} />
-        </View>
+        {/* Course previews stay below the map and scroll independently across full width. */}
+        <CoursePreviewCardRow
+          courses={courses}
+          selectedCourseIndex={selectedCourseIndex}
+          onSelectCourse={setSelectedCourseIndex}
+          freshCourseIds={freshCourseIds}
+          colors={colors}
+          routeForCourse={routeForCourse}
+        />
 
-        {/* 코스명과 반복 횟수·거리·시간을 두 줄로 간결하게 표시 */}
+        {/* 코스명과 반복 횟수·거리·시간 및 찜하기 버튼 */}
         <CourseHeaderTitleRow
           currentCourse={currentCourse}
           lapInfo={lapInfo}
           colors={colors}
           courseRecommend={courseRecommend}
+          bookmarkCandidate={bookmarkCandidate}
         />
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         <CourseSafetyMetricsBar course={currentCourse} colors={colors} />
@@ -908,7 +911,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  coursePreviewScroll: { flex: 1, minWidth: 0, height: 50, marginRight: 8 },
+  coursePreviewScroll: { width: '100%', height: 50 },
   coursePreviewRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   coursePreviewCard: {
     width: 145,
@@ -935,11 +938,18 @@ const styles = StyleSheet.create({
   coursePreviewSelected: { fontSize: 10, fontWeight: '700' },
   bookmarkButton: { height: 32 },
   courseHeaderRow: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    gap: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
     marginVertical: 1,
     minWidth: 0,
+  },
+  courseTitleCol: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'column',
+    gap: 1,
   },
   courseName: {
     fontSize: TYPOGRAPHY.cardTitle,
