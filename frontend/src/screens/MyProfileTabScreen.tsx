@@ -73,6 +73,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
             style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}
             accessibilityRole="button"
             accessibilityLabel="계정 전환"
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
             <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>계정 전환</Text>
           </TouchableOpacity>
@@ -83,6 +84,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
             style={[styles.accountBtn, styles.logoutBtn, { borderColor: colors.border }]}
             accessibilityRole="button"
             accessibilityLabel="로그아웃"
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
             <Text style={[styles.accountBtnText, { color: colors.textMuted }]}>로그아웃</Text>
           </TouchableOpacity>
@@ -100,6 +102,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
         style={[styles.accountBtn, { backgroundColor: colors.primary }]}
         accessibilityRole="button"
         accessibilityLabel="회원가입"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
         <Text style={[styles.accountBtnText, { color: '#FFFFFF' }]}>회원가입</Text>
       </TouchableOpacity>
@@ -108,6 +111,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
         style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}
         accessibilityRole="button"
         accessibilityLabel="로그인"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
         <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>로그인</Text>
       </TouchableOpacity>
@@ -916,8 +920,8 @@ const styles = StyleSheet.create({
   accountSubRow: { marginTop: 6 },
   accountSubtitle: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
   authBtnGroup: { flexDirection: 'row', gap: 6, flexShrink: 0 },
-  accountBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10 },
-  accountBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '700' },
+  accountBtn: { paddingHorizontal: 7, paddingVertical: 3.5, borderRadius: 8 },
+  accountBtnText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   updateInfoText: { fontSize: TYPOGRAPHY.caption, lineHeight: 16 },
   logoutBtn: {
     backgroundColor: 'transparent',
