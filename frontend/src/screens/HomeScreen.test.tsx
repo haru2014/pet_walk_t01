@@ -81,6 +81,7 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
 
     // 2. Trail info & 이번 주 산책 달성도 정보 카드
     expect(html).toContain('산책 정보');
+    expect(html).toContain('상세보기');
     expect(html).toContain('이번 주 산책 달성도');
     expect(html).toContain('산책하기 좋은 시간');
   });

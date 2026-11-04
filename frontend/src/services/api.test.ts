@@ -105,7 +105,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(capturedBody.park_zone).toBe('현재 위치 주변');
   });
 
-  it('진입 경로 2: 지정 공원 둘레길(park) 요청 시 공원 좌표, pilot_park_id 및 명칭을 전송해야 한다', async () => {
+  it('진입 경로 2: 지정 명소 둘레길 요청 시 공원 좌표, pilot_park_id 및 명칭을 전송해야 한다', async () => {
     let capturedBody: any = null;
     vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
       capturedBody = JSON.parse(options.body);

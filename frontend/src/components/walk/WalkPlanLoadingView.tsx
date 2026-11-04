@@ -159,11 +159,6 @@ export const WalkPlanLoadingView: React.FC<WalkPlanLoadingViewProps> = ({
           <View pointerEvents="none" style={[styles.mapLabel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.mapLabelText, { color: colors.textMuted }]}>{parkName} 주변 · 경로 확정 전</Text>
           </View>
-          {isLoading && (
-            <View pointerEvents="none" style={[styles.pawNote, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.mapLabelText, { color: colors.textMuted }]}>발자국은 장식용 로딩 애니메이션이에요</Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.statusBlock}>
@@ -212,7 +207,6 @@ const styles = StyleSheet.create({
   pawGlyph: { fontSize: 23 },
   mapLabel: { position: 'absolute', top: 10, left: 10, borderWidth: 1, borderRadius: TOKENS.borderRadius.badge, paddingHorizontal: 10, paddingVertical: 5 },
   mapLabelText: { fontSize: TYPOGRAPHY.caption, fontWeight: '600' },
-  pawNote: { position: 'absolute', bottom: 10, left: 10, borderWidth: 1, borderRadius: TOKENS.borderRadius.badge, paddingHorizontal: 9, paddingVertical: 5 },
   statusBlock: { alignItems: 'center', gap: 5, paddingTop: 2 },
   statusTitleRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   statusIcon: { fontSize: 19 },

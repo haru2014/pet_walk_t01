@@ -320,26 +320,22 @@ export function buildMapLibreHtml({
         const activeColors = colors || payload.routeColors || {};
         const guidanceColor = activeColors.mapGuidance || activeColors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
 
-        function getLargeArrowSvg(icon, color, directionMarker) {
-          if (directionMarker) {
-            const svgStart = '<svg width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:block;flex:none;">';
-            if (icon === '↱') return svgStart + '<path d="M2 10V7Q2 5 4 5H5" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round"/><path d="M4 2L10 5L4 8V2Z" fill="' + color + '"/></svg>';
-            if (icon === '↰') return svgStart + '<path d="M10 10V7Q10 5 8 5H7" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round"/><path d="M8 2L2 5L8 8V2Z" fill="' + color + '"/></svg>';
-            if (icon === '↶') return svgStart + '<path d="M10 10V5Q10 2 7 2Q4 2 4 5V6" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round"/><path d="M2 5L4 9L6 5H2Z" fill="' + color + '"/></svg>';
-            if (icon === '➤') return svgStart + '<path d="M10.5 6L1.5 2L3.5 6L1.5 10Z" fill="' + color + '"/></svg>';
-            return null;
+        function getLargeArrowSvg(icon, color) {
+          const filter = 'filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);';
+          if (icon === '↑') {
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 14 23 L 14 10" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="7,12 14,3 21,12" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '↱') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;"><path d="M 8 22 L 8 13 Q 8 8 13 8 L 15 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="13,2 26,8 13,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 6 22 L 6 13 Q 6 8 11 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="12,2 25,8 12,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '↰') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;"><path d="M 20 22 L 20 13 Q 20 8 15 8 L 13 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="15,2 2,8 15,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 22 22 L 22 13 Q 22 8 17 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="16,2 3,8 16,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '↶') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;"><path d="M 19 22 L 19 12 Q 19 6 13.5 6 Q 8 6 8 12 L 8 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="2,13 8,25 14,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 21.5 22 L 21.5 12 Q 21.5 6 16 6 Q 10.5 6 10.5 12 L 10.5 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="4.5,13 10.5,25 16.5,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           if (icon === '➤') {
-            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+            return '<svg width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
           return null;
         }
@@ -397,20 +393,19 @@ export function buildMapLibreHtml({
               el.style.border = 'transparent';
               el.style.boxShadow = 'none';
               if (pin.directionMarker) {
-                el.style.width = '10.5px';
-                el.style.height = '10.5px';
                 el.style.backgroundColor = '#FFFFFF';
                 el.style.border = '1px solid #718276';
                 el.style.borderRadius = '50%';
-                el.style.boxShadow = '0 0.5px 1px rgba(34, 48, 38, 0.08)';
-                el.style.color = '#26352B';
+                el.style.boxShadow = '0 1px 5px rgba(0, 0, 0, 0.22)';
+                el.style.color = '#596B5C';
+                el.style.fontSize = '20px';
                 el.style.textShadow = 'none';
                 el.style.display = 'flex';
                 el.style.alignItems = 'center';
                 el.style.justifyContent = 'center';
+                el.style.padding = '0';
               }
-              const arrowColor = pin.directionMarker ? '#26352B' : guidanceColor;
-              const arrowSvg = getLargeArrowSvg(iconStr, arrowColor, Boolean(pin.directionMarker));
+              const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }

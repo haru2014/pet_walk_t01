@@ -65,7 +65,7 @@ describe('WalkPlanLoadingView', () => {
 
     expect(html).toContain('산책하기 좋은 길을 찾고 있어요');
     expect(html).toContain('유림공원 주변 · 경로 확정 전');
-    expect(html).toContain('발자국은 장식용 로딩 애니메이션이에요');
+    expect(html).not.toContain('발자국은 장식용 로딩 애니메이션이에요');
     expect(html).toContain('data-center="127.3601379,36.3620608"');
     expect(html.match(/aria-label="발자국 [1-6]"/g)).toHaveLength(6);
     expect(WALK_PLAN_PAW_STEPS.map((step) => step.delayMs)).toEqual([0, 260, 520, 780, 1040, 1300]);

@@ -50,7 +50,7 @@ function getAiBannerTitle(
   currentParkShortName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkShortName} 산책길 위주로 찾아요`;
+    return `${currentParkShortName} 산책로를 찾아볼게요`;
   }
   if (isLocating) {
     return '현재 GPS 위치 수신 중...';
@@ -339,7 +339,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                 originMode === 'park' && styles.originModeTextActive,
               ]}
             >
-              🏞️ 지정 공원 둘레길
+              🏞️ 지정 명소 둘레길
             </Text>
           </TouchableOpacity>
         </View>

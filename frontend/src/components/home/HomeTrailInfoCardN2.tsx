@@ -95,7 +95,13 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
         />
 
         <View style={styles.cardTextCol}>
-          <Text style={[styles.trailTitle, { color: colors.textMain }]}>산책 정보</Text>
+          <View style={styles.titleRow}>
+            <Text style={[styles.trailTitle, { color: colors.textMain }]}>산책 정보</Text>
+            <View style={styles.detailLinkWrap}>
+              <Text style={[styles.detailLinkText, { color: colors.primaryDark }]}>상세보기</Text>
+              <Text style={[styles.detailLinkArrow, { color: colors.primaryDark }]}>›</Text>
+            </View>
+          </View>
           <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
             {isLoadingWeather ? '산책 날씨를 확인하고 있어요...' : weatherNotice}
           </Text>
@@ -201,7 +207,31 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   cardTextCol: { flex: 1, paddingRight: 6 },
-  trailTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', marginBottom: 3, letterSpacing: -0.2 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  trailTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '800', color: '#2D3A31', letterSpacing: -0.2 },
+  detailLinkWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  detailLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  detailLinkArrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
   trailDescription: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, color: '#758579', fontWeight: '500', marginBottom: 4 },
   goldenBadge: { alignSelf: 'flex-start', backgroundColor: '#E3ECE4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   goldenBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#5A7361' },
