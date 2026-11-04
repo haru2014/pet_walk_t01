@@ -99,13 +99,17 @@ function applyPinBaseStyle(
   });
   if (isDirectionMarker) {
     Object.assign(element.style, {
+      width: '10.5px',
+      height: '10.5px',
       background: '#FFFFFF',
-      border: '1.5px solid #718276',
+      border: '1px solid #718276',
       borderRadius: '50%',
-      boxShadow: '0 1px 5px rgba(0, 0, 0, 0.22)',
-      color: '#596B5C',
-      fontSize: '20px',
+      boxShadow: '0 0.5px 1px rgba(34, 48, 38, 0.08)',
+      color: '#26352B',
       textShadow: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     });
   }
 }
@@ -128,7 +132,8 @@ function applyPinGraphic(
     }
     return;
   }
-  const arrowSvg = getLargeArrowSvg(pinLabel, textColor);
+  const arrowColor = pin.directionMarker ? '#26352B' : textColor;
+  const arrowSvg = getLargeArrowSvg(pinLabel, arrowColor, Boolean(pin.directionMarker));
   if (arrowSvg) {
     element.innerHTML = arrowSvg;
   }

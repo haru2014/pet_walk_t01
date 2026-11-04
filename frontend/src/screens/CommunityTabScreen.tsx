@@ -467,11 +467,12 @@ export const CommunityTabScreen: React.FC<CommunityTabScreenProps> = ({
                       🗺️ 안심 코스 미리보기 (초록: 완만길 · 파랑: 보통길)
                     </Text>
 
-                    <View style={[styles.miniMapContainer, { minHeight: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <View style={[styles.miniMapContainer, { height: community.inlineMapHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
                       <RouteMapView
                         route={feedRoute}
                         stepPins={feedPins}
                         speedKmH={dogSpeedKmH}
+                        mapHeight={community.inlineMapHeight}
                       />
                       <TouchableOpacity
                         activeOpacity={0.85}

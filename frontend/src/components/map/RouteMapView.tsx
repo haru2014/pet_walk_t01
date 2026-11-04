@@ -124,6 +124,24 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   if (allCoords.length === 0 && !maskingCenter && mapPins.length === 0) return null;
 
   const selectedPin = visibleMapPins.find((pin) => pin.id === selectedPinId);
+  const directionToggle = (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => setShowDirectionMarkers((visible) => !visible)}
+      style={[
+        styles.directionToggle,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: showDirectionMarkers }}
+      accessibilityLabel="방향표시 전부 표시"
+    >
+      <Text style={[styles.directionToggleText, { color: colors.textMain }]}>방향표시 전부 표시</Text>
+      <View style={[styles.toggleTrack, showDirectionMarkers && styles.toggleTrackActive]}>
+        <View style={[styles.toggleThumb, showDirectionMarkers && styles.toggleThumbActive]} />
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={fillContainer ? styles.fillContainer : styles.container}>
@@ -148,23 +166,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
             onPinSelect?.(instruction);
           }}
         />
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setShowDirectionMarkers((visible) => !visible)}
-          style={[
-            styles.directionToggle,
-            stairsCount != null ? styles.directionToggleBelowStairs : undefined,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: showDirectionMarkers }}
-          accessibilityLabel="방향표시 전부 표시"
-        >
-          <Text style={[styles.directionToggleText, { color: colors.textMain }]}>방향표시 전부 표시</Text>
-          <View style={[styles.toggleTrack, showDirectionMarkers && styles.toggleTrackActive]}>
-            <View style={[styles.toggleThumb, showDirectionMarkers && styles.toggleThumbActive]} />
-          </View>
-        </TouchableOpacity>
+        {directionToggle}
         {stairsCount != null && (
           <View
             pointerEvents="none"
@@ -282,25 +284,23 @@ const styles = StyleSheet.create({
   },
   directionToggle: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    bottom: 10,
+    left: 10,
     zIndex: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderRadius: 18,
+    gap: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  directionToggleBelowStairs: { top: 46 },
-  directionToggleText: { fontSize: 11, fontWeight: '600' },
+  directionToggleText: { fontSize: 10, fontWeight: '600' },
   toggleTrack: {
     width: 30,
     height: 17,
