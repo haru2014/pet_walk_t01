@@ -197,7 +197,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
   });
 
-  it('순환 코스는 기존 바퀴·거리·시간을 한 줄로 표시하고 설명과 notice는 반복하지 않는다', () => {
+  it('순환 코스는 기존 바퀴·거리·시간을 한 줄로 표시하고 안내(notice)를 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 30,
@@ -240,10 +240,10 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
 
     expect(html).toContain('🔄 4바퀴 · 1.2km · 약 20분');
     expect(html).not.toContain('여러 바퀴 도는 코스입니다');
-    expect(html).not.toContain('산책로가 짧아 최대 약 60분 코스예요');
+    expect(html).toContain('산책로가 짧아 최대 약 60분 코스예요');
   });
 
-  it('lapInfo가 없어도 코스 데이터의 반복 횟수를 정보 행에 표시하고 설명 영역은 렌더링하지 않는다', () => {
+  it('lapInfo가 없어도 코스 데이터의 반복 횟수를 정보 행에 표시하고 안내(notice)를 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 60,
@@ -280,7 +280,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
 
     expect(html).toContain('🔄 8바퀴 · 2.5km · 약 45분');
     expect(html).not.toContain('순환로(약 450m)를 8바퀴 반복하는 코스입니다.');
-    expect(html).not.toContain('산책로가 짧아 최대 약 60분 코스예요');
+    expect(html).toContain('산책로가 짧아 최대 약 60분 코스예요');
   });
 
   it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
