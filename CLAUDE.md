@@ -2,8 +2,8 @@
 이 저장소의 규칙은 아래 파일에 있다. 문서 속 "Gemini"는 Claude로 읽는다.
 @.gemini/GEMINI.md
 @.gemini/coding_rule.md
+@.gemini/architecture.md
 @.gemini/UX_COMPACT_RULES.md
-@frontend/AGENTS.md
 
 ## 커밋 규칙
 - 커밋 작성자는 저장소 git 설정(`true9090 <true9090@gmail.com>`)을 그대로 쓴다.
