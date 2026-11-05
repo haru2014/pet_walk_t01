@@ -165,8 +165,14 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
 
   const feedback = record.feedback;
   const comfortScore = feedback?.comfortScore ?? 5;
-  const tags = feedback?.tags && feedback.tags.length > 0 ? feedback.tags : ['완만해요', '그늘많아요'];
+  const tags = feedback?.tags && feedback.tags.length > 0 ? feedback.tags : ['폭신한 흙/잔디', '그늘 많아요'];
   const comment = feedback?.comment || '발바닥 열감 없이 정말 쾌적하게 다녀왔어요!';
+  const slopeLabels: Record<string, string> = {
+    gentle: '완만/평지',
+    moderate: '적당함',
+    steep: '가파름',
+  };
+  const slopeLabel = feedback?.slopeRating ? slopeLabels[feedback.slopeRating] : null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -322,6 +328,11 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
           <Text style={[styles.starsLabel, { color: colors.textMain }]}>만족도: </Text>
           <Text style={styles.starsText}>{'★'.repeat(comfortScore)}{'☆'.repeat(5 - comfortScore)}</Text>
           <Text style={[styles.scoreNumber, { color: colors.textMuted }]}> ({comfortScore}점)</Text>
+          {slopeLabel && (
+            <View style={[styles.slopeBadge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
+              <Text style={[styles.slopeBadgeText, { color: colors.primaryDark }]}>📐 {slopeLabel}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.tagsRow}>
@@ -362,7 +373,13 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
         </View>
       </View>
 
-      <QuickFeedbackModal visible={showFeedbackModal} dogName={dogName} onSubmit={onSaveFeedback} onClose={() => setShowFeedbackModal(false)} />
+      <QuickFeedbackModal
+        visible={showFeedbackModal}
+        dogName={dogName}
+        initialFeedback={feedback}
+        onSubmit={onSaveFeedback}
+        onClose={() => setShowFeedbackModal(false)}
+      />
       <Modal
         visible={showCompletionModal}
         transparent
@@ -700,6 +717,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  slopeBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  slopeBadgeText: {
+    fontSize: TYPOGRAPHY.label,
+    fontWeight: '700',
   },
   starsLabel: {
     fontSize: TYPOGRAPHY.label,

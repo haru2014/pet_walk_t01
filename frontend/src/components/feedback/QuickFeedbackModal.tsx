@@ -5,7 +5,7 @@
  * 5점 만족도 평가, [📐 경사도 체감 3단계 평가], 웰니스 태그 칩, 한 줄 메모
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
@@ -15,6 +15,7 @@ import { AppIcon, AppIconName } from '../common/AppIcon';
 export interface QuickFeedbackModalProps {
   readonly visible: boolean;
   readonly dogName: string;
+  readonly initialFeedback?: WalkFeedback;
   readonly onSubmit: (feedback: WalkFeedback) => void;
   readonly onClose: () => void;
 }
@@ -43,18 +44,31 @@ const FEEDBACK_TAGS: readonly { icon: AppIconName; label: string }[] = [
 export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
   visible,
   dogName,
+  initialFeedback,
   onSubmit,
   onClose,
 }) => {
-  const [comfortScore, setComfortScore] = useState<number>(5);
-  const [slopeRating, setSlopeRating] = useState<SlopeFeedbackLevel>('gentle');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['폭신한 흙/잔디']);
-  const [comment, setComment] = useState('');
+  const [comfortScore, setComfortScore] = useState<number>(initialFeedback?.comfortScore ?? 5);
+  const [slopeRating, setSlopeRating] = useState<SlopeFeedbackLevel>(initialFeedback?.slopeRating ?? 'gentle');
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    initialFeedback?.tags && initialFeedback.tags.length > 0 ? initialFeedback.tags : ['폭신한 흙/잔디']
+  );
+  const [comment, setComment] = useState(initialFeedback?.comment ?? '');
 
-  const toggleTag = (tag: string) => {
-    const rawTag = tag.replace(/^[^\s]+\s*/, '');
+  useEffect(() => {
+    if (visible) {
+      setComfortScore(initialFeedback?.comfortScore ?? 5);
+      setSlopeRating(initialFeedback?.slopeRating ?? 'gentle');
+      setSelectedTags(
+        initialFeedback?.tags && initialFeedback.tags.length > 0 ? initialFeedback.tags : ['폭신한 흙/잔디']
+      );
+      setComment(initialFeedback?.comment ?? '');
+    }
+  }, [visible, initialFeedback]);
+
+  const toggleTag = (label: string) => {
     setSelectedTags((prev) =>
-      prev.includes(rawTag) ? prev.filter((t) => t !== rawTag) : [...prev, rawTag],
+      prev.includes(label) ? prev.filter((t) => t !== label) : [...prev, label]
     );
   };
 
