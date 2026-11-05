@@ -27,6 +27,7 @@ import { formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../.
 import { RouteMapView } from '../map/RouteMapView';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
+import { CourseNoticeLine } from './CourseNoticeLine';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
 import { VoiceQuickControlBar } from '../voice/VoiceQuickControlBar';
 import { formatCourseSlope, formatCourseSurface } from '../../services/routeProfileFormatter';
@@ -724,6 +725,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         />
         {/* 4대 안심 지표 바 (노면 / 계단 / 경사 / 그늘) */}
         <CourseSafetyMetricsBar course={currentCourse} colors={colors} />
+        {/* 서버 코스 안내 (짧은 공원 코스, 고른 조건의 실측 반영 정도) */}
+        <CourseNoticeLine notice={currentCourse.notice} colors={colors} />
 
         {regenerateNotice ? (
           <View

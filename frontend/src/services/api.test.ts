@@ -39,6 +39,20 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     });
   });
 
+  it('산책 설정 환경 조건 6종을 모두 서버로 보낸다 (차가 적은 길·조용한 길·쉬어가기 포함)', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    await expect(requestWalkPlan(dummyDog, {
+      originMode: 'park', pilotParkId: 'songgang', durationMinutes: 30,
+      environments: ['traffic', 'rest', 'stairs'], requestText: '',
+    })).rejects.toBeTruthy();
+    const [, options] = fetchMock.mock.calls[0];
+    expect(JSON.parse(options!.body as string)).toMatchObject({
+      environments: ['traffic', 'rest', 'stairs'],
+      avoid_traffic: true, prefer_quiet: false, prefer_rest: true,
+      avoid_stairs: true, prefer_shade: false, prefer_cushion: false,
+    });
+  });
+
   it('공원 경로 서버가 오프라인이면 검증되지 않은 로컬 코스로 대체하지 않는다', async () => {
     // fetch가 에러를 던지도록 모킹
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));

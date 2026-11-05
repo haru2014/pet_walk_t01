@@ -12,8 +12,10 @@ from typing import Any, Optional, Tuple
 import networkx as nx
 from shapely.geometry import LineString, MultiPoint
 
+from agent.park_preference_rank import cycle_preference_ratio, preferences_signature, ranking_key
 from agent.park_route_validation import build_park_graph, resolve_park_start, RoutePlanningError
 from agent.route_geometry import polyline_length_m
+from services.walk_preferences import WalkPreferences
 
 CANDIDATE_COUNT = 3
 SAME_ROUTE_OVERLAP = 0.65  # 간선 겹침(자카드 또는 포함률)이 이 값 이상이면 "같은 길"로 보고 고르지 않는다
@@ -218,8 +220,11 @@ def _route_meta(route: Any) -> dict:
     }
 
 
-def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float) -> list:
+def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float,
+                        park_id: str = "", preferences: Optional[WalkPreferences] = None) -> list:
     """조건에 맞는 순환 코스를 목표 거리에 가까운 순으로 모은다.
+
+    preferences 가 있으면 목표 거리에 맞는 순환로끼리는 환경 조건 적합도(park_preference_rank)로 순서를 정한다.
 
     각 후보는 (목표와의 거리 차이, 간선 집합, 좌표열을 만드는 함수). 좌표열은 고른 후보만 만든다
     (큰 공원은 후보가 수천 개라 미리 다 만들면 요청 1번에 수 초가 걸린다).
@@ -248,7 +253,9 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
             # 2바퀴 이하로 만들 수 있으면 그 안에서 고르고, 3바퀴 이상은 그 순환로로 달리 방법이 없을 때만 쓴다 (#257).
             preferred = [option for option in options if option[1] <= PREFERRED_LAP_REPEATS]
             diff, repeats = min(preferred or options)
-            scored.append((repeats > PREFERRED_LAP_REPEATS, diff, index, repeats, entry))
+            ratio = cycle_preference_ratio(graph, park_id, cycle, preferences)
+            rank = ranking_key(diff, target_distance_m, ratio)
+            scored.append((repeats > PREFERRED_LAP_REPEATS, rank, index, repeats, entry, diff))
     if not scored:
         raise RoutePlanningError("NO_VALID_LOOP", "공원 내부의 연결된 보행로에서 조건에 맞는 순환 경로가 없습니다.")
     # 3바퀴 이상 도는 코스는 2바퀴 이하 후보가 모두 소진된 뒤에만 뒤쪽 순위로 내려간다.
@@ -274,7 +281,7 @@ def _compute_candidates(graph: nx.Graph, start: tuple, target_distance_m: float)
 
     approach_edges: dict = {}
     candidates = []
-    for _, diff, index, repeats, entry in scored:
+    for _, _rank, index, repeats, entry, diff in scored:
         cycle_len = cycles[index][1]
         if entry not in approach_edges:  # route_edge_set 과 같은 모양: 방향 없는 간선의 집합
             approach_edges[entry] = frozenset(frozenset(edge) for edge in zip(paths[entry], paths[entry][1:]))
@@ -409,19 +416,22 @@ def plan_park_walk_candidates(
     origin_lon: float,
     target_distance_m: float,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> list:
     """순환 코스 후보 3개 생성. 재생성 시(nonce > 0) 1번 추천 코스는 유지하고 2·3번 대안 코스를 새로운 비유사 경로로 제공."""
     graph = build_park_graph(park_id)
     # 경계 밖 주차장은 저장된 진입로 끝에서 공원 코스를 만들고, 진입로를 앞뒤로 붙인다 (#160).
     # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
     start, approach = resolve_park_start(graph, park_id, (origin_lon, origin_lat))
-    key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1))
+    key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1),
+           preferences_signature(preferences))
     with _CACHE_LOCK:
         cached = _CANDIDATE_CACHE.get(key)
         if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산
             pool = list(cached[1])
         else:
-            pool = _select_distinct(_compute_candidates(graph, start, target_distance_m), pool_size=10)
+            candidates = _compute_candidates(graph, start, target_distance_m, park_id, preferences)
+            pool = _select_distinct(candidates, pool_size=10)
             if len(_CANDIDATE_CACHE) >= _CANDIDATE_CACHE_MAX:
                 _CANDIDATE_CACHE.clear()
             _CANDIDATE_CACHE[key] = (graph, list(pool))
@@ -454,8 +464,9 @@ def plan_park_walk(
     target_distance_m: float,
     variant: int,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> list:
     routes = plan_park_walk_candidates(
-        park_id, origin_lat, origin_lon, target_distance_m, regenerate_nonce=regenerate_nonce
+        park_id, origin_lat, origin_lon, target_distance_m, regenerate_nonce=regenerate_nonce, preferences=preferences
     )
     return routes[max(1, min(int(variant), CANDIDATE_COUNT)) - 1]
