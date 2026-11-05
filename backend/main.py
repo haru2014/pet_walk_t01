@@ -64,6 +64,9 @@ from services.segment_conditions import link_conditions
 from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
+from agent.candidate_exposure import EXPOSURE_FIELDS, is_preference_routed
+from services.course_notices import append_notice_lines, preference_notice_lines
+from services.walk_preferences import WalkPreferences, intent_overrides_from_request
 from services.forward_safety import analyze_forward_safety
 from services.kma_weather_client import KmaApiError, to_kst
 from services.parking_lots import find_nearby_parking_lots, load_pilot_parking_lots
@@ -497,9 +500,11 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
 
 
 def _app_intent_overrides(req: Dict[str, Any]) -> Dict[str, bool]:
-    """앱이 보내는 avoid_stairs / prefer_shade / prefer_cushion 을 의도 조건으로 바꾼다. 보내지 않은 항목은 넣지 않는다."""
-    mapping = {"avoid_stairs": "avoid_stairs", "prefer_shade": "shade_priority", "prefer_cushion": "prefer_soft"}
-    return {key: req[field] for field, key in mapping.items() if isinstance(req.get(field), bool)}
+    """앱 산책 설정의 환경 조건 6종(불리언 또는 environments 칩 목록)을 의도 조건으로 바꾼다.
+
+    보내지 않은 항목은 넣지 않는다. 대응표는 services/walk_preferences.py (SSOT).
+    """
+    return intent_overrides_from_request(req)
 
 
 def _resolve_parking_snap(
@@ -745,13 +750,24 @@ def _build_course_plans_map(agent_result: Any, fallback_coords: Any, park_id: Op
 
 
 def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Optional[str]) -> Dict[str, Any]:
-    """후보 경로별 실측 지표 (경사·노면·계단). 카드의 고정 프로필 값과 별도로 실제 좌표로 계산한다."""
+    """후보 경로별 실측 지표 (경사·노면·계단 + 차도 인접 비율·횡단 수·쉼터 수). 실제 좌표로 계산한다."""
     profiles: Dict[str, Any] = {}
     for scored in agent_result.all_scored_candidates or []:
         cand = scored.candidate
         coords = cand.geojson_coordinates if cand.geojson_coordinates else fallback_coords
-        profiles[cand.route_id] = measure_route_profile(coords, park_id)
+        profile = dict(measure_route_profile(coords, park_id))
+        profile.update({key: getattr(cand, key, None) for key in EXPOSURE_FIELDS})
+        profiles[cand.route_id] = profile
     return profiles
+
+
+def _add_preference_notices(courses: List[Dict[str, Any]], candidates: List[Any], intent: Any) -> None:
+    """고른 환경 조건(차가 적은 길·조용한 길·쉬어가기)이 실제로 얼마나 반영됐는지 카드 안내 칸에 알린다."""
+    prefs = WalkPreferences.from_intent(intent.model_dump() if hasattr(intent, "model_dump") else intent)
+    for course, cand in zip(courses, candidates):
+        exposure = {key: getattr(cand, key, None) for key in EXPOSURE_FIELDS}
+        routed = is_preference_routed(getattr(cand, "route_source", "") or "")
+        append_notice_lines(course, preference_notice_lines(prefs, exposure, routed))
 
 
 def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
@@ -911,7 +927,8 @@ def _build_walk_plan_response(
         "elevation_source": elevation_source(),
         # 후보별 실측 지표 (경사는 DEM/근사 구분, 노면·계단은 공원 보행망 OSM 태그, 자료 없으면 None)
         "course_profiles": profiles,
-        # 후보별 경로 출처: osrm_live(실제 보행로) / park_graph_*(공원 보행망) / rectangle_fallback 등 대체 경로
+        # 후보별 경로 출처: osm_graph(환경 조건 반영 OSM 보행망) / osm_graph_park(공원 유인) / osrm_live(실제 보행로)
+        # / park_graph_*(공원 보행망) / rectangle_fallback 등 대체 경로
         "route_sources": {s.candidate.route_id: s.candidate.route_source for s in agent_result.all_scored_candidates or []},
     }
     if park_mode:
@@ -922,6 +939,10 @@ def _build_walk_plan_response(
         _add_winding_notice(resp_data["courses"], top_candidates)
         resp_data["route_validation"] = validations
         resp_data["validated_park_id"] = selected_park
+    _add_preference_notices(
+        resp_data["courses"], [x.candidate for x in (agent_result.all_scored_candidates or [])[:3]],
+        getattr(agent_result, "intent", None),
+    )
     logger.info(
         json.dumps(
             {

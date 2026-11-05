@@ -36,6 +36,9 @@ from agent.route_geometry import (
 from agent.route_steps import build_turn_steps
 from agent.park_walk_planner import plan_park_walk
 from agent.park_route_validation import RoutePlanningError, validate_park_route
+from agent.preference_loop_planner import LoopQuery, plan_preference_loops
+from agent.walk_graph_provider import walk_graph_for_loop
+from services.walk_preferences import WalkPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +83,8 @@ FALLBACK_ASPECT_RATIOS: Dict[int, float] = {1: 0.6, 2: 1.0, 3: 1.6}
 
 @dataclass(frozen=True)
 class LoopPlan:
-    """순환 코스 생성 결과. source 는 osrm_live / static_seoul / rectangle_fallback."""
+    """순환 코스 생성 결과. source 는 osm_graph(조건 반영) / osm_graph_park(공원 유인) / osrm_live /
+    static_seoul / rectangle_fallback 등."""
     coords: List[List[float]]
     steps: List[Dict[str, Any]]
     distance_m: float
@@ -269,13 +273,15 @@ def _plan_static_pilot_park(
     pilot_park_id: Optional[str] = None,
     target_distance_m: Optional[float] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> Optional[LoopPlan]:
     """Compatibility entry point: only verified, boundary-constrained graph routes."""
     park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
     if park_key is None:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
     target = target_distance_m or 1400.0
-    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant, regenerate_nonce=regenerate_nonce)
+    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant,
+                            regenerate_nonce=regenerate_nonce, preferences=preferences)
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
     lap_count = getattr(coords, "lap_count", 1) or 1
     lap_cycle_m = getattr(coords, "lap_cycle_m", None)
@@ -374,6 +380,7 @@ def _plan_variant(
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> Optional[LoopPlan]:
     """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
 
@@ -382,7 +389,7 @@ def _plan_variant(
     if origin_mode in ("park", "parking_pnr"):
         return _plan_static_pilot_park(
             origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m,
-            regenerate_nonce=regenerate_nonce,
+            regenerate_nonce=regenerate_nonce, preferences=preferences,
         )
 
     # 📍 현위치 기반 모드 (current_location): 1안(추천)은 유지하고 2·3안은 회전 오프셋 적용
@@ -471,6 +478,22 @@ def _deduplicate_osrm_live(plans: Dict[int, LoopPlan], origin_mode: str) -> Dict
     return {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
 
 
+def _plan_graph_variants(query: LoopQuery) -> Dict[int, LoopPlan]:
+    """[현재 위치 모드] 출발지 주변 OSM 보행 그래프에서 환경 조건 비용으로 순환 후보를 찾는다.
+
+    그래프를 받지 못하거나(오프라인·Overpass 장애) 출발점이 보행망에서 멀면 빈 사전 → OSRM 경로로 돌아간다.
+    """
+    walk = walk_graph_for_loop(query.origin[1], query.origin[0], query.target_m)
+    if walk is None:
+        return {}
+    loops = plan_preference_loops(walk, query)
+    plans = {}
+    for variant, loop in loops.items():
+        if _is_valid_loop(loop.coords):
+            plans[variant] = _to_plan(loop.coords, "osm_graph_park" if loop.park_attraction else "osm_graph")
+    return plans
+
+
 def plan_loop_candidates(
     origin_lat: float,
     origin_lon: float,
@@ -479,10 +502,22 @@ def plan_loop_candidates(
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> Dict[int, LoopPlan]:
-    """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
+    """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3).
+
+    현재 위치 모드는 OSM 보행 그래프(환경 조건 반영)를 먼저 쓰고, 채우지 못한 후보만 OSRM 으로 찾는다.
+    """
+    graph_plans: Dict[int, LoopPlan] = {}
+    if origin_mode not in ("park", "parking_pnr"):
+        graph_plans = _plan_graph_variants(LoopQuery(
+            origin=(origin_lon, origin_lat), target_m=target_distance_m,
+            prefs=preferences or WalkPreferences(), bearings=VARIANT_BEARINGS, regenerate_nonce=regenerate_nonce,
+        ))
+    # OSRM 예산은 그래프 단계 뒤부터 센다 (Overpass 가 느리다 실패해도 OSRM 대체 경로 품질은 그대로)
     deadline = time.monotonic() + time_budget_s
-    with ThreadPoolExecutor(max_workers=len(VARIANT_BEARINGS)) as pool:
+    remaining = [variant for variant in VARIANT_BEARINGS if variant not in graph_plans]
+    with ThreadPoolExecutor(max_workers=max(1, len(remaining))) as pool:
         futures = {
             variant: pool.submit(
                 _plan_variant,
@@ -494,12 +529,14 @@ def plan_loop_candidates(
                 origin_mode,
                 pilot_park_id,
                 regenerate_nonce,
+                preferences,
             )
-            for variant in VARIANT_BEARINGS
+            for variant in remaining
         }
         results = {variant: future.result() for variant, future in futures.items()}
 
     plans = {variant: plan for variant, plan in results.items() if plan is not None}
+    plans.update(graph_plans)
     if not plans:
         return _rectangle_candidates(origin_lat, origin_lon, target_distance_m)
 

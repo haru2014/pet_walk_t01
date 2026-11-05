@@ -9,7 +9,7 @@
 | 계단 | 25 | 계단 회피 요청 시 계단이 있으면 0. 정보가 없으면 중간(15) |
 | 경사 | 25 | 관절 단계별 경사 상한(JOINT_SLOPE_LIMIT) 이하 만점, 1.5배 이하 12, 그 이상 0 |
 | 지면온도 | 20 | 실측 그늘 비율로 식힌 지면온도. 안전 기준(SAFE_MAX_C 33℃, #153) 이하 20, 주의 앞쪽 절반 12, 주의 6, 위험 0 |
-| 선호 적합도 | 15 | 그늘 비율·폭신 노면 비율을 선호에 따라 가중 평균. 노면은 확인된 구간 안의 폭신 비율, 노면·그늘을 전혀 모르면 0.5 |
+| 선호 적합도 | 15 | 그늘 비율·폭신 노면 비율을 선호에 따라 가중 평균. 노면은 확인된 구간 안의 폭신 비율, 노면·그늘을 전혀 모르면 0.5. 차가 적은 길(1-차도 인접 비율)·조용한 길(1-큰길 인접 비율)·쉬어가기(쉼터 2곳 만점)를 켜면 함께 평균 |
 | 거리 | 15 | 목표 거리 대비 오차 |
 
 자료가 없는 값은 지어내지 않고 중간값으로 둔다. 가중치는 현정님 검토 후 확정한다(제안 단계).
@@ -63,10 +63,35 @@ def preference_weights(shade_priority: bool, preferred_surfaces) -> Dict[str, fl
     return {"shade": 0.5, "soft": 0.5}
 
 
+# 쉬어가기 좋은 길: 경로 30m 안 벤치·쉼터가 이만큼 있으면 만점
+REST_SPOT_TARGET = 2
+
+
+def context_fit_values(profile: Dict[str, Any], prefs: Any) -> list:
+    """차가 적은 길·조용한 길·쉬어가기 좋은 길 적합도 (0~1). 켜진 조건만, 모르면 0.5.
+
+    값은 실측 주변 맥락(agent/candidate_exposure)에서 온다: 차도 인접 비율, 큰길 인접 비율, 쉼터 수.
+    """
+    if prefs is None:
+        return []
+    values = []
+    if getattr(prefs, "avoid_traffic", False):
+        road = profile.get("road_exposure_ratio")
+        values.append(UNKNOWN if road is None else 1.0 - road)
+    if getattr(prefs, "prefer_quiet", False):
+        major = profile.get("major_road_ratio")
+        values.append(UNKNOWN if major is None else 1.0 - major)
+    if getattr(prefs, "prefer_rest", False):
+        rest = profile.get("rest_spot_count")
+        values.append(UNKNOWN if rest is None else min(1.0, rest / REST_SPOT_TARGET))
+    return values
+
+
 def score_personalized(profile: Dict[str, Any], *, distance_m: float, target_distance_m: float,
                        joint_care_level: int = 1, calibrated_max_slope: Optional[float] = None,
                        avoid_stairs: bool = True, shade_priority: bool = False, preferred_surfaces=None,
-                       air_temp_c: Optional[float] = None, surface_temp_c: Optional[float] = None) -> PersonalizedScore:
+                       air_temp_c: Optional[float] = None, surface_temp_c: Optional[float] = None,
+                       context_preferences: Any = None) -> PersonalizedScore:
     # 1. 계단 (25)
     stairs_count = profile.get("stairs_count")
     if stairs_count is None:
@@ -105,6 +130,9 @@ def score_personalized(profile: Dict[str, Any], *, distance_m: float, target_dis
     soft = min(1.0, soft_of_route / known) if known > 0 and soft_of_route is not None else None
     fit = (weights["shade"] * (shade if shade is not None else UNKNOWN)
            + weights["soft"] * (soft if soft is not None else UNKNOWN))
+    # 차가 적은 길 등 켜진 조건이 있으면 그늘·노면 적합도와 같은 무게로 평균한다 (꺼져 있으면 예전 점수와 같다)
+    extra = context_fit_values(profile, context_preferences)
+    fit = (fit + sum(extra)) / (1 + len(extra))
     preference = round(15.0 * fit, 1)
 
     # 5. 거리 (15)

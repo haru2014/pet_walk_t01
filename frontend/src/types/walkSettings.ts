@@ -77,7 +77,7 @@ export const BREED_DURATION_GUIDES: readonly DogBreedDurationGuide[] = [
 /** 산책 시간 레이블 포맷터 (예: 75분 -> '1시간 15분', 자유 산책 -> '자유 산책') */
 export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean): string {
   if (isFreeWalk) return '자유 산책';
-  if (minutes == null) return '시간 미설정';
+  if (minutes == null) return '시간 미정';
   if (minutes < 60) return `${minutes}분`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
