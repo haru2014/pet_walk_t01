@@ -22,9 +22,9 @@ Node = Tuple[float, float]
 EXCLUDED_HIGHWAYS = {"motorway", "motorway_link", "trunk", "trunk_link", "construction", "proposed",
                      "bus_guideway", "raceway", "platform", "corridor", "elevator", "bridleway"}
 DISALLOWED_ACCESS = {"no", "private", "customers", "permit", "delivery", "military"}
-MAJOR_NEAR_M = 15.0          # 보행로 중심선이 큰길에서 이 거리 안이면 '큰길 옆'
+MAJOR_NEAR_M = 25.0          # 보행로 중심선이 큰길에서 이 거리 안이면 '큰길 옆'
 MINOR_NEAR_M = 8.0           # 이면도로에서 이 거리 안이면 '골목 옆'
-SIDEWALK_MAJOR_NEAR_M = 22.0  # footway=sidewalk 는 차도와 조금 떨어져 그려지는 경우가 많다
+SIDEWALK_MAJOR_NEAR_M = 35.0  # footway=sidewalk 는 차도와 조금 떨어져 그려지는 경우가 많다
 CROSSING_SNAP_M = 4.0
 REST_NEAR_M = 30.0
 TREE_ROW_NEAR_M = 8.0

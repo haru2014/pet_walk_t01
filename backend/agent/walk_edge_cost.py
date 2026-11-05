@@ -36,9 +36,9 @@ SOFT_CATEGORIES = {"grass", "dirt", "rubber"}
 HIGHWAY_SURFACE_FALLBACK: Dict[str, str] = {"track": "dirt", "path": "paved"}
 
 # 차가 적은 길: 길 맥락별 배수와 횡단 1회 비용(m 환산)
-TRAFFIC_MULTIPLIER = {"path": 0.8, "minor": 1.6, "major": 4.0}
+TRAFFIC_MULTIPLIER = {"path": 0.8, "minor": 1.6, "major": 10.0}
 CROSSING_COST_M = 60.0
-MAJOR_CROSSING_EXTRA_M = 90.0
+MAJOR_CROSSING_EXTRA_M = 150.0
 # 조용한 길 (US-20): 큰길·상업지·광장은 비싸게, 공원 둘레길·넓은 길은 싸게
 QUIET_MULTIPLIER = {"path": 0.85, "minor": 1.3, "major": 3.0}
 QUIET_COMMERCIAL = 1.8

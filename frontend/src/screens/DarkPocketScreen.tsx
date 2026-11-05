@@ -80,12 +80,15 @@ function useDarkPocketState(props: DarkPocketScreenProps) {
     layout,
     viewportHeight: height,
   });
+  const walkedMeters = (props.stats.distanceKm || 0) * 1000;
   const maneuver = usePocketManeuver({
     isFreeWalk: !!props.isFreeWalk,
     isOffRoute: !!props.isOffRoute,
     currentCoords: props.currentCoords,
     mapRoute: props.mapRoute,
     mapPins: props.mapPins,
+    walkedMeters,
+    currentBearing: camera.walkBearing,
   });
   const actions = usePocketActions({
     ...props,

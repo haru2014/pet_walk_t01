@@ -40,6 +40,10 @@ export interface WalkRecord {
   id: string;
   /** Supabase walk_records.id. Legacy local records may not have a UUID in id. */
   remoteId?: string;
+  /** 커뮤니티 이웃 후기 공유 여부 (US-G2) */
+  isPublic?: boolean;
+  /** 커뮤니티 이웃 후기 공유 일시 */
+  sharedAt?: string;
   dogId: string;
   dogSummary?: WalkDogSummary;
   startedAt: string;
