@@ -121,7 +121,7 @@ describe('15분 단위 세분화 산책 시간 및 자유 산책 모드 (US-A3, 
     expect(formatDurationLabel(105)).toBe('1시간 45분');
     expect(formatDurationLabel(120)).toBe('2시간');
     expect(formatDurationLabel(null, true)).toBe('자유 산책');
-    expect(formatDurationLabel(null, false)).toBe('시간 미설정');
+    expect(formatDurationLabel(null, false)).toBe('시간 미정');
   });
 
   it('WalkPreferences에 isFreeWalk 플래그가 지원되어야 한다', () => {
