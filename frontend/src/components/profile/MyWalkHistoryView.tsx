@@ -56,14 +56,31 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
 }) => {
   const { colors } = useAppTheme();
   const [records, setRecords] = useState<WalkRecord[]>(initialRecords ?? []);
-  const [publicMap, setPublicMap] = useState<Record<string, boolean>>({});
+  const [publicMap, setPublicMap] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {};
+    (initialRecords ?? []).forEach((r) => {
+      if (r.isPublic) map[r.id] = true;
+    });
+    return map;
+  });
   const [period, setPeriod] = useState<StatsPeriodType>('7days');
   const [visibleCount, setVisibleCount] = useState<number>(5);
   const [selectedRecord, setSelectedRecord] = useState<WalkRecord | null>(null);
 
   useEffect(() => {
+    const syncMapFrom = (list: WalkRecord[]) => {
+      const map: Record<string, boolean> = {};
+      list.forEach((r) => { if (r.isPublic) map[r.id] = true; });
+      setPublicMap(map);
+    };
+
     if (!initialRecords) {
-      void LocalStorageService.getWalkHistory().then(setRecords);
+      void LocalStorageService.getWalkHistory().then((loaded) => {
+        setRecords(loaded);
+        syncMapFrom(loaded);
+      });
+    } else {
+      syncMapFrom(initialRecords);
     }
   }, [initialRecords]);
 
@@ -74,6 +91,11 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
     [records, period]
   );
 
+  const publicCount = useMemo(
+    () => records.filter((r) => publicMap[r.id] ?? r.isPublic ?? false).length,
+    [records, publicMap]
+  );
+
   const handlePeriodChange = (nextPeriod: StatsPeriodType) => {
     setPeriod(nextPeriod);
     setVisibleCount(5);
@@ -81,7 +103,8 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
 
   const handleTogglePublic = async (record: WalkRecord) => {
     // 가상 보행 기록은 공개로 바꿀 수 없다. 비공개로 되돌리는 것은 허용 (#297)
-    if (record.isSimulated && !(publicMap[record.id] ?? false)) {
+    const currentIsPublic = publicMap[record.id] ?? record.isPublic ?? false;
+    if (record.isSimulated && !currentIsPublic) {
       Alert.alert('공개할 수 없는 기록이에요', SIMULATED_TRACK_SHARE_MESSAGE);
       return;
     }
@@ -125,7 +148,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
       return;
     }
 
-    const current = publicMap[record.id] ?? false;
+    const current = publicMap[record.id] ?? record.isPublic ?? false;
     const nextState = !current;
 
     let remoteId: string;
@@ -151,7 +174,11 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
       Alert.alert('공개 설정을 바꾸지 못했어요', result.message);
       return;
     }
+    await LocalStorageService.updateWalkRecordPublic(record.id, nextState);
     setPublicMap((prev) => ({ ...prev, [record.id]: nextState }));
+    setRecords((currentRecords) =>
+      currentRecords.map((r) => (r.id === record.id ? { ...r, isPublic: nextState } : r))
+    );
 
     const message = nextState
       ? '🌐 이 산책 기록이 커뮤니티 공개 후기로 전환되었어요. 집 주변 200m는 자동으로 가려서 공개돼요.'
@@ -192,6 +219,11 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
           <View style={[styles.badge, { backgroundColor: colors.primaryWash, borderColor: colors.primaryMint }]}>
             <Text style={[styles.badgeText, { color: colors.primaryDark }]}>계정에 저장</Text>
           </View>
+          {publicCount > 0 && (
+            <View style={styles.sharedCountBadge}>
+              <Text style={styles.sharedCountBadgeText}>🌐 이웃 공유 {publicCount}건</Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.subDesc, { color: colors.textMuted }]}>
           {dogName}와 함께한 산책 정보와 완주 기록이에요 (누적 {records.length}회)
@@ -280,7 +312,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
           </View>
         ) : (
           displayedRecords.map((rec) => {
-            const isPublic = publicMap[rec.id] ?? false;
+            const isPublic = publicMap[rec.id] ?? rec.isPublic ?? false;
             const dateStr = new Date(rec.completedAt).toLocaleDateString('ko-KR', {
               month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
             });
@@ -307,9 +339,13 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
                         <Text style={styles.dogBadgeText}>🐾 {dogName}</Text>
                       </View>
                     )}
-                    {isPublic && (
+                    {isPublic ? (
                       <View style={styles.publicBadge}>
-                        <Text style={styles.publicBadgeText}>🌐 커뮤니티 공개 중</Text>
+                        <Text style={styles.publicBadgeText}>🌐 이웃 공유 완료</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.privateBadge}>
+                        <Text style={styles.privateBadgeText}>🔒 나만 보기</Text>
                       </View>
                     )}
                   </View>
@@ -372,7 +408,7 @@ export const MyWalkHistoryView: React.FC<MyWalkHistoryViewProps> = ({
                   >
                     <AppIcon name="users" size={13} color={isPublic ? '#047857' : TOKENS.colors.textMuted} />
                     <Text style={[styles.publicBtnText, isPublic && styles.publicBtnTextActive]}>
-                      {isPublic ? '공개 중 ✓' : '이웃 후기 공유'}
+                      {isPublic ? '이웃 공유 중 ✓' : '이웃 후기 공유'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -436,7 +472,34 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 4,
   },
-  recordCardPublic: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
+  recordCardPublic: { borderColor: '#10B981', borderLeftWidth: 4, borderLeftColor: '#059669', backgroundColor: '#F0FDF4' },
+  privateBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  privateBadgeText: {
+    fontSize: TYPOGRAPHY.label,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  sharedCountBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignSelf: 'center',
+  },
+  sharedCountBadgeText: {
+    fontSize: TYPOGRAPHY.label,
+    fontWeight: '700',
+    color: '#047857',
+  },
   recordTopActionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
