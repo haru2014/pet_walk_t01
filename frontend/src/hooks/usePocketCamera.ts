@@ -105,12 +105,16 @@ function useCameraHeading(input: FollowCameraInput): number | null {
 
 export function usePocketFollowCamera(input: FollowCameraInput) {
   const cameraHeading = useCameraHeading(input);
-  const { currentCoords, walkedCoords, mapPins, layout, viewportHeight } = input;
+  const { currentCoords, walkedCoords, mapPins, mapRoute, layout, viewportHeight } = input;
 
-  const walkBearing = useMemo(
-    () => bearingFromRecentPath(walkedCoords) ?? bearingFromLastTwoPoints(walkedCoords),
-    [walkedCoords],
-  );
+  const walkBearing = useMemo(() => {
+    const fromPath = bearingFromRecentPath(walkedCoords) ?? bearingFromLastTwoPoints(walkedCoords);
+    if (fromPath != null) return fromPath;
+    if (currentCoords && mapRoute) {
+      return routeBearingAt([currentCoords.lon, currentCoords.lat], mapRoute);
+    }
+    return null;
+  }, [walkedCoords, currentCoords, mapRoute]);
 
   const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => {
     if (!currentCoords) return mapPins;
@@ -136,7 +140,7 @@ export function usePocketFollowCamera(input: FollowCameraInput) {
     };
   }, [currentCoords, layout.layoutReady, layout.fitPadding, viewportHeight, cameraHeading]);
 
-  return { mapDisplayPins, followCamera };
+  return { mapDisplayPins, followCamera, walkBearing };
 }
 
 interface ManeuverInput {
@@ -145,13 +149,26 @@ interface ManeuverInput {
   readonly currentCoords: Coords;
   readonly mapRoute: RouteFeatureCollection;
   readonly mapPins: readonly RouteStepPin[];
+  readonly walkedMeters?: number;
+  readonly currentBearing?: number | null;
 }
 
-export function usePocketManeuver({ isFreeWalk, isOffRoute, currentCoords, mapRoute, mapPins }: ManeuverInput): PocketManeuver | null {
+export function usePocketManeuver({
+  isFreeWalk,
+  isOffRoute,
+  currentCoords,
+  mapRoute,
+  mapPins,
+  walkedMeters,
+  currentBearing,
+}: ManeuverInput): PocketManeuver | null {
   const maneuver = useMemo(() => {
     if (isFreeWalk || !currentCoords) return null;
-    return computePocketManeuver([currentCoords.lon, currentCoords.lat], mapRoute, mapPins);
-  }, [isFreeWalk, currentCoords, mapRoute, mapPins]);
+    return computePocketManeuver([currentCoords.lon, currentCoords.lat], mapRoute, mapPins, {
+      walkedMeters,
+      currentBearing,
+    });
+  }, [isFreeWalk, currentCoords, mapRoute, mapPins, walkedMeters, currentBearing]);
 
   // 회전 지점 30m 이내에 처음 들어오면 한 번 진동 (주머니 속에서도 알 수 있도록)
   const buzzedPinIdRef = useRef<string | null>(null);

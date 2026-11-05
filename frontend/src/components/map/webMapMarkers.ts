@@ -129,8 +129,8 @@ function applyPinGraphic(
   if (isCurrentLoc) {
     if (pin.bearingDeg != null) {
       element.style.borderRadius = '50%';
-      element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
-      element.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
+      const rot = pin.bearingDeg - 90;
+      element.innerHTML = `<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;transform:rotate(${rot}deg);transform-origin:14px 14px;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>`;
     }
     return;
   }

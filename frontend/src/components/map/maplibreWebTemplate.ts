@@ -473,8 +473,7 @@ export function buildMapLibreHtml({
             if (isCurrentLocation && !hasTitle) {
               el.style.width = '32px';
               el.style.height = '32px';
-              el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
-              el.style.transform = pin.bearingDeg == null ? 'rotate(-45deg)' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
+              el.style.borderRadius = '50%';
               el.style.backgroundColor = '#2563EB';
               el.style.border = '2px solid #fff';
               el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';
@@ -484,7 +483,8 @@ export function buildMapLibreHtml({
               el.style.fontSize = '16px';
               el.style.color = '#fff';
               if (pin.bearingDeg != null) {
-                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
+                const rot = pin.bearingDeg - 90;
+                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;transform:rotate(' + rot + 'deg);transform-origin:14px 14px;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
               }
             } else {
               el.style.color = guidanceColor;

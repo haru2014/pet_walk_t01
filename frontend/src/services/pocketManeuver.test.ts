@@ -46,26 +46,37 @@ describe('pocketManeuver', () => {
     expect(formatManeuverDistance(1260)).toEqual({ value: '1.3', unit: 'km' });
   });
 
-  it('finds the next turn and infers its direction from geometry', () => {
+  it('guides straight until approaching next turn within 30m', () => {
     const pins = [
       turnPin('a', [127.0, 36.001], '쉼터 방향으로 진행합니다'),
       turnPin('b', [127.001, 36.001], '공원 입구 방향'),
     ];
-    const result = computePocketManeuver([127.0, 36.0005], ROUTE, pins);
-    expect(result?.current.pinId).toBe('a');
-    expect(result?.current.direction).toBe('right');
-    expect(result?.current.distanceM).toBeGreaterThan(45);
-    expect(result?.current.distanceM).toBeLessThan(65);
-    expect(result?.following?.pinId).toBe('b');
-    expect(result?.following?.direction).toBe('left');
-    expect(result?.progressRatio).toBeGreaterThan(0.4);
+    // 회전 지점까지 약 55m 남은 상태: 직진 안내 활성화
+    const far = computePocketManeuver([127.0, 36.0005], ROUTE, pins);
+    expect(far?.current.direction).toBe('straight');
+    expect(far?.current.title).toBe('직진');
+    expect(far?.following?.pinId).toBe('a');
+    expect(far?.following?.direction).toBe('right');
+
+    // 30m 이내로 접근한 상태: 회전 안내 활성화
+    const near = computePocketManeuver([127.0, 36.0008], ROUTE, pins);
+    expect(near?.current.pinId).toBe('a');
+    expect(near?.current.direction).toBe('right');
+    expect(near?.following?.pinId).toBe('b');
+    expect(near?.following?.direction).toBe('left');
   });
 
-  it('moves on after passing a turn and falls back to arrival', () => {
+  it('guides straight before arrival and switches to arrival within 30m', () => {
     const pins = [turnPin('a', [127.0, 36.001], '우회전')];
-    const result = computePocketManeuver([127.0006, 36.001], ROUTE, pins);
-    expect(result?.current.direction).toBe('arrive');
-    expect(result?.following).toBeNull();
+    // 마지막 턴을 통과 후 도착지까지 30m 초과: 직진 안내
+    const far = computePocketManeuver([127.0006, 36.001], ROUTE, pins);
+    expect(far?.current.direction).toBe('straight');
+    expect(far?.following?.direction).toBe('arrive');
+
+    // 도착지 30m 이내: 도착 안내 활성화
+    const near = computePocketManeuver([127.001, 36.0019], ROUTE, pins);
+    expect(near?.current.direction).toBe('arrive');
+    expect(near?.following).toBeNull();
   });
 
   it('returns null without position or geometry', () => {
