@@ -63,7 +63,17 @@ export type AppIconName =
   | 'ruler'
   | 'edit'
   | 'speed'
-  | 'refresh';
+  | 'refresh'
+  | 'turnLeft'
+  | 'turnRight'
+  | 'turnSlightLeft'
+  | 'turnSlightRight'
+  | 'turnStraight'
+  | 'turnUturn'
+  | 'flag'
+  | 'alert'
+  | 'expand'
+  | 'stop';
 
 export interface AppIconProps {
   readonly name: AppIconName;
@@ -185,6 +195,36 @@ export const AppIcon: React.FC<AppIconProps> = ({
         break;
       case 'speed':
         shape = <><Path d="M4 18a9 9 0 1 1 16 0" /><Path d="m12 13 4-4m-4 4-2 5" /><Path d="M5 18h14" /></>;
+        break;
+      case 'turnLeft':
+        shape = <><Path d="M17 21v-8a4 4 0 0 0-4-4H5" /><Path d="m9 5-4 4 4 4" /></>;
+        break;
+      case 'turnRight':
+        shape = <><Path d="M7 21v-8a4 4 0 0 1 4-4h8" /><Path d="m15 5 4 4-4 4" /></>;
+        break;
+      case 'turnSlightLeft':
+        shape = <><Path d="M14 21v-6.5a3 3 0 0 0-.9-2.1L6 5.3" /><Path d="M6 11V5h6" /></>;
+        break;
+      case 'turnSlightRight':
+        shape = <><Path d="M10 21v-6.5a3 3 0 0 1 .9-2.1L18 5.3" /><Path d="M18 11V5h-6" /></>;
+        break;
+      case 'turnStraight':
+        shape = <><Path d="M12 21V4" /><Path d="m6 10 6-6 6 6" /></>;
+        break;
+      case 'turnUturn':
+        shape = <><Path d="M8 21V9a5 5 0 0 1 10 0v4" /><Path d="m14 10 4 4 4-4" /></>;
+        break;
+      case 'flag':
+        shape = <><Path d="M5 22V4" /><Path d="M5 4h11l-2 4 2 4H5" /></>;
+        break;
+      case 'alert':
+        shape = <><Path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><Line x1="12" y1="9" x2="12" y2="13" /><Line x1="12" y1="17" x2="12.01" y2="17" /></>;
+        break;
+      case 'expand':
+        shape = <><Path d="M15 3h6v6" /><Path d="M9 21H3v-6" /><Line x1="21" y1="3" x2="14" y2="10" /><Line x1="3" y1="21" x2="10" y2="14" /></>;
+        break;
+      case 'stop':
+        shape = <Rect x="6" y="6" width="12" height="12" rx="2.5" />;
         break;
       case 'refresh':
         shape = (

@@ -162,6 +162,22 @@ interface TurnCandidate {
   readonly progressM: number;
 }
 
+/** 현재 위치에서 경로 진행 방향(앞쪽 lookAheadM 지점까지의 방위). 경로가 없으면 null */
+export function routeBearingAt(
+  position: LonLat | null | undefined,
+  route: RouteFeatureCollection,
+  lookAheadM = 15,
+): number | null {
+  if (!position) return null;
+  const path = buildPath(route);
+  const progress = projectProgress(position, path);
+  if (progress == null) return null;
+  const from = pointAtProgress(path, Math.min(progress, Math.max(0, path.totalM - lookAheadM)));
+  const to = pointAtProgress(path, Math.min(path.totalM, progress + lookAheadM));
+  if (haversineMeters(from, to) < 1) return null;
+  return bearingDeg(from, to);
+}
+
 export function computePocketManeuver(
   position: LonLat | null | undefined,
   route: RouteFeatureCollection,

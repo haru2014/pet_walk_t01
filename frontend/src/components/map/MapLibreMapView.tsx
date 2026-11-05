@@ -17,7 +17,7 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
 import { useMapThemeStyle } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS, isStyleLoadError, resolveFallbackStyle } from '../../constants/mapFallback';
 import { useMapFallbackTier } from '../../hooks/useMapFallbackTier';
-import { buildMapLibreHtml, MapFitPadding } from './maplibreWebTemplate';
+import { buildMapLibreHtml, MapFitPadding, MapFollowCamera } from './maplibreWebTemplate';
 import { disposeWebMap, removeHandles } from './webMapLifecycle';
 import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
 import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
@@ -57,6 +57,15 @@ function ensureMapLibreStylesheet(): Promise<void> {
   return mapLibreStylesheetPromise;
 }
 
+function toCameraOptions(camera: MapFollowCamera) {
+  return {
+    center: [camera.center[0], camera.center[1]] as [number, number],
+    bearing: camera.bearing,
+    zoom: camera.zoom ?? 17,
+    padding: camera.padding ?? 0,
+  };
+}
+
 export interface MapLibreMapViewProps {
   readonly route: RouteFeatureCollection;
   readonly stepPins?: readonly RouteStepPin[];
@@ -72,6 +81,8 @@ export interface MapLibreMapViewProps {
   readonly interactive?: boolean;
   /** 경로 fitBounds 여백(px). 기본 40 */
   readonly fitPadding?: MapFitPadding;
+  /** 지정하면 경로 전체 맞춤 대신 현재 위치를 따라가며 진행 방향이 위로 오게 회전한다. */
+  readonly follow?: MapFollowCamera | null;
 }
 
 export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
@@ -87,6 +98,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   style,
   interactive = true,
   fitPadding = 40,
+  follow = null,
 }) => {
   const { mapStyleUrl, routeColors, appColors } = useMapThemeStyle();
   const isWeb = Platform.OS === 'web';
@@ -109,6 +121,8 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const latestOnMapLoadedRef = useRef(onMapLoaded);
   const latestOnPinSelectRef = useRef(onPinSelect);
   const latestFitPaddingRef = useRef(fitPadding);
+  const latestFollowRef = useRef(follow);
+  latestFollowRef.current = follow;
   const userInteractedWithMapRef = useRef(false);
   useEffect(() => {
     latestRouteRef.current = route;
@@ -264,7 +278,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
 
           // 4. 카메라 Bounding Box 피팅
           const initialBounds = getRouteBounds(currentRoute);
-          if (initialBounds) {
+          if (latestFollowRef.current) {
+            mapInstance.jumpTo(toCameraOptions(latestFollowRef.current));
+          } else if (initialBounds) {
             mapInstance.fitBounds(initialBounds, { padding: latestFitPaddingRef.current, duration: 600 });
           }
 
@@ -314,12 +330,20 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     };
     void updateMarkers();
     updateMarkerZoomMode(map, webContainerRef.current, getDirectionMarkerPositions(directionalPins));
-    if (routeBounds && !userInteractedWithMapRef.current) {
+    if (latestFollowRef.current) {
+      // 따라가기 중에는 아래 follow 효과가 카메라를 담당한다
+    } else if (routeBounds && !userInteractedWithMapRef.current) {
       map.fitBounds(routeBounds, { padding: fitPadding, duration: 700 });
     } else if (initialCenter ?? maskingCenter) {
       map.setCenter(initialCenter ?? maskingCenter!);
     }
   }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, initialCenter, onPinSelect, fitPadding]);
+
+  // 따라가기 카메라 (웹)
+  useEffect(() => {
+    if (!isWeb || !follow || !webMapLoadedRef.current || !webMapInstanceRef.current) return;
+    webMapInstanceRef.current.easeTo({ ...toCameraOptions(follow), duration: 900, essential: true });
+  }, [isWeb, follow]);
 
   // ============================================================================
   // 2. 모바일 환경 (Android / iOS) - react-native-webview 브릿지
@@ -329,7 +353,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const [htmlSource] = useState(() => {
     if (isWeb) return '';
     return buildMapLibreHtml({
-      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, initialCenter, interactive, fitPadding,
+      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, initialCenter, interactive, fitPadding, follow,
     });
   });
   const mobileMapLoadedRef = useRef(false);
@@ -347,6 +371,9 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
           routeColors: latestRouteColorsRef.current,
           routeConditionColor: routeConditionColorExpression(latestRouteColorsRef.current),
         }));
+        if (latestFollowRef.current) {
+          webViewRef.current?.postMessage(JSON.stringify({ action: 'FOLLOW', camera: latestFollowRef.current }));
+        }
       } else if (data.type === 'STYLE_ERROR' || data.type === 'STYLE_TIMEOUT') {
         degrade();
       }
@@ -378,6 +405,12 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       }));
     }
   }, [isWeb, route, directionalPins, routeColors]);
+
+  // 따라가기 카메라 (모바일 WebView)
+  useEffect(() => {
+    if (isWeb || !mobileMapLoadedRef.current || !webViewRef.current) return;
+    webViewRef.current.postMessage(JSON.stringify({ action: 'FOLLOW', camera: follow }));
+  }, [isWeb, follow]);
 
   // ============================================================================
   // 3. 렌더링
