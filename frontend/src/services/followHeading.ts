@@ -86,3 +86,18 @@ export function resolveFollowTargetHeading(options: {
   if (!options.hasHeading) return walkBearing ?? options.routeBearing;
   return null;
 }
+
+/** 마지막 두 점의 방위 (이동 이력이 짧을 때 화살표 표시용 보조값) */
+export function bearingFromLastTwoPoints(
+  coords: readonly (readonly [number, number])[] | undefined,
+): number | null {
+  if (!coords || coords.length < 2) return null;
+  return bearingBetween(coords[coords.length - 2], coords[coords.length - 1]);
+}
+
+/** 지도가 회전한 만큼 빼서 화면 기준 화살표 방향으로 바꾼다. */
+export function toScreenBearing(walkBearing: number | null, cameraHeading: number | null): number | undefined {
+  if (walkBearing == null) return undefined;
+  if (cameraHeading == null) return walkBearing;
+  return normalizeDeg(walkBearing - cameraHeading);
+}

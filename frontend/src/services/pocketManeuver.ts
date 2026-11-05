@@ -162,6 +162,44 @@ interface TurnCandidate {
   readonly progressM: number;
 }
 
+/** 경로에 투영한 회전 핀을 진행 순서대로 정렬한다. */
+function collectTurns(path: RoutePath, pins: readonly RouteStepPin[]): TurnCandidate[] {
+  return pins
+    .filter((pin) => pin.kind === 'turn' && pin.id !== 'current-location-pin')
+    .map((pin) => ({ pin, progressM: projectProgress(pin.position, path) ?? -1 }))
+    .filter((candidate) => candidate.progressM >= 0)
+    .sort((a, b) => a.progressM - b.progressM);
+}
+
+function toStep(path: RoutePath, progress: number, candidate: TurnCandidate): ManeuverStep {
+  const direction = directionFromInstruction(candidate.pin.instruction)
+    ?? geometricDirection(path, candidate.progressM);
+  return {
+    direction,
+    distanceM: Math.max(0, candidate.progressM - progress),
+    title: maneuverTitle(direction),
+    detail: candidate.pin.title ?? candidate.pin.instruction,
+    pinId: candidate.pin.id,
+  };
+}
+
+function arrivalStep(path: RoutePath, progress: number): ManeuverStep {
+  return {
+    direction: 'arrive',
+    distanceM: Math.max(0, path.totalM - progress),
+    title: maneuverTitle('arrive'),
+    detail: '코스 끝 지점',
+    pinId: null,
+  };
+}
+
+/** 구간 시작~끝 사이에서 현재 진행률 (0~1) */
+function segmentRatio(progress: number, startM: number, endM: number): number {
+  const lengthM = endM - startM;
+  if (lengthM <= 0) return 1;
+  return Math.max(0, Math.min(1, (progress - startM) / lengthM));
+}
+
 /** 현재 위치에서 경로 진행 방향(앞쪽 lookAheadM 지점까지의 방위). 경로가 없으면 null */
 export function routeBearingAt(
   position: LonLat | null | undefined,
@@ -188,43 +226,21 @@ export function computePocketManeuver(
   const progress = projectProgress(position, path);
   if (progress == null) return null;
 
-  const turns: TurnCandidate[] = pins
-    .filter((pin) => pin.kind === 'turn' && pin.id !== 'current-location-pin')
-    .map((pin) => ({ pin, progressM: projectProgress(pin.position, path) ?? -1 }))
-    .filter((candidate) => candidate.progressM >= 0)
-    .sort((a, b) => a.progressM - b.progressM);
-
-  const toStep = (candidate: TurnCandidate): ManeuverStep => {
-    const direction = directionFromInstruction(candidate.pin.instruction)
-      ?? geometricDirection(path, candidate.progressM);
-    return {
-      direction,
-      distanceM: Math.max(0, candidate.progressM - progress),
-      title: maneuverTitle(direction),
-      detail: candidate.pin.title ?? candidate.pin.instruction,
-      pinId: candidate.pin.id,
-    };
-  };
-  const arrival: ManeuverStep = {
-    direction: 'arrive',
-    distanceM: Math.max(0, path.totalM - progress),
-    title: maneuverTitle('arrive'),
-    detail: '코스 끝 지점',
-    pinId: null,
-  };
-
+  const turns = collectTurns(path, pins);
+  const arrival = arrivalStep(path, progress);
   const upcomingIndex = turns.findIndex((turn) => turn.progressM > progress - PASSED_TOLERANCE_M);
-  const upcoming = upcomingIndex >= 0 ? turns[upcomingIndex] : null;
-  const following = upcomingIndex >= 0 ? turns[upcomingIndex + 1] ?? null : null;
+  if (upcomingIndex < 0) {
+    // 마지막 회전을 지났으면 도착 지점까지 남은 구간을 보여준다
+    const lastTurnM = turns.at(-1)?.progressM ?? 0;
+    return { current: arrival, following: null, progressRatio: segmentRatio(progress, lastTurnM, path.totalM) };
+  }
 
-  const segmentStartM = upcomingIndex > 0 ? turns[upcomingIndex - 1].progressM : 0;
-  const segmentEndM = upcoming ? upcoming.progressM : path.totalM;
-  const segmentM = segmentEndM - segmentStartM;
-  const progressRatio = segmentM <= 0 ? 1 : Math.max(0, Math.min(1, (progress - segmentStartM) / segmentM));
-
+  const upcoming = turns[upcomingIndex];
+  const following = turns[upcomingIndex + 1];
+  const previousTurnM = upcomingIndex > 0 ? turns[upcomingIndex - 1].progressM : 0;
   return {
-    current: upcoming ? toStep(upcoming) : arrival,
-    following: upcoming ? (following ? toStep(following) : arrival) : null,
-    progressRatio,
+    current: toStep(path, progress, upcoming),
+    following: following ? toStep(path, progress, following) : arrival,
+    progressRatio: segmentRatio(progress, previousTurnM, upcoming.progressM),
   };
 }

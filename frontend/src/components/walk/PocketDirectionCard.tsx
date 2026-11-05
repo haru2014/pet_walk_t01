@@ -16,8 +16,10 @@ import {
   formatManeuverDistance,
   MANEUVER_IMMINENT_DISTANCE_M,
   ManeuverDirection,
+  ManeuverStep,
   PocketManeuver,
 } from '../../services/pocketManeuver';
+import { POCKET_COLORS, POCKET_TOUCH_TARGET, withAlpha } from '../pocket/pocketTheme';
 
 const DIRECTION_ICONS: Record<ManeuverDirection, AppIconName> = {
   straight: 'turnStraight',
@@ -29,23 +31,18 @@ const DIRECTION_ICONS: Record<ManeuverDirection, AppIconName> = {
   arrive: 'flag',
 };
 
-const SURFACE = '#0E1311';
-const HAIRLINE = 'rgba(255,255,255,0.08)';
-const TEXT_PRIMARY = '#F4F5F2';
-const TEXT_SECONDARY = '#A3AAA4';
-const TEXT_MUTED = '#6F7771';
-const WARN = '#F5B544';
-const DANGER = '#F38B8B';
+const SURFACE = POCKET_COLORS.surface;
+const HAIRLINE = POCKET_COLORS.hairline;
+const TEXT_PRIMARY = POCKET_COLORS.textPrimary;
+const TEXT_SECONDARY = POCKET_COLORS.textSecondary;
+const TEXT_MUTED = POCKET_COLORS.textMuted;
+const WARN = POCKET_COLORS.warn;
 
-/** #RRGGBB → rgba 문자열 */
-function withAlpha(hex: string, alpha: number): string {
-  const value = hex.replace('#', '');
-  if (value.length !== 6) return hex;
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+type MessageTone = 'normal' | 'warning' | 'danger';
+const TONE_COLORS: Record<Exclude<MessageTone, 'normal'>, string> = {
+  warning: POCKET_COLORS.warn,
+  danger: POCKET_COLORS.danger,
+};
 
 export type PocketDirectionCardProps =
   | {
@@ -67,7 +64,7 @@ export type PocketDirectionCardProps =
     readonly icon: AppIconName;
     readonly title: string;
     readonly message: string;
-    readonly tone?: 'normal' | 'warning' | 'danger';
+    readonly tone?: MessageTone;
     readonly compact?: boolean;
   };
 
@@ -77,7 +74,7 @@ const DirectionTile: React.FC<{
   filled: boolean;
   compact?: boolean;
   onFilledColor?: string;
-}> = ({ icon, color, filled, compact, onFilledColor = '#06110C' }) => (
+}> = ({ icon, color, filled, compact, onFilledColor = POCKET_COLORS.onAccent }) => (
   <View
     style={[
       styles.tile,
@@ -89,51 +86,90 @@ const DirectionTile: React.FC<{
   </View>
 );
 
-const NavigateCard: React.FC<{ maneuver: PocketManeuver; accent: string; compact?: boolean }> = ({
-  maneuver, accent, compact,
-}) => {
+const FollowingRow: React.FC<{ step: ManeuverStep }> = ({ step }) => {
+  const distance = formatManeuverDistance(step.distanceM);
+  return (
+    <View style={styles.followingRow}>
+      <AppIcon name={DIRECTION_ICONS[step.direction]} size={15} color={TEXT_SECONDARY} strokeWidth={2.2} />
+      <Text style={styles.followingLabel}>그다음</Text>
+      <Text style={styles.followingText} numberOfLines={1}>{distance.value}{distance.unit} 후 {step.title}</Text>
+    </View>
+  );
+};
+
+const NavigateCard: React.FC<{ maneuver: PocketManeuver; accent: string; compact?: boolean }> = ({ maneuver, accent, compact }) => {
   const { current, following, progressRatio } = maneuver;
   const isImminent = current.distanceM <= MANEUVER_IMMINENT_DISTANCE_M;
   const distance = formatManeuverDistance(current.distanceM);
-  const followingDistance = following ? formatManeuverDistance(following.distanceM) : null;
-  const a11yLabel = `${distance.value}${distance.unit === 'km' ? '킬로미터' : '미터'} 후 ${current.title}. ${current.detail}`;
-
+  const unitLabel = distance.unit === 'km' ? '킬로미터' : '미터';
   return (
     <View
       style={[styles.card, compact && styles.cardCompact, isImminent && { borderColor: withAlpha(accent, 0.55) }]}
       accessibilityRole="summary"
       accessibilityLiveRegion="polite"
-      accessibilityLabel={a11yLabel}
+      accessibilityLabel={`${distance.value}${unitLabel} 후 ${current.title}. ${current.detail}`}
     >
       <View style={styles.mainRow}>
         <DirectionTile icon={DIRECTION_ICONS[current.direction]} color={accent} filled={isImminent} compact={compact} />
         <View style={styles.textColumn}>
           <View style={styles.distanceRow}>
-            <Text style={[styles.distanceValue, compact && styles.distanceValueCompact, isImminent && { color: accent }]}>
-              {distance.value}
-            </Text>
+            <Text style={[styles.distanceValue, compact && styles.distanceValueCompact, isImminent && { color: accent }]}>{distance.value}</Text>
             <Text style={styles.distanceUnit}>{distance.unit}</Text>
             <Text style={styles.maneuverTitle} numberOfLines={1}>{current.title}</Text>
           </View>
-          {current.detail ? (
-            <Text style={styles.detailText} numberOfLines={1}>{current.detail}</Text>
-          ) : null}
+          {current.detail ? <Text style={styles.detailText} numberOfLines={1}>{current.detail}</Text> : null}
         </View>
       </View>
-
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${Math.round(progressRatio * 100)}%`, backgroundColor: accent }]} />
       </View>
+      {following ? <FollowingRow step={following} /> : null}
+    </View>
+  );
+};
 
-      {following && followingDistance ? (
-        <View style={styles.followingRow}>
-          <AppIcon name={DIRECTION_ICONS[following.direction]} size={15} color={TEXT_SECONDARY} strokeWidth={2.2} />
-          <Text style={styles.followingLabel}>그다음</Text>
-          <Text style={styles.followingText} numberOfLines={1}>
-            {followingDistance.value}{followingDistance.unit} 후 {following.title}
-          </Text>
+type OffRouteProps = Extract<PocketDirectionCardProps, { variant: 'offRoute' }>;
+type MessageProps = Extract<PocketDirectionCardProps, { variant: 'message' }>;
+
+const OffRouteCard: React.FC<OffRouteProps> = ({ compact, actionLabel, onAction }) => (
+  <View style={[styles.card, compact && styles.cardCompact, { borderColor: withAlpha(WARN, 0.45) }]} accessibilityRole="alert">
+    <View style={styles.mainRow}>
+      <DirectionTile icon="refresh" color={WARN} filled={false} compact={compact} />
+      <View style={styles.textColumn}>
+        <Text style={styles.messageTitle}>경로를 벗어났어요</Text>
+        <Text style={styles.detailText} numberOfLines={2}>지도의 경로로 돌아오면 안내를 이어갈게요</Text>
+      </View>
+    </View>
+    {onAction ? (
+      <TouchableOpacity
+        accessibilityRole="button"
+        activeOpacity={0.8}
+        onPress={onAction}
+        style={[styles.inlineAction, { backgroundColor: withAlpha(WARN, 0.16) }]}
+      >
+        <AppIcon name="refresh" size={16} color={WARN} strokeWidth={2.2} />
+        <Text style={[styles.inlineActionText, { color: WARN }]}>{actionLabel ?? '경로 다시 만들기'}</Text>
+      </TouchableOpacity>
+    ) : null}
+  </View>
+);
+
+const MessageCard: React.FC<MessageProps> = ({ compact, accent, icon, title, message, tone }) => {
+  const isAlertTone = tone === 'warning' || tone === 'danger';
+  const toneColor = isAlertTone ? TONE_COLORS[tone] : accent;
+  return (
+    <View
+      style={[styles.card, compact && styles.cardCompact, isAlertTone ? { borderColor: withAlpha(toneColor, 0.45) } : null]}
+      accessibilityRole={isAlertTone ? 'alert' : 'summary'}
+      accessibilityLiveRegion="polite"
+    >
+      <View style={styles.mainRow}>
+        <DirectionTile icon={icon} color={toneColor} filled={false} compact={compact} />
+        <View style={styles.textColumn}>
+          <Text style={styles.messageTitle} numberOfLines={1}>{title}</Text>
+          <Text style={styles.detailText} numberOfLines={2}>{message}</Text>
         </View>
-      ) : null}
+      </View>
     </View>
   );
 };
@@ -142,55 +178,8 @@ export const PocketDirectionCard: React.FC<PocketDirectionCardProps> = (props) =
   if (props.variant === 'navigate') {
     return <NavigateCard maneuver={props.maneuver} accent={props.accent} compact={props.compact} />;
   }
-
-  if (props.variant === 'offRoute') {
-    return (
-      <View
-        style={[styles.card, props.compact && styles.cardCompact, { borderColor: withAlpha(WARN, 0.45) }]}
-        accessibilityRole="alert"
-      >
-        <View style={styles.mainRow}>
-          <DirectionTile icon="refresh" color={WARN} filled={false} compact={props.compact} />
-          <View style={styles.textColumn}>
-            <Text style={styles.messageTitle}>경로를 벗어났어요</Text>
-            <Text style={styles.detailText} numberOfLines={2}>지도의 경로로 돌아오면 안내를 이어갈게요</Text>
-          </View>
-        </View>
-        {props.onAction ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.8}
-            onPress={props.onAction}
-            style={[styles.inlineAction, { backgroundColor: withAlpha(WARN, 0.16) }]}
-          >
-            <AppIcon name="refresh" size={16} color={WARN} strokeWidth={2.2} />
-            <Text style={[styles.inlineActionText, { color: WARN }]}>{props.actionLabel ?? '경로 다시 만들기'}</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    );
-  }
-
-  const toneColor = props.tone === 'danger' ? DANGER : props.tone === 'warning' ? WARN : props.accent;
-  return (
-    <View
-      style={[
-        styles.card,
-        props.compact && styles.cardCompact,
-        props.tone && props.tone !== 'normal' ? { borderColor: withAlpha(toneColor, 0.45) } : null,
-      ]}
-      accessibilityRole={props.tone && props.tone !== 'normal' ? 'alert' : 'summary'}
-      accessibilityLiveRegion="polite"
-    >
-      <View style={styles.mainRow}>
-        <DirectionTile icon={props.icon} color={toneColor} filled={false} compact={props.compact} />
-        <View style={styles.textColumn}>
-          <Text style={styles.messageTitle} numberOfLines={1}>{props.title}</Text>
-          <Text style={styles.detailText} numberOfLines={2}>{props.message}</Text>
-        </View>
-      </View>
-    </View>
-  );
+  if (props.variant === 'offRoute') return <OffRouteCard {...props} />;
+  return <MessageCard {...props} />;
 };
 
 const styles = StyleSheet.create({
@@ -240,7 +229,7 @@ const styles = StyleSheet.create({
   followingText: { flexShrink: 1, color: TEXT_SECONDARY, fontSize: 13, fontWeight: '600' },
   inlineAction: {
     marginTop: 12,
-    minHeight: 44,
+    minHeight: POCKET_TOUCH_TARGET,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
