@@ -38,9 +38,12 @@ from agent.park_walk_planner import plan_park_walk
 from agent.park_route_validation import RoutePlanningError, validate_park_route
 from agent.preference_loop_planner import LoopQuery, plan_preference_loops
 from agent.walk_graph_provider import walk_graph_for_loop
+from services.route_exposure import measure_route_exposure
 from services.walk_preferences import WalkPreferences
 
 logger = logging.getLogger(__name__)
+
+MAX_MAJOR_ROAD_RATIO_FOR_QUIET = 0.15
 
 # 후보 코스별 순환 방향(방위각). 서로 다른 방향의 도로망을 탐색해 대안을 확보한다.
 VARIANT_BEARINGS: Dict[int, float] = {1: 30.0, 2: 150.0, 3: 270.0}
@@ -371,6 +374,24 @@ def _plan_offline_network(
     return _to_plan(coords, "offline_network")
 
 
+def _is_traffic_acceptable(
+    coords: List[List[float]],
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    preferences: Optional[WalkPreferences],
+) -> bool:
+    """차가 적은 길 옵션이 켜져 있을 때 큰길 노출도가 기준치 이하인지 판정."""
+    if not preferences or not preferences.avoid_traffic:
+        return True
+    walk = walk_graph_for_loop(origin_lat, origin_lon, target_distance_m)
+    if walk is None:
+        return True
+    exposure = measure_route_exposure(coords, walk)
+    major = exposure.get("major_road_ratio")
+    return major is None or major <= MAX_MAJOR_ROAD_RATIO_FOR_QUIET
+
+
 def _plan_variant(
     origin_lat: float,
     origin_lon: float,
@@ -403,7 +424,11 @@ def _plan_variant(
         bearing_offset=bearing_offset, relaxed_sink=relaxed
     )
     if plan is not None:
-        return plan
+        if _is_traffic_acceptable(plan.coords, origin_lat, origin_lon, target_distance_m, preferences):
+            return plan
+        logger.info("OSRM 실시간 경로(variant=%d)가 큰길을 통과하여 다른 방위각으로 재탐색합니다.", variant)
+        relaxed.append((0.20, plan.coords))
+        plan = None
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
 
     offline_target = target_distance_m * {1: 1.0, 2: 1.2, 3: 1.1}[variant]
@@ -421,7 +446,10 @@ def _plan_variant(
             origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0, relaxed_sink=relaxed
         )
         if plan is not None:
-            return plan
+            if _is_traffic_acceptable(plan.coords, origin_lat, origin_lon, target_distance_m, preferences):
+                return plan
+            relaxed.append((0.25, plan.coords))
+            plan = None
     if relaxed:
         # 엄격 조건을 맞춘 길이 끝내 없으면, 지금까지 계산해 본 것 중 덜 나쁜 실제 도로 순환을 쓴다 (직사각형보다 낫다).
         _, coords = min(relaxed, key=lambda item: item[0])

@@ -68,12 +68,21 @@ def _weight(costs: Costs, used: Set[frozenset]):
     return weight
 
 
-def _snap(walk: WalkGraph, component: Set[Node], lonlat: Tuple[float, float]) -> Optional[Node]:
+def _snap(walk: WalkGraph, component: Set[Node], lonlat: Tuple[float, float], avoid_traffic: bool = False) -> Optional[Node]:
     for radius in WAYPOINT_SNAP_M:
         xy = walk.projection.to_xy(lonlat)
         nodes = [n for n in walk.node_grid.within(xy, radius) if n in component]
         if nodes:
-            return min(nodes, key=lambda n: haversine_m(lonlat, n))
+            if not avoid_traffic:
+                return min(nodes, key=lambda n: haversine_m(lonlat, n))
+            def snap_cost(n: Node) -> float:
+                d = haversine_m(lonlat, n)
+                is_major = any(
+                    (walk.graph.get_edge_data(n, nbr) or {}).get("road_context") == "major"
+                    for nbr in walk.graph[n]
+                )
+                return d + (80.0 if is_major else 0.0)
+            return min(nodes, key=snap_cost)
     return None
 
 
@@ -97,13 +106,14 @@ class _SearchContext:
     costs: Costs
     component: Set[Node]
     start: Node
+    prefs: WalkPreferences
 
 
 def _loop_for_radius(ctx: _SearchContext, bearing: float, radius_m: float) -> Optional[List[Node]]:
     stops = [ctx.start]
     for offset in (-WAYPOINT_SPREAD_DEG, WAYPOINT_SPREAD_DEG):
         lat, lon = destination_point(ctx.start[1], ctx.start[0], (bearing + offset) % 360.0, radius_m)
-        node = _snap(ctx.walk, ctx.component, (lon, lat))
+        node = _snap(ctx.walk, ctx.component, (lon, lat), avoid_traffic=ctx.prefs.avoid_traffic)
         if node is None or node in stops:
             return None
         stops.append(node)
@@ -178,7 +188,7 @@ def plan_preference_loops(walk: WalkGraph, query: LoopQuery) -> Dict[int, GraphL
     if found_start is None:
         return {}
     start, component = found_start
-    ctx = _SearchContext(walk, _prepare_costs(walk.graph, query.prefs), component, start)
+    ctx = _SearchContext(walk, _prepare_costs(walk.graph, query.prefs), component, start, query.prefs)
     park_bearing = _park_bearing(walk, start, query.prefs)
     nonce = query.regenerate_nonce
     loops: Dict[int, GraphLoop] = {}
