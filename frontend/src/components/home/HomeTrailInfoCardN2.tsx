@@ -58,10 +58,20 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   // (예: 비가 와서 42점인데 '지금 산책하기 좋아요'가 뜨던 문제).
   const surfaceTemp = weather?.current_surface_temp ?? DEFAULT_SURFACE_TEMP;
   const isGoodToWalk = isGoodWalkScore(walkQuotient.score);
+  // 실데이터(기상청/에어코리아 실시간 응답)와 폴백(추정치)을 문구·배지에서 구분한다.
+  const isVirtualWeather = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const surfaceTempPhrase = isVirtualWeather
+    ? `${surfaceTemp.toFixed(1)}℃로 추정돼요`
+    : `${surfaceTemp.toFixed(1)}℃로 측정됐어요`;
   const weatherNotice = isGoodToWalk
-    ? `노면 온도 ${surfaceTemp.toFixed(1)}℃로 쾌적해요!\n산책하기 좋은 시간이에요.`
-    : `노면 온도 ${surfaceTemp.toFixed(1)}℃ (${walkQuotient.statusLabel})\n${walkQuotient.statusTitle}`;
+    ? `노면 온도가 ${surfaceTempPhrase}!\n산책하기 좋은 시간이에요.`
+    : `노면 온도가 ${surfaceTempPhrase}. (${walkQuotient.statusLabel})\n${walkQuotient.statusTitle}`;
   const walkBadgeText = isGoodToWalk ? '✨ 지금 산책하기 좋아요' : `⚠️ ${walkQuotient.statusLabel}`;
+  const sourceTagText = isLoadingWeather
+    ? null
+    : isVirtualWeather
+      ? '⚠️ 예상치 (측정 불가)'
+      : '📡 실시간 측정';
 
   return (
     <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
@@ -105,10 +115,29 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
           <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
             {isLoadingWeather ? '산책 날씨를 확인하고 있어요...' : weatherNotice}
           </Text>
-          <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
-              {walkBadgeText}
-            </Text>
+          <View style={styles.badgeRow}>
+            <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
+                {walkBadgeText}
+              </Text>
+            </View>
+            {sourceTagText && (
+              <View
+                style={[
+                  styles.sourceTag,
+                  isVirtualWeather ? styles.sourceTagFallback : styles.sourceTagLive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sourceTagText,
+                    isVirtualWeather ? styles.sourceTagTextFallback : styles.sourceTagTextLive,
+                  ]}
+                >
+                  {sourceTagText}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -233,8 +262,15 @@ const styles = StyleSheet.create({
     lineHeight: 13,
   },
   trailDescription: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support, color: '#758579', fontWeight: '500', marginBottom: 4 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   goldenBadge: { alignSelf: 'flex-start', backgroundColor: '#E3ECE4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   goldenBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700', color: '#5A7361' },
+  sourceTag: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  sourceTagLive: { backgroundColor: 'rgba(37, 99, 235, 0.08)', borderColor: 'rgba(37, 99, 235, 0.25)' },
+  sourceTagFallback: { backgroundColor: 'rgba(217, 119, 6, 0.10)', borderColor: 'rgba(217, 119, 6, 0.3)' },
+  sourceTagText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
+  sourceTagTextLive: { color: '#2563EB' },
+  sourceTagTextFallback: { color: '#B45309' },
   // 산책 지수 UI 스타일
   walkIndexWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 48, marginLeft: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
