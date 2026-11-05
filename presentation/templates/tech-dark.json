@@ -1,0 +1,38 @@
+{
+  "id": "tech-dark",
+  "name": "Tech Dark (테크 다크)",
+  "description": "딥 네이비/슬레이트 배경과 네온 시안·바이올렛 포인트를 사용한 현대적인 기술 발표·스타트업 피치용 템플릿",
+  "layout": "16x9",
+  "fonts": {
+    "title": "Pretendard",
+    "fallbackTitle": "Segoe UI",
+    "body": "Pretendard",
+    "fallbackBody": "Segoe UI",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "0B0F19",
+    "surface": "151E2E",
+    "surfaceSubtle": "1E293B",
+    "border": "26354D",
+    "borderActive": "38BDF8",
+    "primary": "06B6D4",
+    "accent": "38BDF8",
+    "accentLight": "083344",
+    "secondary": "8B5CF6",
+    "secondaryLight": "2E1065",
+    "textPrimary": "F8FAFC",
+    "textSecondary": "CBD5E1",
+    "textMuted": "94A3B8",
+    "textInverse": "0B0F19",
+    "badgeBg": "164E63",
+    "badgeText": "7DD3FC",
+    "highlightBg": "312E81",
+    "highlightText": "C7D2FE"
+  },
+  "metrics": {
+    "cardRadius": 0.15,
+    "badgeRadius": 0.08
+  }
+}
+

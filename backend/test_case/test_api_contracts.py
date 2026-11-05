@@ -49,12 +49,14 @@ def apply_spatial_masking_to_course(
     coordinates: List[List[float]],
     masking_radius_m: float = 200.0,
     snap_to_intersection: bool = False,
+    privacy_anchors: Optional[List[List[float]]] = None,
 ) -> Dict[str, Any]:
     """[US-G2] 출발지 및 도착지 반경 200m 공간 절단 및 교차로(Node) 스냅 마스킹 함수."""
     return _core_apply_spatial_masking(
         coordinates,
         masking_radius_m=masking_radius_m,
         snap_to_intersection=snap_to_intersection,
+        privacy_anchors=privacy_anchors,
     )
 
 
@@ -88,6 +90,9 @@ class CommunityCourseShareRequest(BaseModel):
     raw_coordinates: List[List[float]] = Field(..., min_length=4)
     satisfaction_rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
+    # 실제 산책 시작·완료 지점 [lon, lat]. 좌표열 양 끝과 별개로 이 지점 반경 200m 도 가린다 (경로 이탈 재탐색 대비).
+    walk_start_point: Optional[List[float]] = None
+    walk_end_point: Optional[List[float]] = None
 
 
 class CommunityCourseSummary(BaseModel):

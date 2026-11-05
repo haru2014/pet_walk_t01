@@ -1,5 +1,5 @@
 import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { HeatRiskResponse } from '../../types/weather';
@@ -8,24 +8,19 @@ import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { WeeklyWalkStats } from '../../services/walkStatisticsService';
 import { useAppTheme } from '../../theme/themeManager';
 import { WeeklyWalkStampCard } from './WeeklyWalkStampCard';
+import { DEFAULT_SURFACE_TEMP, computeWalkQuotient } from '../../services/walkQuotient';
 import trees01Img from '../../../assets/ui_n2/trees_01.png';
 import bushImg from '../../../assets/ui_n2/bush.png';
 
-function computeWalkIndex(weather: HeatRiskResponse | null): { score: number; grade: string } {
-  if (!weather) return { score: 92, grade: '매우 좋음' };
-  const temp = weather.current_surface_temp ?? 25.0;
-  if (weather.current_risk_level === 'DANGER' || temp > 45) return { score: 38, grade: '주의' };
-  if (weather.current_risk_level === 'CAUTION' || temp > 35) return { score: 65, grade: '보통' };
-  if ((weather.pop ?? 0) >= 60) return { score: 62, grade: '보통' };
-  if (weather.is_current_golden && temp <= 28) {
-    const s = Math.max(90, Math.min(98, Math.round(96 - Math.abs(temp - 24) * 1.5)));
-    return { score: s, grade: '매우 좋음' };
-  }
-  return { score: 85, grade: '좋음' };
+/** 이 점수 이상이면 '지금 산책하기 좋아요'로 안내한다 (산책 지수 '좋음' 구간: 88·100점). */
+export const GOOD_WALK_SCORE = 85;
+
+export function isGoodWalkScore(score: number): boolean {
+  return score >= GOOD_WALK_SCORE;
 }
 
-function resolveTrailAuraColor(isGolden: boolean, isDark: boolean): string {
-  if (isGolden) {
+function resolveTrailAuraColor(isGoodToWalk: boolean, isDark: boolean): string {
+  if (isGoodToWalk) {
     return isDark ? 'rgba(52, 211, 153, 0.12)' : 'rgba(207, 160, 82, 0.16)';
   }
   return isDark ? 'rgba(245, 158, 11, 0.10)' : 'rgba(90, 115, 97, 0.10)';
@@ -55,13 +50,18 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   const { theme, colors } = useAppTheme();
   const isDark = theme === 'dark';
 
-  const surfaceTemp = weather?.current_surface_temp ?? 24.8;
-  const isGolden = weather?.is_current_golden ?? true;
-  const weatherNotice = isGolden
-    ? `노면 온도 ${surfaceTemp.toFixed(1)}℃로 시원해요!\n산책하기 좋은 시간이에요.`
-    : `노면 온도 ${surfaceTemp.toFixed(1)}℃ (주의)\n그늘 숲길과 서늘한 시간대를 추천해요.`;
+  // 상세보기(WeatherDetailModal)와 같은 계산식(SSOT)을 써야 두 화면의 산책 점수·상태가 일치한다.
+  const walkQuotient = useMemo(() => computeWalkQuotient(weather), [weather]);
+  const walkIndex = { score: walkQuotient.score, grade: walkQuotient.statusLabel };
 
-  const walkIndex = computeWalkIndex(weather);
+  // 안내 문구·배지·오라도 골든타임 여부가 아니라 같은 산책 점수로 정해야 점수와 어긋나지 않는다
+  // (예: 비가 와서 42점인데 '지금 산책하기 좋아요'가 뜨던 문제).
+  const surfaceTemp = weather?.current_surface_temp ?? DEFAULT_SURFACE_TEMP;
+  const isGoodToWalk = isGoodWalkScore(walkQuotient.score);
+  const weatherNotice = isGoodToWalk
+    ? `노면 온도 ${surfaceTemp.toFixed(1)}℃로 쾌적해요!\n산책하기 좋은 시간이에요.`
+    : `노면 온도 ${surfaceTemp.toFixed(1)}℃ (${walkQuotient.statusLabel})\n${walkQuotient.statusTitle}`;
+  const walkBadgeText = isGoodToWalk ? '✨ 지금 산책하기 좋아요' : `⚠️ ${walkQuotient.statusLabel}`;
 
   return (
     <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
@@ -89,7 +89,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
           style={[
             styles.trailAuraGlow,
             {
-              backgroundColor: resolveTrailAuraColor(isGolden, isDark),
+              backgroundColor: resolveTrailAuraColor(isGoodToWalk, isDark),
             },
           ]}
         />
@@ -107,7 +107,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
           </Text>
           <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
-              {isGolden ? '✨ 지금 산책하기 좋아요' : '⚠️ 서늘한 그늘길을 추천해요'}
+              {walkBadgeText}
             </Text>
           </View>
         </View>

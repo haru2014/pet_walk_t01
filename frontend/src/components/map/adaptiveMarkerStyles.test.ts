@@ -1,10 +1,49 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ADAPTIVE_MARKER_CSS,
+  DIRECTION_MARKER_COLOR,
+  MIN_DETAIL_SEPARATION_PX,
   ZOOM_THRESHOLD_DETAIL,
   ensureAdaptiveMarkerStyles,
+  getDirectionMarkerPositions,
+  minMarkerSeparationPx,
+  shouldUseDetailMarkers,
   updateMarkerZoomMode,
 } from './adaptiveMarkerStyles';
+
+/** 웹 메르카토르 투영을 흉내 내는 테스트용 지도 (줌에 따라 화면 거리 2배씩 증가) */
+function createProjectingMap(zoom: number) {
+  const worldSize = 512 * 2 ** zoom;
+  return {
+    getZoom: () => zoom,
+    project: ([lng, lat]: [number, number]) => {
+      const x = ((lng + 180) / 360) * worldSize;
+      const sin = Math.sin((lat * Math.PI) / 180);
+      const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize;
+      return { x, y };
+    },
+  };
+}
+
+function createClassContainer(initial: string[] = []) {
+  const classes = new Set<string>(initial);
+  return {
+    classes,
+    classList: {
+      add: (c: string) => classes.add(c),
+      remove: (c: string) => classes.delete(c),
+      contains: (c: string) => classes.has(c),
+    },
+  };
+}
+
+// 세종 중앙공원 부근, 동서로 약 32m(방향 마커 최소 간격) 떨어진 두 마커
+const LAT = 36.4315;
+const METERS_PER_DEG_LNG = 111320 * Math.cos((LAT * Math.PI) / 180);
+const MARKERS_32M_APART: [number, number][] = [
+  [127.38, LAT],
+  [127.38 + 32 / METERS_PER_DEG_LNG, LAT],
+];
 
 describe('적응형 하이브리드 방향 마커 스타일 및 줌 제어 (adaptiveMarkerStyles)', () => {
   const globalWithDoc = globalThis as unknown as { document?: any };
@@ -93,5 +132,51 @@ describe('적응형 하이브리드 방향 마커 스타일 및 줌 제어 (adap
     updateMarkerZoomMode(map, container as any);
     expect(classes.has('zoom-compact-markers')).toBe(false);
   });
-});
 
+  describe('#319 겹침 기반 상세 마커 전환', () => {
+    it('줌 >= 14.5 라도 32m 간격 마커가 화면에서 겹치면 원거리 마커를 유지한다', () => {
+      const map = createProjectingMap(15);
+      expect(minMarkerSeparationPx(MARKERS_32M_APART, map.project)).toBeLessThan(MIN_DETAIL_SEPARATION_PX);
+      expect(shouldUseDetailMarkers(map, MARKERS_32M_APART)).toBe(false);
+
+      const container = createClassContainer();
+      updateMarkerZoomMode(map, container as any, MARKERS_32M_APART);
+      expect(container.classes.has('zoom-compact-markers')).toBe(true);
+    });
+
+    it('마커가 겹치지 않을 만큼 확대되면 상세 마커로 전환된다', () => {
+      const map = createProjectingMap(18);
+      expect(minMarkerSeparationPx(MARKERS_32M_APART, map.project)).toBeGreaterThanOrEqual(MIN_DETAIL_SEPARATION_PX);
+      expect(shouldUseDetailMarkers(map, MARKERS_32M_APART)).toBe(true);
+
+      const container = createClassContainer(['zoom-compact-markers']);
+      updateMarkerZoomMode(map, container as any, MARKERS_32M_APART);
+      expect(container.classes.has('zoom-compact-markers')).toBe(false);
+    });
+
+    it('간격이 넉넉해도 줌 하한(14.5) 미만이면 원거리 마커를 유지한다', () => {
+      const farApart: [number, number][] = [[127.30, LAT], [127.45, LAT]];
+      expect(shouldUseDetailMarkers(createProjectingMap(14), farApart)).toBe(false);
+    });
+
+    it('같은 지점에 포개진 마커(순환 코스 중복)는 겹침 판정에서 제외한다', () => {
+      const map = createProjectingMap(16);
+      const stacked: [number, number][] = [[127.38, LAT], [127.38, LAT]];
+      expect(minMarkerSeparationPx(stacked, map.project)).toBe(Infinity);
+      expect(shouldUseDetailMarkers(map, stacked)).toBe(true);
+    });
+
+    it('방향 마커 핀의 좌표만 추린다', () => {
+      const positions = getDirectionMarkerPositions([
+        { position: [127.1, 36.1], directionMarker: true },
+        { position: [127.2, 36.2] },
+        { position: [127.3, 36.3], directionMarker: true },
+      ]);
+      expect(positions).toEqual([[127.1, 36.1], [127.3, 36.3]]);
+    });
+
+    it('방향 마커 공통 색상은 원거리 마커 색(#26352B)이다', () => {
+      expect(DIRECTION_MARKER_COLOR).toBe('#26352B');
+    });
+  });
+});

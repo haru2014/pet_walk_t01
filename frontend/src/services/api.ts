@@ -218,6 +218,8 @@ export async function requestWalkPlan(
           ...c,
           lapCount: c.lapCount ?? (c as any).lap_count,
           lapCycleMeters: c.lapCycleMeters ?? (c as any).lap_cycle_meters,
+          loopEntryPoint: c.loopEntryPoint ?? (c as any).loop_entry_point ?? null,
+          approachDistanceM: c.approachDistanceM ?? (c as any).approach_distance_m ?? null,
           notice: c.notice,
           score,
           profile,

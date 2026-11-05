@@ -1,0 +1,45 @@
+{
+  "id": "warm-pastel",
+  "name": "Warm Pastel / Sorbet (소르베 파스텔)",
+  "description": "라일락, 피치, 민트, 버터 파스텔 색조와 둥근 모서리가 돋보이는 친근하고 창의적인 발표용 템플릿",
+  "layout": "16x9",
+  "supportedLayouts": [
+    "16x9",
+    "4x3"
+  ],
+  "fonts": {
+    "title": "Baloo 2",
+    "fallbackTitle": "Pretendard",
+    "body": "Quicksand",
+    "fallbackBody": "Pretendard",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "FBF7FB",
+    "surface": "FFFFFF",
+    "surfaceSubtle": "F9F5FA",
+    "border": "ECE3F0",
+    "borderActive": "C4B5D4",
+    "primary": "9B6FBF",
+    "accent": "9B6FBF",
+    "accentLight": "F4EDF7",
+    "secondary": "F2A6B3",
+    "secondaryLight": "FBEFF1",
+    "tertiary": "8FD0C4",
+    "tertiaryLight": "EFF8F5",
+    "quaternary": "F4D58D",
+    "quaternaryLight": "FBF6E8",
+    "textPrimary": "4A3A5C",
+    "textSecondary": "6A5E76",
+    "textMuted": "A99FB3",
+    "textInverse": "FFFFFF",
+    "badgeBg": "F4EDF7",
+    "badgeText": "9B6FBF",
+    "highlightBg": "FBF6E8",
+    "highlightText": "B45309"
+  },
+  "metrics": {
+    "cardRadius": 0.25,
+    "badgeRadius": 0.12
+  }
+}

@@ -217,11 +217,34 @@ export function getShareBlockMessage(record: Pick<WalkRecord, 'gpsTrack' | 'isSi
   return null;
 }
 
+/** 공유 시 반드시 200m 를 가릴 실제 산책 시작·완료 지점 [lon, lat] */
+export interface SharePrivacyAnchors {
+  readonly start?: readonly [number, number] | null;
+  readonly end?: readonly [number, number] | null;
+}
+
+/**
+ * 기록에서 개인정보 보호 기준점(산책 시작·완료 지점)을 정한다.
+ * 기록된 시작·완료 지점이 있으면 그것을, 없으면(이전 기록) GPS 궤적의 첫·끝 점을 쓴다.
+ */
+export function resolveSharePrivacyAnchors(
+  record: Pick<WalkRecord, 'gpsTrack' | 'walkStartPoint' | 'walkEndPoint'>,
+): SharePrivacyAnchors {
+  const track = record.gpsTrack ?? [];
+  const first = track[0];
+  const last = track[track.length - 1];
+  return {
+    start: record.walkStartPoint ?? (first ? [first.lon, first.lat] : null),
+    end: record.walkEndPoint ?? (last ? [last.lon, last.lat] : null),
+  };
+}
+
 export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
   userId?: string,
+  privacyAnchors?: SharePrivacyAnchors,
 ): Promise<{ success: boolean; is_supabase?: boolean; errorMessage?: string }> {
   try {
     const res = await fetchWithServerFallback('/api/v1/community/share', {
@@ -232,6 +255,9 @@ export async function shareCommunityCourse(
         course_title: title,
         raw_coordinates: rawCoordinates,
         satisfaction_rating: rating,
+        // 경로 이탈 재탐색과 관계없이 실제 산책 시작·완료 지점 반경 200m 를 가리도록 서버에 알린다.
+        walk_start_point: privacyAnchors?.start ?? undefined,
+        walk_end_point: privacyAnchors?.end ?? undefined,
       }),
     });
     if (res.ok) {

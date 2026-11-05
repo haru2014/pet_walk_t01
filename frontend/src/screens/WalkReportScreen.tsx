@@ -22,6 +22,7 @@ import { ShareCourseModal } from '../components/community/ShareCourseModal';
 import {
   EMPTY_GPS_TRACK_SHARE_MESSAGE,
   getShareBlockMessage,
+  resolveSharePrivacyAnchors,
   shareCommunityCourse,
   toShareCoordinates,
 } from '../services/communityApi';
@@ -132,7 +133,7 @@ export const WalkReportScreen: React.FC<WalkReportScreenProps> = ({
     }
     setIsSharing(true);
     try {
-      const res = await shareCommunityCourse(title, rawCoords, rating, user.id);
+      const res = await shareCommunityCourse(title, rawCoords, rating, user.id, resolveSharePrivacyAnchors(record));
       setIsSharing(false);
       setShowShareModal(false);
 

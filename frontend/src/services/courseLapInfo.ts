@@ -28,8 +28,42 @@ function coordKey(coord: LonLat): string {
   return `${coord[0].toFixed(6)},${coord[1].toFixed(6)}`;
 }
 
+/**
+ * 경로 구간(feature)들을 하나의 좌표열로 잇는다.
+ * 서버는 노면·경사·온도가 바뀌는 곳마다 구간을 나누고, 다음 구간의 첫 점에 앞 구간의 끝점을 다시 넣는다
+ * (build_segmented_geojson). 그대로 이으면 구간 경계 좌표가 한 번 더 세어져 순환 진입점(바퀴 수 + 1번 지나는 점)을
+ * 놓치므로, 바로 앞 좌표와 같은 점은 한 번만 넣는다.
+ */
 function flattenCoordinates(route: RouteFeatureCollection): LonLat[] {
-  return route.features.flatMap((feature) => feature.geometry.coordinates.map((c) => [c[0], c[1]] as LonLat));
+  const coords: LonLat[] = [];
+  route.features.forEach((feature) => {
+    feature.geometry.coordinates.forEach((c) => {
+      const point: LonLat = [c[0], c[1]];
+      const previous = coords[coords.length - 1];
+      if (previous && coordKey(previous) === coordKey(point)) return;
+      coords.push(point);
+    });
+  });
+  return coords;
+}
+
+/** 서버가 알려 준 순환 정보 (있으면 좌표 추정보다 우선한다) */
+export interface ServerLoopHint {
+  readonly loopEntryPoint?: readonly [number, number] | null;
+  readonly approachDistanceM?: number | null;
+}
+
+function nearestIndex(coords: readonly LonLat[], target: readonly [number, number]): number {
+  let best = 0;
+  let bestDistance = Infinity;
+  coords.forEach((coord, index) => {
+    const distance = Math.hypot(coord[0] - target[0], coord[1] - target[1]);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
 }
 
 /**
@@ -40,10 +74,27 @@ export function analyzeCourseLaps(
   route: RouteFeatureCollection,
   lapCount?: number,
   lapCycleMeters?: number | null,
+  serverHint?: ServerLoopHint,
 ): CourseLapInfo | null {
   if (!lapCount || lapCount < 2) return null;
   const coords = flattenCoordinates(route);
   if (coords.length < 3) return null;
+
+  // 1순위: 서버가 계산한 순환 진입점·진입 거리를 그대로 쓴다 (좌표 모양으로 추정하지 않음).
+  const serverEntry = serverHint?.loopEntryPoint;
+  if (serverEntry && serverEntry.length >= 2 && lapCycleMeters && lapCycleMeters > 0) {
+    const entryIndex = nearestIndex(coords, serverEntry);
+    const serverApproach = serverHint?.approachDistanceM;
+    return {
+      lapCount,
+      lapCycleMeters,
+      approachMeters: typeof serverApproach === 'number' && serverApproach >= 0
+        ? serverApproach
+        : polylineLengthMeters(coords.slice(0, entryIndex + 1)),
+      entry: [serverEntry[0], serverEntry[1]],
+      totalMeters: polylineLengthMeters(coords),
+    };
+  }
 
   const counts = new Map<string, number>();
   coords.forEach((coord) => {
