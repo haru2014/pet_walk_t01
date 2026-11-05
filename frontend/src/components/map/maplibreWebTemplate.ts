@@ -29,7 +29,16 @@ export interface BuildMapLibreHtmlOptions {
   /** Camera target used when no route geometry is available yet. */
   readonly initialCenter?: LonLat;
   readonly interactive?: boolean;
+  /** fitBounds 여백(px). 지도 위 오버레이가 경로를 가리지 않도록 방향별 지정 가능 */
+  readonly fitPadding?: MapFitPadding;
 }
+
+export type MapFitPadding = number | {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+};
 
 /**
  * 200m 마스킹 원 GeoJSON 다각형 좌표열 생성 헬퍼
@@ -66,6 +75,7 @@ export function buildMapLibreHtml({
   maskingCenter,
   initialCenter,
   interactive = true,
+  fitPadding = 40,
 }: BuildMapLibreHtmlOptions): string {
   // 마스킹 원 GeoJSON 생성
   const maskingFeature = maskingCenter
@@ -91,6 +101,7 @@ export function buildMapLibreHtml({
     maskingCenter,
     initialCenter,
     interactive,
+    fitPadding,
     styleLoadTimeoutMs: STYLE_LOAD_TIMEOUT_MS,
   });
 
@@ -257,7 +268,7 @@ export function buildMapLibreHtml({
         mapLoaded = true;
         const loadedBounds = computeBounds(currentRoute);
         if (loadedBounds) {
-          map.fitBounds(loadedBounds, { padding: 40, duration: 600 });
+          map.fitBounds(loadedBounds, { padding: payload.fitPadding ?? 40, duration: 600 });
           updateMarkerZoomMode();
         }
         postToReactNative('MAP_LOADED', { ok: true });
@@ -555,7 +566,7 @@ export function buildMapLibreHtml({
               initMarkers(currentPins, currentRoute, currentRouteColors);
             }
             const b = computeBounds(msg.route);
-            if (b && !userInteractedWithMap) map.fitBounds(b, { padding: 40, duration: 600 });
+            if (b && !userInteractedWithMap) map.fitBounds(b, { padding: payload.fitPadding ?? 40, duration: 600 });
           }
         } catch(e) {}
       }

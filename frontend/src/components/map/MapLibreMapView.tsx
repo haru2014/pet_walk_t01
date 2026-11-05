@@ -17,7 +17,7 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
 import { useMapThemeStyle } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS, isStyleLoadError, resolveFallbackStyle } from '../../constants/mapFallback';
 import { useMapFallbackTier } from '../../hooks/useMapFallbackTier';
-import { buildMapLibreHtml } from './maplibreWebTemplate';
+import { buildMapLibreHtml, MapFitPadding } from './maplibreWebTemplate';
 import { disposeWebMap, removeHandles } from './webMapLifecycle';
 import { MarkerConstructor, renderWebMarkers } from './webMapMarkers';
 import { registerMissingStyleImageResolver } from './missingStyleImageResolver';
@@ -70,6 +70,8 @@ export interface MapLibreMapViewProps {
   readonly onMapLoaded?: () => void;
   readonly style?: StyleProp<ViewStyle>;
   readonly interactive?: boolean;
+  /** 경로 fitBounds 여백(px). 기본 40 */
+  readonly fitPadding?: MapFitPadding;
 }
 
 export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
@@ -84,6 +86,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   onMapLoaded,
   style,
   interactive = true,
+  fitPadding = 40,
 }) => {
   const { mapStyleUrl, routeColors, appColors } = useMapThemeStyle();
   const isWeb = Platform.OS === 'web';
@@ -105,15 +108,17 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const latestMaskingCenterRef = useRef(maskingCenter);
   const latestOnMapLoadedRef = useRef(onMapLoaded);
   const latestOnPinSelectRef = useRef(onPinSelect);
+  const latestFitPaddingRef = useRef(fitPadding);
   const userInteractedWithMapRef = useRef(false);
   useEffect(() => {
     latestRouteRef.current = route;
     latestPinsRef.current = directionalPins;
     latestRouteColorsRef.current = routeColors;
     latestMaskingCenterRef.current = maskingCenter;
+    latestFitPaddingRef.current = fitPadding;
     latestOnMapLoadedRef.current = onMapLoaded;
     latestOnPinSelectRef.current = onPinSelect;
-  }, [route, directionalPins, routeColors, maskingCenter, onMapLoaded, onPinSelect]);
+  }, [route, directionalPins, routeColors, maskingCenter, onMapLoaded, onPinSelect, fitPadding]);
 
   // 모든 좌표 Bounding Box 계산
   const routeBounds = useMemo(() => getRouteBounds(route), [route]);
@@ -260,7 +265,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
           // 4. 카메라 Bounding Box 피팅
           const initialBounds = getRouteBounds(currentRoute);
           if (initialBounds) {
-            mapInstance.fitBounds(initialBounds, { padding: 40, duration: 600 });
+            mapInstance.fitBounds(initialBounds, { padding: latestFitPaddingRef.current, duration: 600 });
           }
 
           webMarkersRef.current = renderWebMarkers(
@@ -310,11 +315,11 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     void updateMarkers();
     updateMarkerZoomMode(map, webContainerRef.current, getDirectionMarkerPositions(directionalPins));
     if (routeBounds && !userInteractedWithMapRef.current) {
-      map.fitBounds(routeBounds, { padding: 40, duration: 700 });
+      map.fitBounds(routeBounds, { padding: fitPadding, duration: 700 });
     } else if (initialCenter ?? maskingCenter) {
       map.setCenter(initialCenter ?? maskingCenter!);
     }
-  }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, initialCenter, onPinSelect]);
+  }, [isWeb, route, routeBounds, directionalPins, routeColors, maskingCenter, initialCenter, onPinSelect, fitPadding]);
 
   // ============================================================================
   // 2. 모바일 환경 (Android / iOS) - react-native-webview 브릿지
@@ -324,7 +329,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const [htmlSource] = useState(() => {
     if (isWeb) return '';
     return buildMapLibreHtml({
-      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, initialCenter, interactive,
+      styleUrl: mapStyleUrl, route, stepPins: directionalPins, routeColors, maskingCenter, initialCenter, interactive, fitPadding,
     });
   });
   const mobileMapLoadedRef = useRef(false);
@@ -391,7 +396,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: 16,
+            borderRadius: (StyleSheet.flatten(style)?.borderRadius as number | undefined) ?? 16,
             overflow: 'hidden',
           }}
         />
