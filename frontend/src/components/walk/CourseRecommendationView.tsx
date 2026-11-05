@@ -25,7 +25,6 @@ import { CoursePlan } from '../../types/bookmark';
 import { DogProfile, toWalkDogSummary } from '../../types/dogProfile';
 import { formatStairsCountLabel, RecommendedCourse, WalkPreferences } from '../../types/walkSettings';
 import { RouteMapView } from '../map/RouteMapView';
-import Svg, { Polyline } from 'react-native-svg';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 import { PlanSourceBadge } from './PlanSourceBadge';
 import { BookmarkToggleButton } from '../bookmark/BookmarkToggleButton';
@@ -339,72 +338,7 @@ interface CourseChipRowProps {
   routeForCourse: (course: RecommendedCourse, index: number) => RouteFeatureCollection | undefined;
 }
 
-const CoursePreviewLine: React.FC<{
-  route?: RouteFeatureCollection;
-  color: string;
-  surfaceColor: string;
-  borderColor: string;
-}> = ({ route, color, surfaceColor, borderColor }) => {
-  const coordinates = route?.features.flatMap((feature) => feature.geometry.coordinates) ?? [];
-  if (!route || coordinates.length < 2) {
-    return (
-      <View style={[styles.routePreview, { backgroundColor: surfaceColor, borderColor }]}>
-        <Text style={[styles.routePreviewUnavailable, { color: borderColor }]}>경로 미리보기 없음</Text>
-      </View>
-    );
-  }
 
-  const bounds = coordinates.reduce(
-    (current, [longitude, latitude]) => ({
-      minLongitude: Math.min(current.minLongitude, longitude),
-      maxLongitude: Math.max(current.maxLongitude, longitude),
-      minLatitude: Math.min(current.minLatitude, latitude),
-      maxLatitude: Math.max(current.maxLatitude, latitude),
-    }),
-    {
-      minLongitude: Number.POSITIVE_INFINITY,
-      maxLongitude: Number.NEGATIVE_INFINITY,
-      minLatitude: Number.POSITIVE_INFINITY,
-      maxLatitude: Number.NEGATIVE_INFINITY,
-    },
-  );
-  const { minLongitude, maxLongitude, minLatitude, maxLatitude } = bounds;
-  const longitudeSpan = maxLongitude - minLongitude || 1;
-  const latitudeSpan = maxLatitude - minLatitude || 1;
-  const padding = 6;
-  const viewWidth = 100;
-  const viewHeight = 42;
-  const segments = route.features
-    .map((feature) => feature.geometry.coordinates)
-    .filter((segment) => segment.length >= 2)
-    .map((segment) =>
-      segment
-        .map(([longitude, latitude]) => {
-          const x = padding + ((longitude - minLongitude) / longitudeSpan) * (viewWidth - padding * 2);
-          const y = padding + ((maxLatitude - latitude) / latitudeSpan) * (viewHeight - padding * 2);
-          return `${x},${y}`;
-        })
-        .join(' ')
-    );
-
-  return (
-    <View style={[styles.routePreview, { backgroundColor: surfaceColor, borderColor }]}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="xMidYMid meet">
-        {segments.map((points, index) => (
-          <Polyline
-            key={index}
-            points={points}
-            fill="none"
-            stroke={color}
-            strokeWidth={4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
-      </Svg>
-    </View>
-  );
-};
 
 const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
   courses,
@@ -548,8 +482,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   useEffect(() => {
     let isMounted = true;
-    setIsPlanLoading(true);
-    setPlanError(null);
     void requestWalkPlan(dog, preferences, feedback).then((res) => {
       if (!isMounted) return;
       setPlanResult(res);
@@ -646,7 +578,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
     const park = getPilotParkById(preferences?.pilotParkId);
     return [park.center.lon, park.center.lat] as const;
-  }, [isCurrentLocOrigin, gpsCoords?.lon, gpsCoords?.lat, preferences?.pilotParkId]);
+  }, [isCurrentLocOrigin, gpsCoords, preferences?.pilotParkId]);
 
   useEffect(() => {
     if (isCurrentLocOrigin && !gpsCoords) {

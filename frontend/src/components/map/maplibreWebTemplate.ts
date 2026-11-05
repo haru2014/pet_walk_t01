@@ -29,6 +29,26 @@ export interface BuildMapLibreHtmlOptions {
   /** Camera target used when no route geometry is available yet. */
   readonly initialCenter?: LonLat;
   readonly interactive?: boolean;
+  /** fitBounds 여백(px). 지도 위 오버레이가 경로를 가리지 않도록 방향별 지정 가능 */
+  readonly fitPadding?: MapFitPadding;
+  readonly follow?: MapFollowCamera | null;
+}
+
+export type MapFitPadding = number | {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+};
+
+/** 따라가기(헤딩업) 카메라: 지정하면 경로 전체 맞춤 대신 현재 위치를 따라가며 회전한다. */
+export interface MapFollowCamera {
+  readonly center: LonLat;
+  /** 화면 위쪽이 향할 방위 (북=0, 시계 방향) */
+  readonly bearing: number;
+  readonly zoom?: number;
+  /** 위치 마커를 화면 아래쪽에 두기 위한 카메라 여백 */
+  readonly padding?: MapFitPadding;
 }
 
 /**
@@ -66,6 +86,8 @@ export function buildMapLibreHtml({
   maskingCenter,
   initialCenter,
   interactive = true,
+  fitPadding = 40,
+  follow = null,
 }: BuildMapLibreHtmlOptions): string {
   // 마스킹 원 GeoJSON 생성
   const maskingFeature = maskingCenter
@@ -91,6 +113,8 @@ export function buildMapLibreHtml({
     maskingCenter,
     initialCenter,
     interactive,
+    fitPadding,
+    follow,
     styleLoadTimeoutMs: STYLE_LOAD_TIMEOUT_MS,
   });
 
@@ -174,6 +198,18 @@ export function buildMapLibreHtml({
       let currentRouteConditionColor = payload.routeConditionColor;
       let currentStyleKey = JSON.stringify(payload.styleUrl);
       let mapLoaded = false;
+      let followCamera = payload.follow || null;
+      function applyFollow(camera, animate) {
+        if (!camera || !map) return;
+        map.easeTo({
+          center: camera.center,
+          bearing: camera.bearing,
+          zoom: camera.zoom != null ? camera.zoom : 17,
+          padding: camera.padding != null ? camera.padding : 0,
+          duration: animate ? 900 : 0,
+          essential: true,
+        });
+      }
       let userInteractedWithMap = false;
       let failureReported = false;
       let watchdogId = null;
@@ -256,8 +292,11 @@ export function buildMapLibreHtml({
         if (mapLoaded) return;
         mapLoaded = true;
         const loadedBounds = computeBounds(currentRoute);
-        if (loadedBounds) {
-          map.fitBounds(loadedBounds, { padding: 40, duration: 600 });
+        if (followCamera) {
+          applyFollow(followCamera, false);
+          updateMarkerZoomMode();
+        } else if (loadedBounds) {
+          map.fitBounds(loadedBounds, { padding: payload.fitPadding ?? 40, duration: 600 });
           updateMarkerZoomMode();
         }
         postToReactNative('MAP_LOADED', { ok: true });
@@ -555,7 +594,10 @@ export function buildMapLibreHtml({
               initMarkers(currentPins, currentRoute, currentRouteColors);
             }
             const b = computeBounds(msg.route);
-            if (b && !userInteractedWithMap) map.fitBounds(b, { padding: 40, duration: 600 });
+            if (b && !userInteractedWithMap && !followCamera) map.fitBounds(b, { padding: payload.fitPadding ?? 40, duration: 600 });
+          } else if (msg.action === 'FOLLOW') {
+            followCamera = msg.camera || null;
+            if (followCamera && mapLoaded) applyFollow(followCamera, true);
           }
         } catch(e) {}
       }
