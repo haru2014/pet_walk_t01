@@ -5,7 +5,10 @@ import { WALK_PLAN_PAW_STEPS, WalkPlanLoadingView } from './WalkPlanLoadingView'
 
 vi.mock('react-native', () => {
   class MockAnimatedValue {
-    constructor(_value: number) { }
+    readonly value: number;
+    constructor(value: number = 0) {
+      this.value = value;
+    }
     setValue(_value: number) { }
     interpolate() { return 1; }
   }

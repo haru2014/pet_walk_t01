@@ -284,14 +284,17 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   const currentLon = currentCoords?.lon;
   const currentLat = currentCoords?.lat;
   useEffect(() => {
-    if (currentLon == null || currentLat == null) return;
+    if (currentLon == null || currentLat == null) return undefined;
     const routeBearing = routeBearingAt([currentLon, currentLat], mapRoute);
-    setCameraHeading((prev) => smoothHeading(prev, resolveFollowTargetHeading({
-      walkedCoords,
-      speedKmH: stats.speedKmH,
-      routeBearing,
-      hasHeading: prev != null,
-    })));
+    const frameId = requestAnimationFrame(() => {
+      setCameraHeading((prev) => smoothHeading(prev, resolveFollowTargetHeading({
+        walkedCoords,
+        speedKmH: stats.speedKmH,
+        routeBearing,
+        hasHeading: prev != null,
+      })));
+    });
+    return () => cancelAnimationFrame(frameId);
   }, [currentLon, currentLat, walkedCoords, stats.speedKmH, mapRoute]);
 
   const mapDisplayPins = useMemo<readonly RouteStepPin[]>(() => (currentCoords
@@ -412,7 +415,8 @@ export const DarkPocketScreen: React.FC<DarkPocketScreenProps> = ({
   }
 
   // 방향 카드가 보여주지 않는 음성 안내(위험 제보, 진행 안내 등)만 한 줄 캡션으로
-  const voiceCaption = !isFreeWalk && directionCard.variant === 'navigate' && guidanceMessage
+  const isNavigateCard = !isFreeWalk && Boolean(currentCoords) && !isOffRoute && Boolean(maneuver);
+  const voiceCaption = isNavigateCard && guidanceMessage
     && !TURN_MESSAGE_PATTERN.test(guidanceMessage)
     ? guidanceMessage
     : null;

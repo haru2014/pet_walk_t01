@@ -122,7 +122,6 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
   const latestOnPinSelectRef = useRef(onPinSelect);
   const latestFitPaddingRef = useRef(fitPadding);
   const latestFollowRef = useRef(follow);
-  latestFollowRef.current = follow;
   const userInteractedWithMapRef = useRef(false);
   useEffect(() => {
     latestRouteRef.current = route;
@@ -130,9 +129,10 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
     latestRouteColorsRef.current = routeColors;
     latestMaskingCenterRef.current = maskingCenter;
     latestFitPaddingRef.current = fitPadding;
+    latestFollowRef.current = follow;
     latestOnMapLoadedRef.current = onMapLoaded;
     latestOnPinSelectRef.current = onPinSelect;
-  }, [route, directionalPins, routeColors, maskingCenter, onMapLoaded, onPinSelect, fitPadding]);
+  }, [route, directionalPins, routeColors, maskingCenter, onMapLoaded, onPinSelect, fitPadding, follow]);
 
   // 모든 좌표 Bounding Box 계산
   const routeBounds = useMemo(() => getRouteBounds(route), [route]);
@@ -306,7 +306,7 @@ export const MapLibreMapView: React.FC<MapLibreMapViewProps> = ({
       webMapLoadedRef.current = false;
       webMarkersRef.current = [];
     };
-  }, [isWeb, activeStyle, interactive, degrade]);
+  }, [isWeb, activeStyle, interactive, degrade, initialCenter]);
 
   useEffect(() => {
     if (!isWeb || !webMapLoadedRef.current || !webMapInstanceRef.current) return;

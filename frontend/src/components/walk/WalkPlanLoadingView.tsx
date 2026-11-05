@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -47,9 +47,9 @@ export const WalkPlanLoadingView: React.FC<WalkPlanLoadingViewProps> = ({
   onRetry,
 }) => {
   const { colors } = useAppTheme();
-  const opacityValues = useRef(WALK_PLAN_PAW_STEPS.map(() => new Animated.Value(0))).current;
-  const scaleValues = useRef(WALK_PLAN_PAW_STEPS.map(() => new Animated.Value(0.35))).current;
-  const dogBreath = useRef(new Animated.Value(0)).current;
+  const opacityValues = useMemo(() => WALK_PLAN_PAW_STEPS.map(() => new Animated.Value(0)), []);
+  const scaleValues = useMemo(() => WALK_PLAN_PAW_STEPS.map(() => new Animated.Value(0.35)), []);
+  const dogBreath = useMemo(() => new Animated.Value(0), []);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
