@@ -13,9 +13,9 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { requestWalkPlan, RoutePlanResult, createCurrentLocationWalkPlan } from '../../services/api';
+import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
-import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
+import { buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
 import { useAppTheme } from '../../theme/themeManager';
 import { useAppResponsive } from '../../hooks/useAppResponsive';
@@ -501,12 +501,9 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       setPlanResult(res);
       if (res.courses.length > 0) {
         setCourses(res.courses);
-      } else if (requiresValidatedPark) {
+      } else {
         setPlanError('선택한 조건에 맞는 경로를 찾지 못했습니다. 다시 시도해 주세요.');
         setCourses([]);
-      } else {
-        const fallback = generateAdaptiveCourses(dog, preferences, feedback);
-        setCourses(fallback);
       }
     }).catch((error: unknown) => {
       if (!isMounted) return;
@@ -584,7 +581,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const userCoordsLon = userCoordinates?.lon;
   const userCoordsLat = userCoordinates?.lat;
   const pilotParkId = preferences?.pilotParkId;
-  const durationMinutes = preferences?.durationMinutes ?? 30;
 
   const candidatePlan = useMemo(() => {
     if (!currentCourseId || !coursePlans) return undefined;
@@ -606,21 +602,8 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
 
-    // [근본 해결] 현재 위치 모드에서는 절대로 유림공원 등 타 지역 공원의 정적 데이터를 타지 않는다.
-    if (isCurrentLocOrigin) {
-      const originCoords = gpsCoords ?? userCoordinates;
-      if (originCoords) {
-        return createCurrentLocationWalkPlan(
-          originCoords.lat,
-          originCoords.lon,
-          selectedCourseIndex,
-          durationMinutes,
-        );
-      }
-      return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
-    }
-
-    if (!currentCourse || !planResult || requiresValidatedPark) {
+    // 현재 위치 모드는 서버가 준 코스별 경로만 그린다. 공원 샘플이나 앱이 만든 도형으로 대신하지 않는다.
+    if (isCurrentLocOrigin || !currentCourse || !planResult || requiresValidatedPark) {
       return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
     }
     const fallbackIndex = selectedCourseIndex === 0
@@ -631,7 +614,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       currentCourse?.id,
       getCoursePlanByParkId(pilotParkId, fallbackIndex)
     );
-  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, userCoordinates, pilotParkId, durationMinutes]);
+  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, pilotParkId]);
 
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;

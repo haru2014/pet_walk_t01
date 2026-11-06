@@ -73,4 +73,14 @@ describe('코스 요청 대기 시간 (이슈 #125)', () => {
     await vi.advanceTimersByTimeAsync(21000);
     await assertion;
   });
+
+  it('서버가 20초가 지나도 답이 없으면 현재 위치 모드도 오류로 알린다 (앱이 만든 경로·유림 샘플로 대신하지 않는다)', async () => {
+    slowFetch(60000);
+    const pending = requestWalkPlan(dog, {
+      originMode: 'current_location', userCoordinates: { lat: 36.35, lon: 127.38 }, durationMinutes: 25, environments: [], requestText: '',
+    });
+    const assertion = expect(pending).rejects.toMatchObject({ code: 'ROUTING_PROVIDER_TIMEOUT' });
+    await vi.advanceTimersByTimeAsync(21000);
+    await assertion;
+  });
 });

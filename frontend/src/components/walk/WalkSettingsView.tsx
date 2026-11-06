@@ -283,6 +283,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     const payloadDuration = isFreeWalk ? null : duration;
     if (originMode === 'current_location') {
       const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
+      // 위치를 못 받았으면 다른 곳 좌표로 대신하지 않고 안내(배너)만 남긴다.
+      if (!coords) return;
       onFindRoute({
         originMode,
         durationMinutes: payloadDuration,
