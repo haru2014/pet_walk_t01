@@ -164,7 +164,6 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       setUserCoords(initialPreferences.userCoordinates);
     }
   }, [initialPreferences?.userCoordinates, userCoords]);
-
   // 📍 1-1: 현재 위치 모드 활성화 시 백그라운드 GPS 사전 획득 (센서 응답 대기시간 0초화)
   useEffect(() => {
     let isMounted = true;
