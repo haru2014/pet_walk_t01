@@ -160,12 +160,60 @@ SEOUL_FOREST_EDGES: List[Tuple[str, str, Dict[str, Any]]] = [
 
 
 # ==============================================================================
-# 4. 권역별 그래프 빌더 & 최근접 노드 검색
+# 4. 대전 유성구 신성동 (탄동농협/애경연구원/신성공원) 오프라인 보행 네트워크
+# ==============================================================================
+DAEJEON_SINSEONG_NODES: Dict[str, List[float]] = {
+    # 탄동농협 사거리 & 하나로마트
+    "ds_nonghyup_front": [127.3654, 36.3745],     # 탄동농협 본점 앞 인도 (출발지 스냅점)
+    "ds_nonghyup_mart": [127.3650, 36.3738],      # 하나로마트 탄동농협점 앞 보도
+    "ds_tandong_cross": [127.3658, 36.3748],      # 신성동 입구 삼거리
+    # 애경종합기술원 & 연구단지 보행로
+    "ds_aekyung_front": [127.3642, 36.3752],      # 애경연구원 앞 보도
+    "ds_aekyung_west": [127.3630, 36.3758],       # 애경연구원 서측 코너
+    # 신성근린공원 숲길 및 둘레길
+    "ds_sinseong_park_entry": [127.3622, 36.3762], # 신성근린공원 입구
+    "ds_sinseong_park_mid": [127.3615, 36.3770],   # 신성공원 흙길 산책로 (중간)
+    "ds_sinseong_park_north": [127.3625, 36.3778], # 신성공원 북측 쉼터
+    "ds_sinseong_park_east": [127.3638, 36.3772],  # 신성공원 동측 하산로
+    # 대림두레아파트 & 골목 상권 보행로
+    "ds_dure_apt_gate": [127.3652, 36.3765],       # 대림두레아파트 정문 앞 인도
+    "ds_dure_market_road": [127.3662, 36.3758],    # 신성동 상가 골목길
+    # 금성초등학교 & 탄동천 수변길
+    "ds_geumseong_school": [127.3672, 36.3745],    # 금성초등학교 앞 어린이안심보호구역
+    "ds_tandong_stream": [127.3665, 36.3732],      # 탄동천 수변 연결 보행로
+    "ds_tandong_stream_bridge": [127.3655, 36.3730], # 탄동천 산책교 남단
+}
+
+DAEJEON_SINSEONG_EDGES: List[Tuple[str, str, Dict[str, Any]]] = [
+    # 탄동농협 앞 보행로 루프
+    ("ds_nonghyup_front", "ds_tandong_cross", {"surface": "paved", "highway": "footway", "slope": 0.8}),
+    ("ds_nonghyup_front", "ds_nonghyup_mart", {"surface": "paved", "highway": "footway", "slope": 0.6}),
+    ("ds_nonghyup_mart", "ds_tandong_stream_bridge", {"surface": "paved", "highway": "footway", "slope": 0.9}),
+    ("ds_tandong_stream_bridge", "ds_tandong_stream", {"surface": "dirt", "highway": "path", "slope": 1.2, "park": True}),
+    ("ds_tandong_stream", "ds_geumseong_school", {"surface": "paved", "highway": "footway", "slope": 1.4}),
+    ("ds_geumseong_school", "ds_tandong_cross", {"surface": "paved", "highway": "footway", "slope": 1.0}),
+    # 애경연구원 & 신성근린공원 숲길 순환
+    ("ds_tandong_cross", "ds_aekyung_front", {"surface": "paved", "highway": "footway", "slope": 1.1}),
+    ("ds_aekyung_front", "ds_aekyung_west", {"surface": "paved", "highway": "footway", "slope": 1.3}),
+    ("ds_aekyung_west", "ds_sinseong_park_entry", {"surface": "dirt", "highway": "path", "slope": 2.0, "park": True}),
+    ("ds_sinseong_park_entry", "ds_sinseong_park_mid", {"surface": "dirt", "highway": "path", "slope": 2.8, "park": True}),
+    ("ds_sinseong_park_mid", "ds_sinseong_park_north", {"surface": "dirt", "highway": "path", "slope": 2.4, "park": True}),
+    ("ds_sinseong_park_north", "ds_sinseong_park_east", {"surface": "dirt", "highway": "path", "slope": 1.8, "park": True}),
+    ("ds_sinseong_park_east", "ds_dure_apt_gate", {"surface": "paved", "highway": "footway", "slope": 1.2}),
+    ("ds_dure_apt_gate", "ds_dure_market_road", {"surface": "paved", "highway": "pedestrian", "slope": 0.9}),
+    ("ds_dure_market_road", "ds_tandong_cross", {"surface": "paved", "highway": "pedestrian", "slope": 0.7}),
+    ("ds_dure_market_road", "ds_geumseong_school", {"surface": "paved", "highway": "footway", "slope": 0.8}),
+]
+
+
+# ==============================================================================
+# 5. 권역별 그래프 빌더 & 최근접 노드 검색
 # ==============================================================================
 NETWORKS: Dict[str, Tuple[Dict[str, List[float]], List[Tuple[str, str, Dict[str, Any]]]]] = {
     "seoul_center": (SEOUL_CENTER_NODES, SEOUL_CENTER_EDGES),
     "gangnam": (GANGNAM_NODES, GANGNAM_EDGES),
     "seoul_forest": (SEOUL_FOREST_NODES, SEOUL_FOREST_EDGES),
+    "daejeon_sinseong": (DAEJEON_SINSEONG_NODES, DAEJEON_SINSEONG_EDGES),
 }
 
 
@@ -287,7 +335,7 @@ def plan_offline_network_loop(
         brg = bearing_deg(start_coord, data["coord"])
         brg_diff = abs((brg - target_brg + 180.0) % 360.0 - 180.0)
         dist_error = abs(loop_len - target_distance_m) / target_distance_m
-        score = dist_error * 3.0 + (brg_diff / 180.0) * 0.1
+        score = dist_error * 2.0 + (brg_diff / 180.0) * 1.5
 
         if best_loop is None or score < best_loop[2]:
             best_loop = (full_node_path, loop_len, score)

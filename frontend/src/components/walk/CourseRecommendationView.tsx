@@ -578,10 +578,23 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   });
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
-  const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
+  const candidatePlan = useMemo(() => {
+    if (!currentCourse?.id || !planResult?.coursePlans) return undefined;
+    // 1순위: 코스 ID 직접 매칭
+    if (planResult.coursePlans[currentCourse.id]) {
+      return planResult.coursePlans[currentCourse.id];
+    }
+    // 2순위: 서버 코스 플랜 목록의 인덱스 순서 매칭 (후보 경로 ID 표기 차이 방어)
+    const planValues = Object.values(planResult.coursePlans);
+    if (planValues[selectedCourseIndex]) {
+      return planValues[selectedCourseIndex];
+    }
+    return undefined;
+  }, [currentCourse?.id, planResult?.coursePlans, selectedCourseIndex]);
+
   const activePlan = useMemo(() => {
     if (candidatePlan) return candidatePlan;
-    if (planResult?.isLiveServer && selectedCourseIndex === 0) {
+    if (planResult?.isLiveServer && selectedCourseIndex === 0 && planResult.route) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
     if (!currentCourse || !planResult || requiresValidatedPark) {
@@ -591,7 +604,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       ? 0
       : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
 
-    // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반 동심원/도로망 폴백 사용
+    // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반의 도로망 블록 순환 폴백 사용
     if (isCurrentLocOrigin) {
       const originCoords = gpsCoords ?? preferences?.userCoordinates;
       if (originCoords) {
@@ -603,7 +616,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       currentCourse?.id,
       getCoursePlanByParkId(preferences?.pilotParkId, fallbackIndex)
     );
-  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates]);
+  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates, preferences?.pilotParkId]);
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
     if (isCurrentLocOrigin && preferences?.userCoordinates) {
