@@ -203,6 +203,7 @@ export async function requestWalkPlan(
 ): Promise<RoutePlanResult> {
   const nonce = options?.regenerateNonce ?? 0;
   const prefetchHit = checkPrefetchCache(dog, preferences, feedback, nonce > 0);
+  // 진행 중인 프리페치를 이어받을 때는 그 실패(RoutePlanError)도 그대로 전달한다. 결과를 null 로 받아 쓰지 않는다.
   if (prefetchHit) return prefetchHit;
 
   const origin = resolveOrigin(preferences);
