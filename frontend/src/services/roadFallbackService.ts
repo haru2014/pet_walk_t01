@@ -70,11 +70,10 @@ export function createCurrentLocationFallbackPlan(
   lat: number,
   lon: number,
   nonce = 0,
-  targetMinutes?: number | null,
+  targetMinutes = 30,
 ): FallbackRouteResult {
-  const minutes = targetMinutes ?? 30;
   // 목표 시간(분)에 비례한 블록 크기 산출 (30분 = 약 1.3km 둘레 -> 가로 220m, 세로 180m)
-  const scale = Math.max(0.6, Math.min(1.8, minutes / 30));
+  const scale = Math.max(0.6, Math.min(1.8, targetMinutes / 30));
   const dLat = 0.0016 * scale;
   const dLon = 0.0024 * scale;
 
@@ -156,16 +155,15 @@ export async function fetchCurrentLocationFootRoute(
   lat: number,
   lon: number,
   nonce = 0,
-  targetMinutes?: number | null,
+  targetMinutes = 30,
 ): Promise<FallbackRouteResult> {
-  const minutes = targetMinutes ?? 30;
-  const cacheKey = `${lat.toFixed(5)}_${lon.toFixed(5)}_${nonce}_${minutes}`;
+  const cacheKey = `${lat.toFixed(5)}_${lon.toFixed(5)}_${nonce}_${targetMinutes}`;
   const cached = osrmMemoryCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < OSRM_CACHE_TTL_MS) {
     return cached.data;
   }
 
-  const scale = Math.max(0.6, Math.min(1.8, minutes / 30));
+  const scale = Math.max(0.6, Math.min(1.8, targetMinutes / 30));
   const dLat = 0.0018 * scale;
   const dLon = 0.0026 * scale;
 

@@ -37,7 +37,6 @@ import { analyzeCourseLaps, mergeLoopStartPin } from '../../services/courseLapIn
 import { WORLDCOVER_ATTRIBUTION } from '../../constants/legalTerms';
 import { getPilotParkById } from '../../types/pilotParks';
 import { WalkPlanLoadingView } from './WalkPlanLoadingView';
-import { RouteFeatureCollection } from '../../types/route';
 
 /**
  * 코스 표시 명칭 정제 (지역명/괄호 별칭 압축, 기계적 수식어 개선, 불필요한 "1안" 및 중복 거리 제거)
@@ -339,10 +338,13 @@ interface CourseChipRowProps {
   onSelectCourse: (index: number) => void;
   freshCourseIds: ReadonlySet<string>;
   colors: ReturnType<typeof useAppTheme>['colors'];
-  routeForCourse: (course: RecommendedCourse, index: number) => RouteFeatureCollection | undefined;
 }
 
-
+function getCourseBadgeTag(isFresh: boolean, characteristic?: string): string | undefined {
+  if (isFresh && characteristic) return `NEW · ${characteristic}`;
+  if (isFresh) return 'NEW';
+  return characteristic;
+}
 
 const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
   courses,
@@ -364,6 +366,7 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
           ? `${c.lapCount}바퀴 순환`
           : c.differenceTag;
         const score = extractCourseScore(c);
+        const badgeTag = getCourseBadgeTag(freshCourseIds.has(c.id), characteristic);
 
         return (
           <TouchableOpacity
@@ -387,11 +390,9 @@ const CoursePreviewCardRow: React.FC<CourseChipRowProps> = ({
             <Text numberOfLines={1} style={[styles.coursePreviewMeta, { color: isSelected ? colors.primaryDark : colors.textMuted }]}>
               {c.distanceKm} · 약 {c.estimatedMinutes}분{score == null ? '' : ` · ${score}점`}
             </Text>
-            {(characteristic || freshCourseIds.has(c.id)) && (
+            {badgeTag && (
               <Text numberOfLines={1} style={[styles.coursePreviewTag, { color: colors.primaryDark }]}>
-                {freshCourseIds.has(c.id) && characteristic
-                  ? `NEW · ${characteristic}`
-                  : freshCourseIds.has(c.id) ? 'NEW' : characteristic}
+                {badgeTag}
               </Text>
             )}
           </TouchableOpacity>
@@ -409,6 +410,13 @@ interface CourseHeaderTitleRowProps {
   bookmarkCandidate: ReturnType<typeof createBookmark> | null;
 }
 
+function getPlanErrorMessage(error: unknown, requiresValidatedPark: boolean): string {
+  if (error instanceof Error) return error.message;
+  return requiresValidatedPark
+    ? '공원 내부 경로를 생성하지 못했습니다.'
+    : '현재 위치 주변 산책 경로를 생성하지 못했습니다.';
+}
+
 const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
   currentCourse,
   lapInfo,
@@ -417,7 +425,7 @@ const CourseHeaderTitleRow: React.FC<CourseHeaderTitleRowProps> = ({
   bookmarkCandidate,
 }) => {
   const lapCount = currentCourse.lapCount ?? lapInfo?.lapCount;
-  const distanceLabel = `${currentCourse.distanceKm.trim().replace(/\s*km$/i, '')}km`;
+  const distanceLabel = `${currentCourse.distanceKm.replace(/km$/i, '').trim()}km`;
   return (
     <View style={styles.courseHeaderRow}>
       <View style={styles.courseTitleCol}>
@@ -458,7 +466,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
-  const [isPlanLoading, setIsPlanLoading] = useState(initialLoading ?? (initialPlanResult ? false : true));
+  const [isPlanLoading, setIsPlanLoading] = useState(initialLoading ?? !initialPlanResult);
   const retryInFlightRef = React.useRef(false);
   const [courses, setCourses] = useState<readonly RecommendedCourse[]>(initialCourses ?? []);
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
@@ -477,7 +485,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     setRequestInputs({ dog, preferences, feedback });
     setPlanResult(initialPlanResult ?? null);
     setPlanError(null);
-    setIsPlanLoading(initialLoading ?? (initialPlanResult ? false : true));
+    setIsPlanLoading(initialLoading ?? !initialPlanResult);
     setSelectedCourseIndex(0);
     setRegenerateNonce(0);
     setFreshCourseIds(new Set());
@@ -502,17 +510,13 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       }
     }).catch((error: unknown) => {
       if (!isMounted) return;
-      setPlanError(
-        error instanceof Error
-          ? error.message
-          : (requiresValidatedPark ? '공원 내부 경로를 생성하지 못했습니다.' : '현재 위치 주변 산책 경로를 생성하지 못했습니다.')
-      );
+      setPlanError(getPlanErrorMessage(error, requiresValidatedPark));
       setCourses([]);
     }).finally(() => {
       if (isMounted) setIsPlanLoading(false);
     });
     return () => { isMounted = false; };
-  }, [dog, preferences, feedback, requiresValidatedPark]);
+  }, [dog, preferences, feedback, requiresValidatedPark, initialPlanResult]);
 
   const handleRetryPlan = () => {
     if (retryInFlightRef.current || isPlanLoading) return;
@@ -529,11 +533,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         }
       })
       .catch((error: unknown) => {
-        setPlanError(
-          error instanceof Error
-            ? error.message
-            : (requiresValidatedPark ? '공원 내부 경로를 생성하지 못했습니다.' : '현재 위치 주변 산책 경로를 생성하지 못했습니다.')
-        );
+        setPlanError(getPlanErrorMessage(error, requiresValidatedPark));
         setCourses([]);
       })
       .finally(() => {
@@ -578,19 +578,27 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   });
 
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
+  const currentCourseId = currentCourse?.id;
+  const coursePlans = planResult?.coursePlans;
+  const userCoordinates = preferences?.userCoordinates;
+  const userCoordsLon = userCoordinates?.lon;
+  const userCoordsLat = userCoordinates?.lat;
+  const pilotParkId = preferences?.pilotParkId;
+  const durationMinutes = preferences?.durationMinutes ?? 30;
+
   const candidatePlan = useMemo(() => {
-    if (!currentCourse?.id || !planResult?.coursePlans) return undefined;
+    if (!currentCourseId || !coursePlans) return undefined;
     // 1순위: 코스 ID 직접 매칭
-    if (planResult.coursePlans[currentCourse.id]) {
-      return planResult.coursePlans[currentCourse.id];
+    if (coursePlans[currentCourseId]) {
+      return coursePlans[currentCourseId];
     }
     // 2순위: 서버 코스 플랜 목록의 인덱스 순서 매칭 (후보 경로 ID 표기 차이 방어)
-    const planValues = Object.values(planResult.coursePlans);
+    const planValues = Object.values(coursePlans);
     if (planValues[selectedCourseIndex]) {
       return planValues[selectedCourseIndex];
     }
     return undefined;
-  }, [currentCourse?.id, planResult?.coursePlans, selectedCourseIndex]);
+  }, [currentCourseId, coursePlans, selectedCourseIndex]);
 
   const activePlan = useMemo(() => {
     if (candidatePlan) return candidatePlan;
@@ -606,30 +614,31 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
     // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반의 도로망 블록 순환 폴백 사용
     if (isCurrentLocOrigin) {
-      const originCoords = gpsCoords ?? preferences?.userCoordinates;
+      const originCoords = gpsCoords ?? userCoordinates;
       if (originCoords) {
         return createCurrentLocationFallbackPlan(
           originCoords.lat,
           originCoords.lon,
           fallbackIndex,
-          preferences?.durationMinutes,
+          durationMinutes,
         );
       }
     }
 
     return getCoursePlanById(
       currentCourse?.id,
-      getCoursePlanByParkId(preferences?.pilotParkId, fallbackIndex)
+      getCoursePlanByParkId(pilotParkId, fallbackIndex)
     );
-  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates, preferences?.pilotParkId]);
+  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, userCoordinates, pilotParkId, durationMinutes]);
+
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
-    if (isCurrentLocOrigin && preferences?.userCoordinates) {
-      return [preferences.userCoordinates.lon, preferences.userCoordinates.lat] as const;
+    if (isCurrentLocOrigin && userCoordsLon != null && userCoordsLat != null) {
+      return [userCoordsLon, userCoordsLat] as const;
     }
-    const park = getPilotParkById(preferences?.pilotParkId);
+    const park = getPilotParkById(pilotParkId);
     return [park.center.lon, park.center.lat] as const;
-  }, [isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates, preferences?.pilotParkId]);
+  }, [isCurrentLocOrigin, gpsCoords, userCoordsLon, userCoordsLat, pilotParkId]);
 
   useEffect(() => {
     if (isCurrentLocOrigin && !gpsCoords) {
@@ -644,20 +653,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   }, [isCurrentLocOrigin, gpsCoords]);
 
   const activeRoute = activePlan.route;
-  const routeForCourse = (course: RecommendedCourse, index: number): RouteFeatureCollection | undefined => {
-    const coursePlan = planResult?.coursePlans?.[course.id];
-    if (coursePlan) return coursePlan.route;
-    if (course.id === currentCourse?.id) return activeRoute;
-    if (planResult?.isLiveServer) return index === 0 ? planResult.route : undefined;
-
-    const fallbackIndex = index === 0
-      ? 0
-      : (((index - 1 + regenerateNonce * 2) % 2) + 1);
-    return getCoursePlanById(
-      course.id,
-      getCoursePlanByParkId(preferences?.pilotParkId, fallbackIndex),
-    ).route;
-  };
   // 같은 순환로를 여러 바퀴 도는 코스는 바퀴 수·순환 구간을 카드와 지도에 함께 표시한다.
   const lapInfo = useMemo(
     () => analyzeCourseLaps(activeRoute, currentCourse?.lapCount, currentCourse?.lapCycleMeters, {
@@ -763,7 +758,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
           onSelectCourse={setSelectedCourseIndex}
           freshCourseIds={freshCourseIds}
           colors={colors}
-          routeForCourse={routeForCourse}
         />
 
         {/* 코스명과 반복 횟수·거리·시간 및 찜하기 버튼 */}
