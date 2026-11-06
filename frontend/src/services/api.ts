@@ -84,6 +84,7 @@ function buildPlanPayload(
   };
 }
 
+
 function isValidParkResponse(data: any, parkId: string): boolean {
   if (data.validated_park_id !== parkId) return false;
 
@@ -177,6 +178,7 @@ function buildLivePlanResult(
   };
 }
 
+
 function checkPrefetchCache(
   dog: DogProfile,
   preferences?: WalkPreferences,
@@ -258,6 +260,7 @@ export async function requestWalkPlan(
   } finally {
     clearTimeout(timeoutId);
   }
+
 }
 
 export function prefetchWalkPlan(
