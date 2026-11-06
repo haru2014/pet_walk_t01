@@ -392,9 +392,9 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     const mockPlanResult = {
       isLiveServer: false,
       courses: [
-        { id: 'course_1', name: '맞춤 안심 순환 코스', distanceKm: '1.4 km', estimatedMinutes: 30, stairsCount: '0회' },
-        { id: 'course_2', name: '근린공원 안심 순환 코스', distanceKm: '1.2 km', estimatedMinutes: 25, stairsCount: '0회' },
-        { id: 'course_3', name: '조용한 주택가 산책로', distanceKm: '1.5 km', estimatedMinutes: 32, stairsCount: '0회' },
+        { id: 'course_1', name: '맞춤 안심 순환 코스', distanceKm: '1.4 km', estimatedMinutes: 30, stairsCount: '0회', softRatio: '70%', shadeLevel: '많음', shadePercent: 60, reason: '안심 코스' },
+        { id: 'course_2', name: '근린공원 안심 순환 코스', distanceKm: '1.2 km', estimatedMinutes: 25, stairsCount: '0회', softRatio: '65%', shadeLevel: '보통', shadePercent: 50, reason: '공원 코스' },
+        { id: 'course_3', name: '조용한 주택가 산책로', distanceKm: '1.5 km', estimatedMinutes: 32, stairsCount: '0회', softRatio: '60%', shadeLevel: '보통', shadePercent: 45, reason: '주택가 코스' },
       ],
       route: { type: 'FeatureCollection' as const, features: [] },
       stepPins: [],

@@ -183,9 +183,10 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
       expect(plan).toBeDefined();
       expect(plan?.route.features.length).toBeGreaterThan(0);
       // 각 코스의 출발점도 서울 시청 현재 위치여야 함
-      const start = plan?.route.features[0].geometry.coordinates[0];
-      expect(start[0]).toBeCloseTo(126.98, 1);
-      expect(start[1]).toBeCloseTo(37.56, 1);
+      const start = plan?.route.features[0]?.geometry.coordinates[0];
+      expect(start).toBeDefined();
+      expect(start?.[0]).toBeCloseTo(126.98, 1);
+      expect(start?.[1]).toBeCloseTo(37.56, 1);
     }
   });
 
