@@ -5,9 +5,13 @@
 """
 
 import os
+import socket
 
 import pytest
 from typing import Dict, Any, List
+
+# [안전망] 테스트 도중 외부 네트워크 지연으로 무한 대기(pending)되는 것을 방지하기 위해 기본 소켓 타임아웃을 5초로 제한한다.
+socket.setdefaulttimeout(5.0)
 
 # [3번 서버] 테스트는 항상 인메모리/mock 모드로 돈다.
 # 로컬 .env 에 실제 Supabase 키가 있어도 테스트 데이터가 운영 DB 에 쓰이지 않도록,
@@ -29,11 +33,18 @@ def _no_osrm_pacing(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clear_caches():
-    """테스트 간 캐시 격리: route_profile 캐시 초기화."""
+    """테스트 간 캐시 격리: route_profile, OSRM, Overpass 캐시 초기화."""
     from services.route_profile import clear_route_profile_cache
+    import agent.road_network_routes as rnr
+    import agent.osm_overpass_client as ooc
+
     clear_route_profile_cache()
+    rnr.clear_osrm_cache()
+    ooc.clear_region_cache()
     yield
     clear_route_profile_cache()
+    rnr.clear_osrm_cache()
+    ooc.clear_region_cache()
 
 
 @pytest.fixture
