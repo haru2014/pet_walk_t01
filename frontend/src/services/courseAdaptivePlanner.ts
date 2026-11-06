@@ -30,7 +30,7 @@ interface CourseBuilderContext {
 
 /** 환경 ID 목록을 친근한 한국어 요약 문구로 결합한다. */
 function buildEnvironmentSummaryText(envs: readonly EnvironmentId[]): string {
-  if (envs.length === 0) return '기본 안심 경로';
+  if (envs.length === 0) return '편안한 안심 보행로';
   const labelMap = new Map(WALK_ENVIRONMENTS.map((e) => [e.id, e.label]));
   const labels = envs.map((id) => labelMap.get(id)).filter(Boolean) as string[];
   if (labels.length <= 2) return labels.join('과 ');
@@ -62,7 +62,8 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
 
   let courseId = 'course_1';
   let courseName = hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스';
-  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
+  const envParticle = envSummary.endsWith('조건') ? '을' : '를';
+  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}${envParticle} 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
 
   if (pilotParkId === 'yurim') {
     courseId = 'yurim_course_1';
@@ -223,7 +224,7 @@ export function calculateAdaptiveCourseScore(
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null
 ): number {
-  const envs = preferences?.environments ?? [];
+  const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const avoidStairs = envs.includes('stairs');
   const preferShade = envs.includes('shade');
   const preferSoft = envs.includes('soft');
@@ -340,7 +341,7 @@ export function generateAdaptiveBriefing(
   const isFree = preferences?.isFreeWalk;
   const targetMinutes = preferences?.durationMinutes ?? 30;
   const timeDesc = isFree ? '자유 산책' : `${formatDurationLabel(targetMinutes)}`;
-  const envs = preferences?.environments ?? [];
+  const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const envSummary = buildEnvironmentSummaryText(envs);
   const isCurrent = preferences?.originMode === 'current_location';
   const park = getPilotParkById(preferences?.pilotParkId);

@@ -58,8 +58,9 @@ class TestRouteGeometryIntegrity:
             )
 
     @pytest.mark.parametrize("variant_idx", [0, 1, 2])
-    def test_backtracking_spur_ratio_under_15_percent(self, variant_idx: int):
+    def test_backtracking_spur_ratio_under_15_percent(self, variant_idx: int, monkeypatch):
         """2. 동일 경로를 되돌아 걷는 왕복 구간 비율은 15% 이하여야 한다."""
+        monkeypatch.setattr(lrp, "fetch_osrm_foot_route", lambda w, timeout_seconds=1.2, use_cache=True: _circle_route(w))
         req = LoopCandidateRequest(
             origin_lat=37.5665,
             origin_lon=126.9780,
