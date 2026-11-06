@@ -687,6 +687,47 @@ def _candidate_exposures(state: WalkPlanningState, candidates: List[RouteCandida
     return candidate_exposures(state, target_dist, coords_by_id)
 
 
+def _score_single_candidate(
+    c: RouteCandidate,
+    state: WalkPlanningState,
+    target_dist: float,
+    park_id: Optional[str],
+    exposure: Dict[str, Any],
+    dog: Dict[str, Any],
+    intent: Dict[str, Any],
+    current: Dict[str, Any],
+) -> ScoredRoute:
+    """개별 경로 후보에 대해 실측 프로필과 환경 노출값을 반영하여 개인화 점수를 산출한다."""
+    from agent.park_route_validation import entry_approach_length_m
+    from agent.personalized_scorer import score_personalized
+    from services.route_profile import measure_route_profile
+
+    profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
+    # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
+    approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
+    loop_distance_m = c.total_distance_m - 2 * approach_m
+    result = score_personalized(
+        {**profile, **exposure}, distance_m=loop_distance_m, target_distance_m=target_dist,
+        joint_care_level=int(dog.get("joint_care_level", 1)),
+        calibrated_max_slope=state.get("max_slope_allowed"),
+        avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
+        preferred_surfaces=intent.get("preferred_surfaces"),
+        air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
+        context_preferences=WalkPreferences.from_intent(intent),
+        lap_count=c.lap_count or 1,
+    )
+    if profile:
+        _apply_profile_to_candidate(c, profile, result.surface_temp_c)
+    for key, value in exposure.items():
+        setattr(c, key, value)
+    dist_error = abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0
+    return ScoredRoute(
+        candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
+        thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+        distance_error_ratio=dist_error,
+    )
+
+
 def _score_candidates_personalized(state: WalkPlanningState, candidates: List[RouteCandidate],
                                    target_dist: float) -> List[ScoredRoute]:
     """[제안] 실측 지표(course_profiles 와 같은 계산) + 반려견 관절 단계 + 그늘·노면 선호로 채점한다.
@@ -694,43 +735,18 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
     후보의 경사·계단·그늘·지면온도도 실측값으로 바꿔, 카드·안내 문구가 같은 값을 보게 한다.
     기존 score_candidate_route(고정 프로필)는 비교·검토용으로 남겨 둔다.
     """
-    from agent.park_route_validation import entry_approach_length_m
-    from agent.personalized_scorer import score_personalized
-    from services.route_profile import measure_route_profile
-
     intent = state.get("parsed_intent") or {}
     dog = state.get("client_dog_context") or {}
     weather = state.get("weather_context") or {}
     current = weather.get("current") or weather
     park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
     exposures = _candidate_exposures(state, candidates, target_dist)
-    scored_list: List[ScoredRoute] = []
-    for c in candidates:
-        profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
-        exposure = exposures.get(c.route_id) or {}
-        # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
-        approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
-        loop_distance_m = c.total_distance_m - 2 * approach_m
-        result = score_personalized(
-            {**profile, **exposure}, distance_m=loop_distance_m, target_distance_m=target_dist,
-            joint_care_level=int(dog.get("joint_care_level", 1)),
-            calibrated_max_slope=state.get("max_slope_allowed"),
-            avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
-            preferred_surfaces=intent.get("preferred_surfaces"),
-            air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
-            context_preferences=WalkPreferences.from_intent(intent),
-            lap_count=c.lap_count or 1,
+    return [
+        _score_single_candidate(
+            c, state, target_dist, park_id, exposures.get(c.route_id) or {}, dog, intent, current
         )
-        if profile:
-            _apply_profile_to_candidate(c, profile, result.surface_temp_c)
-        for key, value in exposure.items():
-            setattr(c, key, value)
-        scored_list.append(ScoredRoute(
-            candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
-            thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
-            distance_error_ratio=abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0,
-        ))
-    return scored_list
+        for c in candidates
+    ]
 
 
 def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
