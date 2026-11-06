@@ -30,46 +30,118 @@ export interface RoutePlanResult {
 
 const API_TIMEOUT_MS = 20000;
 
+/**
+ * [US-A3] 현재 위치 기반 산책로 오프라인 폴백 생성기.
+ * 인위적인 단순 정8각형 기하 도형을 배제하고, 실제 주거/상업지 도로망 블록(Grid-aligned Loop)과
+ * 교차로 코너 스무딩을 모방하여 건물 관통 느낌이 없는 자연스러운 보행 순환 경로를 생성합니다.
+ */
 export function createCurrentLocationFallbackPlan(
   lat: number,
   lon: number,
   nonce = 0,
 ): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
-  const count = 8;
-  const radiusDeg = 0.0018; // 약 200m 완만 순환
-  const rotationAngle = (nonce * (Math.PI / 2)) % (2 * Math.PI); // 재생성마다 90도씩 회전
-  const offsetLon = (radiusDeg * 0.7) * Math.cos(rotationAngle) * 1.2;
-  const offsetLat = (radiusDeg * 0.7) * Math.sin(rotationAngle);
-  const centerLon = lon + offsetLon;
-  const centerLat = lat + offsetLat;
+  // 1. 방향별 블록 크기 (약 1.0 ~ 1.2km 순환 규모: 가로세로 약 250m~350m)
+  // 위도 1도 ≈ 111,000m -> 0.0025도 ≈ 277m
+  // 경도 1도 ≈ 88,000m (한국 위도 36도 기준) -> 0.0032도 ≈ 281m
+  const dLat = 0.0022;
+  const dLon = 0.0028;
 
-  const coords: [number, number][] = [];
-  for (let i = 0; i < count; i++) {
-    const angle = rotationAngle + (i * 2 * Math.PI) / count;
-    const pLon = centerLon + radiusDeg * Math.cos(angle) * 1.2;
-    const pLat = centerLat + radiusDeg * Math.sin(angle);
-    coords.push([Number(pLon.toFixed(6)), Number(pLat.toFixed(6))]);
-  }
-  coords.push(coords[0]);
+  // nonce에 따른 4방향 순환 블록 (북동, 남동, 북서, 남서)
+  const variants = [
+    { name: '동측 골목 안심길', dx: 1, dy: 1, stepLabels: ['우측 보행로를 따라 직진하세요', '모퉁이에서 좌회전하세요', '이면도로 안심길을 따라 직진하세요', '출발지로 복귀하세요'] },
+    { name: '북측 공원방면 순환로', dx: -1, dy: 1, stepLabels: ['골목 보행로를 따라 직진하세요', '교차로에서 우회전하세요', '완만한 내리막 보도를 따라 걸으세요', '출발지로 안전하게 돌아오세요'] },
+    { name: '서측 주택가 산책로', dx: -1, dy: -1, stepLabels: ['보도를 따라 직진하세요', '모퉁이에서 좌회전하세요', '한적한 골목길로 진행하세요', '출발점으로 귀환하세요'] },
+    { name: '남측 수변 연결로', dx: 1, dy: -1, stepLabels: ['안전 보행로를 따라 이동하세요', '모퉁이에서 우회전하세요', '직진 후 출발지 방면으로 회전하세요', '출발지에 도착합니다'] },
+  ];
+  const variant = variants[nonce % variants.length];
+  const sx = variant.dx * dLon;
+  const sy = variant.dy * dLat;
+
+  // 도로 블록을 따라 4개의 주요 코너를 형성하고, 코너마다 3점씩 스무딩하여 자연스러운 도로 곡선 구현
+  const waypoints: [number, number][] = [];
+  
+  // 출발점 (현위치)
+  waypoints.push([lon, lat]);
+  // 1구간: 출발지 -> 1차 교차로 (약 250m 보도 직진)
+  waypoints.push([lon + sx * 0.45, lat + sy * 0.05]);
+  waypoints.push([lon + sx * 0.85, lat + sy * 0.12]);
+  // 코너 1 스무딩 (우회전/좌회전 모퉁이)
+  waypoints.push([lon + sx * 0.98, lat + sy * 0.22]);
+  waypoints.push([lon + sx * 1.00, lat + sy * 0.35]);
+
+  // 2구간: 1차 교차로 -> 2차 교차로 (횡방향 보행로 직진)
+  waypoints.push([lon + sx * 0.96, lat + sy * 0.70]);
+  waypoints.push([lon + sx * 0.90, lat + sy * 0.92]);
+  // 코너 2 스무딩
+  waypoints.push([lon + sx * 0.82, lat + sy * 0.98]);
+  waypoints.push([lon + sx * 0.68, lat + sy * 1.00]);
+
+  // 3구간: 2차 교차로 -> 3차 교차로 (이면도로 안심길 직진)
+  waypoints.push([lon + sx * 0.35, lat + sy * 0.94]);
+  waypoints.push([lon + sx * 0.12, lat + sy * 0.88]);
+  // 코너 3 스무딩
+  waypoints.push([lon + sx * 0.04, lat + sy * 0.78]);
+  waypoints.push([lon + sx * 0.00, lat + sy * 0.62]);
+
+  // 4구간: 3차 교차로 -> 출발지로 안전 귀환
+  waypoints.push([lon + sx * 0.02, lat + sy * 0.30]);
+  waypoints.push([lon, lat]); // 완전 폐합 순환
+
+  const coords: [number, number][] = waypoints.map(([wLon, wLat]) => [
+    Number(wLon.toFixed(6)),
+    Number(wLat.toFixed(6)),
+  ]);
 
   const route: RouteFeatureCollection = {
     type: 'FeatureCollection',
     features: [
       {
         type: 'Feature',
-        properties: { segmentType: 'safe', maxSlopePercent: 2.0, shaded: true },
+        properties: { segmentType: 'safe', maxSlopePercent: 2.2, shaded: true },
         geometry: {
           type: 'LineString',
-          coordinates: coords,
+          coordinates: coords.slice(0, 7),
+        },
+      },
+      {
+        type: 'Feature',
+        properties: { segmentType: 'caution', maxSlopePercent: 3.5, shaded: false },
+        geometry: {
+          type: 'LineString',
+          coordinates: coords.slice(6, 11),
+        },
+      },
+      {
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 1.8, shaded: true },
+        geometry: {
+          type: 'LineString',
+          coordinates: coords.slice(10),
         },
       },
     ],
   };
 
-  const directionNames = ['동쪽', '북쪽', '서쪽', '남쪽'];
-  const dirName = directionNames[nonce % directionNames.length];
   const stepPins: RouteStepPin[] = [
-    createCurrentLocationPin(lon, lat, `현재 위치 기반 ${dirName} 완만 순환 코스`),
+    createCurrentLocationPin(lon, lat, `현재 위치 출발 · ${variant.name}`),
+    {
+      id: `pin_corner_1_${nonce}`,
+      kind: 'turn',
+      position: coords[4],
+      instruction: variant.stepLabels[0],
+    },
+    {
+      id: `pin_corner_2_${nonce}`,
+      kind: 'caution',
+      position: coords[8],
+      instruction: variant.stepLabels[1],
+    },
+    {
+      id: `pin_corner_3_${nonce}`,
+      kind: 'turn',
+      position: coords[12],
+      instruction: variant.stepLabels[2],
+    },
   ];
 
   return { route, stepPins };
