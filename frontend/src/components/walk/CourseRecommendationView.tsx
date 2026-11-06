@@ -13,7 +13,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { requestWalkPlan, RoutePlanResult, createCurrentLocationFallbackPlan } from '../../services/api';
+import { requestWalkPlan, RoutePlanResult } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
@@ -584,7 +584,6 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const userCoordsLon = userCoordinates?.lon;
   const userCoordsLat = userCoordinates?.lat;
   const pilotParkId = preferences?.pilotParkId;
-  const durationMinutes = preferences?.durationMinutes ?? 30;
 
   const candidatePlan = useMemo(() => {
     if (!currentCourseId || !coursePlans) return undefined;
@@ -612,24 +611,11 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       ? 0
       : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
 
-    // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반의 도로망 블록 순환 폴백 사용
-    if (isCurrentLocOrigin) {
-      const originCoords = gpsCoords ?? userCoordinates;
-      if (originCoords) {
-        return createCurrentLocationFallbackPlan(
-          originCoords.lat,
-          originCoords.lon,
-          fallbackIndex,
-          durationMinutes,
-        );
-      }
-    }
-
     return getCoursePlanById(
       currentCourse?.id,
       getCoursePlanByParkId(pilotParkId, fallbackIndex)
     );
-  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, userCoordinates, pilotParkId, durationMinutes]);
+  }, [candidatePlan, currentCourse, planResult, selectedCourseIndex, requiresValidatedPark, regenerateNonce, pilotParkId]);
 
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;

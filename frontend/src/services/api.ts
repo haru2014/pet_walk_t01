@@ -6,11 +6,8 @@ import { FeedbackSummaryPayload } from './feedbackContext';
 import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdaptivePlanner';
 import { fetchWithServerFallback } from './apiClient';
 import { getPilotParkById } from '../types/pilotParks';
-import { mergeCurrentLocationPin } from './locationPinHelper';
+import { mergeCurrentLocationPin, createCurrentLocationPin } from './locationPinHelper';
 import { WalkPlanPrefetchService } from './walkPlanPrefetchService';
-import { createCurrentLocationFallbackPlan, fetchCurrentLocationFootRoute } from './roadFallbackService';
-
-export { createCurrentLocationFallbackPlan, fetchCurrentLocationFootRoute } from './roadFallbackService';
 
 export class RoutePlanError extends Error {
   constructor(public readonly code: string, message: string, public readonly requestId?: string) {
@@ -81,6 +78,51 @@ function buildPlanPayload(
   };
 }
 
+function createCurrentLocationFallbackPlan(
+  lat: number,
+  lon: number,
+  nonce = 0,
+): { route: RouteFeatureCollection; stepPins: RouteStepPin[] } {
+  const count = 8;
+  const radiusDeg = 0.0018; // 약 200m 완만 순환
+  const rotationAngle = (nonce * (Math.PI / 2)) % (2 * Math.PI); // 재생성마다 90도씩 회전
+  const offsetLon = (radiusDeg * 0.7) * Math.cos(rotationAngle) * 1.2;
+  const offsetLat = (radiusDeg * 0.7) * Math.sin(rotationAngle);
+  const centerLon = lon + offsetLon;
+  const centerLat = lat + offsetLat;
+
+  const coords: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const angle = rotationAngle + (i * 2 * Math.PI) / count;
+    const pLon = centerLon + radiusDeg * Math.cos(angle) * 1.2;
+    const pLat = centerLat + radiusDeg * Math.sin(angle);
+    coords.push([Number(pLon.toFixed(6)), Number(pLat.toFixed(6))]);
+  }
+  coords.push(coords[0]);
+
+  const route: RouteFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { segmentType: 'safe', maxSlopePercent: 2.0, shaded: true },
+        geometry: {
+          type: 'LineString',
+          coordinates: coords,
+        },
+      },
+    ],
+  };
+
+  const directionNames = ['동쪽', '북쪽', '서쪽', '남쪽'];
+  const dirName = directionNames[nonce % directionNames.length];
+  const stepPins: RouteStepPin[] = [
+    createCurrentLocationPin(lon, lat, `현재 위치 기반 ${dirName} 완만 순환 코스`),
+  ];
+
+  return { route, stepPins };
+}
+
 function resolveDefaultPlan(
   isCurrentLocation: boolean,
   originLat: number,
@@ -89,12 +131,8 @@ function resolveDefaultPlan(
   nonce = 0,
 ): { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] } {
   if (isCurrentLocation) {
-    const minutes = preferences?.durationMinutes ?? 30;
-    if (originLat && originLon) {
-      return createCurrentLocationFallbackPlan(originLat, originLon, nonce, minutes);
-    }
     if (preferences?.userCoordinates) {
-      return createCurrentLocationFallbackPlan(preferences.userCoordinates.lat, preferences.userCoordinates.lon, nonce, minutes);
+      return createCurrentLocationFallbackPlan(originLat, originLon, nonce);
     }
     return { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS };
   }
@@ -194,46 +232,26 @@ function buildLivePlanResult(
   };
 }
 
-async function buildFallbackPlanResult(
+function buildFallbackPlanResult(
   dog: DogProfile,
   preferences: WalkPreferences | undefined,
   feedback: FeedbackSummaryPayload | null | undefined,
   origin: ReturnType<typeof resolveOrigin>,
   nonce = 0,
-): Promise<RoutePlanResult> {
+): RoutePlanResult {
   const { isCurrentLocation, originLat, originLon } = origin;
   const fallbackCourses = generateAdaptiveCourses(dog, preferences, feedback, nonce);
   const fallbackBriefing = generateAdaptiveBriefing(dog, preferences, feedback);
-  const minutes = preferences?.durationMinutes ?? 30;
-  const defaultPlan = isCurrentLocation
-    ? await fetchCurrentLocationFootRoute(originLat, originLon, nonce, minutes)
-    : resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences, nonce);
+  const defaultPlan = resolveDefaultPlan(isCurrentLocation, originLat, originLon, preferences, nonce);
   const fallbackStepPins = isCurrentLocation
     ? mergeCurrentLocationPin(defaultPlan.stepPins, originLon, originLat)
     : defaultPlan.stepPins;
-
-  const fallbackCoursePlans: Record<string, { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] }> = {};
-  if (isCurrentLocation) {
-    fallbackCourses.forEach((c, idx) => {
-      const plan = createCurrentLocationFallbackPlan(
-        originLat,
-        originLon,
-        nonce + idx,
-        minutes,
-      );
-      fallbackCoursePlans[c.id] = {
-        route: idx === 0 ? defaultPlan.route : plan.route,
-        stepPins: idx === 0 ? fallbackStepPins : plan.stepPins,
-      };
-    });
-  }
 
   return {
     isLiveServer: false,
     courses: fallbackCourses,
     route: defaultPlan.route,
     stepPins: fallbackStepPins,
-    coursePlans: Object.keys(fallbackCoursePlans).length > 0 ? fallbackCoursePlans : undefined,
     briefingMessage: fallbackBriefing,
     safetyBriefingMessage: '',
   };
