@@ -117,6 +117,34 @@ def test_rank_puts_courses_that_fit_the_requested_time_first():
     assert sorted([farther, far], key=rank_key)[0] is far  # 모두 멀면 요청에 가까운 순
 
 
+def test_repeated_laps_are_deducted_from_the_total():
+    """같은 순환로를 도는 바퀴가 늘수록 합계에서 뺀다: 1바퀴 0, 2바퀴 −6, 3바퀴 −12 (0점 아래로는 내려가지 않는다)."""
+    from agent.personalized_scorer import LAP_PENALTY, repeat_deduction
+    base = _score(_profile())
+    assert base.repeat_penalty == 0.0
+    assert _score(_profile(), lap_count=1).total == base.total
+    two, three = _score(_profile(), lap_count=2), _score(_profile(), lap_count=3)
+    assert two.repeat_penalty == LAP_PENALTY and three.repeat_penalty == 2 * LAP_PENALTY
+    assert round(base.total - two.total, 1) == LAP_PENALTY
+    assert round(base.total - three.total, 1) == 2 * LAP_PENALTY
+    assert [repeat_deduction(n) for n in (0, 1, 2, 4)] == [0.0, 0.0, LAP_PENALTY, 3 * LAP_PENALTY]
+    worst = {"max_slope_percent": 99.0, "stairs_count": 20, "shade_ratio": 0.0, "soft_surface_ratio": 0.0,
+             "surface_known_ratio": 1.0}
+    assert _score(worst, distance_m=10.0, lap_count=9).total == 0.0
+
+
+def test_one_lap_beats_two_laps_when_courses_are_otherwise_equal():
+    one, two = _score(_profile(), lap_count=1), _score(_profile(), lap_count=2)
+    assert one.total > two.total
+
+
+def test_two_laps_can_still_win_when_clearly_better():
+    """감점이지 제외가 아니다: 계단이 많은 1바퀴 코스보다 계단 없는 2바퀴 코스가 앞설 수 있다."""
+    clean_two_laps = _score(_profile(stairs_count=0), lap_count=2)
+    stairy_one_lap = _score(_profile(stairs_count=6), lap_count=1)
+    assert clean_two_laps.total > stairy_one_lap.total
+
+
 def test_soft_score_uses_the_known_part_so_less_surveyed_courses_do_not_win():
     """#188 승현님 폰(유림): 그늘을 골랐는데 그늘 62%·노면 확인 36% 코스가 그늘 81%·확인 73% 코스보다 앞섰다.
     확인된 구간이 모두 포장길이면 확인 비율과 관계없이 폭신 0 으로 본다. 노면을 전혀 모를 때만 중간값."""

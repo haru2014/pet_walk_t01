@@ -41,12 +41,11 @@ jobs:
 
       - name: 백엔드 의존성 패키지 설치
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 단위 테스트 실행 (pytest)
+      - name: 단위 테스트 실행 (pytest 병렬 실행)
         run: |
-          pytest test_case/ -v
+          pytest test_case/ -n auto --dist=loadscope -v --durations=10
 
   # ========================================================
   # Job 2: 모바일 앱(React Native / Expo) 테스트 및 타입 검사

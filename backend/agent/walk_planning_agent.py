@@ -19,7 +19,7 @@ from langgraph.graph.message import add_messages
 from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
-from agent.route_geometry import estimate_duration_minutes
+from agent.route_geometry import backtrack_ratio, estimate_duration_minutes
 from agent.pilot_park_routes import PILOT_PARK_CENTERS
 from services.walk_preferences import WalkPreferences
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
@@ -115,14 +115,36 @@ class ScoredRoute(BaseModel):
 DURATION_FIT_TOLERANCE = 0.25
 
 
+# 같은 순환로를 이 횟수보다 많이 도는 코스는 대안이 있으면 뒤로 민다 (공원 계획의 PREFERRED_LAP_REPEATS 와 같은 값)
+MAX_PREFERRED_LAPS = 2
+RETRACE_BUCKET_STEP = 0.1  # 같은 길을 되밟는 비율을 이 폭으로 묶어 비교한다 (미세한 차이로 점수 순위를 뒤집지 않는다)
+
+
+def repeat_penalty(candidate: "RouteCandidate") -> Tuple[int, float]:
+    """(3바퀴 이상 반복 여부, 같은 길 되밟기 비율 구간). 둘 다 작을수록 앞선다.
+
+    바퀴 반복(2바퀴 등)으로 생기는 되밟기는 빼고, 순환 코스 안에서 같은 길을 다시 걷는 몫만 센다.
+    """
+    laps = candidate.lap_count or 1
+    coords = candidate.geojson_coordinates
+    ratio = backtrack_ratio(coords) if len(coords) >= 2 else 0.0
+    lap_repeat_ratio = (laps - 1) / laps
+    retrace = max(0.0, ratio - lap_repeat_ratio)
+    bucket = round(round(retrace / RETRACE_BUCKET_STEP) * RETRACE_BUCKET_STEP, 2)
+    return (1 if laps > MAX_PREFERRED_LAPS else 0, bucket)
+
+
 def rank_key(scored: "ScoredRoute") -> tuple:
-    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고 그 안에서는 점수 순,
-    맞는 코스가 없으면 요청 시간에 가까운 순(같으면 점수 순). 점수 자체는 바꾸지 않는다.
-    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다."""
+    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고, 맞는 코스가 없으면 요청 시간에 가까운 순으로 센다.
+    같은 단계 안에서는 같은 길을 되풀이하지 않는 코스(3바퀴 이상 반복 → 되밟기 비율 순)를 앞세우고,
+    그다음 점수 순. 점수 자체는 바꾸지 않는다.
+    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다.
+    같은 시간에 맞는 코스끼리면 3바퀴 도는 코스보다 한 바퀴 코스를 먼저 추천한다."""
     err = scored.distance_error_ratio
+    laps_over, retrace = repeat_penalty(scored.candidate)
     if err <= DURATION_FIT_TOLERANCE:
-        return (0, 0.0, -scored.total_score)
-    return (1, round(err, 3), -scored.total_score)
+        return (0, 0.0, laps_over, retrace, -scored.total_score)
+    return (1, round(err, 3), laps_over, retrace, -scored.total_score)
 
 
 class WalkPlanningResult(BaseModel):
@@ -697,6 +719,7 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
             preferred_surfaces=intent.get("preferred_surfaces"),
             air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
             context_preferences=WalkPreferences.from_intent(intent),
+            lap_count=c.lap_count or 1,
         )
         if profile:
             _apply_profile_to_candidate(c, profile, result.surface_temp_c)

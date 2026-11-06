@@ -146,14 +146,12 @@ export class WalkPlanPrefetchService {
     this.activeAbortController = controller;
     this.activeKey = key;
 
-    const promise = executor(controller.signal)
+    // 진행 중 요청(pendingRequests)은 실패를 그대로 전달한다. 추천 화면이 같은 요청을 이어받을 때
+    // null 이 아니라 실제 오류(RoutePlanError)를 받아 안내할 수 있어야 하기 때문이다.
+    const request = executor(controller.signal)
       .then((result) => {
         this.set(key, result);
         return result;
-      })
-      .catch((err) => {
-        // 취소된 경우는 조용히 무시
-        return null;
       })
       .finally(() => {
         this.pendingRequests.delete(key);
@@ -163,8 +161,9 @@ export class WalkPlanPrefetchService {
         }
       });
 
-    this.pendingRequests.set(key, promise as Promise<RoutePlanResult>);
-    return promise;
+    this.pendingRequests.set(key, request);
+    // 백그라운드 프리페치 호출자는 실패해도 화면에 알리지 않으므로 null 로 삼킨다 (취소 포함)
+    return request.catch(() => null);
   }
 
   /**

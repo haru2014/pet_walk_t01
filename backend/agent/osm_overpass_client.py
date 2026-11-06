@@ -28,13 +28,19 @@ from services.http_util import ssl_context
 logger = logging.getLogger(__name__)
 
 MIRRORS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
-TIMEOUT_S = 4.0
+# 반경 1.8km 도심은 길만 수천 개라 공개 서버가 4초 안에 못 줄 때가 많다. 전체 8초 안에서 서버마다 최대 6초 기다리고,
+# 첫 서버가 느리면 남은 시간으로 다음 서버를 시도한다. (앱 요청 제한 20초 = 이 조회 8초 + OSRM 6초 + 여유)
+TIMEOUT_S = 8.0
+MIRROR_TIMEOUT_S = 6.0
 CACHE_TTL_S = 3600.0
+# 실패도 잠깐 기억한다. 한 요청 안에서 후보 3개·지표 계산이 같은 지역을 다시 받으려 하면 실패할 때마다 10초씩 쌓여
+# 앱 제한 시간(20초)을 넘기기 때문이다. 짧게만 기억해 서버가 회복되면 곧 다시 시도한다.
+FAILURE_TTL_S = 30.0
 CACHE_MAX = 32
 M_PER_DEG_LAT = 110_540.0
 SOURCE = "OpenStreetMap Overpass API (ODbL)"
 
-QUERY_TEMPLATE = """[out:json][timeout:8];
+QUERY_TEMPLATE = """[out:json][timeout:9];
 (
   way["highway"]({bbox});
   node["highway"="crossing"]({bbox});
@@ -44,7 +50,7 @@ QUERY_TEMPLATE = """[out:json][timeout:8];
   way["landuse"~"^(commercial|retail|forest)$"]({bbox});
   way["natural"~"^(wood|tree_row)$"]({bbox});
 );
-out geom;"""
+out geom qt;"""
 
 
 @dataclass
@@ -63,6 +69,7 @@ class OsmRegion:
 
 
 _CACHE: Dict[Tuple[float, float, int], Tuple[float, OsmRegion]] = {}
+_FAILED: Dict[Tuple[float, float, int], float] = {}
 _LOCK = threading.Lock()
 
 
@@ -125,7 +132,7 @@ def parse_overpass(payload: Dict[str, Any], center: Tuple[float, float], radius_
 
 
 def _download(query: str) -> Optional[Dict[str, Any]]:
-    """서버를 차례로 시도하되 전체 대기 시간은 TIMEOUT_S 를 넘지 않는다 (경로 생성 시간 예산 보호)."""
+    """서버를 차례로 시도하되 전체 대기 시간은 TIMEOUT_S, 서버 하나당은 MIRROR_TIMEOUT_S 를 넘지 않는다."""
     body = urllib.parse.urlencode({"data": query}).encode("utf-8")
     deadline = time.monotonic() + TIMEOUT_S
     for url in MIRRORS:
@@ -134,7 +141,7 @@ def _download(query: str) -> Optional[Dict[str, Any]]:
             break
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": "PetWalk/1.0"})
-            with urllib.request.urlopen(req, timeout=remaining, context=ssl_context()) as res:
+            with urllib.request.urlopen(req, timeout=min(remaining, MIRROR_TIMEOUT_S), context=ssl_context()) as res:
                 return json.loads(res.read().decode("utf-8"))
         except Exception as exc:  # 네트워크·응답 형식 오류는 다음 서버로
             logger.warning("Overpass 조회 실패(%s): %s", url, type(exc).__name__)
@@ -150,10 +157,15 @@ def fetch_region(lat: float, lon: float, radius_m: float) -> Optional[OsmRegion]
         cached = _CACHE.get(key)
         if cached and time.monotonic() - cached[0] < CACHE_TTL_S:
             return cached[1]
+        failed_at = _FAILED.get(key)
+        if failed_at is not None and time.monotonic() - failed_at < FAILURE_TTL_S:
+            return None
         south, west, north, east = bbox_for(lat, lon, radius_m)
         payload = _download(QUERY_TEMPLATE.format(bbox=f"{south:.6f},{west:.6f},{north:.6f},{east:.6f}"))
         if payload is None:
+            _FAILED[key] = time.monotonic()
             return None
+        _FAILED.pop(key, None)
         region = parse_overpass(payload, (lon, lat), radius_m)
         if len(_CACHE) >= CACHE_MAX:
             _CACHE.clear()
@@ -163,3 +175,4 @@ def fetch_region(lat: float, lon: float, radius_m: float) -> Optional[OsmRegion]
 
 def clear_region_cache() -> None:
     _CACHE.clear()
+    _FAILED.clear()

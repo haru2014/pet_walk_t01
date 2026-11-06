@@ -98,6 +98,19 @@ describe('WalkPlanPrefetchService - 산책 경로 사전 요청 및 중복제거
     expect(executor2).toHaveBeenCalledTimes(1);
   });
 
+  it('프리페치가 실패하면 prefetch 는 null 을 주지만, 이어받는 쪽(getPending)은 실제 오류를 받는다', async () => {
+    const failure = new Error('서버 시간 초과');
+    const executor = vi.fn().mockRejectedValue(failure);
+
+    const background = WalkPlanPrefetchService.prefetch(mockDog, mockPreferences, null, executor);
+    const pending = WalkPlanPrefetchService.getPending(mockDog, mockPreferences, null);
+
+    expect(pending).not.toBeNull();
+    await expect(pending).rejects.toBe(failure);
+    await expect(background).resolves.toBeNull();
+    expect(WalkPlanPrefetchService.getPending(mockDog, mockPreferences, null)).toBeNull();
+  });
+
   it('현위치 모드에서는 GPS 좌표(약 100m 단위 반올림)를 키에 반영한다', () => {
     const prefA: WalkPreferences = {
       originMode: 'current_location',
