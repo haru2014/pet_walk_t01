@@ -465,19 +465,20 @@ def _validate_and_parse_walk_plan_request(req: Dict[str, Any]) -> Dict[str, Any]
     """출발 좌표, 공원 ID, 출발 모드, 산책 시간 및 속도 입력 유효성 검증."""
     origin_lat, origin_lon = _parse_origin_coords(req)
 
-    pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
-    if not pilot_park_id:
-        hint_text = str(req.get("user_query") or req.get("request_text") or "")
-        pilot_park_id = resolve_landmark_park_id(hint_text)
-    if pilot_park_id is not None and not isinstance(pilot_park_id, str):
-        raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
-
     origin_mode = req.get("origin_mode")
     if not origin_mode:
         # 공원 명칭 언급만으로 출발점을 공원으로 간주하지 않는다.
         origin_mode = "current_location"
     if origin_mode not in ("park", "parking_pnr", "current_location"):
         raise HTTPException(status_code=400, detail="지원하지 않는 출발 모드입니다.")
+
+    pilot_park_id = req.get("pilot_park_id") or req.get("park_id")
+    # 사용자가 현재 위치 모드(current_location)를 지정한 경우, 텍스트에 공원 이름이 있더라도 공원 모드로 강제하지 않는다.
+    if not pilot_park_id and origin_mode in ("park", "parking_pnr"):
+        hint_text = str(req.get("user_query") or req.get("request_text") or "")
+        pilot_park_id = resolve_landmark_park_id(hint_text)
+    if pilot_park_id is not None and not isinstance(pilot_park_id, str):
+        raise HTTPException(status_code=400, detail="공원 식별자는 문자열이어야 합니다.")
 
     try:
         target_duration = float(req.get("target_duration_minutes", 30))
@@ -1081,7 +1082,7 @@ def plan_walk_route(req: Dict[str, Any]):
             origin_mode=origin_mode,
             parking_lot_id=parking_lot_id,
             # 공원 ID 없이 온 주차장 출발도 위치로 정한 공원(selected_park)으로 채점한다 (진입로 거리 제외, #160)
-            pilot_park_id=selected_park or params["pilot_park_id"],
+            pilot_park_id=selected_park or (params["pilot_park_id"] if park_mode else None),
             intent_overrides=intent_overrides,
             regenerate_nonce=params["regenerate_nonce"],
         )

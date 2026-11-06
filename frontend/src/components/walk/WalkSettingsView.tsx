@@ -110,9 +110,11 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 }) => {
   const { colors } = useAppTheme();
   const { walkSettings, scale } = useAppResponsive();
-  const [originMode, setOriginMode] = useState<WalkOriginMode>(
-    initialPreferences?.originMode ?? 'park'
-  );
+  const [originMode, setOriginMode] = useState<WalkOriginMode>(() => {
+    if (initialPreferences?.originMode) return initialPreferences.originMode;
+    if (initialPreferences?.userCoordinates) return 'current_location';
+    return 'park';
+  });
   const [pilotParkId, setPilotParkId] = useState<string>(
     initialPreferences?.pilotParkId ?? 'yurim'
   );
