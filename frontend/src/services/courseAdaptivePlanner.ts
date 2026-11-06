@@ -288,7 +288,8 @@ export function generateAdaptiveCourses(
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const speed = dog.speedKmH > 0 ? dog.speedKmH : 2.8;
   const envSummary = buildEnvironmentSummaryText(envs);
-  const pilotParkId = preferences?.pilotParkId;
+  const isCurrentLoc = (preferences?.originMode ?? 'park') === 'current_location';
+  const pilotParkId = isCurrentLoc ? undefined : preferences?.pilotParkId;
 
   const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId };
 
