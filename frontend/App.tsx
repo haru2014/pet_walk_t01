@@ -670,7 +670,10 @@ export default function App() {
                 {/* 2. 산책 설정 / 코스 추천 화면 (하단 메인 메뉴 유지) */}
                 {subScreen === 'walk_settings' && (
                   <WalkSettingsView
-                    dog={activeDog} initialPreferences={preferences} onBack={triggerBack}
+                    dog={activeDog}
+                    initialPreferences={preferences}
+                    feedback={feedbackSummary}
+                    onBack={triggerBack}
                     onFindRoute={(next) => { setPreferences(next); setSubScreen('course_recommend'); }}
                   />
                 )}
