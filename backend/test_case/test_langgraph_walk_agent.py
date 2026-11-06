@@ -26,6 +26,8 @@ from agent.walk_planning_agent import (
     score_candidate_route,
     RouteCandidate
 )
+import agent.loop_route_planner as lrp
+from test_case.test_walk_plan_latency import _circle_route
 
 
 class TestLangGraphAgentWorkflowCompilation:
@@ -52,8 +54,9 @@ class TestLangGraphAgentWorkflowCompilation:
 class TestLangGraphAgentExecutionSeniorMaltese:
     """노령견/소형견 시나리오: '9살 노령 말티즈라 계단 피하고 완만한 길로 20분만'."""
 
-    def test_senior_maltese_full_agent_cycle(self):
+    def test_senior_maltese_full_agent_cycle(self, monkeypatch):
         """자연어 의도 파싱부터 라우팅 후보 생성, 100점 채점, 브리핑 합성까지의 ReAct 전주기 검증."""
+        monkeypatch.setattr(lrp, "fetch_osrm_foot_route", lambda w, timeout_seconds=1.2, use_cache=True: _circle_route(w))
         user_query = "9살 노령 말티즈라 계단 피하고 완만한 길로 20분만 가볍게 산책하고 싶어"
         dog_context = {
             "dog_id": "dog-coco-001",
@@ -309,8 +312,9 @@ class TestPydanticV2StrictSchemaValidation:
 class TestFastApiAgentIntegration:
     """FastAPI 엔드포인트와 LangGraph Walk Planning Agent 결합 검증."""
 
-    def test_plan_endpoint_with_custom_user_query(self):
+    def test_plan_endpoint_with_custom_user_query(self, monkeypatch):
         """POST /api/v1/walk/plan 엔드포인트에 자연어 질의와 체급 프로필 전달 시 정상 처리 검증."""
+        monkeypatch.setattr(lrp, "fetch_osrm_foot_route", lambda w, timeout_seconds=1.2, use_cache=True: _circle_route(w))
         from fastapi.testclient import TestClient
         from main import app
 

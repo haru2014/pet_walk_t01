@@ -24,6 +24,8 @@ from agent.route_geometry import (
     loop_closure_gap_m,
     backtrack_ratio,
 )
+import agent.loop_route_planner as lrp
+from test_case.test_walk_plan_latency import _circle_route
 from main import plan_walk_route
 
 
@@ -81,9 +83,10 @@ class TestRouteGeometryIntegrity:
         (45, 30.0, 3, 0, 4.2),  # 대형견: 4.2 km/h
     ])
     def test_duration_and_distance_error_within_15_percent(
-        self, duration_min: int, weight_kg: float, age_years: int, joint_level: int, expected_speed: float
+        self, duration_min: int, weight_kg: float, age_years: int, joint_level: int, expected_speed: float, monkeypatch
     ):
         """3. 목표 시간 및 반려견 속도 기반 목표 거리 대비 실제 지오메트리 오차가 +-15% 이내여야 한다."""
+        monkeypatch.setattr(lrp, "fetch_osrm_foot_route", lambda w, timeout_seconds=1.2, use_cache=True: _circle_route(w))
         speed = get_standard_speed_kmh(weight_kg, age_years, joint_level)
         assert speed == expected_speed
 
@@ -155,8 +158,9 @@ class TestRouteGeometryIntegrity:
             f"출발지(강남역)와 경로 시작점 사이 거리({dist_from_origin:.1f}m)가 100m를 초과함 (원격지 고정 코스 오류)"
         )
 
-    def test_main_api_passthrough_parameters(self):
+    def test_main_api_passthrough_parameters(self, monkeypatch):
         """6. main.py /api/v1/walk/plan 호출 시 반려견 맞춤 파라미터가 유실 없이 계산에 반영되어야 한다."""
+        monkeypatch.setattr(lrp, "fetch_osrm_foot_route", lambda w, timeout_seconds=1.2, use_cache=True: _circle_route(w))
         payload = {
             "dog_name": "초코",
             "breed": "토이 푸들",
