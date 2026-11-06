@@ -335,7 +335,7 @@ def plan_offline_network_loop(
         brg = bearing_deg(start_coord, data["coord"])
         brg_diff = abs((brg - target_brg + 180.0) % 360.0 - 180.0)
         dist_error = abs(loop_len - target_distance_m) / target_distance_m
-        score = dist_error * 2.0 + (brg_diff / 180.0) * 1.5
+        score = dist_error * 3.0 + (brg_diff / 180.0) * 0.1
 
         if best_loop is None or score < best_loop[2]:
             best_loop = (full_node_path, loop_len, score)
