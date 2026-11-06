@@ -13,7 +13,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { requestWalkPlan, RoutePlanResult } from '../../services/api';
+import { requestWalkPlan, RoutePlanResult, createCurrentLocationFallbackPlan } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
@@ -569,6 +569,14 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       });
   };
 
+  const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
+  const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
+    if (preferences?.userCoordinates) {
+      return { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat };
+    }
+    return null;
+  });
+
   const currentCourse = courses[selectedCourseIndex] ?? courses[0];
   const candidatePlan = currentCourse?.id ? planResult?.coursePlans?.[currentCourse.id] : undefined;
   const activePlan = useMemo(() => {
@@ -582,19 +590,20 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     const fallbackIndex = selectedCourseIndex === 0
       ? 0
       : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
+
+    // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반 동심원/도로망 폴백 사용
+    if (isCurrentLocOrigin) {
+      const originCoords = gpsCoords ?? preferences?.userCoordinates;
+      if (originCoords) {
+        return createCurrentLocationFallbackPlan(originCoords.lat, originCoords.lon, fallbackIndex);
+      }
+    }
+
     return getCoursePlanById(
       currentCourse?.id,
       getCoursePlanByParkId(preferences?.pilotParkId, fallbackIndex)
     );
-  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark, regenerateNonce]);
-
-  const isCurrentLocOrigin = (preferences?.originMode ?? 'park') === 'current_location';
-  const [gpsCoords, setGpsCoords] = useState<{ lon: number; lat: number } | null>(() => {
-    if (preferences?.userCoordinates) {
-      return { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat };
-    }
-    return null;
-  });
+  }, [candidatePlan, currentCourse?.id, planResult, selectedCourseIndex, preferences?.pilotParkId, requiresValidatedPark, regenerateNonce, isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates]);
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
     if (isCurrentLocOrigin && preferences?.userCoordinates) {

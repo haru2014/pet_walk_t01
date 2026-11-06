@@ -44,6 +44,8 @@ export interface HomeScreenProps {
   onOpenStats?: () => void;
   onOpenNotification?: () => void;
   pilotParkId?: string;
+  initialUserCoords?: { lon: number; lat: number } | null;
+  onUpdateUserCoords?: (coords: { lat: number; lon: number }) => void;
 }
 
 /**
@@ -80,6 +82,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenStats,
   onOpenNotification,
   pilotParkId,
+  initialUserCoords,
+  onUpdateUserCoords,
 }) => {
   const { colors } = useAppTheme();
   const [weather, setWeather] = useState<HeatRiskResponse | null>(null);
@@ -89,7 +93,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
   const [nearbyHazards, setNearbyHazards] = useState<NearbyHazardReport[]>([]);
-  const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lon: number; lat: number } | null>(() => {
+    if (initialUserCoords) return initialUserCoords;
+    return null;
+  });
 
   const fallbackPark = useMemo(() => getPilotParkById(pilotParkId), [pilotParkId]);
 
@@ -103,6 +110,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       if (coords.isGps) {
         setUserCoords({ lon: coords.lon, lat: coords.lat });
+        onUpdateUserCoords?.({ lat: coords.lat, lon: coords.lon });
       }
 
       try {

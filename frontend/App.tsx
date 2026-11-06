@@ -51,6 +51,7 @@ import { CourseRecommendationView } from './src/components/walk/CourseRecommenda
 import { AppScreenHeader } from './src/components/common/AppScreenHeader';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { SplashScreen } from './src/components/common/SplashScreen';
+import { RenderKeepAliveService } from './src/services/renderKeepAliveService';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
@@ -184,6 +185,14 @@ export default function App() {
   });
   const [walkBookmark, setWalkBookmark] = useState<BookmarkedRoute | null>(null);
   const consent = useLocationConsent();
+
+  // Render 무료 인스턴스 콜드 스타트 방어: 앱 실행 즉시 사전 웜업 및 포그라운드 10분 스마트 하트비트 가동
+  useEffect(() => {
+    RenderKeepAliveService.start();
+    return () => {
+      RenderKeepAliveService.stop();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -702,6 +711,8 @@ export default function App() {
                       setActiveTab('마이');
                     }}
                     pilotParkId={preferences.pilotParkId}
+                    initialUserCoords={preferences.userCoordinates ? { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat } : null}
+                    onUpdateUserCoords={(coords) => setPreferences((prev) => ({ ...prev, userCoordinates: coords }))}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (

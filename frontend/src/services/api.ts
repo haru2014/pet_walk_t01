@@ -30,7 +30,7 @@ export interface RoutePlanResult {
 
 const API_TIMEOUT_MS = 20000;
 
-function createCurrentLocationFallbackPlan(
+export function createCurrentLocationFallbackPlan(
   lat: number,
   lon: number,
   nonce = 0,
@@ -129,8 +129,11 @@ function resolveDefaultPlan(
   nonce = 0,
 ): { route: RouteFeatureCollection; stepPins: readonly RouteStepPin[] } {
   if (isCurrentLocation) {
-    if (preferences?.userCoordinates) {
+    if (originLat && originLon) {
       return createCurrentLocationFallbackPlan(originLat, originLon, nonce);
+    }
+    if (preferences?.userCoordinates) {
+      return createCurrentLocationFallbackPlan(preferences.userCoordinates.lat, preferences.userCoordinates.lon, nonce);
     }
     return { route: SAMPLE_ROUTE, stepPins: SAMPLE_STEP_PINS };
   }

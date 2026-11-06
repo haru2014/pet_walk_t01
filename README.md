@@ -280,37 +280,41 @@ graph TB
 
 ### 5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)
 
-편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 2026년 11월 4일 최신 실제 구동 대표 화면 모음입니다. (고화질 원본 및 상세 명세: [`docs/screenshots/README.md`](docs/screenshots/README.md))
+편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 최신 실제 구동 대표 화면 모음입니다. (고화질 원본 및 상세 명세: [`docs/screenshots/README.md`](docs/screenshots/README.md))
 
-#### 🌟 1. 메인 홈 & 실시간 지면열 날씨 리포트 (홈 탭)
-| 02-A. 메인 홈 (날씨 로딩 중) | 02-B. 메인 홈 (날씨 정상 로드) | 02-1. 오늘의 산책 날씨 리포트 모달 |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/02_home_screen_weather_loading.png" width="220" alt="메인 홈 날씨 로딩 중"/> | <img src="docs/screenshots/02_home_screen_weather_loaded.png" width="220" alt="메인 홈 날씨 로드 완료"/> | <img src="docs/screenshots/02-1_golden_time_weather_detail_modal.png" width="220" alt="오늘의 산책 날씨 리포트"/> |
-| **반려견 맞춤 대시보드**<br>• "오늘도 편안하게, 우리 강아지와 걸어요"<br>• 활성 반려견(고양이5) 카드<br>• 원터치 자유 산책 시작 버튼 | **산책 지수 & 골든타임**<br>• **오늘 강아지 산책지수 90점** 골든타임 배지<br>• 기온·노면 체감온도 및 상세 날씨 팝업<br>• 맞춤 추천 산책길 바로가기 | **정밀 노면 발바닥 체감온도 분석**<br>• 4대 환경 메트릭 (기온/체감/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교** (아스팔트 21.2℃, 보도블록 20.4℃, 흙 20.1℃, 잔디 18.4℃)<br>• 100점 만점 안심 시간대 브리핑 |
-
-#### 🌟 2. 맞춤 산책 조건 설정 & 추천 코스 프리뷰 (산책 탭)
-| 03. 맞춤 산책 조건 설정 | 03-1. 산책 경로 생성 중 로딩 | 04-1. 추천 코스 프리뷰 (마커 OFF) | 04-2. 추천 코스 프리뷰 (마커 ON) |
+#### 🌟 1. 온보딩 4단계 (처음 시작하기)
+| 01-1. 가입 및 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 & 200m 보호 | 01-4. 안심 코스 지도 & 시작 |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/03_walk_settings_park_and_time.png" width="180" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/03-1_route_generating_loading.png" width="180" alt="산책 경로 생성 로딩"/> | <img src="docs/screenshots/04-1_course_recommendation_markers_off.png" width="180" alt="추천 산책 코스 마커 OFF"/> | <img src="docs/screenshots/04-2_course_recommendation_markers_on.png" width="180" alt="추천 산책 코스 마커 ON"/> |
-| **자연어 & 명소 둘레길**<br>• 자연어 음성/텍스트 입력<br>• 현재 위치 / 지정 명소 탭<br>• 30분 등 시간 간편 설정 | **실시간 탐색 피드백**<br>• "산책하기 좋은 길을 찾고 있어요"<br>• 노면·그늘·경사도 분석 중 | **경로 전체 조망 & 찜하기**<br>• 도안호수공원 순환 코스 프리뷰<br>• **제목 라인 통합 찜하기(♡) 버튼**<br>• 가로 100% 온전한 코스 카드 폭 | **고정밀 벡터 방향 마커**<br>• 구간별 **볼드 직진 벡터 화살표(↑)**<br>• 28px 광학 중앙 정렬 마커<br>• 1px 안심 세이지 테두리 시인성 |
+| <img src="docs/screenshots/01-1_onboarding_wizard_step1_terms.png" width="180" alt="온보딩 Step 1 가입 및 약관 동의"/> | <img src="docs/screenshots/01-2_onboarding_wizard_step2_dog_profile.png" width="180" alt="온보딩 Step 2 프로필 등록"/> | <img src="docs/screenshots/01-3_onboarding_wizard_step3_location_consent.png" width="180" alt="온보딩 Step 3 위치 동의"/> | <img src="docs/screenshots/01-4_onboarding_wizard_step4_course_preview.png" width="180" alt="온보딩 Step 4 코스 프리뷰"/> |
+| **보호자 환영 & 약관 동의**<br>• 계정 생성 및 이용약관 동의<br>• 위치기반서비스 필수 동의 | **우리 강아지 소개**<br>• 이름(초코), 견종, 나이 입력<br>• 대표 사진 원터치 등록 | **안심 보행로 위치 권한**<br>• **집 주변 200m 자동 안심 보호**<br>• 공간 지터링 & 자동 가림 고지 | **주변 안심 코스 프리뷰**<br>• 대전 중심 안심 예시 지도<br>• 첫 산책 바로 시작하기 |
 
-#### 🌟 3. 실시간 보행 내비게이션 & 산책 제어
-| 06-1. 산책 진행 중 (다크 포켓 모드) | 06-2. 산책 종료 확인 모달 |
+#### 🌟 2. 메인 홈 & 실시간 지면열 날씨 리포트 (홈 탭)
+| 02. 메인 홈 (날씨 로드 완료) | 02-1. 오늘의 산책 날씨 리포트 모달 |
 | :---: | :---: |
-| <img src="docs/screenshots/06-1_walk_in_progress_dark_pocket_mode.png" width="220" alt="다크 포켓 모드"/> | <img src="docs/screenshots/06-2_walk_in_progress_stop_modal.png" width="220" alt="산책 종료 확인 모달"/> |
-| **초절전 시선 해방(Eyes-Free) 내비게이션**<br>• True Black OLED 배터리 절전 뷰<br>• 실시간 거리, 경과 시간, 보행 페이스 HUD<br>• 원터치 배변/소변 기록 및 실시간 GPS 추적 | **안전 산책 종료 다이얼로그**<br>• 주머니 속 오터치 방지 확인 팝업<br>• 산책 계속하기 및 안전 종료 분기 |
+| <img src="docs/screenshots/02_home_screen_weather_loaded.png" width="220" alt="메인 홈 날씨 로드 완료"/> | <img src="docs/screenshots/02-1_golden_time_weather_detail_modal.png" width="220" alt="오늘의 산책 날씨 리포트"/> |
+| **산책 지수 & 골든타임 대시보드**<br>• **오늘 강아지 산책지수 90점** 골든타임 배지<br>• 기온·노면 체감온도 및 상세 날씨 팝업<br>• 맞춤 추천 산책길 바로가기 | **정밀 노면 발바닥 체감온도 분석**<br>• 4대 환경 메트릭 (기온/체감/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교** (아스팔트 21.2℃, 보도블록 20.4℃, 흙 20.1℃, 잔디 18.4℃)<br>• 100점 만점 안심 시간대 브리핑 |
 
-#### 🌟 4. 마이 탭 (프로필, 6대 컬러 테마, 월간 스탬프 & 통계, AI 음성 설정, 약관)
+#### 🌟 3. 맞춤 산책 조건 설정 & 추천 코스 (산책 탭)
+| 03. 맞춤 산책 조건 설정 | 03-1. 맞춤 조건 필터 선택 | 03-3. 산책 경로 생성 중 로딩 | 04. 추천 코스 프리뷰 |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/03_walk_settings_park_and_time.png" width="180" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/03-1_walk_settings_filter_options.png" width="180" alt="맞춤 조건 필터 선택"/> | <img src="docs/screenshots/03-3_route_generating_loading.png" width="180" alt="산책 경로 생성 로딩"/> | <img src="docs/screenshots/04_course_recommendation.png" width="180" alt="추천 산책 코스"/> |
+| **자연어 & 명소 둘레길**<br>• 음성/텍스트 맞춤 조건 입력<br>• 현재 위치 / 지정 명소 탭<br>• 30분 등 시간 간편 설정 | **6대 맞춤 보행 필터**<br>• 폭신한 길, 그늘길, 계단 피하기<br>• 차가 적은 길, 조용한 길<br>• 다중 조건 조합 탐색 | **실시간 탐색 피드백**<br>• "산책하기 좋은 길을 찾고 있어요"<br>• 관절 안심·노면·그늘길 계산 중 | **경로 전체 조망 & 정보 카드**<br>• 유림공원 순환로 2바퀴 지도 프리뷰<br>• 지면온도(14.4℃) 안내<br>• 코스 찜하기 및 바로 산책 시작 |
+
+#### 🌟 4. 실시간 보행 내비게이션 & 산책 제어
+| 06-1. 산책 진행 중 (자유 산책 트래커) | 06-2. 산책 진행 중 (내비게이션 & 재탐색) |
+| :---: | :---: |
+| <img src="docs/screenshots/06-1_walk_in_progress_free_walk_tracker.png" width="220" alt="자유 산책 트래커"/> | <img src="docs/screenshots/06-2_walk_in_progress_reroute_navigation.png" width="220" alt="다크 내비게이션"/> |
+| **자유 산책 모드 & 전방 위험 알림**<br>• 자유 산책 실시간 경로 추적<br>• 전방 위험 제보 실시간 모니터링<br>• 경과 시간, 이동 거리, 배변/소변 기록 | **초절전 다크 내비게이션 & 경로 이탈 재탐색**<br>• True Black HUD 턴바이턴 안내<br>• 경로 이탈 시 실시간 출발지 복귀 새 경로 안내<br>• 실시간 GPS 보행 트래커 HUD |
+
+#### 🌟 5. 마이 탭 (프로필, 6대 컬러 테마, 월간 스탬프 & 통계, AI 음성 설정)
 | 08-1. 프로필 관리 | 08-2. 6대 테마 & 계정 | 08-3A. 월간 스탬프 달력 | 08-3B. 활동 통계 & 완주 기록 | 08-4. AI 길안내 음성 설정 |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/08-1_my_tab_profile_edit.png" width="160" alt="프로필 관리"/> | <img src="docs/screenshots/08-2_my_tab_theme_and_account.png" width="160" alt="테마 및 계정"/> | <img src="docs/screenshots/08-3_my_tab_activity_stamps.png" width="160" alt="월간 스탬프 달력"/> | <img src="docs/screenshots/08-3_my_tab_activity_history.png" width="160" alt="활동 통계 및 완주 기록"/> | <img src="docs/screenshots/08-4_my_tab_settings_voice.png" width="160" alt="AI 음성 설정"/> |
-| **반려견 안심 케어**<br>• 대표 사진/이름/나이/체중<br>• 관절 안심 케어 수준 관리<br>• 다견 원터치 전환 | **6종 비주얼 스타일**<br>• 더스티 앰버 & 세이지 그린<br>• 숲길, 비비드, 다크포켓, 바다<br>• 간편 계정 전환 및 로그아웃 | **월간 보행 달력**<br>• 이번 달 산책 스탬프 캘린더<br>• 발자국 스탬프로 달성도 시각화<br>• 완주 기록 / 찜한 코스 탭 | **보행 통계 & 완주 카드**<br>• 최근 7일/30일/전체 통계 집계<br>• 편안한 길 비율(81%) 분석<br>• 완주 인증 카드 및 이웃 후기 공유 | **맞춤형 4종 AI 보이스**<br>• 차분한 안심 톤 등 목소리 4종<br>• 실시간 미리듣기 및 음량 슬라이더<br>• 산책길 추천 미리보기 테스트 |
+| <img src="docs/screenshots/08-1_my_tab_profile_edit.png" width="160" alt="프로필 관리"/> | <img src="docs/screenshots/08-2_my_tab_theme_and_account.png" width="160" alt="테마 및 계정"/> | <img src="docs/screenshots/08-3A_my_tab_activity_stamps.png" width="160" alt="월간 스탬프 달력"/> | <img src="docs/screenshots/08-3B_my_tab_activity_history.png" width="160" alt="활동 통계 및 완주 기록"/> | <img src="docs/screenshots/08-4_my_tab_settings_voice.png" width="160" alt="AI 음성 설정"/> |
+| **반려견 안심 케어**<br>• 대표 사진/이름/나이/체중<br>• 관절 안심 케어 수준 관리<br>• 다견 원터치 전환 | **6종 비주얼 스타일**<br>• 더스티 앰버 & 세이지 그린<br>• 숲길, 비비드, 다크포켓, 바다<br>• 간편 계정 전환 및 로그아웃 | **월간 보행 달력**<br>• 이번 달 산책 스탬프 캘린더<br>• 발자국 스탬프로 달성도 시각화<br>• 완주 기록 / 찜한 코스 탭 | **보행 통계 & 완주 카드**<br>• 최근 7일/30일/전체 통계 집계<br>• 편안한 길 비율(73%) 분석<br>• 완주 인증 카드 및 이웃 공유 | **맞춤형 4종 AI 보이스**<br>• 차분한 안심 톤 등 목소리 4종<br>• 실시간 미리듣기 및 음량 슬라이더<br>• 산책길 추천 미리보기 테스트 |
+[!NOTE]
+• 마이페이지 내 **서비스 이용약관 모달**([`08-6_my_service_terms_modal.png`](docs\screenshots\08-6_my_service_terms_modal.png)) 및 **개인정보보호정책 모달**([`08-5_my_privacy_policy_modal.png`](docs\screenshots\08-5_my_privacy_policy_modal.png))을 통해 투명한 Local-First 프라이버시 정책을 고지합니다.  
 
-> [!NOTE]
-> • 마이페이지 내 **서비스 이용약관 모달**([`08-5_my_service_terms_modal.png`](docs/screenshots/08-5_my_service_terms_modal.png)) 및 **개인정보보호정책 모달**([`08-5_my_privacy_policy_modal.png`](docs/screenshots/08-5_my_privacy_policy_modal.png))을 통해 투명한 Local-First 프라이버시 정책을 고지합니다.  
-> • 이전 온보딩 위저드 4단계 화면은 [`docs/screenshots/old/`](docs/screenshots/old/) 디렉터리에 보관되어 있습니다.
-
-#### 🌟 5. 커뮤니티 안심 피드 (200m 공간 지터링 마스킹)
+#### 🌟 6. 커뮤니티 안심 피드 (200m 공간 지터링 마스킹)
 | 09. 커뮤니티 코스 피드 |
 | :---: |
 | <img src="docs/screenshots/09_community_feed_course_list.png" width="240" alt="커뮤니티 안심 피드"/> |
@@ -744,7 +748,7 @@ graph LR
 | **지도 시각화** | **28px 볼드 방향 벡터 마커 및 직진 화살표 일체화** | • WebView 지도 템플릿(`maplibreWebTemplate.ts`) 내 10.5px 점 마커를 28px 볼드 방향 벡터 마커로 복원<br>• 직진 구간에 얇은 기본 화살표 대신 볼드 직진 벡터 화살표(`↑`, 22px / fill `#166534`) 및 광학적 중앙 정렬(Optical Centering)을 적용하여 원형 마커 내 정중앙 일체감 구현<br>• 미려한 1px 안심 세이지 테두리(`1px solid #718276`)로 지도 위 시인성 극대화 | `webMapMarkers.ts`, `maplibreWebTemplate.ts`, `webMapMarkers.test.ts` |
 | **날씨 & 지면열** | **노면별 발바닥 체감온도 4종 정밀 분석 모달** | • 메인 홈 90~100점 산책 지수 카드 터치 시 표출되는 정밀 날씨 리포트 모달 고도화<br>• 기온, 체감 지면열, 일사량(W/m²), 미세먼지 수치 표출<br>• **아스팔트, 보도블록, 흙, 잔디** 4대 노면 종류별 발바닥 예상 체감온도 실시간 산출 및 안심 색상 태그 바인딩 | `GoldenTimeWidget.tsx`, `HomeScreen.tsx` |
 | **개인화 & 마이** | **마이페이지 4대 탭 체계 및 약관 모달 완성** | • **프로필 탭**: 반려견 대표 사진, 이름, 나이, 체중, 관절 안심 케어 수준 관리<br>• **테마·계정 탭**: 더스티 앰버, 숲길, 비비드, 다크 포켓, 바다 등 6종 비주얼 스타일 실시간 전환<br>• **활동 탭**: 월간 산책 스탬프 달력 캘린더 및 최근 7일/30일/전체 보행 통계/완주 인증 카드<br>• **설정 탭**: 4종 AI 길안내 음성 선택, 미리듣기 및 볼륨 조절 슬라이더<br>• 서비스 이용약관 및 개인정보보호정책 전문 모달 연동 | `MyProfileScreen.tsx`, `MonthlyWalkStampCalendar.tsx`, `MyWalkHistoryView.tsx` |
-| **문서 & 갤러리** | **최신 구동 스크린샷 17종 체계화** | • `KakaoTalk_` 임시 캡처 17종을 사용자 여정별 표준 파일명으로 일괄 정리 및 리네임<br>• `docs/screenshots/README.md` 및 프로젝트 루트 `README.md` 갤러리 전면 동기화 | `docs/screenshots/` |
+| **문서 & 갤러리** | **최신 구동 스크린샷 19종 체계화** | • `KakaoTalk_` 임시 캡처 17종을 사용자 여정별 표준 파일명으로 일괄 정리 및 리네임<br>• `docs/screenshots/README.md` 및 프로젝트 루트 `README.md` 갤러리 전면 동기화 | `docs/screenshots/` |
 | **품질 검증** | **프론트엔드 Vitest 566개 전원 통과** | • 프론트엔드 87개 테스트 파일, **566 / 566 테스트 100% PASS**<br>• TypeScript 컴파일 무결성 검증 통과 (**0 Errors**) | `frontend` |
 
 ---
@@ -804,7 +808,7 @@ cd frontend && npm test
 | [`docs/implementation_plan/노희선_향후_구현계획.md`](docs/implementation_plan/노희선_향후_구현계획.md) | 3번 노희선(서버 / Backend & Spatial Routing Lead) 향후 주차별 구현 계획서 | 서버 / REST API |
 | [`docs/implementation_plan/김승현_향후_구현계획.md`](docs/implementation_plan/김승현_향후_구현계획.md) | 4번 김승현(앱 / Frontend & Mobile App Lead) 향후 주차별 구현 계획서 | 모바일 / EAS 배포 |
 | [`docs/implementation_plan/김정님_향후_구현계획.md`](docs/implementation_plan/김정님_향후_구현계획.md) | 5번 김정님(UI / UI/UX & Experience Lead) 향후 주차별 구현 계획서 | UI/UX / 5인 CBT |
-| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 17종 갤러리 및 상세 설명 | 화면 갤러리 |
+| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 19종 갤러리 및 상세 설명 | 화면 갤러리 |
 
 ---
 

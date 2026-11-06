@@ -111,9 +111,10 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.2, +(2.8 + slopeOffset * 0.2).toFixed(1))
     : 2.8;
 
-  const park = getPilotParkById(pilotParkId);
-  const parkCourseName = pilotParkId ? `${park.shortName} 둘레 한바퀴` : '공원 한바퀴 코스';
+  const park = pilotParkId ? getPilotParkById(pilotParkId) : null;
+  const parkCourseName = park ? `${park.shortName} 둘레 한바퀴` : '근린공원 안심 순환 코스';
   const courseId = pilotParkId ? `${pilotParkId}_course_2` : 'course_2';
+  const targetAreaName = park ? `${park.shortName} 둘레를` : '출발지 주변 완만한 코스를';
 
   return {
     id: courseId,
@@ -126,7 +127,7 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
-    reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
+    reason: `${detail}를 중심으로 ${targetAreaName} 여유롭게 산책할 수 있어요.`,
     differenceTag: '가벼운 여유 코스 (-15%)',
   };
 }
@@ -145,9 +146,9 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.5, +(3.2 + slopeOffset * 0.2).toFixed(1))
     : 3.2;
 
-  const park = getPilotParkById(pilotParkId);
+  const park = pilotParkId ? getPilotParkById(pilotParkId) : null;
   let residentialName = hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스';
-  if (pilotParkId) {
+  if (park) {
     residentialName = `${park.shortName} 외곽 안심길`;
   }
   const courseId = pilotParkId ? `${pilotParkId}_course_3` : 'course_3';

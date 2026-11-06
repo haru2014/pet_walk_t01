@@ -226,5 +226,26 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
         isGps: false,
       });
     });
+
+    it('initialUserCoords가 전달되면 초기 렌더링 시 현재 위치 핀을 정상 생성한다', () => {
+      const initialCoords = { lon: 127.38, lat: 36.35 };
+      const html = renderToStaticMarkup(
+        <HomeScreen
+          dog={mockDog}
+          dogs={[mockDog]}
+          selectedDogId="dog_choco"
+          onSelectDog={vi.fn()}
+          feedbackSummary={null}
+          onPressProfile={vi.fn()}
+          onStartWalk={vi.fn()}
+          onOpenPlanner={vi.fn()}
+          initialUserCoords={initialCoords}
+        />
+      );
+
+      // 초기 좌표가 주어졌으므로 GPS 로딩 안내 대신 자유 산책 카드가 표시됨
+      expect(html).not.toContain('현재 위치(GPS)를 확인하고 있어요');
+      expect(html).toContain('바로 산책하기');
+    });
   });
 });
