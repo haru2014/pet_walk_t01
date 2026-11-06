@@ -7,6 +7,7 @@ import { generateAdaptiveCourses, generateAdaptiveBriefing } from './courseAdapt
 import { fetchWithServerFallback } from './apiClient';
 import { getPilotParkById } from '../types/pilotParks';
 import { mergeCurrentLocationPin, createCurrentLocationPin } from './locationPinHelper';
+import { WalkPlanPrefetchService, buildPrefetchKey } from './walkPlanPrefetchService';
 
 export class RoutePlanError extends Error {
   constructor(public readonly code: string, message: string, public readonly requestId?: string) {
@@ -174,8 +175,23 @@ export async function requestWalkPlan(
   dog: DogProfile,
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null,
-  options?: { regenerateNonce?: number },
+  options?: { regenerateNonce?: number; signal?: AbortSignal },
 ): Promise<RoutePlanResult> {
+  const isRegenerate = Boolean(options?.regenerateNonce && options.regenerateNonce > 0);
+
+  // 1. 프리페치된 결과가 있으면 즉시 소비하여 반환 (Zero-Latency)
+  if (!isRegenerate) {
+    const cached = WalkPlanPrefetchService.consume(dog, preferences, feedback);
+    if (cached) {
+      return cached;
+    }
+    // 2. 현재 동일 조건으로 진행 중인 프리페치 Promise가 있다면 중복 요청 없이 편승 (Request Deduplication)
+    const pending = WalkPlanPrefetchService.getPending(dog, preferences, feedback);
+    if (pending) {
+      return pending;
+    }
+  }
+
   const origin = resolveOrigin(preferences);
   const { isCurrentLocation, park, originLat, originLon } = origin;
 
@@ -185,6 +201,14 @@ export async function requestWalkPlan(
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  if (options?.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
 
   try {
     const payload = buildPlanPayload(dog, preferences, feedback, origin, options);
@@ -237,7 +261,7 @@ export async function requestWalkPlan(
         ? mergeCurrentLocationPin(data.step_pins ?? defaultPlan.stepPins, originLon, originLat)
         : (data.step_pins ?? defaultPlan.stepPins);
 
-      return {
+      const resolvedResult: RoutePlanResult = {
         isLiveServer: true,
         courses,
         route: data.geojson ?? defaultPlan.route,
@@ -248,6 +272,8 @@ export async function requestWalkPlan(
         briefingMessage: data.briefing ?? `${dog.name}를 위한 맞춤형 안심 코스가 생성되었습니다.`,
         safetyBriefingMessage: typeof data.safety_briefing === 'string' ? data.safety_briefing : '',
       };
+
+      return resolvedResult;
     }
     if (!isCurrentLocation) {
       await throwParkError(response);
@@ -274,4 +300,17 @@ export async function requestWalkPlan(
     briefingMessage: fallbackBriefing,
     safetyBriefingMessage: '',
   };
+}
+
+/**
+ * [US-A3, US-C1] 산책 조건 설정 화면에서 백그라운드로 경로를 사전 요청하는 프리페치 함수.
+ */
+export function prefetchWalkPlan(
+  dog: DogProfile,
+  preferences?: WalkPreferences,
+  feedback?: FeedbackSummaryPayload | null,
+): Promise<RoutePlanResult | null> {
+  return WalkPlanPrefetchService.prefetch(dog, preferences, feedback, (signal) =>
+    requestWalkPlan(dog, preferences, feedback, { signal }),
+  );
 }

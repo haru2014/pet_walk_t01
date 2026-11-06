@@ -11,7 +11,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
  * 6. 하단 Thumb Zone 버튼: [✨ AI 산책 코스 찾아보기]
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
@@ -33,10 +33,14 @@ import { getCurrentLocationCoords } from '../../services/locationService';
 import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voiceIntentApi';
 import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
 import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
+import { prefetchWalkPlan } from '../../services/api';
+import { ConsentService } from '../../services/consentService';
+import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
   initialPreferences?: WalkPreferences;
+  feedback?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onFindRoute: (preferences: WalkPreferences) => void;
 }
@@ -100,6 +104,7 @@ function buildAiNoticeSummary(
 export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   dog,
   initialPreferences,
+  feedback,
   onBack,
   onFindRoute,
 }) => {
@@ -150,6 +155,66 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       return null;
     }
   };
+
+  // 📍 1-1: 현재 위치 모드 활성화 시 백그라운드 GPS 사전 획득 (센서 응답 대기시간 0초화)
+  useEffect(() => {
+    let isMounted = true;
+    if (originMode === 'current_location' && !userCoords && !isLocating) {
+      void (async () => {
+        const agreed = await ConsentService.hasAgreed();
+        if (!isMounted) return;
+        if (agreed || originMode === 'current_location') {
+          setIsLocating(true);
+          setLocationError(null);
+          const res = await getCurrentLocationCoords(4000);
+          if (isMounted) {
+            setIsLocating(false);
+            if (res.ok && res.coords) {
+              setUserCoords({ lat: res.coords.latitude, lon: res.coords.longitude });
+            }
+          }
+        }
+      })();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [originMode, userCoords, isLocating]);
+
+  // ⚡ 3-1: 사용자가 산책 조건을 조작하고 700ms 멈추면 백그라운드 낙관적 프리페치 실행
+  useEffect(() => {
+    if (unsupportedLandmark) return;
+    if (originMode === 'current_location' && !userCoords) return;
+
+    const currentPreferences: WalkPreferences = {
+      originMode,
+      durationMinutes: isFreeWalk ? null : duration,
+      environments,
+      requestText,
+      isFreeWalk,
+      pilotParkId: originMode === 'park' ? pilotParkId : undefined,
+      userCoordinates: originMode === 'current_location' ? userCoords : undefined,
+    };
+
+    const timer = setTimeout(() => {
+      void prefetchWalkPlan(dog, currentPreferences, feedback);
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    dog,
+    originMode,
+    pilotParkId,
+    duration,
+    isFreeWalk,
+    environments,
+    requestText,
+    userCoords,
+    unsupportedLandmark,
+    feedback,
+  ]);
 
   const handleToggleEnvironment = (id: EnvironmentId) => {
     setEnvironments((prev) =>
