@@ -148,7 +148,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(html).not.toContain('실시간 AI 맞춤 코스');
   });
 
-  it('현위치 모드(current_location)에서는 안전 기본 코스를 준비하여 바로 렌더링할 수 있다', () => {
+  it('현위치 모드(current_location)에서도 생성 대기 시간 동안 스플래시 화면을 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 30,
@@ -166,13 +166,11 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       />
     );
 
-    // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
-    expect(html).toContain('추천 산책 코스');
-    expect(html).toContain('기본 안심 코스');
-    // Option 2: 하단 액션 바에 다시 추천 버튼과 산책 시작 버튼이 공존
-    expect(html).toContain('다시 추천');
-    expect(html).toContain('이 코스로 산책 시작하기');
-    expect(html).toContain('다른 코스 다시 추천받기');
+    // 현위치 모드에서도 생성 대기 시간 동안에는 스플래시 화면을 표출
+    expect(html).toContain('산책하기 좋은 길을 찾고 있어요');
+    expect(html).toContain('현재 위치 산책 경로를 요청하고 있어요.');
+    expect(html).toContain('현재 위치 주변 · 경로 확정 전');
+    expect(html).not.toContain('추천 산책 코스');
   });
 
   it('하단 액션 영역에 다시 추천 버튼(Option 2)이 렌더링된다', () => {
@@ -182,6 +180,15 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       environments: ['soft'],
       requestText: '',
     };
+    const mockCourses = courseAdaptivePlanner.generateAdaptiveCourses(mockDog, preferences, null);
+    const mockResult = {
+      isLiveServer: false,
+      courses: mockCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -190,6 +197,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={mockCourses}
+        initialPlanResult={mockResult}
       />
     );
 
@@ -204,7 +213,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       environments: ['soft'],
       requestText: '',
     };
-    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+    const testCourses = [
       {
         id: 'c_test_lap',
         name: '송강근린공원 순환로',
@@ -219,7 +228,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         lapCycleMeters: 450,
         notice: '산책로가 짧아 최대 약 60분 코스예요',
       },
-    ]);
+    ];
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce(testCourses);
     vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce({
       lapCount: 4,
       lapCycleMeters: 450,
@@ -227,6 +237,14 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       entry: [127.3592, 36.3628],
       totalMeters: 1900,
     });
+    const mockResult = {
+      isLiveServer: false,
+      courses: testCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -235,6 +253,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={testCourses}
+        initialPlanResult={mockResult}
       />
     );
 
@@ -250,7 +270,7 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       environments: ['soft'],
       requestText: '',
     };
-    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+    const testCourses = [
       {
         id: 'c_test_no_lap',
         name: '송강근린공원 코스',
@@ -265,8 +285,17 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         lapCycleMeters: 450,
         notice: '산책로가 짧아 최대 약 60분 코스예요',
       },
-    ]);
+    ];
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce(testCourses);
     vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce(null);
+    const mockResult = {
+      isLiveServer: false,
+      courses: testCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -275,6 +304,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={testCourses}
+        initialPlanResult={mockResult}
       />
     );
 

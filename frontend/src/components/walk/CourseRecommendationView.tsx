@@ -206,6 +206,9 @@ export interface CourseRecommendationViewProps {
   onBack: () => void;
   onStartWalk: (course: RecommendedCourse, plan?: CoursePlan) => void;
   onPinSelect?: (instruction: string) => void;
+  initialCourses?: readonly RecommendedCourse[];
+  initialPlanResult?: RoutePlanResult | null;
+  initialLoading?: boolean;
 }
 
 interface RegenerateSuccessResult {
@@ -447,18 +450,19 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   onBack,
   onStartWalk,
   onPinSelect,
+  initialCourses,
+  initialPlanResult,
+  initialLoading,
 }) => {
   const { colors } = useAppTheme();
   const { courseRecommend, scale } = useAppResponsive();
   const requiresValidatedPark = (preferences?.originMode ?? 'park') !== 'current_location';
   const [planError, setPlanError] = useState<string | null>(null);
-  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [isPlanLoading, setIsPlanLoading] = useState(initialLoading ?? (initialPlanResult ? false : true));
   const retryInFlightRef = React.useRef(false);
-  const [courses, setCourses] = useState<readonly RecommendedCourse[]>(() =>
-    requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback)
-  );
+  const [courses, setCourses] = useState<readonly RecommendedCourse[]>(initialCourses ?? []);
   const [selectedCourseIndex, setSelectedCourseIndex] = useState(0);
-  const [planResult, setPlanResult] = useState<RoutePlanResult | null>(null);
+  const [planResult, setPlanResult] = useState<RoutePlanResult | null>(initialPlanResult ?? null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenerateNonce, setRegenerateNonce] = useState(0);
   const [freshCourseIds, setFreshCourseIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -471,17 +475,18 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   const [requestInputs, setRequestInputs] = useState({ dog, preferences, feedback });
   if (requestInputs.dog !== dog || requestInputs.preferences !== preferences || requestInputs.feedback !== feedback) {
     setRequestInputs({ dog, preferences, feedback });
-    setPlanResult(null);
+    setPlanResult(initialPlanResult ?? null);
     setPlanError(null);
-    setIsPlanLoading(true);
+    setIsPlanLoading(initialLoading ?? (initialPlanResult ? false : true));
     setSelectedCourseIndex(0);
     setRegenerateNonce(0);
     setFreshCourseIds(new Set());
     setRegenerateNotice(null);
-    setCourses(requiresValidatedPark ? [] : generateAdaptiveCourses(dog, preferences, feedback));
+    setCourses(initialCourses ?? []);
   }
 
   useEffect(() => {
+    if (initialPlanResult) return undefined;
     let isMounted = true;
     void requestWalkPlan(dog, preferences, feedback).then((res) => {
       if (!isMounted) return;
@@ -491,10 +496,17 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
       } else if (requiresValidatedPark) {
         setPlanError('선택한 조건에 맞는 경로를 찾지 못했습니다. 다시 시도해 주세요.');
         setCourses([]);
+      } else {
+        const fallback = generateAdaptiveCourses(dog, preferences, feedback);
+        setCourses(fallback);
       }
     }).catch((error: unknown) => {
       if (!isMounted) return;
-      setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
+      setPlanError(
+        error instanceof Error
+          ? error.message
+          : (requiresValidatedPark ? '공원 내부 경로를 생성하지 못했습니다.' : '현재 위치 주변 산책 경로를 생성하지 못했습니다.')
+      );
       setCourses([]);
     }).finally(() => {
       if (isMounted) setIsPlanLoading(false);
@@ -512,10 +524,16 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
         setPlanResult(res);
         setCourses(res.courses);
         setSelectedCourseIndex(0);
-        if (res.courses.length === 0) setPlanError('선택한 조건으로 경로를 찾지 못했습니다. 다시 시도해 주세요.');
+        if (res.courses.length === 0) {
+          setPlanError('선택한 조건으로 경로를 찾지 못했습니다. 다시 시도해 주세요.');
+        }
       })
       .catch((error: unknown) => {
-        setPlanError(error instanceof Error ? error.message : '공원 내부 경로를 생성하지 못했습니다.');
+        setPlanError(
+          error instanceof Error
+            ? error.message
+            : (requiresValidatedPark ? '공원 내부 경로를 생성하지 못했습니다.' : '현재 위치 주변 산책 경로를 생성하지 못했습니다.')
+        );
         setCourses([]);
       })
       .finally(() => {
@@ -558,7 +576,9 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (planResult?.isLiveServer && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
-    if (requiresValidatedPark) return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
+    if (!currentCourse || !planResult || requiresValidatedPark) {
+      return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
+    }
     const fallbackIndex = selectedCourseIndex === 0
       ? 0
       : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
@@ -577,9 +597,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
   });
   const loadingMapCenter = useMemo(() => {
     if (isCurrentLocOrigin && gpsCoords) return [gpsCoords.lon, gpsCoords.lat] as const;
+    if (isCurrentLocOrigin && preferences?.userCoordinates) {
+      return [preferences.userCoordinates.lon, preferences.userCoordinates.lat] as const;
+    }
     const park = getPilotParkById(preferences?.pilotParkId);
     return [park.center.lon, park.center.lat] as const;
-  }, [isCurrentLocOrigin, gpsCoords, preferences?.pilotParkId]);
+  }, [isCurrentLocOrigin, gpsCoords, preferences?.userCoordinates, preferences?.pilotParkId]);
 
   useEffect(() => {
     if (isCurrentLocOrigin && !gpsCoords) {
@@ -639,11 +662,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   const safetyBriefingText = planResult?.safetyBriefingMessage ?? '';
 
-  if (!currentCourse || (requiresValidatedPark && !planResult)) {
+  if (!currentCourse || !planResult || isPlanLoading) {
     const park = getPilotParkById(preferences?.pilotParkId);
+    const displayName = isCurrentLocOrigin ? '현재 위치' : park.shortName;
     return (
       <WalkPlanLoadingView
-        parkName={park.shortName}
+        parkName={displayName}
         mapCenter={loadingMapCenter}
         isLoading={isPlanLoading}
         error={planError}
