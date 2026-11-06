@@ -136,15 +136,15 @@ def repeat_penalty(candidate: "RouteCandidate") -> Tuple[int, float]:
 
 def rank_key(scored: "ScoredRoute") -> tuple:
     """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고, 맞는 코스가 없으면 요청 시간에 가까운 순으로 센다.
-    같은 단계 안에서는 같은 길을 되풀이하지 않는 코스(3바퀴 이상 반복 → 되밟기 비율 순)를 앞세우고,
+    같은 단계 안에서는 같은 길을 되풀이하지 않는 코스(되밟기 비율 순 → 3바퀴 이상 반복)를 앞세우고,
     그다음 점수 순. 점수 자체는 바꾸지 않는다.
     예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다.
-    같은 시간에 맞는 코스끼리면 3바퀴 도는 코스보다 한 바퀴 코스를 먼저 추천한다."""
+    같은 시간에 맞는 코스끼리면 되밟기가 적은 코스를 3바퀴 도는 코스보다 먼저 추천한다."""
     err = scored.distance_error_ratio
     laps_over, retrace = repeat_penalty(scored.candidate)
     if err <= DURATION_FIT_TOLERANCE:
-        return (0, 0.0, laps_over, retrace, -scored.total_score)
-    return (1, round(err, 3), laps_over, retrace, -scored.total_score)
+        return (0, 0.0, retrace, laps_over, -scored.total_score)
+    return (1, round(err, 3), retrace, laps_over, -scored.total_score)
 
 
 class WalkPlanningResult(BaseModel):
