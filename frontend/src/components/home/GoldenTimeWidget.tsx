@@ -224,7 +224,7 @@ function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: b
   if (isLoading || weather === null || weather === undefined) {
     return '기상청·에어코리아 정보를 불러오는 중이에요...';
   }
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
   if (isVirtual) {
     return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
@@ -232,8 +232,11 @@ function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: b
   return weather?.attribution ? `${base} · ${weather.attribution}` : base;
 }
 
-function resolveModalAttributionText(weather?: HeatRiskResponse | null): string {
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+function resolveModalAttributionText(weather?: HeatRiskResponse | null, isLoading?: boolean): string {
+  if (isLoading || weather === null || weather === undefined) {
+    return '기상청·에어코리아 산책 정보를 받아오고 있어요...';
+  }
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
   if (isVirtual) {
     return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
@@ -257,6 +260,8 @@ export interface WeatherDetailModalProps {
   readonly isTomorrow: boolean;
   readonly timeRangeDisplay: string;
   readonly weather?: HeatRiskResponse | null;
+  readonly pilotParkId?: string;
+  readonly isLoading?: boolean;
 }
 
 export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
@@ -275,6 +280,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
   isTomorrow,
   timeRangeDisplay,
   weather,
+  isLoading = false,
 }) => {
   const surfaceSubText = getSurfaceSubText(weather?.solar_radiation_w_m2, riskLevel);
   const surfaceTemps = weather?.surface_temps;
@@ -296,7 +302,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
   const dirtStatus = getSurfaceStatus(dirtVal);
   const grassStatus = getSurfaceStatus(grassVal);
 
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
 
   return (
     <Modal
@@ -329,14 +335,20 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
-            {/* 가상 데이터 사용 시 투명 고지 배너 */}
-            {isVirtual && (
+            {/* 로딩 중 또는 가상 데이터 사용 시 투명 고지 배너 */}
+            {isLoading ? (
+              <View style={[styles.modalVirtualNoticeBox, { backgroundColor: '#EFF6FF', borderColor: '#93C5FD' }]}>
+                <Text style={[styles.modalVirtualNoticeText, { color: '#1E40AF' }]}>
+                  ⏳ 기상청·에어코리아 산책 정보를 받아오고 있어요...
+                </Text>
+              </View>
+            ) : isVirtual ? (
               <View style={styles.modalVirtualNoticeBox}>
                 <Text style={styles.modalVirtualNoticeText}>
                   ⚠️ 실시간 날씨를 불러오지 못해 예상 정보를 보여드리고 있어요.
                 </Text>
               </View>
-            )}
+            ) : null}
 
             {/* 산책 지수 총평 배지 */}
             <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
@@ -347,16 +359,28 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                   <View
                     style={[
                       styles.modalSourceTag,
-                      isVirtual ? styles.modalSourceTagFallback : styles.modalSourceTagLive,
+                      isLoading
+                        ? styles.modalSourceTagLoading
+                        : isVirtual
+                          ? styles.modalSourceTagFallback
+                          : styles.modalSourceTagLive,
                     ]}
                   >
                     <Text
                       style={[
                         styles.modalSourceTagText,
-                        isVirtual ? styles.modalSourceTagTextFallback : styles.modalSourceTagTextLive,
+                        isLoading
+                          ? styles.modalSourceTagTextLoading
+                          : isVirtual
+                            ? styles.modalSourceTagTextFallback
+                            : styles.modalSourceTagTextLive,
                       ]}
                     >
-                      {isVirtual ? '⚠️ 예상치 (측정 불가)' : '📡 실시간 측정'}
+                      {isLoading
+                        ? '⏳ 산책 정보 확인 중...'
+                        : isVirtual
+                          ? '⚠️ 예상치 (측정 불가)'
+                          : '📡 실시간 측정'}
                     </Text>
                   </View>
                 </View>
@@ -466,7 +490,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
             {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
             <View style={styles.modalAttributionBox}>
               <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
-                {resolveModalAttributionText(weather)}
+                {resolveModalAttributionText(weather, isLoading)}
               </Text>
             </View>
           </ScrollView>
@@ -782,7 +806,7 @@ export function computeWeatherModalProps(
   const condition = weather?.condition;
   const pty = weather?.pty;
   // 실데이터(기상청/에어코리아 실시간 응답)와 폴백(추정치)을 화면 전역에서 동일 기준으로 구분한다.
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtual = !weather || weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
 
   const quotient = computeWalkQuotient(weather);
 
@@ -1191,6 +1215,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(217, 119, 6, 0.10)',
     borderColor: 'rgba(217, 119, 6, 0.3)',
   },
+  modalSourceTagLoading: {
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
   modalSourceTagText: {
     fontSize: TYPOGRAPHY.caption,
     fontWeight: '700',
@@ -1200,6 +1228,9 @@ const styles = StyleSheet.create({
   },
   modalSourceTagTextFallback: {
     color: '#B45309',
+  },
+  modalSourceTagTextLoading: {
+    color: '#4F46E5',
   },
   modalScoreTitle: {
     fontSize: TYPOGRAPHY.cardTitle,

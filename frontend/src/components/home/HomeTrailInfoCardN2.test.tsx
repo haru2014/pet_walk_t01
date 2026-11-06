@@ -79,4 +79,24 @@ describe('HomeTrailInfoCardN2 - 안내 배지·문구도 산책 점수 기준', 
     const html = renderCard({ ...baseWeather, air_quality: { grade_label: '나쁨' } });
     expect(html).toContain('⚠️ 미세먼지 나쁨');
   });
+
+  it('날씨 로딩 중일 때는 "산책 정보를 받아오고 있어요..."를 표시하고 실시간 측정 뱃지를 숨긴다', () => {
+    const html = renderToStaticMarkup(
+      <HomeTrailInfoCardN2
+        weather={null}
+        isLoadingWeather={true}
+        dog={DEFAULT_DOGS[0]}
+        feedbackSummary={null}
+        weeklyStats={null}
+      />
+    );
+    expect(html).toContain('산책 정보를 받아오고 있어요...');
+    expect(html).not.toContain('📡 실시간 측정');
+  });
+
+  it('날씨 정보가 없을 때(null)는 실시간 측정 뱃지가 아니라 예상치 뱃지를 표시한다', () => {
+    const html = renderCard(null);
+    expect(html).toContain('⚠️ 예상치 (측정 불가)');
+    expect(html).not.toContain('📡 실시간 측정');
+  });
 });
