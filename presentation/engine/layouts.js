@@ -1101,7 +1101,11 @@ function renderClosing(slide, pptx, data, theme) {
 
   // Contact info / links
   if (data.contact || data.email) {
-    slide.addText(data.contact || data.email, {
+    let contactText = data.contact || data.email;
+    if (typeof contactText === 'object') {
+      contactText = Object.values(contactText).filter(Boolean).join(' | ');
+    }
+    slide.addText(String(contactText), {
       x: marginX + 0.8,
       y: 3.7,
       w: theme.width - marginX * 2 - 1.6,
