@@ -1,6 +1,6 @@
 """같은 길을 되풀이하는 코스는 대안이 있을 때만 추천 순위에서 뒤로 민다.
 
-순서: 요청 시간 적합 → 3바퀴 이상 반복 여부 → 같은 길 되밟기 비율 → 점수.
+순서: 요청 시간 적합 → 같은 길 되밟기 비율 → 3바퀴 이상 반복 여부 → 점수.
 """
 
 from agent.walk_planning_agent import (
@@ -64,6 +64,13 @@ def test_less_retrace_beats_more_retrace_when_both_fit():
     clean = _scored(LOOP, score=70.0)
     retraced = _scored(RETRACE, score=95.0)
     assert sorted([retraced, clean], key=rank_key)[0] is clean
+
+
+def test_clean_three_laps_beats_retraced_one_lap():
+    """되밟기(왕복)가 없는 3바퀴 코스가 되밟기 비율이 높은 1바퀴 코스보다 앞선다 (되밟기 우선순위 > 3바퀴 이상 반복)."""
+    clean_three_laps = _scored(LOOP + LOOP[1:] + LOOP[1:], lap_count=3, score=80.0)
+    retraced_one_lap = _scored(RETRACE, lap_count=1, score=90.0)
+    assert sorted([retraced_one_lap, clean_three_laps], key=rank_key)[0] is clean_three_laps
 
 
 def test_score_decides_when_repetition_is_equal():
