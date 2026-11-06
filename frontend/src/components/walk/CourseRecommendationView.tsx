@@ -13,7 +13,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { requestWalkPlan, RoutePlanResult, createCurrentLocationFallbackPlan } from '../../services/api';
+import { requestWalkPlan, RoutePlanResult, createCurrentLocationWalkPlan } from '../../services/api';
 import { createBookmark } from '../../services/bookmarkService';
 import { generateAdaptiveCourses, buildAdaptiveConditionLabels, extractCourseScore } from '../../services/courseAdaptivePlanner';
 import { getCoursePlanById, getCoursePlanByParkId } from '../../services/sampleRoute';
@@ -605,25 +605,27 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (planResult?.route && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
+
+    // [근본 해결] 현재 위치 모드에서는 절대로 유림공원 등 타 지역 공원의 정적 데이터를 타지 않는다.
+    if (isCurrentLocOrigin) {
+      const originCoords = gpsCoords ?? userCoordinates;
+      if (originCoords) {
+        return createCurrentLocationWalkPlan(
+          originCoords.lat,
+          originCoords.lon,
+          selectedCourseIndex,
+          durationMinutes,
+        );
+      }
+      return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
+    }
+
     if (!currentCourse || !planResult || requiresValidatedPark) {
       return { route: { type: 'FeatureCollection' as const, features: [] }, stepPins: [] };
     }
     const fallbackIndex = selectedCourseIndex === 0
       ? 0
       : (((selectedCourseIndex - 1 + regenerateNonce * 2) % 2) + 1);
-
-    // 현재 위치 모드에서는 유림공원 등 공원 정적 폴백 대신 현재 GPS 위치 기반의 도로망 블록 순환 폴백 사용
-    if (isCurrentLocOrigin) {
-      const originCoords = gpsCoords ?? userCoordinates;
-      if (originCoords) {
-        return createCurrentLocationFallbackPlan(
-          originCoords.lat,
-          originCoords.lon,
-          fallbackIndex,
-          durationMinutes,
-        );
-      }
-    }
 
     return getCoursePlanById(
       currentCourse?.id,

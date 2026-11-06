@@ -161,6 +161,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
       environments: ['soft'],
       requestText: '',
       userCoordinates: { lat: 37.5665, lon: 126.978 },
+      pilotParkId: 'yurim', // pilotParkId가 남아있더라도 무시되어야 함
     });
 
     expect(result.isLiveServer).toBe(false);
@@ -172,6 +173,21 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(firstCoord[1]).toBeCloseTo(37.56, 1);
     expect(result.stepPins[0].position[0]).toBeCloseTo(126.978);
     expect(result.stepPins[0].position[1]).toBeCloseTo(37.5665);
+
+    // [근본 해결 검증] 코스 1, 2, 3 모두 coursePlans에 1:1 매핑되어야 하며 유림공원이 아니어야 함
+    expect(result.coursePlans).toBeDefined();
+    expect(result.courses.length).toBe(3);
+    for (const course of result.courses) {
+      expect(course.id).not.toContain('yurim');
+      const plan = result.coursePlans?.[course.id];
+      expect(plan).toBeDefined();
+      expect(plan?.route.features.length).toBeGreaterThan(0);
+      // 각 코스의 출발점도 서울 시청 현재 위치여야 함
+      const start = plan?.route.features[0]?.geometry.coordinates[0];
+      expect(start).toBeDefined();
+      expect(start?.[0]).toBeCloseTo(126.98, 1);
+      expect(start?.[1]).toBeCloseTo(37.56, 1);
+    }
   });
 
   it('서버의 경계 검증 거부를 그대로 전달하고 로컬 코스를 생성하지 않는다', async () => {

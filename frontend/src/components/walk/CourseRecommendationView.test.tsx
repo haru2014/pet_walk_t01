@@ -378,4 +378,46 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(getWeatherEmoji('안전하고 쾌적한 산책 되세요.')).toBe('🐾');
     expect(getWeatherEmoji('')).toBe('🌤️');
   });
+
+  it('현재 위치 모드에서는 1, 2, 3코스 모두 유림공원 텍스트나 코스로 점프하지 않는다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+      userCoordinates: { lat: 37.5665, lon: 126.978 },
+      pilotParkId: 'yurim', // pilotParkId가 남아있더라도 무시되어야 함
+    };
+
+    const mockPlanResult = {
+      isLiveServer: false,
+      courses: [
+        { id: 'course_1', name: '맞춤 안심 순환 코스', distanceKm: '1.4 km', estimatedMinutes: 30, stairsCount: '0회', softRatio: '70%', shadeLevel: '많음', shadePercent: 60, reason: '안심 코스' },
+        { id: 'course_2', name: '근린공원 안심 순환 코스', distanceKm: '1.2 km', estimatedMinutes: 25, stairsCount: '0회', softRatio: '65%', shadeLevel: '보통', shadePercent: 50, reason: '공원 코스' },
+        { id: 'course_3', name: '조용한 주택가 산책로', distanceKm: '1.5 km', estimatedMinutes: 32, stairsCount: '0회', softRatio: '60%', shadeLevel: '보통', shadePercent: 45, reason: '주택가 코스' },
+      ],
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '맞춤 코스',
+      safetyBriefingMessage: '',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+        initialCourses={mockPlanResult.courses}
+        initialPlanResult={mockPlanResult}
+      />
+    );
+
+    // 유림공원 텍스트가 노출되지 않아야 함
+    expect(html).not.toContain('유림공원');
+    expect(html).toContain('맞춤 안심 순환 코스');
+    expect(html).toContain('근린공원 안심 순환 코스');
+    expect(html).toContain('조용한 주택가 산책로');
+  });
 });
