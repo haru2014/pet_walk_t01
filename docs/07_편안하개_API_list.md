@@ -1,10 +1,10 @@
 # 🐾 [편안하개 - PetWalk] 전체 API 정의 및 구현 현황 목록 (API Specification & Status)
 
-> **2026-10-25 코드 기준 보완:** 이 문서는 기존 API 예시와 당시 구현·테스트 기록을 보존합니다. 현행 라우트 목록은 [현재 코드 기준 상태 보고서](reports/2026-10-25_현재_코드_기준_상태.md)의 요약 표를, 실제 요청 필드와 응답 DTO는 `backend/main.py` 및 `backend/agent/` 구현을 기준으로 확인하세요. 본 갱신에서는 API 테스트를 실행하지 않았습니다.
+> **2026-11-06 코드 기준 보완:** 이 문서는 기존 API 예시와 당시 구현·테스트 기록을 보존하며, 11월 6일 기준(PR #328, #329, #330) 최신 라우트 및 DTO 필드(산책 환경 조건 6종 `environments`, `avoid_traffic`, `prefer_quiet`, `prefer_rest`, 실측 `condition_notice`, 마이페이지 산책 기록 공유 연동 등)를 반영하여 갱신되었습니다. 현행 라우트 목록 및 실제 요청 필드와 응답 DTO는 `backend/main.py` 및 `backend/agent/` 구현을 기준으로 합니다.
 
-> **문서 번호**: ~~docs/07_편한하개_API_list.md~~ `docs/07_편안하개_API_list.md`
-> **기존 최종 갱신 일자**: ~~2026년 10월 18일~~ (아래 2026-10-25 코드 기준 보완 참조)
-> **기존 문서 버전**: ~~v1.4 (기상청·에어코리아 실시간 지면열·대기질 캐시 최적화, 타임아웃 캡, 프론트엔드 15초 상향 및 507/269 테스트 통과 반영판)~~
+> **문서 번호**: `docs/07_편안하개_API_list.md`
+> **최종 갱신 일자**: 2026년 11월 6일
+> **문서 버전**: v1.5 (US-30 환경 6종 라우팅, 실측 지표 고지, 마이페이지 활동 공유 영속화 연동, Vitest 638/Pytest 991 통과 반영판)
 > **기준 코드베이스**:
 > - 백엔드 엔트리포인트: [`backend/main.py`](/backend/main.py)
 > - 백엔드 서비스: [`backend/services/kma_weather_client.py`](/backend/services/kma_weather_client.py), [`backend/services/kma_grid_converter.py`](/backend/services/kma_grid_converter.py), [`backend/services/weather_context.py`](/backend/services/weather_context.py), [`backend/services/airkorea_client.py`](/backend/services/airkorea_client.py)
@@ -146,7 +146,11 @@ flowchart TB
   "avoid_stairs": true,
   "prefer_shade": true,
   "prefer_cushion": true,
-  "request_text": "30분 동안 폭신한 길 위주로 걷고 싶어요",
+  "avoid_traffic": true,
+  "prefer_quiet": true,
+  "prefer_rest": false,
+  "environments": ["cushion", "shade", "no_stairs", "less_traffic", "quiet"],
+  "request_text": "30분 동안 차 없는 폭신한 길 위주로 걷고 싶어요",
   "origin_lat": 36.3628,
   "origin_lon": 127.3592,
   "origin_mode": "park",
@@ -177,6 +181,7 @@ flowchart TB
       "maxSlopePercent": 5.4,
       "shadePercent": 75,
       "softSurfacePercent": 85,
+      "condition_notice": "차가 적은 보행 전용로 위주로 연결되었어요 (큰길 0m)",
       "reason": "AI 맞춤 점수 94점: 관절 안심 완만 숲길"
     }
   ],
