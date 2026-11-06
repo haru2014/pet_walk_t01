@@ -594,7 +594,7 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
 
   const activePlan = useMemo(() => {
     if (candidatePlan) return candidatePlan;
-    if (planResult?.isLiveServer && selectedCourseIndex === 0 && planResult.route) {
+    if (planResult?.route && selectedCourseIndex === 0) {
       return { route: planResult.route, stepPins: planResult.stepPins };
     }
     if (!currentCourse || !planResult || requiresValidatedPark) {
@@ -608,7 +608,12 @@ export const CourseRecommendationView: React.FC<CourseRecommendationViewProps> =
     if (isCurrentLocOrigin) {
       const originCoords = gpsCoords ?? preferences?.userCoordinates;
       if (originCoords) {
-        return createCurrentLocationFallbackPlan(originCoords.lat, originCoords.lon, fallbackIndex);
+        return createCurrentLocationFallbackPlan(
+          originCoords.lat,
+          originCoords.lon,
+          fallbackIndex,
+          preferences?.durationMinutes,
+        );
       }
     }
 
