@@ -390,7 +390,7 @@ class LoopCandidateRequest(BaseModel):
 # 후보별 표시 정보 및 보행 환경 지표 (기상청 실시간 지면열 모델 연동)
 DIRECTION_LABELS = ["북", "북동", "동", "남동", "남", "남서", "서", "북서"]
 VARIANT_NAME_TEMPLATES: Dict[int, str] = {
-    1: "🌿 {direction} 방면 보행안심 순환로",
+    1: "🌿 {direction} 방면 편안한 동네 산책로",
     2: "🚶 {direction} 방면 완만 보행 순환 코스",
     3: "🏢 {direction} 방면 도심 가로수길 순환 코스",
 }

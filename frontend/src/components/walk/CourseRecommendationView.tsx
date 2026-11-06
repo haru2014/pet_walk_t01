@@ -140,8 +140,8 @@ export function formatCourseReasonText(
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-  // (실측 최대 경사 X%) 형태만 남았을 경우 친절한 안내 문장으로 보완
-  const slopeMatch = /^\(?(실측\s*최대\s*경사\s*\d+(?:\.\d+)?%)\)?$/.exec(cleaned);
+  // (실측 최대 경사 X%) 또는 (경사 X%) 형태만 남았을 경우 친절한 안내 문장으로 보완
+  const slopeMatch = /^\(?((?:실측\s*최대\s*)?경사\s*\d+(?:\.\d+)?%)\)?$/.exec(cleaned);
   if (slopeMatch) {
     return `${slopeMatch[1]}의 완만하고 쾌적한 산책 코스입니다.`;
   }
