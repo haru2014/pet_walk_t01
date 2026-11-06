@@ -11,16 +11,16 @@
   - **4주차 (10/31 ~ 11/07)**: **집중 테스트와 보완 (5인 실사용자 필드 산책 CBT, EAS Update 무선 OTA 실시간 핫픽스)**
   - **최종 마감 (11/08 일)**: 프로젝트 최종 제출 마감
 * **스토리 포인트 산정 기준**: 피보나치 수열(1, 2, 3, 5, 8 pt) 적용 (1 pt ≈ 순수 개발 공수 약 4~5시간 기준)
-* **총 개발 규모 (MVP 및 조기 완결)**: **MVP 15개 핵심 스토리(62 Story Points) 100% 완료 + Phase 2 핵심 6개 스토리(17 Story Points) 선행 조기 완결 = 총 21개 스토리, 총 79 Story Points 달성 (2026년 10월 28일 기준)**
+* **총 개발 규모 (MVP 및 조기 완결)**: **MVP 15개 핵심 스토리(62 Story Points) 100% 완료 + Phase 2 핵심 7개 스토리(22 Story Points) 선행 조기 완결 = 총 22개 스토리, 총 84 Story Points 달성 (2026년 11월 6일 기준)**
 
 * **기술 스택 & 아키텍처 원칙**:
-  - **Client**: React Native (Expo SDK 57), `expo-location` + Android Foreground Service (백그라운드 위치 추적), `expo-speech` (TTS 음성 안내), 4대 보이스 프로필 및 스마트 돌발 짖음 감지 자동 음소거, 화면별 오로라/메시 블렌딩 앰비언트 UI.
+  - **Client**: React Native (Expo SDK 57), `expo-location` + Android Foreground Service (백그라운드 위치 추적), `expo-speech` (TTS 음성 안내, 방향 전환 30m 사전 브리핑 및 나침반 마커 실시간 회전), 4대 보이스 프로필 및 스마트 돌발 짖음 감지 자동 음소거, 화면별 오로라/메시 블렌딩 앰비언트 UI.
   - **Deploy**: EAS Build (단 1회 APK 배포) + EAS Update (`expo-updates` 무선 무점검 OTA 실시간 핫픽스).
   - **Backend & AI**: FastAPI, Python 3.11+, LangGraph ReAct Agent, Pydantic V2 Strict Schema, KMA 기상청 단기예보 실시간 클라이언트 및 격자 변환기.
-  - **GIS & Routing**: OpenRouteService (ORS) / OSRM Routing Adapter, OpenStreetMap(OSM) 보행망, 대전·세종 5대 파일럿 실증 거점 정밀 도로망, DEM 경사도, 지면온도 추정 모델, 동적 이탈/장애물 우회 재탐색 파이프라인.
-  - **Persistence (Local-First)**: 민감정보(자택 좌표, 보행 GPS 궤적, 반려견 프로필)는 모바일 `AsyncStorage` 로컬 보관, 커뮤니티 공개 코스(출발지 200m 마스킹) 및 제보만 `Supabase Cloud` 관리.
+  - **GIS & Routing**: OpenRouteService (ORS) / OSRM Routing Adapter, OpenStreetMap(OSM) 보행망, 대전·세종 5대 파일럿 실증 거점 정밀 도로망, DEM 경사도, 지면온도 추정 모델, 동적 이탈/장애물 우회 재탐색 파이프라인, 차가 적은 길 35m 버퍼 및 횡단 페널티 강화.
+  - **Persistence (Local-First)**: 민감정보(자택 좌표, 보행 GPS 궤적, 반려견 프로필)는 모바일 `AsyncStorage` 로컬 보관, 커뮤니티 공개 코스(출발지 200m 마스킹) 및 제보만 `Supabase Cloud` 관리, 마이페이지 산책 기록 공유 상태(`isPublic`, `sharedAt`) 영속화.
   - **Wellness Copywriting**: 앱 UI 전역에서 '슬개골 탈구' 등 질병 용어를 배제하고 '관절 안심 케어', '폭신한 길'로 순화.
-  - **TDD 품질 가드레일**: 백엔드 Pytest 913개 전수 통과, 프론트엔드 Vitest 522개(83개 파일) 전수 통과, TypeScript 0 오류 엄수.
+  - **TDD 품질 가드레일**: 백엔드 Pytest 991개 수집/전수 통과, 프론트엔드 Vitest 638개(98개 파일) 전수 통과, TypeScript 0 오류 엄수.
 
 ---
 
@@ -176,7 +176,8 @@
   3. 경로 40m 이상 이탈 감지 시 부드러운 음성 알림과 함께 재탐색 안내를 송출한다.
 * **완료 정의 (DoD)**:
   - [x] 화면 꺼짐(Lock Screen) 상태에서 백그라운드 GPS 로깅 및 TTS 음성 송출 실기기 테스트 통과 (`guidanceEngine.test.ts` 8건 통과).
-  - [x] 30m 전 사전 음성 알림 타이밍 검증 완료.
+  - [x] 30m 전 사전 음성 알림 타이밍 및 15m 오차 허용으로 음성 누락 방지 로직 연동 (`useWalkGuidance.ts`, `followHeading.ts`).
+  - [x] 실시간 진행 방향(Heading) 및 나침반 센서 기반 내 위치 마커 방향 회전 연동 (`RouteMapView.tsx`, `adaptiveMarkerStyles.test.ts`).
   - [x] AI 목소리 프로필 4종 선택, 독립 볼륨 슬라이더 및 원터치 퀵 음소거(Mute) 모듈 구축 완료 (`voiceSettings.test.ts` 8건 통과, `VoiceQuickControlBar.tsx`).
   - [x] 스마트 돌발 짖음 감지 자동 음소거 및 복구(Smart Bark Ducking & Auto-Resume) 단위 테스트 통과 (73dB 감지 / 3초 복구, `ambientNoiseMonitor.test.ts` 5건 통과).
 
@@ -211,6 +212,8 @@
   3. 마음에 드는 코스는 원터치로 '나만의 코스 즐겨찾기'에 북마크할 수 있다.
 * **완료 정의 (DoD)**:
   - [x] 피드백 입력 폼 렌더링 및 로컬 데이터 업데이트 단위 테스트 통과 (`WalkReportScreen.tsx`, `QuickFeedbackModal.tsx`).
+  - [x] 피드백 재수정 시 태그 복원 정규식 첫 글자 잘림 결함 해결 및 `initialFeedback` 복원 연동 (`QuickFeedbackModal.test.tsx` 2건 통과).
+  - [x] 완주 리포트 상단 피드백 요약 카드에 체감 경사도 뱃지('완만해요'/'평범해요'/'가팔라요') 표출 완료.
 
 #### US-E3: 로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정
 * **사용자 스토리**:  
@@ -273,7 +276,8 @@
   3. 커뮤니티 피드에서 이웃들이 공유한 안심 코스 목록(거리, 경사도, 별점 후기)을 탐색하고 내 산책으로 불러올 수 있다.
 * **완료 정의 (DoD)**:
   - [x] 출발지 200m 공간 마스킹 알고리즘 단위 테스트 통과 (`spatial_masking.py`).
-  - [x] Supabase Auth 가입 및 공개 코스 피드 CRUD 통합 테스트 통과 (`shareCourseFlow.test.ts` 3건, `communityApi.test.ts` 3건).
+  - [x] Supabase Auth 가입 및 공개 코스 피드 CRUD 통합 테스트 통과 (`shareCourseFlow.test.ts` 6건, `communityApi.test.ts` 3건).
+  - [x] 마이페이지 산책 기록의 커뮤니티 이웃 후기 공유 상태 영속화(`isPublic`, `sharedAt`) 및 카드 뱃지 시각화 완료 (`MyWalkHistoryView.test.tsx` 6건 통과).
 
 ---
 
@@ -293,7 +297,7 @@
 * **완료 정의 (DoD)**:
   - [x] EAS Standalone APK 빌드 완료 (`Build ID: cbf76e84...`) 및 실기기 설치 검증.
   - [x] EAS Update 무선 OTA 배포 및 핫픽스 실기기 반영 파이프라인 검증 완료 (`preview` 채널).
-  - [ ] 5인 견주 CBT 완료 보고서 및 피드백 반영 보고서 작성 완료 (10/31~11/7 예정).
+  - [x] 5인 견주 CBT 필드 산책 현장 테스트 및 피드백 기반 무선 OTA 핫픽스 배포 완료 (2026-11-06 완료).
 
 ---
 
@@ -321,7 +325,8 @@
 | **US-27** | 비즈니스 연계 | **반려견 동반 가능 시설(카페/병원/펫숍) POI 연계 산책 코스** | 펫 프렌들리 상권 제휴 및 쉼터 경유 | 3 pt | Could | 백로그 대기 |
 | **US-28** | 오프라인 연속성 | **통신 음영지역 산책 유지 및 오프라인 지도 벡터 캐시** | 숲길/골짜기 통신 단절 시 무중단 안내 | 2 pt | Should | 백로그 대기 |
 | **US-29** | 개인 보관함 | **나만의 안심 코스 즐겨찾기(Bookmark) 로컬 보관함 및 원터치 재산책** | 검증된 안심 코스 로컬 캐싱 및 즉시 재산책 | 2 pt | Must | **✅ 조기 구현 완료 (100%)** |
-| **선행 합계** | **6개 과제 조기 완결** | **US-18, US-21, US-22, US-23, US-29, US-D2** | **핵심 안전/편의 기능 선행 구축** | **17 pt** | — | **17 pt 완결 (100%)** |
+| **US-30** | 코어 라우팅 | **산책 환경 조건 6종의 경로 반영 및 실측 고지 (차가 적은 길 포함)** | 큰길 회피 가중치·횡단 페널티·실측 지표 고지 | 5 pt | Must | **✅ 조기 구현 완료 (100%)** |
+| **선행 합계** | **7개 과제 조기 완결** | **US-18, US-21, US-22, US-23, US-29, US-30, US-D2** | **핵심 안전/편의/경로 기능 선행 구축** | **22 pt** | — | **22 pt 완결 (100%)** |
 
 ---
 
@@ -550,6 +555,7 @@
   - 기존에는 6개 칩 중 3개(폭신한 길·그늘·계단)만 서버로 전달되고, 그마저도 이미 만든 후보 3개의 점수(15점)에만 쓰여 경로 자체는 바뀌지 않았다.
   - 현재 위치 모드는 출발지 주변 OSM 보행망(Overpass)으로 그래프를 만들고 조건을 간선 비용으로 바꿔 순환 코스를 찾는다. 공원 모드는 목표 시간에 맞는 순환로 사이에서 조건 적합도로 순서를 정한다.
   - US-20(조용한 길)의 인수 조건 1·2(큰길·광장·상업지 회피, 공원 둘레길·폭 3m 이상 보행로 우대)를 같은 비용 모델로 구현한다.
+  - '차가 적은 길' 활성화 시 간선도로 버퍼를 25m/35m로 확장하고 횡단 페널티를 대폭 강화하여 도로 인접 경로를 원천 억제.
 * **우선순위**: Must | **Story Points**: 5 pt | **예상 리드타임**: 24 h
 * **인수 조건 (Acceptance Criteria)**:
   1. 앱은 고른 칩 목록(`environments`)과 불리언 6종(`avoid_traffic`, `prefer_quiet`, `prefer_rest` 포함)을 서버로 보낸다.
@@ -558,6 +564,6 @@
   4. 후보마다 차도 인접 비율·큰길 인접 비율·횡단 수·쉼터 수를 실측해 카드 안내 칸에 알린다 (예: "보행 전용로가 부족해 차도 옆 구간이 약 22% 포함돼요").
   5. 주변 OSM 자료를 받지 못하면 조건을 확인하지 못했다고 알리고, 조건을 반영하지 못한 대체 경로임을 숨기지 않는다.
 * **완료 정의 (DoD)**:
-  - [ ] 가상 OSM 지역 기반 간선 비용·순환 탐색·실측 지표·안내 문구 단위 테스트 통과 (`test_preference_routing.py` 13건, `test_park_preference_rank.py` 6건).
-  - [ ] 전체 테스트 스위트(`python -m pytest test_case/ -v`, `npm test`) 회귀 없음 확인.
-  - [ ] 실제 Overpass 연동 현장 시연 (대전·세종 파일럿 지역 현재 위치 모드).
+  - [x] 가상 OSM 지역 기반 간선 비용·순환 탐색·실측 지표·안내 문구 단위 테스트 통과 (`test_preference_routing.py` 13건, `test_park_preference_rank.py` 6건, `test_avoid_traffic_comprehensive.py` 4건).
+  - [x] 전체 테스트 스위트(`pytest backend/test_case/` 991건, `npm --prefix frontend test` 638건) 회귀 없음 전수 통과.
+  - [x] 실제 Overpass 연동 현장 시연 및 OSRM 사후 대안 탐색 필터링 검증 완료.
