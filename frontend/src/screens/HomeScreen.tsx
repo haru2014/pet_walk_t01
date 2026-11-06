@@ -210,6 +210,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         isTomorrow={modalProps.isTomorrow}
         timeRangeDisplay={modalProps.timeRangeDisplay}
         weather={weather}
+        isLoading={isLoadingWeather}
       />
 
       {/* 4. 종 아이콘(🔔) 터치 시 열리는 안심 산책 스마트 알림 센터 모달 */}

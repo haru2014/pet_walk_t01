@@ -58,7 +58,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
   const surfaceTemp = weather?.current_surface_temp ?? DEFAULT_SURFACE_TEMP;
   const isGoodToWalk = isGoodWalkScore(walkQuotient.score);
   // 실데이터(기상청/에어코리아 실시간 응답)와 폴백(추정치)을 문구·배지에서 구분한다.
-  const isVirtualWeather = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtualWeather = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
   const surfaceTempPhrase = isVirtualWeather
     ? `${surfaceTemp.toFixed(1)}℃로 추정돼요`
     : `${surfaceTemp.toFixed(1)}℃로 측정됐어요`;
@@ -127,7 +127,7 @@ export const HomeTrailInfoCardN2: React.FC<HomeTrailInfoCardN2Props> = ({
             </View>
           </View>
           <Text style={[styles.trailDescription, { color: colors.textMuted }]} numberOfLines={2}>
-            {isLoadingWeather ? '산책 날씨를 확인하고 있어요...' : weatherNotice}
+            {isLoadingWeather ? '산책 정보를 받아오고 있어요...' : weatherNotice}
           </Text>
           <View style={[styles.goldenBadge, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.goldenBadgeText, { color: colors.primaryDark }]}>
