@@ -702,6 +702,8 @@ export default function App() {
                       setActiveTab('마이');
                     }}
                     pilotParkId={preferences.pilotParkId}
+                    initialUserCoords={preferences.userCoordinates ? { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat } : null}
+                    onUpdateUserCoords={(coords) => setPreferences((prev) => ({ ...prev, userCoordinates: coords }))}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (

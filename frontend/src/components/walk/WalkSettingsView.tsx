@@ -156,6 +156,13 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     }
   };
 
+  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 전달되면 즉시 동기화
+  useEffect(() => {
+    if (initialPreferences?.userCoordinates && !userCoords) {
+      setUserCoords(initialPreferences.userCoordinates);
+    }
+  }, [initialPreferences?.userCoordinates, userCoords]);
+
   // 📍 1-1: 현재 위치 모드 활성화 시 백그라운드 GPS 사전 획득 (센서 응답 대기시간 0초화)
   useEffect(() => {
     let isMounted = true;
