@@ -31,5 +31,5 @@ error/*
 docs/member4/*
 
 # presentations & office docs
-*.ppt
-*.pptx
+presentation\output\*.ppt
+presentation\output\*.pptx
