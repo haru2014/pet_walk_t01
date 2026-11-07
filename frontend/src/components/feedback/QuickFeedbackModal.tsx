@@ -5,7 +5,7 @@
  * 5점 만족도 평가, [📐 경사도 체감 3단계 평가], 웰니스 태그 칩, 한 줄 메모
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../common/AppText';
 import { TOKENS, TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
@@ -55,16 +55,18 @@ export const QuickFeedbackModal: React.FC<QuickFeedbackModalProps> = ({
   );
   const [comment, setComment] = useState(initialFeedback?.comment ?? '');
 
-  useEffect(() => {
-    if (visible) {
-      setComfortScore(initialFeedback?.comfortScore ?? 5);
-      setSlopeRating(initialFeedback?.slopeRating ?? 'gentle');
-      setSelectedTags(
-        initialFeedback?.tags && initialFeedback.tags.length > 0 ? initialFeedback.tags : ['폭신한 흙/잔디']
-      );
-      setComment(initialFeedback?.comment ?? '');
-    }
-  }, [visible, initialFeedback]);
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible && !prevVisible) {
+    setPrevVisible(true);
+    setComfortScore(initialFeedback?.comfortScore ?? 5);
+    setSlopeRating(initialFeedback?.slopeRating ?? 'gentle');
+    setSelectedTags(
+      initialFeedback?.tags && initialFeedback.tags.length > 0 ? initialFeedback.tags : ['폭신한 흙/잔디']
+    );
+    setComment(initialFeedback?.comment ?? '');
+  } else if (!visible && prevVisible) {
+    setPrevVisible(false);
+  }
 
   const toggleTag = (label: string) => {
     setSelectedTags((prev) =>

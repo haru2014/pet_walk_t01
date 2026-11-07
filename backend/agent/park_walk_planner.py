@@ -423,8 +423,13 @@ def plan_park_walk_candidates(
     # 경계 밖 주차장은 저장된 진입로 끝에서 공원 코스를 만들고, 진입로를 앞뒤로 붙인다 (#160).
     # 공원 코스는 목표 거리에 맞추고 진입로 왕복은 더한다 (가 안)
     start, approach = resolve_park_start(graph, park_id, (origin_lon, origin_lat))
-    key = (park_id, round(origin_lat, 6), round(origin_lon, 6), round(target_distance_m, 1),
-           preferences_signature(preferences))
+    key = (
+        park_id,
+        round(origin_lat, 6),
+        round(origin_lon, 6),
+        round(target_distance_m, 1),
+        preferences_signature(preferences),
+    )
     with _CACHE_LOCK:
         cached = _CANDIDATE_CACHE.get(key)
         if cached is not None and cached[0] is graph:  # 그래프 객체가 바뀌면(데이터 교체) 다시 계산

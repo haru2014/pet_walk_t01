@@ -131,7 +131,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [fallbackPark.center.lat, fallbackPark.center.lon, pilotParkId]);
+  }, [fallbackPark.center.lat, fallbackPark.center.lon, pilotParkId, onUpdateUserCoords]);
 
   useEffect(() => {
     let isMounted = true;
