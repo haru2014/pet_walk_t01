@@ -8,6 +8,7 @@
 from typing import Any, Dict, List, Mapping
 
 from agent.walk_graph_provider import walk_graph_for_coords, walk_graph_for_loop
+from services.request_budget import budget_from
 from services.route_exposure import EMPTY, measure_route_exposure
 from services.walk_preferences import WalkPreferences
 
@@ -22,13 +23,16 @@ def candidate_exposures(
 ) -> Dict[str, Dict[str, Any]]:
     """{route_id: 실측 지표}. state 는 에이전트 상태(출발 모드·좌표·정리된 의도)."""
     prefs = WalkPreferences.from_intent(state.get("parsed_intent") or {})
+    budget = budget_from(state.get("plan_deadline"))
+    overpass_s = None if budget is None else budget.overpass_s()
     if (state.get("origin_mode") or "current_location") in PARK_MODES:
         if not prefs.needs_road_context:
             return {route_id: dict(EMPTY) for route_id in coords_by_id}
         all_coords = [point for coords in coords_by_id.values() for point in coords]
-        walk = walk_graph_for_coords(all_coords)
+        walk = walk_graph_for_coords(all_coords, overpass_s)
     else:
-        walk = walk_graph_for_loop(state.get("origin_lat", 37.5665), state.get("origin_lon", 126.9780), target_distance_m)
+        walk = walk_graph_for_loop(state.get("origin_lat", 37.5665), state.get("origin_lon", 126.9780),
+                                   target_distance_m, overpass_s)
     return {route_id: measure_route_exposure(coords, walk) for route_id, coords in coords_by_id.items()}
 
 

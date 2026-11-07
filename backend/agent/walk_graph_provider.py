@@ -31,12 +31,17 @@ def _graph_for_region(region: Optional[OsmRegion]) -> Optional[WalkGraph]:
         return walk
 
 
-def walk_graph_for_loop(lat: float, lon: float, target_distance_m: float) -> Optional[WalkGraph]:
-    """출발지 중심, 목표 순환 거리가 들어가는 반경의 보행 그래프. 받지 못하면 None."""
-    return _graph_for_region(fetch_region(lat, lon, region_radius_m(target_distance_m)))
+def walk_graph_for_loop(lat: float, lon: float, target_distance_m: float,
+                        budget_s: Optional[float] = None) -> Optional[WalkGraph]:
+    """출발지 중심, 목표 순환 거리가 들어가는 반경의 보행 그래프. 받지 못하면 None.
+
+    budget_s 는 OSM 자료 조회에 쓸 수 있는 시간이다 (services/request_budget.py).
+    """
+    return _graph_for_region(fetch_region(lat, lon, region_radius_m(target_distance_m), budget_s))
 
 
-def walk_graph_for_coords(coords: Sequence[Sequence[float]]) -> Optional[WalkGraph]:
+def walk_graph_for_coords(coords: Sequence[Sequence[float]],
+                          budget_s: Optional[float] = None) -> Optional[WalkGraph]:
     """경로 전체를 덮는 보행 그래프 (공원 코스 등 이미 만든 경로의 지표를 잴 때)."""
     if len(coords) < 2:
         return None
@@ -46,4 +51,4 @@ def walk_graph_for_coords(coords: Sequence[Sequence[float]]) -> Optional[WalkGra
     radius = max(haversine_m(center, c) for c in coords) + ROUTE_MARGIN_M
     if radius > MAX_RADIUS_M:
         return None
-    return _graph_for_region(fetch_region(center[1], center[0], max(radius, 600.0)))
+    return _graph_for_region(fetch_region(center[1], center[0], max(radius, 600.0), budget_s))

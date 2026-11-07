@@ -506,12 +506,12 @@ def _deduplicate_osrm_live(plans: Dict[int, LoopPlan], origin_mode: str) -> Dict
     return {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
 
 
-def _plan_graph_variants(query: LoopQuery) -> Dict[int, LoopPlan]:
+def _plan_graph_variants(query: LoopQuery, overpass_budget_s: Optional[float] = None) -> Dict[int, LoopPlan]:
     """[현재 위치 모드] 출발지 주변 OSM 보행 그래프에서 환경 조건 비용으로 순환 후보를 찾는다.
 
     그래프를 받지 못하거나(오프라인·Overpass 장애) 출발점이 보행망에서 멀면 빈 사전 → OSRM 경로로 돌아간다.
     """
-    walk = walk_graph_for_loop(query.origin[1], query.origin[0], query.target_m)
+    walk = walk_graph_for_loop(query.origin[1], query.origin[0], query.target_m, overpass_budget_s)
     if walk is None:
         return {}
     loops = plan_preference_loops(walk, query)
@@ -531,17 +531,20 @@ def plan_loop_candidates(
     pilot_park_id: Optional[str] = None,
     regenerate_nonce: int = 0,
     preferences: Optional[WalkPreferences] = None,
+    overpass_budget_s: Optional[float] = None,
 ) -> Dict[int, LoopPlan]:
     """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3).
 
     현재 위치 모드는 OSM 보행 그래프(환경 조건 반영)를 먼저 쓰고, 채우지 못한 후보만 OSRM 으로 찾는다.
+    time_budget_s 는 OSRM 단계, overpass_budget_s 는 주변 길 조회에 쓸 시간이다
+    (요청 전체 예산: services/request_budget.py).
     """
     graph_plans: Dict[int, LoopPlan] = {}
     if origin_mode not in ("park", "parking_pnr"):
         graph_plans = _plan_graph_variants(LoopQuery(
             origin=(origin_lon, origin_lat), target_m=target_distance_m,
             prefs=preferences or WalkPreferences(), bearings=VARIANT_BEARINGS, regenerate_nonce=regenerate_nonce,
-        ))
+        ), overpass_budget_s)
     # OSRM 예산은 그래프 단계 뒤부터 센다 (Overpass 가 느리다 실패해도 OSRM 대체 경로 품질은 그대로)
     deadline = time.monotonic() + time_budget_s
     remaining = [variant for variant in VARIANT_BEARINGS if variant not in graph_plans]

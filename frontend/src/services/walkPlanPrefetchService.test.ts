@@ -74,7 +74,7 @@ describe('WalkPlanPrefetchService - 산책 경로 사전 요청 및 중복제거
     expect(res2).toEqual(mockResult);
   });
 
-  it('조건이 변경되면 이전 진행 중인 요청의 signal이 abort된다', async () => {
+  it('조건이 변경되면 이전 진행 중인 요청의 signal이 abort되고, 곧바로 새 요청을 보내지는 않는다', async () => {
     let aborted = false;
     const executor1 = vi.fn().mockImplementation(async (signal?: AbortSignal) => {
       signal?.addEventListener('abort', () => {
@@ -95,7 +95,25 @@ describe('WalkPlanPrefetchService - 산책 경로 사전 요청 및 중복제거
     await Promise.all([p1, p2]);
 
     expect(aborted).toBe(true);
+    // 서버 OSRM 대기열(전역 1초 1회)이 차지 않도록 간격 제한 안에서는 보내지 않는다
+    expect(executor2).not.toHaveBeenCalled();
+    await expect(p2).resolves.toBeNull();
+  });
+
+  it('간격 제한이 지난 뒤에는 새 조건으로 다시 사전 요청을 보낸다', async () => {
+    const executor1 = vi.fn().mockResolvedValue(mockResult);
+    const executor2 = vi.fn().mockResolvedValue(mockResult);
+    const startedAt = Date.now();
+
+    await WalkPlanPrefetchService.prefetch(mockDog, mockPreferences, null, executor1);
+    vi.spyOn(Date, 'now').mockReturnValue(startedAt + 6_000);
+
+    const newPrefs: WalkPreferences = { ...mockPreferences, durationMinutes: 45 };
+    await WalkPlanPrefetchService.prefetch(mockDog, newPrefs, null, executor2);
+
+    expect(executor1).toHaveBeenCalledTimes(1);
     expect(executor2).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   it('프리페치가 실패하면 prefetch 는 null 을 주지만, 이어받는 쪽(getPending)은 실제 오류를 받는다', async () => {

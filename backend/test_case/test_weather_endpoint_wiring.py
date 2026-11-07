@@ -65,7 +65,7 @@ def test_heat_risk_without_kma_key_falls_back_instead_of_calling_the_network(cli
 def test_plan_route_uses_live_weather_at_the_origin_when_request_has_none(client, monkeypatch):
     seen = {}
     monkeypatch.setattr(main, "build_heat_risk_response",
-                        lambda lat, lon: seen.setdefault("origin", (lat, lon)) and _live_response(lat, lon))
+                        lambda lat, lon, **kwargs: seen.setdefault("origin", (lat, lon)) and _live_response(lat, lon))
     captured = {}
     real = main.run_walk_planning_agent
 

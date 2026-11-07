@@ -49,6 +49,7 @@ from agent.walk_limits import (
     SERVICE_LON_RANGE,
 )
 from agent.supabase_repository import community_repo
+from services.request_budget import RequestBudget
 from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
@@ -65,6 +66,7 @@ from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
 from agent.candidate_exposure import EXPOSURE_FIELDS, is_preference_routed
+from agent.walk_graph_provider import walk_graph_for_loop
 from services.course_notices import append_notice_lines, preference_notice_lines
 from services.walk_preferences import WalkPreferences, intent_overrides_from_request
 from services.forward_safety import analyze_forward_safety
@@ -1031,8 +1033,10 @@ def plan_walk_route(req: Dict[str, Any]):
         target_distance_m,
     )
 
+    # 날씨·주변 길·OSRM 이 예산을 나눠 쓴다. 합계가 앱 제한(20초)을 넘지 않게 한다 (request_budget.py)
+    plan_budget = RequestBudget.start()
     weather_context = req.get("weather_context") or weather_context_from_response(
-        _live_heat_risk_response(origin_lat, origin_lon)
+        _live_heat_risk_response(origin_lat, origin_lon, timeout=plan_budget.weather_s())
     )
 
     user_query, intent_overrides = _resolve_walk_user_query(req, dog_name, target_duration)
@@ -1085,6 +1089,7 @@ def plan_walk_route(req: Dict[str, Any]):
             pilot_park_id=selected_park or (params["pilot_park_id"] if park_mode else None),
             intent_overrides=intent_overrides,
             regenerate_nonce=params["regenerate_nonce"],
+            plan_budget=plan_budget,
         )
 
         validations = {}
@@ -1437,8 +1442,13 @@ def clear_heat_risk_cache() -> None:
     _HEAT_RISK_CACHE.clear()
 
 
-def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False) -> Dict[str, Any]:
-    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
+def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False,
+                             timeout: Optional[float] = None) -> Dict[str, Any]:
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다.
+
+    timeout 을 주면 그 시간 안에서만 외부 기상 서버를 기다린다 (요청 전체 예산: services/request_budget.py).
+    0 이면 외부 호출 없이 바로 추정값을 쓴다.
+    """
     # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
     cache_key = (round(lat, 2), round(lon, 2))
     now_ts = time.time()
@@ -1446,9 +1456,18 @@ def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False
         cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
         if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
             return cached_resp
+    if timeout is not None and timeout <= 0.0:  # 앞 요청이 예산을 다 썼다 → 기다리지 않고 추정값으로 응답한다
+        return _fallback_heat_risk_response(lat, lon)
 
     try:
-        res = build_heat_risk_response(lat, lon)
+        try:
+            res = build_heat_risk_response(lat, lon) if timeout is None else build_heat_risk_response(
+                lat, lon, timeout=timeout)
+        except TypeError as te:
+            if "timeout" in str(te):
+                res = build_heat_risk_response(lat, lon)
+            else:
+                raise
         if "PYTEST_CURRENT_TEST" not in os.environ:
             _HEAT_RISK_CACHE[cache_key] = (now_ts, res)
         return res
@@ -1474,6 +1493,31 @@ def get_weather_heat_risk(
 ):
     """[US-F1] 기상청 실황·단기예보와 일사량 기반 시간대별 지면열 추정 및 안전 골든타임 조회."""
     return _live_heat_risk_response(lat, lon)
+
+
+@app.post("/api/v1/walk/prewarm")
+def prewarm_walk_area(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    target_duration_minutes: int = Query(30, ge=MIN_WALK_MINUTES, le=MAX_WALK_MINUTES),
+    speed_kmh: float = Query(2.8, ge=MIN_SPEED_KMH, le=MAX_SPEED_KMH),
+):
+    """[US-A3] 현재 위치 주변 자료(날씨·보행 그래프)를 미리 받아 둔다. 코스는 만들지 않는다.
+
+    앱이 홈 화면에서 GPS 좌표를 얻는 즉시 한 번 부르면, 첫 코스 요청이 이 두 조회를 기다리지 않는다.
+    시범 공원은 서버가 켜질 때 예열되지만(services/route_warmup.py) 현재 위치는 매번 처음 보는 곳이라
+    첫 요청이 그대로 콜드 조회를 기다렸다.
+    """
+    budget = RequestBudget.start()
+    weather = _live_heat_risk_response(lat, lon, timeout=budget.weather_s())
+    target_distance_m = speed_kmh * 1000.0 / 60.0 * target_duration_minutes
+    walk = walk_graph_for_loop(lat, lon, target_distance_m, budget.overpass_s())
+    return {
+        "status": "ok",
+        "weather_source": weather.get("data_source"),
+        "walk_network_ready": walk is not None,
+        "remaining_budget_s": round(budget.remaining_s(), 1),
+    }
 
 
 # 공영주차장은 backend/fixtures/parking_lots_pilot.json 한 곳에서 읽는다 (공식 표준데이터 6곳 + 기존 데이터 11곳).

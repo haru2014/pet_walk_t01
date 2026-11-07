@@ -21,6 +21,7 @@ from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
 from agent.route_geometry import backtrack_ratio, estimate_duration_minutes
 from agent.pilot_park_routes import PILOT_PARK_CENTERS
+from services.request_budget import RequestBudget, budget_from, deadline_of
 from services.walk_preferences import WalkPreferences
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
 
@@ -385,6 +386,9 @@ class LoopCandidateRequest(BaseModel):
     air_temp_celsius: Optional[float] = None
     regenerate_nonce: int = 0
     preferences: Optional[WalkPreferences] = None
+    # 이 요청에서 주변 길 조회·OSRM 에 쓸 수 있는 시간(초). None 이면 각 단계의 평소 예산을 쓴다
+    overpass_budget_s: Optional[float] = None
+    osrm_budget_s: Optional[float] = None
 
 
 # 후보별 표시 정보 및 보행 환경 지표 (기상청 실시간 지면열 모델 연동)
@@ -433,6 +437,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
 
     거리와 소요 시간은 생성된 좌표열의 실측값에서 계산한다.
     """
+    budget = {} if req.osrm_budget_s is None else {"time_budget_s": req.osrm_budget_s}
     plans = plan_loop_candidates(
         req.origin_lat,
         req.origin_lon,
@@ -441,6 +446,8 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         pilot_park_id=req.pilot_park_id,
         regenerate_nonce=req.regenerate_nonce,
         preferences=req.preferences,
+        overpass_budget_s=req.overpass_budget_s,
+        **budget,
     )
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
@@ -494,6 +501,8 @@ class WalkPlanningState(TypedDict):
     parking_lot_id: Optional[str]
     pilot_park_id: Optional[str]
     regenerate_nonce: int
+    # 이 요청의 외부 조회 데드라인(time.monotonic 기준 초). None 이면 예산 없이 평소대로 조회한다
+    plan_deadline: Optional[float]
     # 앱 산책 설정에서 고른 조건 (avoid_stairs / shade_priority / prefer_soft). 문장 분석 결과보다 앞선다
     intent_overrides: Optional[Dict[str, Any]]
     # 분석 & 보정 산출물
@@ -617,6 +626,7 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     origin_mode = state.get("origin_mode")
     if not origin_mode:
         origin_mode = "current_location"
+    budget = budget_from(state.get("plan_deadline"))
 
     request = LoopCandidateRequest(
         origin_lat=state.get("origin_lat", 37.5665),
@@ -633,6 +643,8 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         regenerate_nonce=state.get("regenerate_nonce", 0),
         # 앱이 산책 설정 조건을 보냈을 때만 길 선택에 반영한다 (문장 분석의 기본값만으로는 순위를 바꾸지 않는다)
         preferences=WalkPreferences.from_intent(intent_dict) if state.get("intent_overrides") else None,
+        overpass_budget_s=None if budget is None else budget.overpass_s(),
+        osrm_budget_s=None if budget is None else budget.osrm_s(),
     )
     candidates = generate_loop_candidates(request)
 
@@ -950,8 +962,12 @@ def run_walk_planning_agent(
     pilot_park_id: Optional[str] = None,
     intent_overrides: Optional[Dict[str, Any]] = None,
     regenerate_nonce: int = 0,
+    plan_budget: Optional[RequestBudget] = None,
 ) -> WalkPlanningResult:
-    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
+    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수.
+
+    plan_budget 을 주면 주변 길 조회와 OSRM 이 그 예산 안에서만 외부 서버를 기다린다.
+    """
     agent = get_agent()
 
     if not origin_mode:
@@ -983,6 +999,7 @@ def run_walk_planning_agent(
         "pilot_park_id": pilot_park_id,
         "intent_overrides": intent_overrides,
         "regenerate_nonce": regenerate_nonce,
+        "plan_deadline": deadline_of(plan_budget),
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

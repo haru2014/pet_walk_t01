@@ -68,9 +68,13 @@ class OsmRegion:
     osm_base: Optional[str] = None
 
 
-_CACHE: Dict[Tuple[float, float, int], Tuple[float, OsmRegion]] = {}
-_FAILED: Dict[Tuple[float, float, int], float] = {}
-_LOCK = threading.Lock()
+RegionKey = Tuple[float, float, int]
+
+_CACHE: Dict[RegionKey, Tuple[float, OsmRegion]] = {}
+_FAILED: Dict[RegionKey, float] = {}
+# 지금 받고 있는 지역. 같은 지역을 찾는 다른 요청은 여기에 걸려 기다렸다가 캐시를 함께 쓴다.
+_INFLIGHT: Dict[RegionKey, threading.Event] = {}
+_LOCK = threading.Lock()  # 사전을 읽고 쓰는 동안만 짧게 잡는다 (외부 조회 중에는 잡지 않는다)
 
 
 def routing_enabled() -> bool:
@@ -131,10 +135,10 @@ def parse_overpass(payload: Dict[str, Any], center: Tuple[float, float], radius_
     return region
 
 
-def _download(query: str) -> Optional[Dict[str, Any]]:
-    """서버를 차례로 시도하되 전체 대기 시간은 TIMEOUT_S, 서버 하나당은 MIRROR_TIMEOUT_S 를 넘지 않는다."""
+def _download(query: str, total_s: float = TIMEOUT_S) -> Optional[Dict[str, Any]]:
+    """서버를 차례로 시도하되 전체 대기 시간은 total_s, 서버 하나당은 MIRROR_TIMEOUT_S 를 넘지 않는다."""
     body = urllib.parse.urlencode({"data": query}).encode("utf-8")
-    deadline = time.monotonic() + TIMEOUT_S
+    deadline = time.monotonic() + total_s
     for url in MIRRORS:
         remaining = deadline - time.monotonic()
         if remaining < 1.0:
@@ -148,29 +152,68 @@ def _download(query: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def fetch_region(lat: float, lon: float, radius_m: float) -> Optional[OsmRegion]:
-    """출발지 주변 OSM 자료. 실패하거나 꺼져 있으면 None."""
-    if not routing_enabled():
-        return None
-    key = (round(lat, 3), round(lon, 3), int(radius_m // 200))
+def _remembered(key: RegionKey) -> Tuple[bool, Optional[OsmRegion]]:
+    """(기억해 둔 결과가 있는가, 그 자료). 실패를 기억한 경우에는 (True, None). 호출자가 _LOCK 을 잡는다."""
+    now = time.monotonic()
+    cached = _CACHE.get(key)
+    if cached and now - cached[0] < CACHE_TTL_S:
+        return True, cached[1]
+    failed_at = _FAILED.get(key)
+    if failed_at is not None and now - failed_at < FAILURE_TTL_S:
+        return True, None
+    return False, None
+
+
+def _download_region(key: RegionKey, lat: float, lon: float, radius_m: float,
+                     total_s: float) -> Optional[OsmRegion]:
+    """자료를 받아 기억해 둔다. 받는 동안에는 _LOCK 을 잡지 않는다 (다른 지역 조회를 막지 않도록)."""
+    south, west, north, east = bbox_for(lat, lon, radius_m)
+    query = QUERY_TEMPLATE.format(bbox=f"{south:.6f},{west:.6f},{north:.6f},{east:.6f}")
+    payload = _download(query, total_s)
+    region = None if payload is None else parse_overpass(payload, (lon, lat), radius_m)
     with _LOCK:
-        cached = _CACHE.get(key)
-        if cached and time.monotonic() - cached[0] < CACHE_TTL_S:
-            return cached[1]
-        failed_at = _FAILED.get(key)
-        if failed_at is not None and time.monotonic() - failed_at < FAILURE_TTL_S:
-            return None
-        south, west, north, east = bbox_for(lat, lon, radius_m)
-        payload = _download(QUERY_TEMPLATE.format(bbox=f"{south:.6f},{west:.6f},{north:.6f},{east:.6f}"))
-        if payload is None:
+        if region is None:
             _FAILED[key] = time.monotonic()
             return None
         _FAILED.pop(key, None)
-        region = parse_overpass(payload, (lon, lat), radius_m)
         if len(_CACHE) >= CACHE_MAX:
             _CACHE.clear()
         _CACHE[key] = (time.monotonic(), region)
-        return region
+    return region
+
+
+def fetch_region(lat: float, lon: float, radius_m: float,
+                 budget_s: Optional[float] = None) -> Optional[OsmRegion]:
+    """출발지 주변 OSM 자료. 실패하거나 꺼져 있거나 쓸 시간이 없으면 None.
+
+    같은 지역을 이미 받고 있으면 새로 받지 않고 그 결과를 함께 쓴다. 조건을 바꿀 때마다 앱이 보내는
+    사전 요청(프리페치)이 겹쳐도 조회는 한 번만 일어나 대기 시간이 쌓이지 않는다.
+    budget_s 를 주면 그 시간 안에서만 조회한다 (요청 전체 예산: services/request_budget.py).
+    """
+    if not routing_enabled():
+        return None
+    total_s = TIMEOUT_S if budget_s is None else min(TIMEOUT_S, budget_s)
+    key = (round(lat, 3), round(lon, 3), int(radius_m // 200))
+    while True:
+        with _LOCK:
+            remembered, region = _remembered(key)
+            if remembered:
+                return region
+            if total_s <= 0.0:  # 앞 단계가 시간을 다 썼다 → 조회하지 않고 OSRM 경로로 넘긴다
+                return None
+            running = _INFLIGHT.get(key)
+            if running is None:
+                _INFLIGHT[key] = threading.Event()
+                break
+        if not running.wait(total_s):  # 앞선 조회가 끝나기를 기다린다 (지나치게 기다리지는 않는다)
+            return None
+    try:
+        return _download_region(key, lat, lon, radius_m, total_s)
+    finally:
+        with _LOCK:
+            finished = _INFLIGHT.pop(key, None)
+        if finished is not None:
+            finished.set()
 
 
 def clear_region_cache() -> None:
