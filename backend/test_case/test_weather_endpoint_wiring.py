@@ -40,8 +40,10 @@ def test_heat_risk_endpoint_returns_the_live_adapter_response(client, monkeypatc
     monkeypatch.setattr(main, "build_heat_risk_response", lambda lat, lon: calls.append((lat, lon)) or _live_response(lat, lon))
     data = client.get("/api/v1/weather/heat-risk", params=_DAEJEON).json()
     assert calls == [(_DAEJEON["lat"], _DAEJEON["lon"])]
-    assert data["data_source"] == "kma_live" and data["attribution"].startswith("Weather data by Open-Meteo")
-    assert data["golden_time_window"] == "07:00 ~ 09:00" and data["golden_time_window_day"] == "tomorrow"
+    assert data["data_source"] == "kma_live"
+    assert data["attribution"].startswith("Weather data by Open-Meteo")
+    assert data["golden_time_window"] == "07:00 ~ 09:00"
+    assert data["golden_time_window_day"] == "tomorrow"
 
 
 @pytest.mark.parametrize("error", [KmaApiError("키 없음"), ValueError("격자 범위 밖"), OSError("network")])
@@ -51,8 +53,10 @@ def test_heat_risk_endpoint_falls_back_when_live_weather_fails(client, monkeypat
     monkeypatch.setattr(main, "build_heat_risk_response", boom)
     res = client.get("/api/v1/weather/heat-risk", params=_DAEJEON)
     data = res.json()
-    assert res.status_code == 200 and data["data_source"] == "fallback_estimate"
-    assert len(data["hourly_forecast"]) == 24 and data["attribution"] is None
+    assert res.status_code == 200
+    assert data["data_source"] == "fallback_estimate"
+    assert len(data["hourly_forecast"]) == 24
+    assert data["attribution"] is None
     assert any(str(error) in w for w in data["warnings"])
 
 
@@ -77,7 +81,9 @@ def test_plan_route_uses_live_weather_at_the_origin_when_request_has_none(client
     client.post("/api/v1/walk/plan", json={"origin_lat": _DAEJEON["lat"], "origin_lon": _DAEJEON["lon"],
                                            "target_duration_minutes": 30})
     ctx = captured.get("weather_context")
-    assert ctx and ctx["data_source"] == "kma_live" and ctx["golden_time_window"] == "07:00 ~ 09:00"
+    assert ctx
+    assert ctx["data_source"] == "kma_live"
+    assert ctx["golden_time_window"] == "07:00 ~ 09:00"
     assert seen["origin"] == (_DAEJEON["lat"], _DAEJEON["lon"])
 
 
@@ -108,7 +114,8 @@ def test_fallback_survives_open_meteo_failure_outside_pytest(client, monkeypatch
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.setattr(open_meteo_client, "fetch_hourly_weather_forecast", boom)
     weather = client.get("/api/v1/weather/heat-risk", params=_DAEJEON)
-    assert weather.status_code == 200 and weather.json()["data_source"] == "fallback_estimate"
+    assert weather.status_code == 200
+    assert weather.json()["data_source"] == "fallback_estimate"
     plan = client.post("/api/v1/walk/plan", json={"origin_lat": 36.3510, "origin_lon": 127.3780,
                                                   "target_duration_minutes": 30})
     assert plan.status_code == 200, plan.text

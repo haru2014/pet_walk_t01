@@ -1134,7 +1134,10 @@ def plan_walk_route(req: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.post("/api/v1/walk/reroute")
+@app.post(
+    "/api/v1/walk/reroute",
+    responses={422: {"description": "알 수 없는 공원 식별자"}},
+)
 def reroute_walk(req: RerouteRequest):
     """[US-D2] 현장 위험 감지 시 해당 지점을 임시 차단(비용 10배)하고 3초 이내 안전 우회 경로 재산출.
 
@@ -1197,7 +1200,10 @@ def forward_walk_safety(req: ForwardSafetyRequest):
     return analyze_forward_safety(req.lat, req.lon, req.heading_deg)
 
 
-@app.post("/api/v1/community/share")
+@app.post(
+    "/api/v1/community/share",
+    responses={422: {"description": "마스킹 후 유효 경로 좌표 부족"}},
+)
 def share_community_course(req: CommunityCourseShareRequest):
     """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록.
 
@@ -1442,6 +1448,44 @@ def clear_heat_risk_cache() -> None:
     _HEAT_RISK_CACHE.clear()
 
 
+def _get_cached_heat_risk(cache_key: Tuple[float, float], force_refresh: bool, now_ts: float) -> Optional[Dict[str, Any]]:
+    """테스트 환경이 아니고 새로고침 강제가 아닐 때 유효한 캐시 항목을 반환한다."""
+    if "PYTEST_CURRENT_TEST" in os.environ or force_refresh:
+        return None
+    cached = _HEAT_RISK_CACHE.get(cache_key)
+    if cached and (now_ts - cached[0] < _HEAT_RISK_CACHE_TTL_S):
+        return cached[1]
+    return None
+
+
+def _fetch_heat_risk_with_timeout(lat: float, lon: float, timeout: Optional[float]) -> Dict[str, Any]:
+    """기상청 실황·예보를 조회한다. timeout 인자를 받지 않는 mock/구현체와도 호환된다."""
+    if timeout is not None:
+        try:
+            return build_heat_risk_response(lat, lon, timeout=timeout)
+        except TypeError as te:
+            if "timeout" not in str(te):
+                raise
+    return build_heat_risk_response(lat, lon)
+
+
+def _fallback_open_meteo_or_estimate(
+    lat: float, lon: float, exc: Exception, cache_key: Tuple[float, float], now_ts: float
+) -> Dict[str, Any]:
+    """기상청 조회 실패 시 Open-Meteo 실시간 또는 정적 추정으로 대체한다."""
+    logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+            _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
+            return om_res
+        except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
+            logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
+    response = _fallback_heat_risk_response(lat, lon)
+    response["warnings"].append(f"사유: {exc}")
+    return response
+
+
 def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False,
                              timeout: Optional[float] = None) -> Dict[str, Any]:
     """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다.
@@ -1449,41 +1493,22 @@ def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False
     timeout 을 주면 그 시간 안에서만 외부 기상 서버를 기다린다 (요청 전체 예산: services/request_budget.py).
     0 이면 외부 호출 없이 바로 추정값을 쓴다.
     """
-    # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
     cache_key = (round(lat, 2), round(lon, 2))
     now_ts = time.time()
-    if "PYTEST_CURRENT_TEST" not in os.environ and not force_refresh and cache_key in _HEAT_RISK_CACHE:
-        cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
-        if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
-            return cached_resp
+    cached = _get_cached_heat_risk(cache_key, force_refresh, now_ts)
+    if cached is not None:
+        return cached
+
     if timeout is not None and timeout <= 0.0:  # 앞 요청이 예산을 다 썼다 → 기다리지 않고 추정값으로 응답한다
         return _fallback_heat_risk_response(lat, lon)
 
     try:
-        try:
-            res = build_heat_risk_response(lat, lon) if timeout is None else build_heat_risk_response(
-                lat, lon, timeout=timeout)
-        except TypeError as te:
-            if "timeout" in str(te):
-                res = build_heat_risk_response(lat, lon)
-            else:
-                raise
+        res = _fetch_heat_risk_with_timeout(lat, lon, timeout)
         if "PYTEST_CURRENT_TEST" not in os.environ:
             _HEAT_RISK_CACHE[cache_key] = (now_ts, res)
         return res
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
-        # [제안 1 & 이슈 #104] 운영 환경(테스트 환경 격리 외)에서는 Open-Meteo 무키 실시간 예보를 2순위로 호출
-        if "PYTEST_CURRENT_TEST" not in os.environ:
-            try:
-                om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
-                _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
-                return om_res
-            except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
-                logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
-        response = _fallback_heat_risk_response(lat, lon)
-        response["warnings"].append(f"사유: {exc}")
-        return response
+        return _fallback_open_meteo_or_estimate(lat, lon, exc, cache_key, now_ts)
 
 
 @app.get("/api/v1/weather/heat-risk")
