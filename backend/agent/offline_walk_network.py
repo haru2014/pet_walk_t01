@@ -2,6 +2,9 @@
 
 OSRM 네트워크 단절 또는 타임아웃 상황에서도 건물 관통 직선(직사각형)을 배제하고,
 주요 서비스 권역의 검증된 OSM 보행로 노드/엣지 그래프 상에서 순환 루프를 탐색한다.
+
+권역 감지는 3km 까지 보지만 출발점 스냅은 START_SNAP_MAX_M 까지만 허용한다.
+예전에는 스냅 거리에 상한이 없어, 권역 안이기만 하면 1km 넘게 떨어진 노드에서 코스가 시작될 수 있었다.
 """
 
 import math
@@ -231,6 +234,9 @@ def build_region_graph(region_key: str) -> Tuple[nx.Graph, Dict[str, List[float]
     return G, nodes
 
 
+START_SNAP_MAX_M = 100.0  # 출발점에서 이보다 먼 노드로는 스냅하지 않는다 (경로 시작점 이탈 방지)
+
+
 def detect_region_for_origin(origin_lat: float, origin_lon: float, max_dist_m: float = 3000.0) -> Optional[str]:
     """출발지와 가장 가까운 오프라인 지원 권역을 감지한다."""
     best_region: Optional[str] = None
@@ -293,8 +299,8 @@ def plan_offline_network_loop(
 
     G, nodes = build_region_graph(region)
     start_nid, snap_dist = snap_nearest_node(G, origin_lat, origin_lon)
-    if not start_nid:
-        return None
+    if not start_nid or snap_dist > START_SNAP_MAX_M:
+        return None  # 출발지에서 먼 노드에서 코스를 시작하면 '엉뚱한 곳 코스'가 된다
 
     # 출발지와 시작 노드
     start_coord = nodes[start_nid]

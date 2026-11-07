@@ -12,6 +12,9 @@ Coordinate = Sequence[float]
 
 EARTH_RADIUS_M = 6_371_000.0
 COORD_KEY_DIGITS = 6
+# 이 각도 이상 꺾이면 '길을 꺾었다'로 센다. OSM 보행로는 완만한 곡선도 점으로 쪼개져 있어
+# 각도를 낮게 잡으면 곡선 산책로가 복잡한 길로 잘못 잡힌다.
+TURN_MIN_DEG = 45.0
 
 
 def haversine_m(a: Coordinate, b: Coordinate) -> float:
@@ -89,6 +92,27 @@ def backtrack_ratio(coords: Sequence[Coordinate]) -> float:
             repeated += haversine_m(coords[i], coords[i + 1])
         seen[key] = True
     return repeated / total
+
+
+def turn_count(coords: Sequence[Coordinate], min_turn_deg: float = TURN_MIN_DEG) -> int:
+    """진행 방향이 min_turn_deg 이상 꺾이는 지점의 수. 길이 얼마나 복잡한지 재는 데 쓴다."""
+    turns = 0
+    for i in range(len(coords) - 2):
+        a, b, c = coords[i], coords[i + 1], coords[i + 2]
+        if haversine_m(a, b) < 1.0 or haversine_m(b, c) < 1.0:
+            continue
+        delta = abs((bearing_deg(b, c) - bearing_deg(a, b) + 180.0) % 360.0 - 180.0)
+        if delta >= min_turn_deg:
+            turns += 1
+    return turns
+
+
+def turn_density(coords: Sequence[Coordinate], min_turn_deg: float = TURN_MIN_DEG) -> float:
+    """100m 당 꺾이는 횟수. 0 에 가까우면 쭉 이어진 길, 크면 갈림길을 자주 꺾는 복잡한 길이다."""
+    total = polyline_length_m(coords)
+    if total <= 0:
+        return 0.0
+    return turn_count(coords, min_turn_deg) * 100.0 / total
 
 
 def bearing_deg(a: Coordinate, b: Coordinate) -> float:

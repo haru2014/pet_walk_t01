@@ -49,6 +49,7 @@ from agent.walk_limits import (
     SERVICE_LON_RANGE,
 )
 from agent.supabase_repository import community_repo
+from services.request_budget import RequestBudget
 from services.route_warmup import mark_activity, start_background_warmup
 from services.walk_share import WalkShareError, share_walk, unshare_walk, verify_user
 from agent.hazard_service import (
@@ -65,7 +66,8 @@ from services import open_meteo_client
 from services.dem import elevation_source
 from services.route_profile import measure_route_profile
 from agent.candidate_exposure import EXPOSURE_FIELDS, is_preference_routed
-from services.course_notices import append_notice_lines, preference_notice_lines
+from agent.walk_graph_provider import walk_graph_for_loop
+from services.course_notices import append_notice_lines, fallback_notice_lines, preference_notice_lines
 from services.walk_preferences import WalkPreferences, intent_overrides_from_request
 from services.forward_safety import analyze_forward_safety
 from services.kma_weather_client import KmaApiError, to_kst
@@ -532,9 +534,13 @@ PARK_CENTER_MATCH_M = 30.0
 _DEFAULT_PARK_LOT_CACHE: Dict[str, Optional[Dict[str, Any]]] = {}
 
 
+def clear_park_lot_cache() -> None:
+    _DEFAULT_PARK_LOT_CACHE.clear()
+
+
 def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
     """공원 보행망에 이어지는 주차장 중 하나. 좌표 경고(data_issue) 없는 것 → 진입로 없는 것 → 보행망에 가까운 것 순."""
-    if park_id in _DEFAULT_PARK_LOT_CACHE:
+    if "PYTEST_CURRENT_TEST" not in os.environ and park_id in _DEFAULT_PARK_LOT_CACHE:
         return _DEFAULT_PARK_LOT_CACHE[park_id]
     best: Optional[Tuple[Tuple[bool, bool, float], Dict[str, Any]]] = None
     try:
@@ -550,8 +556,10 @@ def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
                 best = (rank, lot)
     except RoutePlanningError:
         best = None
-    _DEFAULT_PARK_LOT_CACHE[park_id] = best[1] if best else None
-    return _DEFAULT_PARK_LOT_CACHE[park_id]
+    res = best[1] if best else None
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        _DEFAULT_PARK_LOT_CACHE[park_id] = res
+    return res
 
 
 def _parking_start_keeps_courses_distinct(park_id: str, lot: Dict[str, Any], target_distance_m: float) -> bool:
@@ -763,12 +771,16 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
 
 
 def _add_preference_notices(courses: List[Dict[str, Any]], candidates: List[Any], intent: Any) -> None:
-    """고른 환경 조건(차가 적은 길·조용한 길·쉬어가기)이 실제로 얼마나 반영됐는지 카드 안내 칸에 알린다."""
+    """고른 환경 조건(차가 적은 길·조용한 길·쉬어가기)이 실제로 얼마나 반영됐는지 카드 안내 칸에 알린다.
+
+    실제 보행로를 못 찾아 기하학적으로 그린 코스는 조건과 무관하게 그렇다고 먼저 알린다(GEMINI.md 원칙 8).
+    """
     prefs = WalkPreferences.from_intent(intent.model_dump() if hasattr(intent, "model_dump") else intent)
     for course, cand in zip(courses, candidates):
         exposure = {key: getattr(cand, key, None) for key in EXPOSURE_FIELDS}
-        routed = is_preference_routed(getattr(cand, "route_source", "") or "")
-        append_notice_lines(course, preference_notice_lines(prefs, exposure, routed))
+        source = getattr(cand, "route_source", "") or ""
+        append_notice_lines(course, fallback_notice_lines(source))
+        append_notice_lines(course, preference_notice_lines(prefs, exposure, is_preference_routed(source)))
 
 
 def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:
@@ -1031,8 +1043,10 @@ def plan_walk_route(req: Dict[str, Any]):
         target_distance_m,
     )
 
+    # 날씨·주변 길·OSRM 이 예산을 나눠 쓴다. 합계가 앱 제한(20초)을 넘지 않게 한다 (request_budget.py)
+    plan_budget = RequestBudget.start()
     weather_context = req.get("weather_context") or weather_context_from_response(
-        _live_heat_risk_response(origin_lat, origin_lon)
+        _live_heat_risk_response(origin_lat, origin_lon, timeout=plan_budget.weather_s())
     )
 
     user_query, intent_overrides = _resolve_walk_user_query(req, dog_name, target_duration)
@@ -1085,6 +1099,7 @@ def plan_walk_route(req: Dict[str, Any]):
             pilot_park_id=selected_park or (params["pilot_park_id"] if park_mode else None),
             intent_overrides=intent_overrides,
             regenerate_nonce=params["regenerate_nonce"],
+            plan_budget=plan_budget,
         )
 
         validations = {}
@@ -1129,7 +1144,10 @@ def plan_walk_route(req: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.post("/api/v1/walk/reroute")
+@app.post(
+    "/api/v1/walk/reroute",
+    responses={422: {"description": "알 수 없는 공원 식별자"}},
+)
 def reroute_walk(req: RerouteRequest):
     """[US-D2] 현장 위험 감지 시 해당 지점을 임시 차단(비용 10배)하고 3초 이내 안전 우회 경로 재산출.
 
@@ -1192,7 +1210,10 @@ def forward_walk_safety(req: ForwardSafetyRequest):
     return analyze_forward_safety(req.lat, req.lon, req.heading_deg)
 
 
-@app.post("/api/v1/community/share")
+@app.post(
+    "/api/v1/community/share",
+    responses={422: {"description": "마스킹 후 유효 경로 좌표 부족"}},
+)
 def share_community_course(req: CommunityCourseShareRequest):
     """[US-G2] 출발지 및 도착지 200m 공간 절단 및 교차로(Node) 스냅 마스킹 후 피드 등록.
 
@@ -1437,34 +1458,67 @@ def clear_heat_risk_cache() -> None:
     _HEAT_RISK_CACHE.clear()
 
 
-def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False) -> Dict[str, Any]:
-    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다."""
-    # 1.1km 격자 단위 메모리 캐싱 (테스트 환경에서는 격리)
+def _get_cached_heat_risk(cache_key: Tuple[float, float], force_refresh: bool, now_ts: float) -> Optional[Dict[str, Any]]:
+    """테스트 환경이 아니고 새로고침 강제가 아닐 때 유효한 캐시 항목을 반환한다."""
+    if "PYTEST_CURRENT_TEST" in os.environ or force_refresh:
+        return None
+    cached = _HEAT_RISK_CACHE.get(cache_key)
+    if cached and (now_ts - cached[0] < _HEAT_RISK_CACHE_TTL_S):
+        return cached[1]
+    return None
+
+
+def _fetch_heat_risk_with_timeout(lat: float, lon: float, timeout: Optional[float]) -> Dict[str, Any]:
+    """기상청 실황·예보를 조회한다. timeout 인자를 받지 않는 mock/구현체와도 호환된다."""
+    if timeout is not None:
+        try:
+            return build_heat_risk_response(lat, lon, timeout=timeout)
+        except TypeError as te:
+            if "timeout" not in str(te):
+                raise
+    return build_heat_risk_response(lat, lon)
+
+
+def _fallback_open_meteo_or_estimate(
+    lat: float, lon: float, exc: Exception, cache_key: Tuple[float, float], now_ts: float
+) -> Dict[str, Any]:
+    """기상청 조회 실패 시 Open-Meteo 실시간 또는 정적 추정으로 대체한다."""
+    logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
+            _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
+            return om_res
+        except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
+            logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
+    response = _fallback_heat_risk_response(lat, lon)
+    response["warnings"].append(f"사유: {exc}")
+    return response
+
+
+def _live_heat_risk_response(lat: float, lon: float, force_refresh: bool = False,
+                             timeout: Optional[float] = None) -> Dict[str, Any]:
+    """기상청 실황·예보와 Open-Meteo 일사량으로 만든 응답. 실패하면 Open-Meteo 실시간 또는 KST 기반 추정으로 대체한다.
+
+    timeout 을 주면 그 시간 안에서만 외부 기상 서버를 기다린다 (요청 전체 예산: services/request_budget.py).
+    0 이면 외부 호출 없이 바로 추정값을 쓴다.
+    """
     cache_key = (round(lat, 2), round(lon, 2))
     now_ts = time.time()
-    if "PYTEST_CURRENT_TEST" not in os.environ and not force_refresh and cache_key in _HEAT_RISK_CACHE:
-        cached_ts, cached_resp = _HEAT_RISK_CACHE[cache_key]
-        if now_ts - cached_ts < _HEAT_RISK_CACHE_TTL_S:
-            return cached_resp
+    cached = _get_cached_heat_risk(cache_key, force_refresh, now_ts)
+    if cached is not None:
+        return cached
+
+    if timeout is not None and timeout <= 0.0:  # 앞 요청이 예산을 다 썼다 → 기다리지 않고 추정값으로 응답한다
+        return _fallback_heat_risk_response(lat, lon)
 
     try:
-        res = build_heat_risk_response(lat, lon)
+        res = _fetch_heat_risk_with_timeout(lat, lon, timeout)
         if "PYTEST_CURRENT_TEST" not in os.environ:
             _HEAT_RISK_CACHE[cache_key] = (now_ts, res)
         return res
     except (KmaApiError, ValueError, OSError) as exc:
-        logger.warning("기상청 API 조회 실패, 대체 경로를 시도합니다: %s", exc)
-        # [제안 1 & 이슈 #104] 운영 환경(테스트 환경 격리 외)에서는 Open-Meteo 무키 실시간 예보를 2순위로 호출
-        if "PYTEST_CURRENT_TEST" not in os.environ:
-            try:
-                om_res = build_open_meteo_heat_risk_response(lat, lon, timeout=2.5)
-                _HEAT_RISK_CACHE[cache_key] = (now_ts, om_res)
-                return om_res
-            except (open_meteo_client.OpenMeteoError, OSError, ValueError, KeyError) as om_exc:
-                logger.warning("Open-Meteo 실시간 예보 조회도 실패하여 완전 대체 추정으로 전환합니다: %s", om_exc)
-        response = _fallback_heat_risk_response(lat, lon)
-        response["warnings"].append(f"사유: {exc}")
-        return response
+        return _fallback_open_meteo_or_estimate(lat, lon, exc, cache_key, now_ts)
 
 
 @app.get("/api/v1/weather/heat-risk")
@@ -1474,6 +1528,31 @@ def get_weather_heat_risk(
 ):
     """[US-F1] 기상청 실황·단기예보와 일사량 기반 시간대별 지면열 추정 및 안전 골든타임 조회."""
     return _live_heat_risk_response(lat, lon)
+
+
+@app.post("/api/v1/walk/prewarm")
+def prewarm_walk_area(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    target_duration_minutes: int = Query(30, ge=MIN_WALK_MINUTES, le=MAX_WALK_MINUTES),
+    speed_kmh: float = Query(2.8, ge=MIN_SPEED_KMH, le=MAX_SPEED_KMH),
+):
+    """[US-A3] 현재 위치 주변 자료(날씨·보행 그래프)를 미리 받아 둔다. 코스는 만들지 않는다.
+
+    앱이 홈 화면에서 GPS 좌표를 얻는 즉시 한 번 부르면, 첫 코스 요청이 이 두 조회를 기다리지 않는다.
+    시범 공원은 서버가 켜질 때 예열되지만(services/route_warmup.py) 현재 위치는 매번 처음 보는 곳이라
+    첫 요청이 그대로 콜드 조회를 기다렸다.
+    """
+    budget = RequestBudget.start()
+    weather = _live_heat_risk_response(lat, lon, timeout=budget.weather_s())
+    target_distance_m = speed_kmh * 1000.0 / 60.0 * target_duration_minutes
+    walk = walk_graph_for_loop(lat, lon, target_distance_m, budget.overpass_s())
+    return {
+        "status": "ok",
+        "weather_source": weather.get("data_source"),
+        "walk_network_ready": walk is not None,
+        "remaining_budget_s": round(budget.remaining_s(), 1),
+    }
 
 
 # 공영주차장은 backend/fixtures/parking_lots_pilot.json 한 곳에서 읽는다 (공식 표준데이터 6곳 + 기존 데이터 11곳).
