@@ -82,20 +82,24 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
 
       const isWebRecording = Platform.OS === 'web';
       const mimeType = isWebRecording ? 'audio/webm' : 'audio/m4a';
+      const fileName = isWebRecording ? 'walk-command.webm' : 'walk-command.m4a';
       let recordingBlob: Blob | { uri: string; type: string; name: string };
-      if (isWebRecording) {
-        recordingBlob = await (await fetch(uri)).blob();
-      } else {
+      try {
+        const res = await fetch(uri);
+        recordingBlob = await res.blob();
+      } catch {
         try {
           const { File } = await import('expo-file-system');
-          recordingBlob = new File(uri);
+          const file = new File(uri);
+          const bytes = await file.bytes();
+          recordingBlob = new Blob([bytes], { type: mimeType });
         } catch {
-          recordingBlob = { uri, name: 'walk-command.m4a', type: 'audio/m4a' };
+          recordingBlob = { uri, name: fileName, type: mimeType };
         }
       }
       const transcript = await transcribeVoiceCommand(
         recordingBlob,
-        isWebRecording ? 'walk-command.webm' : 'walk-command.m4a',
+        fileName,
         mimeType,
         dogName
       );

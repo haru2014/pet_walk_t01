@@ -160,3 +160,22 @@ def test_endpoint_transcribe_gemini_error_502(monkeypatch):
     )
     assert response.status_code == 502
     assert "Gemini 음성 인식에 실패했습니다" in response.json()["detail"]
+
+
+def test_endpoint_transcribe_filename_mime_inference(monkeypatch):
+    captured_mime = []
+
+    def fake_transcribe(audio_data, mime_type, dog_name):
+        captured_mime.append(mime_type)
+        return "파일 확장자 추론 성공"
+
+    monkeypatch.setattr(main, "transcribe_walk_command", fake_transcribe)
+    response = client.post(
+        "/api/v1/voice/transcribe",
+        files={"audio": ("walk-recording.m4a", io.BytesIO(b"dummy_audio_bytes"), "application/octet-stream")},
+        data={"mime_type": ""},
+    )
+    assert response.status_code == 200
+    assert response.json()["transcript"] == "파일 확장자 추론 성공"
+    assert captured_mime == ["audio/m4a"]
+
