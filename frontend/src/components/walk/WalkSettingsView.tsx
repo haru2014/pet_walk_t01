@@ -34,6 +34,7 @@ import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voi
 import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
 import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
 import { prefetchWalkPlan } from '../../services/api';
+import { prewarmCurrentLocation } from '../../services/apiClient';
 import { ConsentService } from '../../services/consentService';
 import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 
@@ -179,6 +180,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
             setIsLocating(false);
             if (res.ok && res.coords) {
               setUserCoords({ lat: res.coords.latitude, lon: res.coords.longitude });
+              // 첫 코스 요청이 날씨·주변 길 조회를 기다리지 않도록 서버가 미리 받아 두게 한다
+              prewarmCurrentLocation(res.coords.latitude, res.coords.longitude);
             }
           }
         }

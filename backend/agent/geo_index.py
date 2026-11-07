@@ -8,7 +8,7 @@
 
 import math
 from collections import defaultdict
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 LonLat = Sequence[float]
 XY = Tuple[float, float]
@@ -27,6 +27,9 @@ class LocalProjection:
 
     def to_xy(self, point: LonLat) -> XY:
         return ((point[0] - self.lon0) * self.kx, (point[1] - self.lat0) * M_PER_DEG_LAT)
+
+    def to_lonlat(self, xy: XY) -> List[float]:
+        return [self.lon0 + xy[0] / self.kx, self.lat0 + xy[1] / M_PER_DEG_LAT]
 
 
 def segment_samples(a: XY, b: XY, spacing_m: float) -> List[XY]:
@@ -74,6 +77,32 @@ class PointGrid:
 
     def any_within(self, xy: XY, radius_m: float) -> bool:
         return bool(self.within(xy, radius_m))
+
+    def nearest_distance(self, xy: XY, max_m: float) -> Optional[float]:
+        """반경 안에서 가장 가까운 점까지의 거리(m). 없으면 None.
+
+        가까운 곳이 대부분이므로 좁은 반경부터 넓혀 본다 (도심 간선 수천 개를 훑는 비용을 줄인다).
+        """
+        radius = min(self.cell, max_m)
+        while True:
+            found = self._nearest_within(xy, radius)
+            if found is not None:
+                return found
+            if radius >= max_m:
+                return None
+            radius = min(radius * 2.0, max_m)
+
+    def _nearest_within(self, xy: XY, radius_m: float) -> Optional[float]:
+        reach = int(math.ceil(radius_m / self.cell))
+        cx, cy = self._key(xy)
+        limit = radius_m * radius_m
+        best = limit
+        for gx in range(cx - reach, cx + reach + 1):
+            for gy in range(cy - reach, cy + reach + 1):
+                for pt, _value in self._buckets.get((gx, gy), ()):
+                    squared = (pt[0] - xy[0]) ** 2 + (pt[1] - xy[1]) ** 2
+                    best = min(best, squared)
+        return None if best >= limit else math.sqrt(best)
 
 
 def point_in_polygon(xy: XY, ring: Sequence[XY]) -> bool:

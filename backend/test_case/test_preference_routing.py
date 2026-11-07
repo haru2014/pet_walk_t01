@@ -110,10 +110,18 @@ def test_avoid_traffic_loop_has_less_road_exposure(walk):
 
 
 def test_park_attraction_marks_variant_one(walk):
+    """1안은 조건에 맞는 곳(공원·쉼터)을 바라본다.
+
+    '쉬어가기 좋은 길'도 공원을 노린다 (#issue: 벤치·정자가 공원에 모여 있는데 유인에서 빠져 있었다).
+    길 선택을 바꾸지 않는 조건만 켜면 유인하지 않는다.
+    """
     loops, _ = _loop_exposure(walk, WalkPreferences(avoid_traffic=True))
     assert loops[1].park_attraction is True
-    loops_plain, _ = _loop_exposure(walk, WalkPreferences(prefer_rest=True))
-    assert loops_plain[1].park_attraction is False
+    loops_rest, exposure = _loop_exposure(walk, WalkPreferences(prefer_rest=True))
+    assert loops_rest[1].park_attraction is True
+    assert exposure[1]["rest_spot_count"] >= 1, "쉬어가기 코스가 벤치·쉼터를 지나지 않았다"
+    loops_shade, _ = _loop_exposure(walk, WalkPreferences(prefer_shade=True))
+    assert loops_shade[1].park_attraction is False
 
 
 def test_avoid_stairs_hides_steps_edges(region):
@@ -180,6 +188,20 @@ def test_request_flags_from_environment_chips():
 def test_preferences_from_intent():
     prefs = WalkPreferences.from_intent({"preferred_surfaces": ["dirt"], "avoid_traffic": True})
     assert prefs.prefer_soft and prefs.avoid_traffic and prefs.needs_road_context
+
+
+def test_graph_loop_passes_relaxed_backtrack_gate():
+    """조건 반영 그래프 루프는 OSRM 대체 경로와 같은 완화 기준으로 받는다.
+
+    예전에는 그래프 단계만 왕복 15% 를 요구해, 조건을 반영한 코스가 탈락하고
+    그 자리를 조건 무시 경로가 채웠다 (loop_route_planner._plan_graph_variants).
+    """
+    import agent.loop_route_planner as lrp
+    from agent.preference_loop_planner import MAX_BACKTRACK
+
+    assert lrp.RELAXED_MAX_BACKTRACK == MAX_BACKTRACK, (
+        "그래프 탐색이 통과시킨 왕복 비율을 상위 단계가 그대로 받아야 한다"
+    )
 
 
 def test_parse_overpass_sorts_elements():

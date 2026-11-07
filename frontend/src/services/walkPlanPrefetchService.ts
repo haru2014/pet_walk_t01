@@ -19,6 +19,12 @@ interface CacheEntry {
 
 const CACHE_TTL_MS = 120_000; // 2분 유효
 const MAX_CACHE_ENTRIES = 8;
+/**
+ * 사전 요청을 다시 보낼 때까지의 최소 간격.
+ * 비싼 서버 작업(날씨·주변 길 조회)은 출발 좌표에만 달려 있어 한 번만 받아 두면 캐시에 남는다.
+ * 조건을 바꿀 때마다 요청을 더 보내면 서버의 OSRM 전역 대기열(1초 1회)만 채운다.
+ */
+const MIN_PREFETCH_INTERVAL_MS = 5_000;
 
 export function buildPrefetchKey(
   dog: DogProfile,
@@ -60,6 +66,7 @@ export class WalkPlanPrefetchService {
   private static pendingRequests = new Map<string, Promise<RoutePlanResult>>();
   private static activeAbortController: AbortController | null = null;
   private static activeKey: string | null = null;
+  private static lastPrefetchStartedAt = 0;
 
   /**
    * 프리페치된 결과가 있으면 1회성 소비(소비 후 버퍼에서 제거)하고 반환한다.
@@ -111,9 +118,12 @@ export class WalkPlanPrefetchService {
   }
 
   /**
-   * 산책 설정 체류 중 백그라운드 프리페치를 트리거한다.
-   * - 이전 조건의 진행 중인 요청은 abort
+   * 산책 설정 체류 중 백그라운드 사전 요청을 트리거한다.
    * - 동일 조건이 이미 캐시되어 있거나 진행 중이면 재호출 방지
+   * - 조건이 변경되면 이전 진행 중 요청은 abort
+   * - 직전 사전 요청에서 MIN_PREFETCH_INTERVAL_MS 가 지나지 않았으면 보내지 않는다
+   *   (서버의 OSRM 호출은 전역 1초 1회 제한이라, 조건을 바꿀 때마다 보내면 대기열이 차서
+   *    정작 사용자가 버튼을 눌러 보낸 요청이 앱 제한 20초를 넘긴다)
    */
   static prefetch(
     dog: DogProfile,
@@ -141,6 +151,13 @@ export class WalkPlanPrefetchService {
       this.activeAbortController = null;
       this.activeKey = null;
     }
+
+    // 4. 사전 요청 간격 제한: 조건을 연달아 바꿀 때 서버에 요청이 쌓이지 않게 한다
+    const now = Date.now();
+    if (now - this.lastPrefetchStartedAt < MIN_PREFETCH_INTERVAL_MS) {
+      return Promise.resolve(null);
+    }
+    this.lastPrefetchStartedAt = now;
 
     const controller = new AbortController();
     this.activeAbortController = controller;
@@ -189,6 +206,7 @@ export class WalkPlanPrefetchService {
       this.activeAbortController = null;
     }
     this.activeKey = null;
+    this.lastPrefetchStartedAt = 0;
     this.cache.clear();
     this.pendingRequests.clear();
   }

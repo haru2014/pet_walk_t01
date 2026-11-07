@@ -3,8 +3,10 @@
 간선 속성 (walk_edge_cost 가 비용으로, route_exposure 가 실측 지표로 쓴다):
 - length, highway, steps, width_m, surface_category, surface_tagged
 - road_context: 'path'(차도에서 떨어진 보행 전용로) / 'minor'(골목·이면도로 또는 그 옆) / 'major'(큰길 또는 그 옆 보도)
+- road_distance_m: 가장 가까운 차도 중심선까지의 거리(m). 멀면 None → '차가 적은 길'의 거리 기울기
 - crossing, crossing_major: 횡단 지점(횡단보도)을 지나는지, 큰길 횡단인지
-- in_park, commercial, shaded, near_rest
+- junction_degree: 양 끝 노드의 분기 수 중 큰 값 → '조용한 길'의 교차로 복잡도
+- in_park, commercial, shaded, near_rest, rest_distance_m
 """
 
 from dataclasses import dataclass, field
@@ -13,9 +15,10 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import networkx as nx
 
 from agent.geo_index import LocalProjection, PointGrid, PolygonSet
-from agent.osm_overpass_client import SOURCE, OsmRegion
+from agent.osm_region import SOURCE, OsmRegion
+from agent.route_barriers import BarrierIndex, build_barrier_index
 from agent.route_geometry import haversine_m
-from agent.walk_edge_cost import MAJOR_ROADS, MINOR_ROADS, surface_category
+from agent.walk_edge_cost import MAJOR_ROADS, MINOR_ROADS, REST_NEAR_M, surface_category
 
 Node = Tuple[float, float]
 
@@ -26,8 +29,9 @@ MAJOR_NEAR_M = 25.0          # 보행로 중심선이 큰길에서 이 거리 �
 MINOR_NEAR_M = 8.0           # 이면도로에서 이 거리 안이면 '골목 옆'
 SIDEWALK_MAJOR_NEAR_M = 35.0  # footway=sidewalk 는 차도와 조금 떨어져 그려지는 경우가 많다
 CROSSING_SNAP_M = 4.0
-REST_NEAR_M = 30.0
-TREE_ROW_NEAR_M = 8.0
+TREE_ROW_NEAR_M = 8.0  # REST_NEAR_M 은 walk_edge_cost 와 같은 값을 쓴다 (SSOT)
+ROAD_DISTANCE_MAX_M = 150.0  # 이보다 멀면 '차도에서 충분히 멀다'로 보고 더 재지 않는다
+REST_DISTANCE_MAX_M = 150.0
 
 
 @dataclass
@@ -39,6 +43,8 @@ class WalkGraph:
     crossing_grid: PointGrid
     rest_grid: PointGrid
     parks: List[List[Node]] = field(default_factory=list)  # 공원별 그래프 노드 목록 (공원 유인 루프용)
+    rest_points: List[Node] = field(default_factory=list)  # 벤치·정자 등 쉼터 좌표 (쉼터 유인 루프용)
+    barriers: Optional[BarrierIndex] = None                # 물길·철로 횡단 검사 색인 (자료 없으면 빈 색인)
     source: str = SOURCE
     osm_base: Optional[str] = None
 
@@ -113,10 +119,22 @@ class _Context:
             return True
         return self.crossings.any_within(a_xy, CROSSING_SNAP_M) or self.crossings.any_within(b_xy, CROSSING_SNAP_M)
 
+    def road_distance(self, tags: Dict[str, Any], mid) -> Optional[float]:
+        """가장 가까운 차도 중심선까지의 거리(m). 차도 자체이면 0, 150m 안에 없으면 None."""
+        if tags.get("highway") in MAJOR_ROADS or tags.get("highway") in MINOR_ROADS:
+            return 0.0
+        found = [d for d in (self.major.nearest_distance(mid, ROAD_DISTANCE_MAX_M),
+                             self.minor.nearest_distance(mid, ROAD_DISTANCE_MAX_M)) if d is not None]
+        return min(found) if found else None
+
+    def rest_distance(self, mid) -> Optional[float]:
+        return self.rest.nearest_distance(mid, REST_DISTANCE_MAX_M)
+
 
 def _edge_attrs(ctx: _Context, tags: Dict[str, Any], a_xy, b_xy, length: float) -> Dict[str, Any]:
     mid = ((a_xy[0] + b_xy[0]) / 2, (a_xy[1] + b_xy[1]) / 2)
     crossing = ctx.crossing(tags, a_xy, b_xy)
+    rest_distance = ctx.rest_distance(mid)
     return {
         "length": length,
         "highway": tags.get("highway"),
@@ -125,12 +143,15 @@ def _edge_attrs(ctx: _Context, tags: Dict[str, Any], a_xy, b_xy, length: float) 
         "surface_category": surface_category(tags.get("surface"), tags.get("highway")),
         "surface_tagged": isinstance(tags.get("surface"), str),
         "road_context": ctx.road_context(tags, mid),
+        "road_distance_m": ctx.road_distance(tags, mid),
         "crossing": crossing,
         "crossing_major": crossing and ctx.major.any_within(mid, MAJOR_NEAR_M + 5.0),
+        "junction_degree": 2,  # 그래프를 다 만든 뒤 _tag_junctions 가 실제 분기 수로 바꾼다
         "in_park": ctx.parks.contains(mid),
         "commercial": ctx.commercial.contains(mid),
         "shaded": ctx.woods.contains(mid) or ctx.tree_rows.any_within(mid, TREE_ROW_NEAR_M),
-        "near_rest": ctx.rest.any_within(mid, REST_NEAR_M),
+        "near_rest": rest_distance is not None and rest_distance <= REST_NEAR_M,
+        "rest_distance_m": rest_distance,
     }
 
 
@@ -165,6 +186,13 @@ def _park_nodes(walk: WalkGraph, ctx: _Context) -> List[List[Node]]:
     return groups
 
 
+def _tag_junctions(walk: WalkGraph) -> None:
+    """간선마다 양 끝 노드의 분기 수 중 큰 값을 적어 둔다 ('조용한 길'이 번잡한 교차로를 피하게)."""
+    degrees = dict(walk.graph.degree())
+    for u, v, data in walk.graph.edges(data=True):
+        data["junction_degree"] = max(degrees.get(u, 2), degrees.get(v, 2))
+
+
 def build_walk_graph(region: OsmRegion) -> Optional[WalkGraph]:
     """보행 가능한 길이 없으면 None."""
     proj = LocalProjection(region.center)
@@ -177,5 +205,8 @@ def build_walk_graph(region: OsmRegion) -> Optional[WalkGraph]:
         return None
     for node in walk.graph.nodes:
         walk.node_grid.add(proj.to_xy(node), node)
+    _tag_junctions(walk)
     walk.parks = _park_nodes(walk, ctx)
+    walk.rest_points = [(round(float(p[0]), 7), round(float(p[1]), 7)) for p in region.rest_points]
+    walk.barriers = build_barrier_index(region, proj)
     return walk

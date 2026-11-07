@@ -17,7 +17,7 @@ import { fetchHeatRiskForecast } from '../services/weatherApi';
 import { HeatRiskResponse } from '../types/weather';
 import { LocalStorageService } from '../services/storage';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
-import { warmupBackendServer } from '../services/apiClient';
+import { prewarmCurrentLocation, warmupBackendServer } from '../services/apiClient';
 import { getCurrentLocationCoords } from '../services/locationService';
 import { useAppTheme } from '../theme/themeManager';
 
@@ -111,6 +111,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       if (coords.isGps) {
         setUserCoords({ lon: coords.lon, lat: coords.lat });
         onUpdateUserCoords?.({ lat: coords.lat, lon: coords.lon });
+        // 첫 코스 요청이 날씨·주변 길 조회를 기다리지 않도록 서버가 미리 받아 두게 한다
+        prewarmCurrentLocation(coords.lat, coords.lon);
       }
 
       try {
