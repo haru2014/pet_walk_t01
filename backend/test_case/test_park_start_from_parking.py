@@ -13,6 +13,13 @@ from agent.route_geometry import haversine_m
 
 client = TestClient(main.app)
 
+
+@pytest.fixture(autouse=True)
+def _reset_parking_lot_cache():
+    main.clear_park_lot_cache()
+    yield
+    main.clear_park_lot_cache()
+
 # 로컬 확인(10/21): 공원마다 보행망에 이어지고 좌표 경고(data_issue)가 없는 주차장
 EXPECTED_LOT = {
     "yurim": "std_186-1-000005",  # 유림공원주차장

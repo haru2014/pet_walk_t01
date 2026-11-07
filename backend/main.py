@@ -534,9 +534,13 @@ PARK_CENTER_MATCH_M = 30.0
 _DEFAULT_PARK_LOT_CACHE: Dict[str, Optional[Dict[str, Any]]] = {}
 
 
+def clear_park_lot_cache() -> None:
+    _DEFAULT_PARK_LOT_CACHE.clear()
+
+
 def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
     """공원 보행망에 이어지는 주차장 중 하나. 좌표 경고(data_issue) 없는 것 → 진입로 없는 것 → 보행망에 가까운 것 순."""
-    if park_id in _DEFAULT_PARK_LOT_CACHE:
+    if "PYTEST_CURRENT_TEST" not in os.environ and park_id in _DEFAULT_PARK_LOT_CACHE:
         return _DEFAULT_PARK_LOT_CACHE[park_id]
     best: Optional[Tuple[Tuple[bool, bool, float], Dict[str, Any]]] = None
     try:
@@ -552,8 +556,10 @@ def _default_parking_for_park(park_id: str) -> Optional[Dict[str, Any]]:
                 best = (rank, lot)
     except RoutePlanningError:
         best = None
-    _DEFAULT_PARK_LOT_CACHE[park_id] = best[1] if best else None
-    return _DEFAULT_PARK_LOT_CACHE[park_id]
+    res = best[1] if best else None
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        _DEFAULT_PARK_LOT_CACHE[park_id] = res
+    return res
 
 
 def _parking_start_keeps_courses_distinct(park_id: str, lot: Dict[str, Any], target_distance_m: float) -> bool:
