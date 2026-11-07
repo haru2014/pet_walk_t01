@@ -24,7 +24,6 @@ export interface WalkVoiceInputSectionProps {
   requestText: string;
   onChangeText: (text: string) => void;
   onIntentParsed?: (result: VoiceIntentResult) => void;
-  coords?: { lat: number; lon: number } | null;
   onFindRouteDirectly?: () => void;
   /** 부모 컴포넌트(예: WalkSettingsView)에서 자체 피드백 카드를 렌더링할 때 중복 출력을 방지하는 옵션 */
   hideResultBadge?: boolean;

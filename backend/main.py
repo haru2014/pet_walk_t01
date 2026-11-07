@@ -183,6 +183,9 @@ def walk_share_health_check():
     }
 
 
+AUDIO_WAV_MIME_TYPE = "audio/wav"
+
+
 class VoiceIntentRequest(BaseModel):
     speech_text: str = Field(..., min_length=1)
     dog_name: Optional[str] = None
@@ -207,14 +210,14 @@ def transcribe_voice_command(
 ):
     """짧은 산책 음성 명령을 Gemini로 받아쓰기만 한다."""
     allowed_mime_types = {
-        "audio/mp4", "audio/m4a", "audio/webm", "audio/ogg", "audio/wav",
+        "audio/mp4", "audio/m4a", "audio/webm", "audio/ogg", AUDIO_WAV_MIME_TYPE,
         "audio/mpeg", "audio/mp3", "audio/aac", "audio/x-m4a", "audio/3gpp", "audio/x-wav",
     }
     resolved_mime_type = (mime_type or audio.content_type or "").split(";")[0].strip().lower()
     if resolved_mime_type in ("audio/x-m4a", "audio/3gpp"):
         resolved_mime_type = "audio/m4a"
     elif resolved_mime_type == "audio/x-wav":
-        resolved_mime_type = "audio/wav"
+        resolved_mime_type = AUDIO_WAV_MIME_TYPE
 
     if resolved_mime_type not in allowed_mime_types:
         raise HTTPException(status_code=415, detail="지원하지 않는 음성 파일 형식입니다.")
@@ -259,7 +262,7 @@ def generate_tts_endpoint(body: TtsRequest):
     except Exception as exc:
         logger.warning("Gemini TTS generation failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=502, detail="Gemini TTS generation failed") from exc
-    return Response(content=audio, media_type="audio/wav")
+    return Response(content=audio, media_type=AUDIO_WAV_MIME_TYPE)
 
 
 @app.post("/api/v1/voice/intent")

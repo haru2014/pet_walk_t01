@@ -341,7 +341,6 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           requestText={requestText}
           onChangeText={setRequestText}
           onIntentParsed={handleIntentParsed}
-          coords={userCoords}
           onFindRouteDirectly={handleSubmit}
           hideResultBadge={true}
         />
