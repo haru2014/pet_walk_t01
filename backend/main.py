@@ -67,7 +67,7 @@ from services.dem import elevation_source
 from services.route_profile import measure_route_profile
 from agent.candidate_exposure import EXPOSURE_FIELDS, is_preference_routed
 from agent.walk_graph_provider import walk_graph_for_loop
-from services.course_notices import append_notice_lines, preference_notice_lines
+from services.course_notices import append_notice_lines, fallback_notice_lines, preference_notice_lines
 from services.walk_preferences import WalkPreferences, intent_overrides_from_request
 from services.forward_safety import analyze_forward_safety
 from services.kma_weather_client import KmaApiError, to_kst
@@ -765,12 +765,16 @@ def _build_course_profiles(agent_result: Any, fallback_coords: Any, park_id: Opt
 
 
 def _add_preference_notices(courses: List[Dict[str, Any]], candidates: List[Any], intent: Any) -> None:
-    """고른 환경 조건(차가 적은 길·조용한 길·쉬어가기)이 실제로 얼마나 반영됐는지 카드 안내 칸에 알린다."""
+    """고른 환경 조건(차가 적은 길·조용한 길·쉬어가기)이 실제로 얼마나 반영됐는지 카드 안내 칸에 알린다.
+
+    실제 보행로를 못 찾아 기하학적으로 그린 코스는 조건과 무관하게 그렇다고 먼저 알린다(GEMINI.md 원칙 8).
+    """
     prefs = WalkPreferences.from_intent(intent.model_dump() if hasattr(intent, "model_dump") else intent)
     for course, cand in zip(courses, candidates):
         exposure = {key: getattr(cand, key, None) for key in EXPOSURE_FIELDS}
-        routed = is_preference_routed(getattr(cand, "route_source", "") or "")
-        append_notice_lines(course, preference_notice_lines(prefs, exposure, routed))
+        source = getattr(cand, "route_source", "") or ""
+        append_notice_lines(course, fallback_notice_lines(source))
+        append_notice_lines(course, preference_notice_lines(prefs, exposure, is_preference_routed(source)))
 
 
 def _build_safety_briefing(weather_context: Optional[Dict[str, Any]]) -> str:

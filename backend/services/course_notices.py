@@ -13,6 +13,14 @@ MAJOR_NOTICE_MIN_RATIO = 0.15    # 조용한 길: 큰길 옆 구간이 이 비�
 CROSSING_NOTICE_MIN = 2
 MAJOR_DETAIL_MIN_RATIO = 0.05    # 차도 옆 구간 중 큰길 비율이 이 이상이면 함께 적는다
 CONTEXT_FIELDS = ("avoid_traffic", "prefer_quiet", "prefer_rest")
+# 실제 보행로를 못 찾아 기하학적으로 그린 코스는 그렇다고 알린다 (GEMINI.md 원칙 8: 대체 데이터 투명 고지)
+GEOMETRIC_SOURCES = ("rectangle_fallback",)
+GEOMETRIC_NOTICE = "[대체 경로] 주변 보행로를 확인하지 못해 대략적인 순환 코스를 그렸어요. 실제 길과 다를 수 있어요"
+
+
+def fallback_notice_lines(route_source: str) -> List[str]:
+    """실제 길이 아닌 코스임을 알리는 줄. 실제 보행로 기반이면 빈 목록."""
+    return [GEOMETRIC_NOTICE] if route_source in GEOMETRIC_SOURCES else []
 
 
 def _percent(ratio: float) -> int:

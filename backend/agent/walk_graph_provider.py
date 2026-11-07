@@ -8,6 +8,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 from agent.osm_overpass_client import OsmRegion, fetch_region, region_radius_m
 from agent.osm_walk_graph import WalkGraph, build_walk_graph
+from agent.route_barriers import BarrierIndex
 from agent.route_geometry import haversine_m
 
 MAX_RADIUS_M = 1800.0
@@ -52,3 +53,20 @@ def walk_graph_for_coords(coords: Sequence[Sequence[float]],
     if radius > MAX_RADIUS_M:
         return None
     return _graph_for_region(fetch_region(center[1], center[0], max(radius, 600.0), budget_s))
+
+
+def barriers_for_loop(lat: float, lon: float, target_distance_m: float,
+                      budget_s: Optional[float] = None) -> Optional[BarrierIndex]:
+    """출발지 주변 물길·철로 색인. 자료를 못 받았으면 None (= 확인할 수 없다)."""
+    walk = walk_graph_for_loop(lat, lon, target_distance_m, budget_s)
+    return None if walk is None else walk.barriers
+
+
+def route_is_passable(coords: Sequence[Sequence[float]], barriers: Optional[BarrierIndex]) -> bool:
+    """경로가 다리 없이 물길·철로를 건너지 않는지. 확인할 자료가 없으면 True (막지 않는다).
+
+    자료가 없어 확인하지 못한 경우에는 호출자가 사용자에게 대체 경로임을 알린다(GEMINI.md 원칙 8).
+    """
+    if barriers is None or not barriers:
+        return True
+    return not barriers.crosses(coords)

@@ -97,6 +97,7 @@ def test_park_mode_never_calls_live_or_rectangle(monkeypatch):
         pytest.fail("Unconstrained routing must not run for a park")
     monkeypatch.setattr(planner, "_plan_live", unexpected)
     monkeypatch.setattr(planner, "_plan_rectangle_fallback", unexpected)
+    monkeypatch.setattr(planner, "_rectangle_candidates", unexpected, raising=False)
     assert client.post("/api/v1/walk/plan", json=body()).status_code == 200
     assert client.post("/api/v1/walk/plan", json=body("sejong")).status_code == 200
     unknown = body()
