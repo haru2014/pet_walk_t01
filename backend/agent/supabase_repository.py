@@ -81,7 +81,9 @@ _DEFAULT_LOCAL_FEEDS: List[Dict[str, Any]] = [
     },
 ]
 
-_memory_feeds: List[Dict[str, Any]] = list(_DEFAULT_LOCAL_FEEDS)
+_memory_feeds: List[Dict[str, Any]] = [
+    {**feed, "source": "demo"} for feed in _DEFAULT_LOCAL_FEEDS
+]
 
 
 def _public_walk_to_feed(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -126,6 +128,10 @@ def _public_walk_to_feed(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 def _feed_sort_timestamp(feed: Dict[str, Any]) -> str:
     value = feed.get("created_at")
     return value.isoformat() if isinstance(value, (date, datetime)) else str(value or "")
+
+
+def _feed_source_or_unknown(source: Any) -> str:
+    return source if isinstance(source, str) and source in {"demo", "supabase", "unknown"} else "unknown"
 
 
 class SupabaseCommunityRepository:
@@ -201,13 +207,20 @@ class SupabaseCommunityRepository:
                 feeds = list(courses or []) + public_walks
                 feeds.sort(key=_feed_sort_timestamp, reverse=True)
                 if feeds:
-                    return feeds[:50]
+                    return [{**feed, "source": "supabase"} for feed in feeds[:50]]
 
-        return list(_memory_feeds)
+        return [
+            {
+                **feed,
+                "source": _feed_source_or_unknown(feed.get("source")),
+            }
+            for feed in _memory_feeds
+        ]
 
     def save_course(self, feed: Dict[str, Any]) -> Dict[str, Any]:
         """200m 마스킹된 커뮤니티 코스 저장 (Supabase DB 우선, 실패 시 인메모리)."""
         saved_feed = dict(feed)
+        saved_feed["source"] = "unknown"
 
         if self._client:
             try:
@@ -223,6 +236,7 @@ class SupabaseCommunityRepository:
                 res = self._client.table("community_courses").insert(db_payload).execute()
                 if res and res.data:
                     saved_feed = res.data[0]
+                    saved_feed["source"] = "supabase"
             except Exception as e:
                 logger.warning(f"[Supabase] 코스 저장 실패, 로컬 메모리 폴백: {e}")
 

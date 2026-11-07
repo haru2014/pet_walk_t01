@@ -17,6 +17,9 @@ logger = logging.getLogger("petwalk.walk_share")
 
 MASKING_RADIUS_M = 200.0
 MIN_ROUTE_POINTS = 4
+# 공개할 수 있는 평균 속도 상한 (km/h). 강아지와 빠르게 뛰는 정도까지 허용한다.
+# 이보다 빠른 기록(차·자전거 이동, GPS 튐)이 "이웃 산책 기록"으로 공개되던 문제 (10/30 QA: 7.75km 22분 = 시속 21km).
+MAX_SHARE_SPEED_KMH = 12.0
 
 
 class WalkShareError(Exception):
@@ -61,12 +64,21 @@ def _is_valid_route(route: Any) -> bool:
     return True
 
 
+def _average_speed_kmh(record: Dict[str, Any]) -> Optional[float]:
+    """기록의 거리(distance_m)와 시간(duration_min)으로 평균 속도를 구한다. 값이 없거나 0 이하면 None(검사하지 않음)."""
+    distance_m, duration_min = record.get("distance_m"), record.get("duration_min")
+    for value in (distance_m, duration_min):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            return None
+    return (distance_m / 1000.0) / (duration_min / 60.0)
+
+
 def _load_own_record(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
     """본인 기록만 돌려준다. 없거나 남의 것이면 똑같이 404 (남의 기록 존재 여부를 알려 주지 않는다)."""
     try:
         res = (
             client.table("walk_records")
-            .select("id,user_id,route_coords,is_public")
+            .select("id,user_id,route_coords,is_public,distance_m,duration_min")
             .eq("id", walk_id)
             .limit(1)
             .execute()
@@ -86,6 +98,13 @@ def share_walk(client: Any, user_id: str, walk_id: str) -> Dict[str, Any]:
     route = record.get("route_coords")
     if not _is_valid_route(route):
         raise WalkShareError(422, "INVALID_ROUTE", "공개할 수 있는 경로 좌표가 아닙니다.")
+
+    speed_kmh = _average_speed_kmh(record)
+    if speed_kmh is not None and speed_kmh > MAX_SHARE_SPEED_KMH:
+        raise WalkShareError(
+            422, "WALK_SPEED_TOO_FAST",
+            f"평균 속도가 시속 {MAX_SHARE_SPEED_KMH:g}km 를 넘는 기록은 공개할 수 없습니다.",
+        )
 
     masked = apply_spatial_masking_to_course(
         route, masking_radius_m=MASKING_RADIUS_M, snap_to_intersection=True

@@ -12,6 +12,13 @@ import { RouteFeatureCollection, RouteStepPin, LonLat } from '../../types/route'
 import { MapRouteColors } from '../../constants/mapStyles';
 import { STYLE_LOAD_TIMEOUT_MS } from '../../constants/mapFallback';
 import { routeConditionColorExpression, slopeSymbolColorExpression, slopeSymbolExpression } from './routeConditionLayers';
+import {
+  ADAPTIVE_MARKER_CSS,
+  DIRECTION_MARKER_COLOR,
+  MIN_DETAIL_SEPARATION_PX,
+  SAME_SPOT_METERS,
+  ZOOM_THRESHOLD_DETAIL,
+} from './adaptiveMarkerStyles';
 
 export interface BuildMapLibreHtmlOptions {
   readonly styleUrl: string;
@@ -19,7 +26,29 @@ export interface BuildMapLibreHtmlOptions {
   readonly stepPins?: readonly RouteStepPin[];
   readonly routeColors: MapRouteColors;
   readonly maskingCenter?: LonLat;
+  /** Camera target used when no route geometry is available yet. */
+  readonly initialCenter?: LonLat;
   readonly interactive?: boolean;
+  /** fitBounds 여백(px). 지도 위 오버레이가 경로를 가리지 않도록 방향별 지정 가능 */
+  readonly fitPadding?: MapFitPadding;
+  readonly follow?: MapFollowCamera | null;
+}
+
+export type MapFitPadding = number | {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+};
+
+/** 따라가기(헤딩업) 카메라: 지정하면 경로 전체 맞춤 대신 현재 위치를 따라가며 회전한다. */
+export interface MapFollowCamera {
+  readonly center: LonLat;
+  /** 화면 위쪽이 향할 방위 (북=0, 시계 방향) */
+  readonly bearing: number;
+  readonly zoom?: number;
+  /** 위치 마커를 화면 아래쪽에 두기 위한 카메라 여백 */
+  readonly padding?: MapFitPadding;
 }
 
 /**
@@ -55,7 +84,10 @@ export function buildMapLibreHtml({
   stepPins = [],
   routeColors,
   maskingCenter,
+  initialCenter,
   interactive = true,
+  fitPadding = 40,
+  follow = null,
 }: BuildMapLibreHtmlOptions): string {
   // 마스킹 원 GeoJSON 생성
   const maskingFeature = maskingCenter
@@ -79,7 +111,10 @@ export function buildMapLibreHtml({
     slopeSymbolColor: slopeSymbolColorExpression(),
     maskingFeature,
     maskingCenter,
+    initialCenter,
     interactive,
+    fitPadding,
+    follow,
     styleLoadTimeoutMs: STYLE_LOAD_TIMEOUT_MS,
   });
 
@@ -108,6 +143,8 @@ export function buildMapLibreHtml({
     }
     .step-pin:active { transform: scale(1.2); }
     
+    ${ADAPTIVE_MARKER_CSS}
+
     .start-marker {
       background-color: transparent; border: transparent; color: ${routeColors.mapGuidance || routeColors.startMarker}; font-weight: 900; font-size: 13px;
       text-align: center; white-space: nowrap;
@@ -152,7 +189,7 @@ export function buildMapLibreHtml({
 
       // 지도 초기화
       const bounds = computeBounds(payload.route);
-      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : (payload.maskingCenter || [127.3805, 36.4315]);
+      const defaultCenter = bounds ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2] : (payload.initialCenter || payload.maskingCenter || [127.3805, 36.4315]);
 
       // 현재 표시 중인 데이터/스타일 상태 (스타일 교체 후 레이어 재등록에 사용)
       let currentRoute = payload.route;
@@ -161,6 +198,18 @@ export function buildMapLibreHtml({
       let currentRouteConditionColor = payload.routeConditionColor;
       let currentStyleKey = JSON.stringify(payload.styleUrl);
       let mapLoaded = false;
+      let followCamera = payload.follow || null;
+      function applyFollow(camera, animate) {
+        if (!camera || !map) return;
+        map.easeTo({
+          center: camera.center,
+          bearing: camera.bearing,
+          zoom: camera.zoom != null ? camera.zoom : 17,
+          padding: camera.padding != null ? camera.padding : 0,
+          duration: animate ? 900 : 0,
+          essential: true,
+        });
+      }
       let userInteractedWithMap = false;
       let failureReported = false;
       let watchdogId = null;
@@ -173,6 +222,47 @@ export function buildMapLibreHtml({
         attributionControl: false,
         interactive: payload.interactive !== false,
       });
+      // #319: 줌 하한(${ZOOM_THRESHOLD_DETAIL}) 이상이고, 화면상 방향 마커 간 최소 간격이
+      // ${MIN_DETAIL_SEPARATION_PX}px(상세 마커 지름 + 여백) 이상일 때만 상세 마커로 전환 (adaptiveMarkerStyles.ts와 동일 규칙)
+      function minDirectionMarkerSeparationPx() {
+        if (typeof map.project !== 'function') return Infinity;
+        const points = [];
+        (currentPins || []).forEach(function(pin) {
+          if (!pin || !pin.directionMarker || !pin.position) return;
+          const p = map.project([pin.position[0], pin.position[1]]);
+          if (!p || !isFinite(p.x) || !isFinite(p.y)) return;
+          points.push({ lngLat: pin.position, x: p.x, y: p.y });
+        });
+        let min = Infinity;
+        for (let i = 0; i < points.length; i += 1) {
+          for (let j = i + 1; j < points.length; j += 1) {
+            const dx = points[i].x - points[j].x;
+            const dy = points[i].y - points[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance >= min) continue;
+            const meanLat = ((points[i].lngLat[1] + points[j].lngLat[1]) / 2) * Math.PI / 180;
+            const mx = (points[j].lngLat[0] - points[i].lngLat[0]) * Math.cos(meanLat) * 111320;
+            const my = (points[j].lngLat[1] - points[i].lngLat[1]) * 110540;
+            if (Math.sqrt(mx * mx + my * my) <= ${SAME_SPOT_METERS}) continue;
+            min = distance;
+          }
+        }
+        return min;
+      }
+      function updateMarkerZoomMode() {
+        if (!map) return;
+        const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 15;
+        const container = typeof map.getContainer === 'function' ? map.getContainer() : (typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('map') : null);
+        if (!container || !container.classList) return;
+        const useDetail = currentZoom >= ${ZOOM_THRESHOLD_DETAIL} && minDirectionMarkerSeparationPx() >= ${MIN_DETAIL_SEPARATION_PX};
+        if (useDetail) {
+          container.classList.remove('zoom-compact-markers');
+        } else {
+          container.classList.add('zoom-compact-markers');
+        }
+      }
+      map.on('zoom', updateMarkerZoomMode);
+
       map.on('move', function(event) {
         if (event && event.originalEvent) userInteractedWithMap = true;
       });
@@ -202,8 +292,12 @@ export function buildMapLibreHtml({
         if (mapLoaded) return;
         mapLoaded = true;
         const loadedBounds = computeBounds(currentRoute);
-        if (loadedBounds) {
-          map.fitBounds(loadedBounds, { padding: 40, duration: 600 });
+        if (followCamera) {
+          applyFollow(followCamera, false);
+          updateMarkerZoomMode();
+        } else if (loadedBounds) {
+          map.fitBounds(loadedBounds, { padding: payload.fitPadding ?? 40, duration: 600 });
+          updateMarkerZoomMode();
         }
         postToReactNative('MAP_LOADED', { ok: true });
       }
@@ -316,20 +410,36 @@ export function buildMapLibreHtml({
         const activeColors = colors || payload.routeColors || {};
         const guidanceColor = activeColors.mapGuidance || activeColors.startMarker || '${routeColors.mapGuidance || routeColors.startMarker}';
 
-        function getLargeArrowSvg(icon, color) {
-          if (icon === '↱') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 8 22 L 8 13 Q 8 8 13 8 L 15 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="13,2 26,8 13,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+        function getAdaptiveArrowSvg(icon, color) {
+          const filter = 'filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);';
+          let large = '';
+          if (icon === '↑') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 14 23 L 14 10" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="7,12 14,3 21,12" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↱') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 6 22 L 6 13 Q 6 8 11 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="12,2 25,8 12,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↰') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 22 22 L 22 13 Q 22 8 17 8 L 14 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="16,2 3,8 16,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↶') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><path d="M 21.5 22 L 21.5 12 Q 21.5 6 16 6 Q 10.5 6 10.5 12 L 10.5 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="4.5,13 10.5,25 16.5,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+          } else if (icon === '➤') {
+            large = '<svg class="arrow-svg-large" width="22" height="22" viewBox="0 0 28 28" fill="none" style="display:block;' + filter + '"><polygon points="25,14 5,4 10,14 5,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
           }
-          if (icon === '↰') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 20 22 L 20 13 Q 20 8 15 8 L 13 8" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="15,2 2,8 15,14" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
+
+          const miniColor = '${DIRECTION_MARKER_COLOR}';
+          let mini = '';
+          const miniStart = '<svg class="arrow-svg-mini" width="8" height="8" viewBox="0 0 12 12" fill="none" style="display:none;flex:none;">';
+          if (icon === '↑') {
+            mini = miniStart + '<path d="M6 10V4" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M3 5L6 2L9 5" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          } else if (icon === '↱') {
+            mini = miniStart + '<path d="M2 10V7Q2 5 4 5H5" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M4 2L10 5L4 8V2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '↰') {
+            mini = miniStart + '<path d="M10 10V7Q10 5 8 5H7" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M8 2L2 5L8 8V2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '↶') {
+            mini = miniStart + '<path d="M10 10V5Q10 2 7 2Q4 2 4 5V6" stroke="' + miniColor + '" stroke-width="1.8" stroke-linecap="round"/><path d="M2 5L4 9L6 5H2Z" fill="' + miniColor + '"/></svg>';
+          } else if (icon === '➤') {
+            mini = miniStart + '<path d="M10.5 6L1.5 2L3.5 6L1.5 10Z" fill="' + miniColor + '"/></svg>';
           }
-          if (icon === '↶') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><path d="M 19 22 L 19 12 Q 19 6 13.5 6 Q 8 6 8 12 L 8 15" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/><polygon points="2,13 8,25 14,13" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          if (icon === '➤') {
-            return '<svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="display:block;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #fff);"><polygon points="26,14 4,4 9,14 4,24" fill="' + color + '" stroke="' + color + '" stroke-width="1" stroke-linejoin="round"/></svg>';
-          }
-          return null;
+          return (large || mini) ? (large + mini) : null;
         }
 
         // 출발/도착 마커
@@ -363,8 +473,7 @@ export function buildMapLibreHtml({
             if (isCurrentLocation && !hasTitle) {
               el.style.width = '32px';
               el.style.height = '32px';
-              el.style.borderRadius = pin.bearingDeg == null ? '50% 50% 50% 0' : '50%';
-              el.style.transform = pin.bearingDeg == null ? 'rotate(-45deg)' : 'rotate(' + (pin.bearingDeg - 90) + 'deg)';
+              el.style.borderRadius = '50%';
               el.style.backgroundColor = '#2563EB';
               el.style.border = '2px solid #fff';
               el.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.55)';
@@ -374,7 +483,8 @@ export function buildMapLibreHtml({
               el.style.fontSize = '16px';
               el.style.color = '#fff';
               if (pin.bearingDeg != null) {
-                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
+                const rot = pin.bearingDeg - 90;
+                el.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;transform:rotate(' + rot + 'deg);transform-origin:14px 14px;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
               }
             } else {
               el.style.color = guidanceColor;
@@ -384,7 +494,22 @@ export function buildMapLibreHtml({
               el.style.backgroundColor = 'transparent';
               el.style.border = 'transparent';
               el.style.boxShadow = 'none';
-              const arrowSvg = getLargeArrowSvg(iconStr, guidanceColor);
+              if (pin.directionMarker) {
+                el.className += ' direction-marker';
+                el.style.backgroundColor = '#FFFFFF';
+                el.style.border = '1px solid #718276';
+                el.style.borderRadius = '50%';
+                el.style.boxShadow = '0 1px 5px rgba(0, 0, 0, 0.22)';
+                el.style.color = '#596B5C';
+                el.style.fontSize = '20px';
+                el.style.textShadow = 'none';
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.style.padding = '0';
+              }
+              // #319: 방향 마커는 원거리(점) 마커와 같은 색으로 표시 (테마 안내색 주황 → 공통 방향 마커 색)
+              const arrowSvg = getAdaptiveArrowSvg(iconStr, pin.directionMarker ? '${DIRECTION_MARKER_COLOR}' : guidanceColor);
               if (arrowSvg) {
                 el.innerHTML = arrowSvg;
               }
@@ -431,6 +556,8 @@ export function buildMapLibreHtml({
             markers.push(m);
           });
         }
+        // 핀이 바뀌면 마커 간격도 바뀌므로 상세/원거리 마커 모드를 다시 판정
+        updateMarkerZoomMode();
       }
 
       // 모바일(React Native)로부터의 동적 메시지 수신 처리
@@ -467,7 +594,10 @@ export function buildMapLibreHtml({
               initMarkers(currentPins, currentRoute, currentRouteColors);
             }
             const b = computeBounds(msg.route);
-            if (b && !userInteractedWithMap) map.fitBounds(b, { padding: 40, duration: 600 });
+            if (b && !userInteractedWithMap && !followCamera) map.fitBounds(b, { padding: payload.fitPadding ?? 40, duration: 600 });
+          } else if (msg.action === 'FOLLOW') {
+            followCamera = msg.camera || null;
+            if (followCamera && mapLoaded) applyFollow(followCamera, true);
           }
         } catch(e) {}
       }

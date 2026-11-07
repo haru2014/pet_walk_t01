@@ -56,9 +56,17 @@ def _plan(park, minutes, regenerate_nonce=0):
     return res.json()
 
 
+LENGTH_NOTICES = ("산책로가 짧아", "바퀴까지만")
+
+
+def _has_length_notice(text):
+    """짧은 코스 안내(#229) 또는 2바퀴 제한 안내(#257) 중 하나."""
+    return any(key in text for key in LENGTH_NOTICES)
+
+
 def test_songgang_120_minutes_shows_notice():
     reasons = [c["reason"] for c in _plan("songgang", 120)["courses"]]
-    assert all("산책로가 짧아" in r for r in reasons)
+    assert all(_has_length_notice(r) for r in reasons)
 
 
 def test_songgang_20_minutes_has_no_notice():
@@ -89,12 +97,21 @@ def test_no_notice_field_when_not_needed():
 
 def test_songgang_120_every_card_has_notice_field():
     courses = _plan_courses("songgang", 120)
-    assert len(courses) == 3 and all("산책로가 짧아" in c["notice"] for c in courses)
+    assert len(courses) == 3 and all(_has_length_notice(c["notice"]) for c in courses)
     assert all(len(c["notice"]) <= 20 for c in courses)  # 앱 카드에 한 줄로 보이는 길이 (#263)
 
 
-def test_songgang_60_cards_have_no_notice_field():
-    assert not any("notice" in c for c in _plan_courses("songgang", 60))
+def test_songgang_20_cards_have_no_notice_field():
+    assert not any("notice" in c for c in _plan_courses("songgang", 20))
+
+
+def test_songgang_60_cards_explain_why_courses_are_short():
+    """#257: 송강 60분은 2바퀴 제한으로 목표보다 짧아지므로, 카드마다 짧아진 이유(2바퀴 제한 또는 짧은 산책로)를 알린다."""
+    courses = _plan_courses("songgang", 60)
+    assert all(_has_length_notice(c.get("notice", "")) for c in courses)
+    assert all(c.get("lapCount", 1) <= 2 for c in courses)
+    # 한 카드에 두 안내를 겹쳐 붙이지 않는다
+    assert not any("산책로가 짧아" in c["notice"] and "바퀴까지만" in c["notice"] for c in courses)
 
 
 def _plan_courses(park, minutes):

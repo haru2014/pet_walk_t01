@@ -15,6 +15,9 @@ from typing import Dict, Any, List
 # DEM_DIR 도 같은 방식으로 비운다: 개발자 컴퓨터에 DEM 파일이 있어도 기존 테스트가 실제 고도값에 영향받지 않게 한다.
 for _var in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "GEMINI_API_KEY", "ORS_API_KEY", "DEM_DIR", "KMA_SERVICE_KEY"):
     os.environ[_var] = ""
+# 현재 위치 코스의 OSM 보행 그래프(Overpass) 조회를 끈다. 기존 테스트는 가짜 OSRM 경로를 그대로 쓰고,
+# 그래프 탐색은 test_preference_routing 이 가상 OSM 지역으로 따로 검증한다.
+os.environ["OSM_GRAPH_ROUTING"] = "0"
 
 
 @pytest.fixture(autouse=True)

@@ -157,12 +157,22 @@ def test_small_park_considers_loops_longer_than_basis():
     assert extra_longest > basis_longest * 1.5
 
 
-@pytest.mark.parametrize("minutes", [40, 50])
+@pytest.mark.parametrize("minutes", [20, 30])
 def test_small_park_first_course_matches_requested_time(minutes):
+    """2바퀴 이하(#257)로 채울 수 있는 요청 시간까지는 1안이 요청 시간에 맞는다."""
     lat, lon = CENTERS["songgang"]
     target = _target(minutes)
     first = plan_park_walk_candidates("songgang", lat, lon, target)[0]
     assert abs(polyline_length_m(first) - target) / target <= 0.10
+
+
+@pytest.mark.parametrize("minutes", [40, 50, 60, 120])
+def test_small_park_long_request_stays_within_two_laps(minutes):
+    """#257: 송강처럼 작은 공원에서 긴 시간을 요청해도 같은 순환로를 3바퀴 이상 돌게 하지 않는다 (짧아지면 카드에 안내)."""
+    lat, lon = CENTERS["songgang"]
+    routes = plan_park_walk_candidates("songgang", lat, lon, _target(minutes))
+    assert all(getattr(route, "lap_count", 1) <= 2 for route in routes)
+    assert polyline_length_m(routes[0]) <= _target(minutes) * 1.25
 
 
 def test_long_request_in_big_park_still_gives_different_routes():

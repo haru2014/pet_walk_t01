@@ -1,0 +1,37 @@
+{
+  "id": "modern-business",
+  "name": "Modern Business (모던 비즈니스)",
+  "description": "신뢰감 있는 네이비와 로열 블루 기반의 깔끔하고 전문적인 비즈니스·전략·보고용 템플릿",
+  "layout": "16x9",
+  "fonts": {
+    "title": "Pretendard",
+    "fallbackTitle": "Pretendard",
+    "body": "Pretendard",
+    "fallbackBody": "Pretendard",
+    "code": "Consolas"
+  },
+  "colors": {
+    "background": "F8FAFC",
+    "surface": "FFFFFF",
+    "surfaceSubtle": "F1F5F9",
+    "border": "E2E8F0",
+    "borderActive": "CBD5E1",
+    "primary": "1E40AF",
+    "accent": "2563EB",
+    "accentLight": "DBEAFE",
+    "secondary": "0D9488",
+    "secondaryLight": "CCFBF1",
+    "textPrimary": "0F172A",
+    "textSecondary": "334155",
+    "textMuted": "64748B",
+    "textInverse": "FFFFFF",
+    "badgeBg": "EFF6FF",
+    "badgeText": "1D4ED8",
+    "highlightBg": "FEF3C7",
+    "highlightText": "B45309"
+  },
+  "metrics": {
+    "cardRadius": 0.15,
+    "badgeRadius": 0.08
+  }
+}

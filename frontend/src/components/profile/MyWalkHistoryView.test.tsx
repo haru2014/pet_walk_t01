@@ -137,6 +137,51 @@ describe('MyWalkHistoryView (Issue #128 접근성 개선)', () => {
       expect(html).toContain('과거 기록 더보기 ▾ (+2건 남음)');
     });
 
+    it('공유된 산책 기록과 비공개 기록의 UI 뱃지 및 액션 버튼을 명확히 구분하여 표시한다', () => {
+      const mixedRecords: WalkRecord[] = [
+        {
+          id: 'walk-shared',
+          dogId: 'dog-1',
+          startedAt: new Date(mockWalkStartedAt).toISOString(),
+          completedAt: new Date(mockWalkStartedAt + 30 * 60 * 1000).toISOString(),
+          durationMinutes: 30,
+          totalDistanceKm: 2.0,
+          averageSpeedKmH: 4.0,
+          safeSurfaceRatio: 0.8,
+          isPublic: true,
+          sharedAt: new Date(mockWalkStartedAt + 31 * 60 * 1000).toISOString(),
+          gpsTrack: [],
+        },
+        {
+          id: 'walk-private',
+          dogId: 'dog-1',
+          startedAt: new Date(mockWalkStartedAt - 3600000).toISOString(),
+          completedAt: new Date(mockWalkStartedAt - 1800000).toISOString(),
+          durationMinutes: 30,
+          totalDistanceKm: 1.5,
+          averageSpeedKmH: 3.0,
+          safeSurfaceRatio: 0.7,
+          isPublic: false,
+          gpsTrack: [],
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <MyWalkHistoryView dogName="초코" initialRecords={mixedRecords} />
+      );
+
+      // 1. 헤더 요약 뱃지 확인
+      expect(html).toContain('🌐 이웃 공유 1건');
+
+      // 2. 공유 완료 기록의 뱃지 및 버튼 확인
+      expect(html).toContain('🌐 이웃 공유 완료');
+      expect(html).toContain('이웃 공유 중 ✓');
+
+      // 3. 비공개 기록의 뱃지 및 버튼 확인
+      expect(html).toContain('🔒 나만 보기');
+      expect(html).toContain('이웃 후기 공유');
+    });
+
     it('선택한 기간에 산책 기록이 없을 때 빈 기간 안내 문구를 표시한다', () => {
       // 60일 전 과거 기록 1건만 있는 경우
       const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 3600000).toISOString();

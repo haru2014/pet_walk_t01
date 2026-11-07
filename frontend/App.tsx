@@ -51,6 +51,7 @@ import { CourseRecommendationView } from './src/components/walk/CourseRecommenda
 import { AppScreenHeader } from './src/components/common/AppScreenHeader';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { SplashScreen } from './src/components/common/SplashScreen';
+import { RenderKeepAliveService } from './src/services/renderKeepAliveService';
 
 export type AppSubScreen = 'main' | 'dog_selection' | 'walk_settings' | 'course_recommend' | 'pocket' | 'report' | 'onboarding';
 
@@ -175,9 +176,23 @@ export default function App() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signup' | 'signin'>('signup');
   const [myProfileSubTab, setMyProfileSubTab] = useState<'dog_profile' | 'theme_account' | 'walk_records' | 'settings'>('dog_profile');
-  const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS);
+  const resolvedOriginMode = preferences.originMode ?? (preferences.pilotParkId ? 'park' : 'current_location');
+  const walk = useWalkGuidance(SAMPLE_ROUTE, SAMPLE_STEP_PINS, {
+    originMode: resolvedOriginMode,
+    pilotParkId: preferences.pilotParkId,
+    targetMinutes: preferences.durationMinutes,
+    speedKmH: activeDog.speedKmH,
+  });
   const [walkBookmark, setWalkBookmark] = useState<BookmarkedRoute | null>(null);
   const consent = useLocationConsent();
+
+  // Render 무료 인스턴스 콜드 스타트 방어: 앱 실행 즉시 사전 웜업 및 포그라운드 10분 스마트 하트비트 가동
+  useEffect(() => {
+    RenderKeepAliveService.start();
+    return () => {
+      RenderKeepAliveService.stop();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -279,6 +294,12 @@ export default function App() {
     setSplashAnimationComplete(true);
   }, []);
 
+  /**
+   * 산책을 처음 시작한 지점 [lon, lat]. 경로 이탈 재탐색으로 walk.route 가 바뀌어도 그대로 유지한다.
+   * 지도의 200m 보호 원 중심과 공유 시 개인정보 보호 기준점으로 쓴다 (GPS 첫 점이 아직 없을 때의 대체값).
+   */
+  const [walkOriginPoint, setWalkOriginPoint] = useState<[number, number] | null>(null);
+
   const beginWalk = async (
     title: string,
     plan: CoursePlan | undefined,
@@ -291,6 +312,8 @@ export default function App() {
 
       const initialCourse = resolveInitialCourse(plan, mode);
       walk.loadCourse(initialCourse.route, initialCourse.stepPins);
+      const initialStart = initialCourse.route.features[0]?.geometry?.coordinates[0];
+      setWalkOriginPoint(initialStart ? [initialStart[0], initialStart[1]] : null);
 
       setPreferences((prev) => ({
         ...prev,
@@ -357,6 +380,11 @@ export default function App() {
 
     const distKm = walk.stats.distanceKm;
     const gpsTrack = (await walk.getPersistedTrackBuffer()).map((p) => ({ lat: p.latitude, lon: p.longitude, timestamp: p.timestamp }));
+    const firstGps = gpsTrack[0];
+    const lastGps = gpsTrack[gpsTrack.length - 1];
+    // 개인정보 보호 기준점: 실제 GPS 시작·완료 지점 (재탐색 경로의 시작점이 아님)
+    const walkStartPoint: [number, number] | null = firstGps ? [firstGps.lon, firstGps.lat] : walkOriginPoint;
+    const walkEndPoint: [number, number] | null = lastGps ? [lastGps.lon, lastGps.lat] : null;
     const currentRoute = walkBookmark?.routeGeoJson ?? walk.route;
     const calculatedSafeRatio = calculateSafeSurfaceRatio(currentRoute);
     const courseDistKm = buildCourseSummary(currentRoute, activeDog.speedKmH).totalDistanceKm;
@@ -381,6 +409,9 @@ export default function App() {
       ),
       safeSurfaceRatio: calculatedSafeRatio,
       gpsTrack,
+      ...(walkStartPoint ? { walkStartPoint } : {}),
+      ...(walkEndPoint ? { walkEndPoint } : {}),
+      ...(walk.isSimulatedLocation ? { isSimulated: true } : {}),
       poopCount: walk.poopCount,
       poopEvents: walk.poopEvents,
     };
@@ -398,7 +429,7 @@ export default function App() {
     await walk.stop();
     setCompletedRecord(newRecord);
     setSubScreen('report');
-  }, [walk, activeDog, walkBookmark]);
+  }, [walk, activeDog, walkBookmark, walkOriginPoint]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -514,15 +545,16 @@ export default function App() {
         lon: walkTrack[0].longitude,
       };
     }
-    const firstCoord = walk.route.features[0]?.geometry?.coordinates[0];
-    if (firstCoord) {
+    // GPS 첫 점이 아직 없으면 산책을 시작할 때의 코스 출발점을 쓴다.
+    // (재탐색 후의 walk.route 첫 점은 이탈 지점이라 개인정보 보호 기준으로 쓰면 안 된다)
+    if (walkOriginPoint) {
       return {
-        lat: firstCoord[1],
-        lon: firstCoord[0],
+        lat: walkOriginPoint[1],
+        lon: walkOriginPoint[0],
       };
     }
     return null;
-  }, [walkTrack, walk.route]);
+  }, [walkTrack, walkOriginPoint]);
 
   if (!startupReady || !splashAnimationComplete) {
     return (
@@ -576,6 +608,10 @@ export default function App() {
             walkedCoords={recordedCoords}
             mapRoute={pocketMapRoute}
             mapPins={walk.activePins}
+            originMode={resolvedOriginMode}
+            isOffRoute={walk.isOffRoute}
+            isSimulatedLocation={walk.isSimulatedLocation}
+            onRegenerateRoute={walk.regenerateFromCurrentLocation}
             onReroute={(res) => {
               walk.applyReroute(res.newRoute, res.stepPins, res.voiceAlert, true);
             }}
@@ -643,7 +679,10 @@ export default function App() {
                 {/* 2. 산책 설정 / 코스 추천 화면 (하단 메인 메뉴 유지) */}
                 {subScreen === 'walk_settings' && (
                   <WalkSettingsView
-                    dog={activeDog} initialPreferences={preferences} onBack={triggerBack}
+                    dog={activeDog}
+                    initialPreferences={preferences}
+                    feedback={feedbackSummary}
+                    onBack={triggerBack}
                     onFindRoute={(next) => { setPreferences(next); setSubScreen('course_recommend'); }}
                   />
                 )}
@@ -671,7 +710,9 @@ export default function App() {
                       setMyProfileSubTab('walk_records');
                       setActiveTab('마이');
                     }}
-                    onOpenNotification={() => Alert.alert('알림', '새로운 산책 알림이 없습니다.')}
+                    pilotParkId={preferences.pilotParkId}
+                    initialUserCoords={preferences.userCoordinates ? { lon: preferences.userCoordinates.lon, lat: preferences.userCoordinates.lat } : null}
+                    onUpdateUserCoords={(coords) => setPreferences((prev) => ({ ...prev, userCoordinates: coords }))}
                   />
                 )}
                 {subScreen === 'main' && activeTab === '산책' && (

@@ -1,0 +1,118 @@
+{
+  "id": "hyperwatch-tech-pitch",
+  "title": "HyperWatch: Autonomous Cloud Observability",
+  "subtitle": "eBPF와 생성형 AI 기반의 차세대 인프라 이상 탐지 플랫폼",
+  "presenter": "HyperWatch Dev Team",
+  "organization": "Cloud Native Lab",
+  "date": "2026. 10",
+  "theme": "tech-dark",
+  "layout": "16x9",
+  "slides": [
+    {
+      "layout": "cover",
+      "category": "Tech Pitch",
+      "title": "HyperWatch",
+      "subtitle": "eBPF와 LLM으로 완성하는 자율형 클라우드 옵저버빌리티",
+      "presenter": "Alex Kim, Chief Architect",
+      "organization": "Cloud Native Lab",
+      "date": "2026. 10"
+    },
+    {
+      "layout": "columns-2",
+      "category": "Problem Statement",
+      "title": "현대 마이크로서비스의 모니터링 한계",
+      "subtitle": "시스템 복잡도 급증으로 인한 장애 대응 시간(MTTR)의 기하급수적 증가",
+      "highlightSecond": true,
+      "columns": [
+        {
+          "tag": "Current Challenge",
+          "title": "기존 APM 도구의 한계",
+          "points": [
+            "수백 개 마이크로서비스 간 분산 트레이스 단절",
+            "무거운 APM 에이전트로 인한 CPU 오버헤드 (3~8%)",
+            "알림 피로(Alert Fatigue): 하루 1,000건 이상의 단순 경고",
+            "장애 근본 원인(RCA) 파악에 평균 4.2시간 소요"
+          ]
+        },
+        {
+          "tag": "HyperWatch Solution",
+          "title": "HyperWatch의 혁신적 해법",
+          "points": [
+            "eBPF 기반 무설정(Zero-code) 제로 오버헤드 커널 추적",
+            "LLM 인과관계 그래프 기반 실시간 근본 원인 도출",
+            "노이즈 알림 95% 필터링 및 조치 가이드 자동 생성",
+            "장애 인지부터 복구까지 평균 5분 이내 완료 (98% 단축)"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "columns-3",
+      "category": "Architecture",
+      "title": "HyperWatch 핵심 아키텍처 3요소",
+      "subtitle": "커널 레벨 데이터 수집부터 AI 자동 분석까지의 엔드투엔드 파이프라인",
+      "columns": [
+        {
+          "tag": "1. eBPF Kernel Probe",
+          "title": "제로 오버헤드 계측",
+          "points": [
+            "코드 수정 없는 자동 계측",
+            "시스템 오버헤드 < 0.5%",
+            "네트워크 패킷 및 시스템 콜 실시간 캡처"
+          ]
+        },
+        {
+          "tag": "2. Graph Engine",
+          "title": "실시간 분산 토폴로지",
+          "points": [
+            "초당 1,000만 이벤트 실시간 상관분석",
+            "동적 서비스 맵 자동 생성",
+            "지연시간 및 에러 전파 경로 추적"
+          ]
+        },
+        {
+          "tag": "3. AI Copilot",
+          "title": "자율형 인시던트 조치",
+          "points": [
+            "장애 영향도 실시간 예측",
+            "자연어 트러블슈팅 가이드 제공",
+            "Kubernetes 롤백 및 파드 자동 치유"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "metrics",
+      "category": "Benchmark",
+      "title": "현장 벤치마크 및 검증 결과",
+      "subtitle": "실제 500개 노드 클러스터 운영 환경에서 측정된 성능 지표",
+      "metrics": [
+        {
+          "label": "평균 장애 복구 시간 (MTTR)",
+          "value": "5분",
+          "change": "▼ 98% 단축",
+          "description": "기존 4.2시간에서 5분으로 단축하여 비즈니스 다운타임 제로화"
+        },
+        {
+          "label": "CPU 오버헤드",
+          "value": "0.3%",
+          "change": "최저 부하 달성",
+          "description": "eBPF 바이트코드 최적화를 통해 운영 서비스 영향도 최소화"
+        },
+        {
+          "label": "이상 감지 정확도",
+          "value": "99.4%",
+          "change": "False-Positive 95% 감소",
+          "description": "인과 그래프 모델을 통해 의미 없는 단순 노이즈 알람 완벽 제거"
+        }
+      ]
+    },
+    {
+      "layout": "closing",
+      "title": "Start with HyperWatch",
+      "subtitle": "자율형 옵저버빌리티의 미래를 지금 경험해보세요",
+      "contact": "GitHub: github.com/hyperwatch  |  docs.hyperwatch.io"
+    }
+  ]
+}
+

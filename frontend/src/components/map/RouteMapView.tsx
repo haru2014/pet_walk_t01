@@ -12,6 +12,7 @@ import { TOKENS, TYPOGRAPHY } from '../../theme/tokens';
 import { useAppTheme } from '../../theme/themeManager';
 import { LonLat, RouteFeatureCollection, RouteStepPin, RouteSegmentFeature } from '../../types/route';
 import { buildCourseSummary } from '../../services/routeGeometry';
+import { DirectionManeuver, getDirectionMarkers } from '../../services/directionMarkers';
 import { CourseSummaryCard } from './CourseSummaryCard';
 import { RouteMapLegend } from './RouteMapLegend';
 import { MapLibreMapView } from './MapLibreMapView';
@@ -39,6 +40,8 @@ export interface RouteMapViewProps {
   readonly showLegend?: boolean;
   /** 테스트 및 초기 모달 상태 제어용 */
   readonly defaultLegendOpen?: boolean;
+  /** 방향 마커 토글 버튼 표시 여부 (추천 산책 코스 화면에서만 기본 노출) */
+  readonly showDirectionToggle?: boolean;
 }
 
 export const RouteMapView: React.FC<RouteMapViewProps> = ({
@@ -54,10 +57,12 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   maskingCenter,
   showLegend = true,
   defaultLegendOpen = false,
+  showDirectionToggle = false,
 }) => {
   const { colors } = useAppTheme();
   const mapHeight = customMapHeight ?? MAP_HEIGHT;
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [showDirectionMarkers, setShowDirectionMarkers] = useState(true);
   const [isLegendOpen, setIsLegendOpen] = useState(defaultLegendOpen);
 
   const allCoords = useMemo<LonLat[]>(
@@ -65,6 +70,7 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     [route],
   );
   const summary = useMemo(() => buildCourseSummary(route, speedKmH), [route, speedKmH]);
+  const directionMarkers = useMemo(() => getDirectionMarkers(route, stepPins), [route, stepPins]);
   const hasTempData = useMemo(
     () => route.features.some((feature) => feature.properties.surfaceTempC != null),
     [route],
@@ -101,10 +107,46 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
     [route],
   );
   const mapPins = useMemo(() => [...stepPins, ...routeHazardPins], [stepPins, routeHazardPins]);
+  const visibleMapPins = useMemo(() => {
+    const nonTurnPins = mapPins.filter((pin) => pin.kind !== 'turn');
+    if (!showDirectionMarkers) return nonTurnPins;
+
+    return [
+      ...nonTurnPins,
+      ...directionMarkers.map((marker) => ({
+        id: marker.id,
+        kind: 'turn' as const,
+        position: marker.position,
+        instruction: marker.stepPin?.instruction ?? '경로 방향 안내',
+        icon: directionGlyph(marker.maneuver),
+        directionMarker: true,
+      })),
+    ];
+  }, [directionMarkers, mapPins, showDirectionMarkers]);
 
   if (allCoords.length === 0 && !maskingCenter && mapPins.length === 0) return null;
 
-  const selectedPin = mapPins.find((pin) => pin.id === selectedPinId);
+  const selectedPin = visibleMapPins.find((pin) => pin.id === selectedPinId);
+  const directionToggle = (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => setShowDirectionMarkers((visible) => !visible)}
+      style={[
+        styles.directionToggle,
+        {
+          backgroundColor: showDirectionMarkers ? colors.primaryWash : colors.surface,
+          borderColor: showDirectionMarkers ? colors.primary : colors.border,
+        },
+      ]}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: showDirectionMarkers }}
+      accessibilityLabel="방향표시 전부 표시"
+    >
+      <Text style={[styles.directionToggleIcon, { color: showDirectionMarkers ? colors.primaryDark : colors.textMuted }]}>
+        🧭
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={fillContainer ? styles.fillContainer : styles.container}>
@@ -118,13 +160,13 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
       >
         <MapLibreMapView
           route={route}
-          stepPins={mapPins}
+          stepPins={visibleMapPins}
           maskingCenter={maskingCenter}
           width="100%"
           height={fillContainer ? '100%' : mapHeight}
           style={fillContainer ? { flex: 1, width: '100%', height: '100%', borderRadius: 0, borderWidth: 0 } : undefined}
           onPinSelect={(instruction) => {
-            const pin = mapPins.find((item) => item.instruction === instruction);
+            const pin = visibleMapPins.find((item) => item.instruction === instruction);
             setSelectedPinId(pin?.id ?? null);
             onPinSelect?.(instruction);
           }}
@@ -143,22 +185,32 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
           </View>
         )}
 
-        {/* 지도 우측 하단 미니멀 플로팅 범례 버튼 (지도 가림 최소화 & 네이버/카카오맵 표준 UX) */}
-        {showLegend && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsLegendOpen(true)}
+        {/* 지도 우측 하단 플로팅 컨트롤 그룹 (방향 토글 + 범례 세로 1열 스택) */}
+        {(showDirectionToggle || showLegend) && (
+          <View
+            pointerEvents="box-none"
             style={[
-              styles.floatingLegendBtn,
-              selectedPin ? styles.floatingLegendBtnRaised : undefined,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              styles.floatingControlGroup,
+              selectedPin ? styles.floatingControlGroupRaised : undefined,
             ]}
-            accessibilityRole="button"
-            accessibilityLabel="지도 범례 안내 보기"
           >
-            <Text style={styles.floatingLegendIcon}>🎨</Text>
-            <Text style={[styles.floatingLegendText, { color: colors.textMain }]}>범례</Text>
-          </TouchableOpacity>
+            {showDirectionToggle && directionToggle}
+            {showLegend && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsLegendOpen(true)}
+                style={[
+                  styles.floatingLegendBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="지도 범례 안내 보기"
+              >
+                <Text style={styles.floatingLegendIcon}>🎨</Text>
+                <Text style={[styles.floatingLegendText, { color: colors.textMain }]}>범례</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* 지도 범례 팝업 오버레이 (지도 내부 캔버스 위에 뜨는 레이어 팝업 UX) */}
@@ -223,6 +275,15 @@ export const RouteMapView: React.FC<RouteMapViewProps> = ({
   );
 };
 
+function directionGlyph(maneuver: DirectionManeuver): string {
+  switch (maneuver) {
+    case 'left': return '↰';
+    case 'right': return '↱';
+    case 'uturn': return '↶';
+    case 'straight': return '↑';
+  }
+}
+
 const styles = StyleSheet.create({
   container: { width: '100%', flexDirection: 'column', alignItems: 'center' },
   fillContainer: { flex: 1, width: '100%', height: '100%' },
@@ -235,6 +296,32 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
   },
+  floatingControlGroup: {
+    position: 'absolute',
+    bottom: 28,
+    right: 10,
+    zIndex: 11,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  floatingControlGroupRaised: {
+    bottom: 74,
+  },
+  directionToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  directionToggleIcon: { fontSize: 18 },
   stairsOverlay: {
     position: 'absolute', top: 8, right: 8, zIndex: 2,
     borderRadius: 10,
@@ -247,10 +334,6 @@ const styles = StyleSheet.create({
   },
   stairsOverlayText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   floatingLegendBtn: {
-    position: 'absolute',
-    bottom: 26,
-    right: 28,
-    zIndex: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -264,14 +347,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  floatingLegendBtnRaised: {
-    bottom: 72,
-  },
   floatingLegendIcon: {
-    fontSize: 12,
+    fontSize: 13,
   },
   floatingLegendText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   briefingBanner: {
@@ -330,10 +410,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   modalHeaderIcon: {
-    fontSize: 15,
+    fontSize: 16,
   },
   modalHeaderTitle: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
   },
   modalCloseBtn: {

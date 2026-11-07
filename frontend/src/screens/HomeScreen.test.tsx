@@ -4,10 +4,11 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { HomeScreen } from './HomeScreen';
+import { HomeScreen, resolveHomeScreenWeatherCoords } from './HomeScreen';
 import { DEFAULT_DOGS } from '../types/dogProfile';
+import { PILOT_PARKS, DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 vi.mock('expo-task-manager', () => ({
   defineTask: vi.fn(),
@@ -80,6 +81,7 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
 
     // 2. Trail info & 이번 주 산책 달성도 정보 카드
     expect(html).toContain('산책 정보');
+    expect(html).toContain('상세보기');
     expect(html).toContain('이번 주 산책 달성도');
     expect(html).toContain('산책하기 좋은 시간');
   });
@@ -140,5 +142,110 @@ describe('HomeScreen - 디자인 시안 02번 (Dusty Amber & Sage Green)', () =>
     );
 
     expect(html).toContain('알림');
+  });
+
+  it('HomeNotificationModal 컴포넌트가 HomeScreen 내에 정상 배치되어 있다', () => {
+    const html = renderToStaticMarkup(
+      <HomeScreen
+        dog={mockDog}
+        dogs={DEFAULT_DOGS}
+        selectedDogId={mockDog.id}
+        onSelectDog={vi.fn()}
+        onAddDog={vi.fn()}
+        feedbackSummary={null}
+        onPressProfile={vi.fn()}
+        onStartWalk={vi.fn()}
+        onOpenPlanner={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('aria-label="알림"');
+  });
+
+  describe('resolveHomeScreenWeatherCoords - 사용자 위치 및 선택 공원 폴백 연동 (#281)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('사용자 GPS 위치를 정상 획득하면 사용자 위치 좌표와 isGps: true를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: true,
+        coords: { latitude: 37.5665, longitude: 126.9780, accuracy: 10 },
+      });
+
+      const coords = await resolveHomeScreenWeatherCoords('sejong', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: 37.5665,
+        lon: 126.9780,
+        isGps: true,
+      });
+      expect(mockGetLocation).toHaveBeenCalledWith(4000);
+    });
+
+    it('사용자 GPS 위치 획득 실패 시 선택한 공원 좌표와 isGps: false를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: 'permission_denied',
+      });
+
+      const sejongPark = PILOT_PARKS.find((p) => p.id === 'sejong')!;
+      const coords = await resolveHomeScreenWeatherCoords('sejong', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: sejongPark.center.lat,
+        lon: sejongPark.center.lon,
+        isGps: false,
+      });
+    });
+
+    it('사용자 GPS 실패 및 공원 미지정 시 기본 유림공원 좌표를 반환한다', async () => {
+      const mockGetLocation = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: 'timeout',
+      });
+
+      const coords = await resolveHomeScreenWeatherCoords(undefined, mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: DEFAULT_PILOT_PARK.center.lat,
+        lon: DEFAULT_PILOT_PARK.center.lon,
+        isGps: false,
+      });
+    });
+
+    it('위치 조회 중 예외 발생 시에도 크래시 없이 선택 공원 좌표로 안전하게 폴백한다', async () => {
+      const mockGetLocation = vi.fn().mockRejectedValue(new Error('Location provider crashed'));
+
+      const doanPark = PILOT_PARKS.find((p) => p.id === 'doan')!;
+      const coords = await resolveHomeScreenWeatherCoords('doan', mockGetLocation as any);
+
+      expect(coords).toEqual({
+        lat: doanPark.center.lat,
+        lon: doanPark.center.lon,
+        isGps: false,
+      });
+    });
+
+    it('initialUserCoords가 전달되면 초기 렌더링 시 현재 위치 핀을 정상 생성한다', () => {
+      const initialCoords = { lon: 127.38, lat: 36.35 };
+      const html = renderToStaticMarkup(
+        <HomeScreen
+          dog={mockDog}
+          dogs={[mockDog]}
+          selectedDogId="dog_choco"
+          onSelectDog={vi.fn()}
+          feedbackSummary={null}
+          onPressProfile={vi.fn()}
+          onStartWalk={vi.fn()}
+          onOpenPlanner={vi.fn()}
+          initialUserCoords={initialCoords}
+        />
+      );
+
+      // 초기 좌표가 주어졌으므로 GPS 로딩 안내 대신 자유 산책 카드가 표시됨
+      expect(html).not.toContain('현재 위치(GPS)를 확인하고 있어요');
+      expect(html).toContain('바로 산책하기');
+    });
   });
 });

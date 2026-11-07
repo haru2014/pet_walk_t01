@@ -9,6 +9,7 @@
 import { detectLandmarkCategory } from './landmarkTagger';
 
 import { fetchWithServerFallback } from './apiClient';
+import { WalkRecord } from '../types/storage';
 
 export interface CommunityFeedItem {
   readonly course_id: string;
@@ -23,12 +24,24 @@ export interface CommunityFeedItem {
   readonly region_name?: string;
   readonly created_at?: string;
   readonly tags?: readonly string[];
+  readonly source?: CommunityFeedSource;
 }
+
+export type CommunityFeedSource = 'demo' | 'supabase' | 'unknown';
 
 export interface CommunityFeedResponse {
   readonly feeds: readonly CommunityFeedItem[];
   readonly is_supabase?: boolean;
 }
+
+function normalizeFeedSource(source: unknown): CommunityFeedSource {
+  return source === 'demo' || source === 'supabase' || source === 'unknown' ? source : 'unknown';
+}
+
+function getLocalDemoFeeds(): CommunityFeedItem[] {
+  return DEFAULT_FEEDS.map((feed) => ({ ...feed, source: 'demo' }));
+}
+
 const DEFAULT_FEEDS: readonly CommunityFeedItem[] = [
   {
     course_id: 'feed_1',
@@ -145,7 +158,8 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
 
     if (res.ok) {
       const data = await res.json();
-      const rawFeeds: CommunityFeedItem[] = data.feeds || DEFAULT_FEEDS;
+      const hasServerFeeds = Array.isArray(data.feeds);
+      const rawFeeds: CommunityFeedItem[] = hasServerFeeds ? data.feeds : getLocalDemoFeeds();
       const enrichedFeeds = rawFeeds.map((feed) => {
         // 분류된 메타데이터가 이미 있어도 오래된 앱/서버에서 저장된
         // 기본 지역값일 수 있으므로 경로 좌표로 매번 다시 판별한다.
@@ -157,6 +171,7 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
           region_name: meta.regionName,
           created_at: feed.created_at || new Date().toISOString(),
           tags: feed.tags && feed.tags.length > 0 ? feed.tags : ['안심산책', '이웃추천'],
+          source: normalizeFeedSource(feed.source),
         };
       });
       return {
@@ -170,16 +185,66 @@ export async function fetchCommunityFeeds(): Promise<CommunityFeedResponse> {
     clearTimeout(timeoutId);
   }
 
-  return { feeds: DEFAULT_FEEDS, is_supabase: false };
+  return { feeds: getLocalDemoFeeds(), is_supabase: false };
 }
 
 export const COMMUNITY_SHARE_ERROR_MESSAGE = '지금은 공유할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
+export const EMPTY_GPS_TRACK_SHARE_MESSAGE =
+  '이번 산책은 GPS 경로가 기록되지 않아 코스로 공유할 수 없어요.';
+
+/** 커뮤니티 피드에 지도로 그릴 경로가 남아 있는지 (마스킹 후 2점 미만이면 경로 비공개, #281) */
+export function hasVisibleCommunityRoute(feed: Pick<CommunityFeedItem, 'masked_polyline'>): boolean {
+  return feed.masked_polyline.length >= 2;
+}
+
+/**
+ * 산책 GPS 기록을 공유용 [경도, 위도] 좌표열로 바꿉니다.
+ * 기록이 2점 미만이면 null — 대체 좌표를 보내지 않고 공유를 막습니다 (#281).
+ */
+export function toShareCoordinates(gpsTrack?: WalkRecord['gpsTrack']): [number, number][] | null {
+  if (!gpsTrack || gpsTrack.length < 2) return null;
+  return gpsTrack.map((p) => [p.lon, p.lat]);
+}
+
+export const SIMULATED_TRACK_SHARE_MESSAGE =
+  '웹 데모의 가상 보행 기록이라 실제 산책 경로로 공유할 수 없어요.';
+
+/** 코스 공유·공개 후기로 내보낼 수 없는 기록이면 이유 문구, 공유할 수 있으면 null (#281, #297) */
+export function getShareBlockMessage(record: Pick<WalkRecord, 'gpsTrack' | 'isSimulated'>): string | null {
+  if (record.isSimulated) return SIMULATED_TRACK_SHARE_MESSAGE;
+  if (!toShareCoordinates(record.gpsTrack)) return EMPTY_GPS_TRACK_SHARE_MESSAGE;
+  return null;
+}
+
+/** 공유 시 반드시 200m 를 가릴 실제 산책 시작·완료 지점 [lon, lat] */
+export interface SharePrivacyAnchors {
+  readonly start?: readonly [number, number] | null;
+  readonly end?: readonly [number, number] | null;
+}
+
+/**
+ * 기록에서 개인정보 보호 기준점(산책 시작·완료 지점)을 정한다.
+ * 기록된 시작·완료 지점이 있으면 그것을, 없으면(이전 기록) GPS 궤적의 첫·끝 점을 쓴다.
+ */
+export function resolveSharePrivacyAnchors(
+  record: Pick<WalkRecord, 'gpsTrack' | 'walkStartPoint' | 'walkEndPoint'>,
+): SharePrivacyAnchors {
+  const track = record.gpsTrack ?? [];
+  const first = track[0];
+  const last = track[track.length - 1];
+  return {
+    start: record.walkStartPoint ?? (first ? [first.lon, first.lat] : null),
+    end: record.walkEndPoint ?? (last ? [last.lon, last.lat] : null),
+  };
+}
 
 export async function shareCommunityCourse(
   title: string,
   rawCoordinates: readonly [number, number][],
   rating: number = 5,
   userId?: string,
+  privacyAnchors?: SharePrivacyAnchors,
 ): Promise<{ success: boolean; is_supabase?: boolean; errorMessage?: string }> {
   try {
     const res = await fetchWithServerFallback('/api/v1/community/share', {
@@ -190,6 +255,9 @@ export async function shareCommunityCourse(
         course_title: title,
         raw_coordinates: rawCoordinates,
         satisfaction_rating: rating,
+        // 경로 이탈 재탐색과 관계없이 실제 산책 시작·완료 지점 반경 200m 를 가리도록 서버에 알린다.
+        walk_start_point: privacyAnchors?.start ?? undefined,
+        walk_end_point: privacyAnchors?.end ?? undefined,
       }),
     });
     if (res.ok) {

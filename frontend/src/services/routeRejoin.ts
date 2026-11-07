@@ -123,3 +123,72 @@ export function buildRejoinPath(
     joinDistanceM: join.distanceM,
   };
 }
+
+const MIN_REMAINING_WALK_MINUTES = 5;
+const MIN_REMAINING_DISTANCE_M = 180;
+const DETOUR_FACTOR = 1.35;
+
+/**
+ * 목표 산책 시간과 경과 시간(또는 이미 걸은 거리)을 바탕으로 남은 목표 산책 거리(m)를 계산한다.
+ */
+export function calculateRemainingWalkDistanceM(params: {
+  readonly targetMinutes?: number | null;
+  readonly elapsedSec?: number;
+  readonly speedKmH?: number;
+  readonly routeLengthM?: number;
+  readonly walkedM?: number;
+}): number {
+  const speed = params.speedKmH && params.speedKmH > 0 ? params.speedKmH : 2.8;
+  if (params.targetMinutes && params.targetMinutes > 0) {
+    const elapsedMin = Math.max(0, (params.elapsedSec ?? 0) / 60);
+    const remainingMin = Math.max(MIN_REMAINING_WALK_MINUTES, params.targetMinutes - elapsedMin);
+    return Math.max(MIN_REMAINING_DISTANCE_M, Math.round((remainingMin / 60) * speed * 1000));
+  }
+  if (params.routeLengthM && params.routeLengthM > 0) {
+    return Math.max(MIN_REMAINING_DISTANCE_M, Math.round(params.routeLengthM - (params.walkedM ?? 0)));
+  }
+  return Math.round((15 / 60) * speed * 1000);
+}
+
+function offsetLonLat(origin: LonLat, bearingDeg: number, distanceM: number): [number, number] {
+  const rad = (bearingDeg * Math.PI) / 180;
+  const dLat = (distanceM * Math.cos(rad)) / METERS_PER_DEG_LAT;
+  const dLon = (distanceM * Math.sin(rad)) / (METERS_PER_DEG_LON * Math.cos((origin[1] * Math.PI) / 180));
+  return [Number((origin[0] + dLon).toFixed(6)), Number((origin[1] + dLat).toFixed(6))];
+}
+
+/**
+ * [방법 A 오프라인 폴백] 현위치 기반 산책 시 현재(벗어난) 위치에서 남은 거리를 소화하며
+ * 원래 출발지(destination)로 돌아오는 순환 복귀 좌표열을 생성한다.
+ */
+export function buildLocalRegeneratedReturnPath(
+  current: LonLat,
+  destination: LonLat,
+  remainingDistanceM?: number,
+): [number, number][] {
+  const start: [number, number] = [current[0], current[1]];
+  const end: [number, number] = [destination[0], destination[1]];
+  const directM = haversineMeters([start[1], start[0]], [end[1], end[0]]);
+  const targetM = remainingDistanceM && remainingDistanceM > 0
+    ? remainingDistanceM
+    : Math.max(300, directM * 1.5);
+
+  if (targetM <= Math.max(directM * DETOUR_FACTOR, MIN_REMAINING_DISTANCE_M)) {
+    return [start, end];
+  }
+
+  const geomBudgetM = targetM / DETOUR_FACTOR;
+  const dLat = end[1] - start[1];
+  const dLon = (end[0] - start[0]) * Math.cos((start[1] * Math.PI) / 180);
+  const bearingCd = directM > 1
+    ? ((Math.atan2(dLon, dLat) * 180) / Math.PI + 360) % 360
+    : 45;
+  const perpBearing = (bearingCd + 90) % 360;
+  const lateralM = Math.min(Math.max(45, (geomBudgetM - directM * 0.6) / 1.8), 1000);
+
+  const p1: LonLat = [start[0] + (end[0] - start[0]) / 3, start[1] + (end[1] - start[1]) / 3];
+  const p2: LonLat = [start[0] + ((end[0] - start[0]) * 2) / 3, start[1] + ((end[1] - start[1]) * 2) / 3];
+  const w1 = offsetLonLat(p1, perpBearing, lateralM);
+  const w2 = offsetLonLat(p2, perpBearing, lateralM);
+  return [start, w1, w2, end];
+}

@@ -11,7 +11,14 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { AppText as Text } from '../common/AppText';
-import { AirQualityDTO, HeatRiskLevel, HeatRiskResponse, SurfaceTempsDTO } from '../../types/weather';
+import { HeatRiskLevel, HeatRiskResponse, SurfaceTempsDTO } from '../../types/weather';
+import {
+  DEFAULT_SURFACE_TEMP,
+  type WalkQuotientScore,
+  computeWalkQuotient,
+  resolvePopPercent,
+  resolveRiskLevel,
+} from '../../services/walkQuotient';
 import { useAppTheme } from '../../theme/themeManager';
 import { AppIcon } from '../common/AppIcon';
 import { useHomeResponsive } from '../../hooks/useHomeResponsive';
@@ -40,13 +47,6 @@ interface WindowRange {
   start: string;
   end: string;
   hasValidTimes: boolean;
-}
-
-function resolveRiskLevel(currentTemp: number, serverRiskLevel?: HeatRiskLevel): HeatRiskLevel {
-  if (serverRiskLevel) return serverRiskLevel;
-  if (currentTemp <= 35) return 'SAFE';
-  if (currentTemp <= 45) return 'CAUTION';
-  return 'DANGER';
 }
 
 function parseGoldenWindow(
@@ -107,154 +107,6 @@ function calculateProgress(
   return { progress, isUpcoming: false, isPast: false };
 }
 
-interface WalkQuotientScore {
-  score: number;
-  statusLabel: string;
-  statusTitle: string;
-  badgeBg: string;
-  badgeColor: string;
-  ringColor: string;
-}
-
-function calculateWalkQuotient(
-  surfaceTemp: number,
-  riskLevel: HeatRiskLevel,
-  pop?: number,
-  airQuality?: AirQualityDTO | null,
-  condition?: string,
-  pty?: number
-): WalkQuotientScore {
-  // 1. 강설(눈)이 내리는 중
-  if (pty === 2 || pty === 3 || pty === 6 || pty === 7 || condition === 'snowy') {
-    return {
-      score: 38,
-      statusLabel: '강설 주의',
-      statusTitle: '눈 때문에 길이 미끄러워요.',
-      badgeBg: '#EFF6FF',
-      badgeColor: '#1E40AF',
-      ringColor: '#3B82F6',
-    };
-  }
-
-  // 2. 강우(비)가 내리는 중
-  if (pty === 1 || pty === 4 || pty === 5 || condition === 'rainy') {
-    return {
-      score: 42,
-      statusLabel: '우천 주의',
-      statusTitle: '비가 와서 길이 젖어 있어요. 실내 놀이를 추천해요.',
-      badgeBg: '#EFF6FF',
-      badgeColor: '#1E40AF',
-      ringColor: '#3B82F6',
-    };
-  }
-
-  // 3. 지면 고열 위험 (45°C 초과)
-  if (riskLevel === 'DANGER' || surfaceTemp > 45) {
-    return {
-      score: 35,
-      statusLabel: '고열 주의',
-      statusTitle: '한낮에는 노면이 매우 뜨거워요.',
-      badgeBg: '#FEE2E2',
-      badgeColor: '#B91C1C',
-      ringColor: '#EF4444',
-    };
-  }
-
-  // 4. 강수확률 매우 높음 (80% 이상)
-  if (typeof pop === 'number' && pop >= 80) {
-    return {
-      score: 55,
-      statusLabel: '비 예보 높음',
-      statusTitle: '비가 올 가능성이 매우 높아요. 짧게 다녀오세요.',
-      badgeBg: '#EEF2FF',
-      badgeColor: '#4338CA',
-      ringColor: '#6366F1',
-    };
-  }
-
-  // 5. 강수확률 높음 (60% 이상 - 비 예보 공식 구간)
-  if (typeof pop === 'number' && pop >= 60) {
-    return {
-      score: 65,
-      statusLabel: '비 예보',
-      statusTitle: '비 예보(우산 필수)가 있어요. 서두르거나 우비를 챙기세요.',
-      badgeBg: '#FEF3C7',
-      badgeColor: '#B45309',
-      ringColor: '#F59E0B',
-    };
-  }
-
-  // 6. 미세먼지 매우나쁨
-  if (airQuality?.grade_label === '매우나쁨') {
-    return {
-      score: 45,
-      statusLabel: '미세먼지 매우나쁨',
-      statusTitle: '대기질이 매우 나빠요. 실내 활동을 권장해요.',
-      badgeBg: '#FEE2E2',
-      badgeColor: '#B91C1C',
-      ringColor: '#EF4444',
-    };
-  }
-
-  // 7. 지면온도 다소 높음 (35°C 초과)
-  if (riskLevel === 'CAUTION' || surfaceTemp > 35) {
-    return {
-      score: 65,
-      statusLabel: '주의',
-      statusTitle: '그늘길 위주 산책이 필요해요.',
-      badgeBg: '#FEF3C7',
-      badgeColor: '#B45309',
-      ringColor: '#F59E0B',
-    };
-  }
-
-  // 8. 강수확률 다소 있음 (40% 이상)
-  if (typeof pop === 'number' && pop >= 40) {
-    return {
-      score: 80,
-      statusLabel: '비 가능성',
-      statusTitle: '비가 올 수 있어요. 가까운 코스를 추천해요.',
-      badgeBg: '#FEF3C7',
-      badgeColor: '#B45309',
-      ringColor: '#F59E0B',
-    };
-  }
-
-  // 9. 미세먼지 나쁨
-  if (airQuality?.grade_label === '나쁨') {
-    return {
-      score: 75,
-      statusLabel: '미세먼지 나쁨',
-      statusTitle: '미세먼지가 나빠요. 짧은 산책을 권장해요.',
-      badgeBg: '#FEF3C7',
-      badgeColor: '#B45309',
-      ringColor: '#F59E0B',
-    };
-  }
-
-  // 10. 지면온도 28°C 이하 안전
-  if (surfaceTemp <= 28) {
-    return {
-      score: 100,
-      statusLabel: '좋음',
-      statusTitle: '산책하기 편한 시간이 있어요.',
-      badgeBg: '#DCFCE7',
-      badgeColor: '#166534',
-      ringColor: '#10B981',
-    };
-  }
-
-  // 11. 지면온도 28~35°C 적정
-  return {
-    score: 88,
-    statusLabel: '좋음',
-    statusTitle: '산책하기 편한 시간이 있어요.',
-    badgeBg: '#DCFCE7',
-    badgeColor: '#166534',
-    ringColor: '#10B981',
-  };
-}
-
 interface NoticeMessageParams {
   readonly riskLevel: HeatRiskLevel;
   readonly currentTemp: number;
@@ -264,6 +116,8 @@ interface NoticeMessageParams {
   readonly pop?: number;
   readonly condition?: string;
   readonly pty?: number;
+  /** 실데이터(기상청 실시간 응답)가 아닌 폴백(추정치) 사용 여부 - 문구 서술어 구분용 */
+  readonly isVirtual?: boolean;
 }
 
 function getPrecipitationSubText(popPercent: number): string {
@@ -277,7 +131,8 @@ function getPrecipitationSubText(popPercent: number): string {
 }
 
 function buildNoticeMessages(params: NoticeMessageParams): { subtitleText: string; badgeNotice: string } {
-  const { riskLevel, currentTemp, startDisplay, nowLabel, customNotice, pop, condition, pty } = params;
+  const { riskLevel, currentTemp, startDisplay, nowLabel, customNotice, pop, condition, pty, isVirtual } = params;
+  const tempPhrase = isVirtual ? `${currentTemp.toFixed(1)}℃로 추정돼요` : `${currentTemp.toFixed(1)}℃로 측정됐어요`;
   if (pty === 2 || pty === 3 || pty === 6 || pty === 7 || condition === 'snowy') {
     return {
       subtitleText: `현재 눈 소식으로 길이 미끄럽고 체온이 떨어지기 쉬워요.`,
@@ -304,18 +159,18 @@ function buildNoticeMessages(params: NoticeMessageParams): { subtitleText: strin
   }
   if (riskLevel === 'DANGER') {
     return {
-      subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃로 매우 뜨거워요. ${startDisplay} 이후 서늘한 시간에 산책해요.`,
+      subtitleText: `노면 온도가 ${tempPhrase}. 매우 뜨거우니 ${startDisplay} 이후 서늘한 시간에 산책해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ 고열 위험 · ${startDisplay} 권장`,
     };
   }
   if (riskLevel === 'CAUTION') {
     return {
-      subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃로 조금 높아요. 아스팔트 대신 그늘길을 추천해요.`,
+      subtitleText: `노면 온도가 ${tempPhrase}. 조금 높으니 아스팔트 대신 그늘길을 추천해요.`,
       badgeNotice: customNotice ?? `현재 ${nowLabel} · 지면 ${currentTemp.toFixed(1)}℃ (그늘길 위주 20분 내 산책)`,
     };
   }
   return {
-    subtitleText: `노면 온도가 ${currentTemp.toFixed(1)}℃예요. 발바닥이 편안하게 걸을 수 있어요.`,
+    subtitleText: `노면 온도가 ${tempPhrase}. 발바닥이 편안하게 걸을 수 있어요.`,
     badgeNotice: customNotice ?? `현재 ${nowLabel} · 노면 ${currentTemp.toFixed(1)}℃ (산책하기 좋은 시간)`,
   };
 }
@@ -369,7 +224,7 @@ function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: b
   if (isLoading || weather === null || weather === undefined) {
     return '기상청·에어코리아 정보를 불러오는 중이에요...';
   }
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
   if (isVirtual) {
     return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
@@ -377,8 +232,11 @@ function resolveAttributionText(weather?: HeatRiskResponse | null, isLoading?: b
   return weather?.attribution ? `${base} · ${weather.attribution}` : base;
 }
 
-function resolveModalAttributionText(weather?: HeatRiskResponse | null): string {
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+function resolveModalAttributionText(weather?: HeatRiskResponse | null, isLoading?: boolean): string {
+  if (isLoading || weather === null || weather === undefined) {
+    return '기상청·에어코리아 산책 정보를 받아오고 있어요...';
+  }
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
   if (isVirtual) {
     return '실시간 날씨를 불러오지 못해 예상 정보를 보여드려요.';
   }
@@ -402,6 +260,8 @@ export interface WeatherDetailModalProps {
   readonly isTomorrow: boolean;
   readonly timeRangeDisplay: string;
   readonly weather?: HeatRiskResponse | null;
+  readonly pilotParkId?: string;
+  readonly isLoading?: boolean;
 }
 
 export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
@@ -420,6 +280,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
   isTomorrow,
   timeRangeDisplay,
   weather,
+  isLoading = false,
 }) => {
   const surfaceSubText = getSurfaceSubText(weather?.solar_radiation_w_m2, riskLevel);
   const surfaceTemps = weather?.surface_temps;
@@ -441,7 +302,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
   const dirtStatus = getSurfaceStatus(dirtVal);
   const grassStatus = getSurfaceStatus(grassVal);
 
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
+  const isVirtual = !weather || weather.isLiveServer === false || weather.data_source === 'fallback_estimate';
 
   return (
     <Modal
@@ -474,20 +335,55 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollBody}>
-            {/* 가상 데이터 사용 시 투명 고지 배너 */}
-            {isVirtual && (
+            {/* 로딩 중 또는 가상 데이터 사용 시 투명 고지 배너 */}
+            {isLoading ? (
+              <View style={[styles.modalVirtualNoticeBox, { backgroundColor: '#EFF6FF', borderColor: '#93C5FD' }]}>
+                <Text style={[styles.modalVirtualNoticeText, { color: '#1E40AF' }]}>
+                  ⏳ 기상청·에어코리아 산책 정보를 받아오고 있어요...
+                </Text>
+              </View>
+            ) : isVirtual ? (
               <View style={styles.modalVirtualNoticeBox}>
                 <Text style={styles.modalVirtualNoticeText}>
                   ⚠️ 실시간 날씨를 불러오지 못해 예상 정보를 보여드리고 있어요.
                 </Text>
               </View>
-            )}
+            ) : null}
 
             {/* 산책 지수 총평 배지 */}
             <View style={[styles.modalScoreBanner, { backgroundColor: quotient.badgeBg }]}>
               <Text style={[styles.modalScoreNumber, { color: quotient.badgeColor }]}>{quotient.score}점</Text>
               <View style={styles.modalScoreBannerTextWrap}>
-                <Text style={[styles.modalScoreLabel, { color: quotient.badgeColor }]}>✓ {quotient.statusLabel}</Text>
+                <View style={styles.modalScoreLabelRow}>
+                  <Text style={[styles.modalScoreLabel, { color: quotient.badgeColor }]}>✓ {quotient.statusLabel}</Text>
+                  <View
+                    style={[
+                      styles.modalSourceTag,
+                      isLoading
+                        ? styles.modalSourceTagLoading
+                        : isVirtual
+                          ? styles.modalSourceTagFallback
+                          : styles.modalSourceTagLive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.modalSourceTagText,
+                        isLoading
+                          ? styles.modalSourceTagTextLoading
+                          : isVirtual
+                            ? styles.modalSourceTagTextFallback
+                            : styles.modalSourceTagTextLive,
+                      ]}
+                    >
+                      {isLoading
+                        ? '⏳ 산책 정보 확인 중...'
+                        : isVirtual
+                          ? '⚠️ 예상치 (측정 불가)'
+                          : '📡 실시간 측정'}
+                    </Text>
+                  </View>
+                </View>
                 <Text style={[styles.modalScoreTitle, { color: quotient.badgeColor }]}>{quotient.statusTitle}</Text>
               </View>
             </View>
@@ -594,7 +490,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
             {/* 공식 데이터 출처 고지 (공공누리 제1유형 & CC BY 4.0) */}
             <View style={styles.modalAttributionBox}>
               <Text style={[styles.modalAttributionText, { color: colors.textMuted }]}>
-                {resolveModalAttributionText(weather)}
+                {resolveModalAttributionText(weather, isLoading)}
               </Text>
             </View>
           </ScrollView>
@@ -891,7 +787,7 @@ export function computeWeatherModalProps(
     `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
 
   const currentAirTemp = Math.round(weather?.current_air_temp ?? 22.0);
-  const currentSurfaceTemp = weather?.current_surface_temp ?? 23.0;
+  const currentSurfaceTemp = weather?.current_surface_temp ?? DEFAULT_SURFACE_TEMP;
   const roundedSurfaceTemp = Math.round(currentSurfaceTemp);
   const riskLevel = resolveRiskLevel(currentSurfaceTemp, weather?.current_risk_level);
 
@@ -903,21 +799,16 @@ export function computeWeatherModalProps(
   const startDisplay = isTomorrow ? `내일 ${range.start}` : range.start;
   const timeRangeDisplay = isTomorrow ? `내일 ${range.start} ~ ${range.end}` : `${range.start} ~ ${range.end}`;
 
-  const popPercent = typeof weather?.pop === 'number' ? weather.pop : 20;
+  const popPercent = resolvePopPercent(weather);
   const airQuality = weather?.air_quality;
   const airQualityLabel = airQuality?.grade_label ?? '좋음';
   const airQualityColor = AIR_QUALITY_COLOR_MAP[airQualityLabel] ?? '#059669';
   const condition = weather?.condition;
   const pty = weather?.pty;
+  // 실데이터(기상청/에어코리아 실시간 응답)와 폴백(추정치)을 화면 전역에서 동일 기준으로 구분한다.
+  const isVirtual = !weather || weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
 
-  const quotient = calculateWalkQuotient(
-    currentSurfaceTemp,
-    riskLevel,
-    popPercent,
-    airQuality,
-    condition,
-    pty
-  );
+  const quotient = computeWalkQuotient(weather);
 
   const { subtitleText, badgeNotice } = buildNoticeMessages({
     riskLevel,
@@ -928,6 +819,7 @@ export function computeWeatherModalProps(
     pop: popPercent,
     condition,
     pty,
+    isVirtual,
   });
 
   return {
@@ -948,6 +840,7 @@ export function computeWeatherModalProps(
     weather,
     currentHour,
     currentMin,
+    isVirtual,
   };
 }
 
@@ -991,6 +884,7 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     airQuality,
     currentHour,
     currentMin,
+    isVirtual,
   } = modalProps;
 
   const { progress } = calculateProgress(
@@ -1000,8 +894,6 @@ export const GoldenTimeWidget: React.FC<GoldenTimeWidgetProps> = ({
     currentMin,
     progressPercent
   );
-
-  const isVirtual = weather?.isLiveServer === false || weather?.data_source === 'fallback_estimate';
 
   return (
     <View
@@ -1300,9 +1192,45 @@ const styles = StyleSheet.create({
   modalScoreBannerTextWrap: {
     flex: 1,
   },
+  modalScoreLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   modalScoreLabel: {
     fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
+  },
+  modalSourceTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  modalSourceTagLive: {
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderColor: 'rgba(37, 99, 235, 0.25)',
+  },
+  modalSourceTagFallback: {
+    backgroundColor: 'rgba(217, 119, 6, 0.10)',
+    borderColor: 'rgba(217, 119, 6, 0.3)',
+  },
+  modalSourceTagLoading: {
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  modalSourceTagText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontWeight: '700',
+  },
+  modalSourceTagTextLive: {
+    color: '#2563EB',
+  },
+  modalSourceTagTextFallback: {
+    color: '#B45309',
+  },
+  modalSourceTagTextLoading: {
+    color: '#4F46E5',
   },
   modalScoreTitle: {
     fontSize: TYPOGRAPHY.cardTitle,

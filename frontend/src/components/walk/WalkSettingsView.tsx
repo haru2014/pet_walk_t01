@@ -11,7 +11,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
  * 6. 하단 Thumb Zone 버튼: [✨ AI 산책 코스 찾아보기]
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
@@ -33,10 +33,15 @@ import { getCurrentLocationCoords } from '../../services/locationService';
 import { VoiceIntentResult, normalizeToFrontendParkId } from '../../services/voiceIntentApi';
 import { resolveAiEnvironments } from '../../services/voiceIntentSettings';
 import { unsupportedParkMessage } from '../../services/voiceIntentLandmarks';
+import { prefetchWalkPlan } from '../../services/api';
+import { prewarmCurrentLocation } from '../../services/apiClient';
+import { ConsentService } from '../../services/consentService';
+import { FeedbackSummaryPayload } from '../../services/feedbackContext';
 
 export interface WalkSettingsViewProps {
   dog: DogProfile;
   initialPreferences?: WalkPreferences;
+  feedback?: FeedbackSummaryPayload | null;
   onBack: () => void;
   onFindRoute: (preferences: WalkPreferences) => void;
 }
@@ -50,7 +55,7 @@ function getAiBannerTitle(
   currentParkShortName: string
 ): string {
   if (originMode !== 'current_location') {
-    return `${currentParkShortName} 산책길 위주로 찾아요`;
+    return `${currentParkShortName} 산책로를 찾아볼게요`;
   }
   if (isLocating) {
     return '현재 GPS 위치 수신 중...';
@@ -100,14 +105,17 @@ function buildAiNoticeSummary(
 export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   dog,
   initialPreferences,
+  feedback,
   onBack,
   onFindRoute,
 }) => {
   const { colors } = useAppTheme();
   const { walkSettings, scale } = useAppResponsive();
-  const [originMode, setOriginMode] = useState<WalkOriginMode>(
-    initialPreferences?.originMode ?? 'park'
-  );
+  const [originMode, setOriginMode] = useState<WalkOriginMode>(() => {
+    if (initialPreferences?.originMode) return initialPreferences.originMode;
+    if (initialPreferences?.userCoordinates) return 'current_location';
+    return 'park';
+  });
   const [pilotParkId, setPilotParkId] = useState<string>(
     initialPreferences?.pilotParkId ?? 'yurim'
   );
@@ -150,6 +158,74 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
       return null;
     }
   };
+
+  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 전달되면 즉시 동기화
+  useEffect(() => {
+    if (initialPreferences?.userCoordinates && !userCoords) {
+      setUserCoords(initialPreferences.userCoordinates);
+    }
+  }, [initialPreferences?.userCoordinates, userCoords]);
+  // 📍 1-1: 현재 위치 모드 활성화 시 백그라운드 GPS 사전 획득 (센서 응답 대기시간 0초화)
+  useEffect(() => {
+    let isMounted = true;
+    if (originMode === 'current_location' && !userCoords && !isLocating) {
+      void (async () => {
+        const agreed = await ConsentService.hasAgreed();
+        if (!isMounted) return;
+        if (agreed || originMode === 'current_location') {
+          setIsLocating(true);
+          setLocationError(null);
+          const res = await getCurrentLocationCoords(4000);
+          if (isMounted) {
+            setIsLocating(false);
+            if (res.ok && res.coords) {
+              setUserCoords({ lat: res.coords.latitude, lon: res.coords.longitude });
+              // 첫 코스 요청이 날씨·주변 길 조회를 기다리지 않도록 서버가 미리 받아 두게 한다
+              prewarmCurrentLocation(res.coords.latitude, res.coords.longitude);
+            }
+          }
+        }
+      })();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [originMode, userCoords, isLocating]);
+
+  // ⚡ 3-1: 사용자가 산책 조건을 조작하고 700ms 멈추면 백그라운드 낙관적 프리페치 실행
+  useEffect(() => {
+    if (unsupportedLandmark) return;
+    if (originMode === 'current_location' && !userCoords) return;
+
+    const currentPreferences: WalkPreferences = {
+      originMode,
+      durationMinutes: isFreeWalk ? null : duration,
+      environments,
+      requestText,
+      isFreeWalk,
+      pilotParkId: originMode === 'park' ? pilotParkId : undefined,
+      userCoordinates: originMode === 'current_location' ? userCoords : undefined,
+    };
+
+    const timer = setTimeout(() => {
+      void prefetchWalkPlan(dog, currentPreferences, feedback);
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    dog,
+    originMode,
+    pilotParkId,
+    duration,
+    isFreeWalk,
+    environments,
+    requestText,
+    userCoords,
+    unsupportedLandmark,
+    feedback,
+  ]);
 
   const handleToggleEnvironment = (id: EnvironmentId) => {
     setEnvironments((prev) =>
@@ -210,6 +286,8 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     const payloadDuration = isFreeWalk ? null : duration;
     if (originMode === 'current_location') {
       const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
+      // 위치를 못 받았으면 다른 곳 좌표로 대신하지 않고 안내(배너)만 남긴다.
+      if (!coords) return;
       onFindRoute({
         originMode,
         durationMinutes: payloadDuration,
@@ -233,6 +311,12 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
+
       {/* 1. 상단 공통 규격 헤더 (48px 터치타깃 보장) */}
       <AppScreenHeader title="산책 설정" onBack={onBack} />
 
@@ -333,7 +417,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                 originMode === 'park' && styles.originModeTextActive,
               ]}
             >
-              🏞️ 지정 공원 둘레길
+              🏞️ 지정 명소 둘레길
             </Text>
           </TouchableOpacity>
         </View>
@@ -405,7 +489,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
               style={[styles.detailToggleBtn, { borderColor: colors.primary }]}
             >
               <Text style={[styles.detailToggleText, { color: colors.primaryDark }]}>
-                {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '맞춤 설정 (최대 2시간) ▼'}
+                {showDetailedDuration ? '간편 설정으로 돌아가기 ▲' : '맞춤 설정(최대2시간)▼'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -548,6 +632,44 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: 'rgba(207, 160, 82, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -5,
+    right: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -10,
+    left: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
   },
   header: {
     height: 48,
@@ -569,17 +691,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   titleSection: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   originModeBtn: {
     flex: 1,
-    height: 36,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -602,7 +724,7 @@ const styles = StyleSheet.create({
     lineHeight: TYPOGRAPHY_LINE_HEIGHT.support,
   },
   aiBanner: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
     borderWidth: 1,
   },
@@ -625,9 +747,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   parkChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
     marginRight: 6,
   },
@@ -652,7 +774,7 @@ const styles = StyleSheet.create({
   durationBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   durationBadgeText: {
     fontSize: TYPOGRAPHY.label,
@@ -661,7 +783,7 @@ const styles = StyleSheet.create({
   detailToggleBtn: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 6,
   },
@@ -685,7 +807,7 @@ const styles = StyleSheet.create({
   durationChip: {
     flex: 1,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -701,7 +823,7 @@ const styles = StyleSheet.create({
   envCard: {
     width: '48.5%',
     padding: 9,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   envCardHeader: {
     flexDirection: 'row',
@@ -743,9 +865,14 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 50,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
   },
   submitButtonContent: {
     flexDirection: 'row',

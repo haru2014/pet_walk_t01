@@ -12,6 +12,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { prepareBackgroundSpeech, processBackgroundGuidancePoint } from './backgroundWalkGuidance';
+import { DEFAULT_PILOT_PARK } from '../types/pilotParks';
 
 export const WALK_LOCATION_TASK = 'PETWALK_BACKGROUND_LOCATION';
 const WALK_TRACK_KEY = '@편안하개:active_walk_track';
@@ -25,7 +26,8 @@ export interface GpsPoint {
   readonly accuracyM?: number | null;
 }
 
-export type TrackingMode = 'background' | 'foreground';
+/** web_simulation: 웹에서 위치 권한이 없어 유림공원 기준 가상 보행으로 기록 중 (실제 위치 아님, #297) */
+export type TrackingMode = 'background' | 'foreground' | 'web_simulation';
 export type StartTrackingResult =
   | { readonly ok: true; readonly mode: TrackingMode }
   | { readonly ok: false; readonly reason: 'permission_denied' | 'error' };
@@ -164,9 +166,9 @@ function startWebSimulation(): void {
     clearInterval(webSimulationTimer);
     webSimulationTimer = null;
   }
-  // 기본 시작 좌표 (서울숲 인근 기준 가상 보행)
-  const baseLat = 37.5445;
-  const baseLon = 127.0374;
+  // 기본 시작 좌표 (기본 시범 공원 대전 유림공원 기준 가상 보행, #281)
+  const baseLat = DEFAULT_PILOT_PARK.center.lat;
+  const baseLon = DEFAULT_PILOT_PARK.center.lon;
   let step = 0;
   const initialLocation: Location.LocationObject = {
     coords: {
@@ -225,7 +227,7 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
         console.warn('[locationService] 웹 브라우저 Geolocation 권한 획득 생략:', e);
       }
       startWebSimulation();
-      return { ok: true, mode: 'foreground' };
+      return { ok: true, mode: 'web_simulation' };
     }
 
     // 📱 모바일 네이티브 환경 (Android / iOS): Foreground Service 무중단 수집
@@ -243,7 +245,7 @@ export async function startWalkTracking(): Promise<StartTrackingResult> {
     console.warn('[locationService] 추적 시작 실패:', error);
     if (Platform.OS === 'web') {
       startWebSimulation();
-      return { ok: true, mode: 'foreground' };
+      return { ok: true, mode: 'web_simulation' };
     }
     return { ok: false, reason: 'error' };
   }

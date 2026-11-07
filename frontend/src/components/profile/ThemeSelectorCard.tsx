@@ -48,10 +48,6 @@ export const ThemeSelectorCard: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.subDesc, { color: colors.textMuted }]}>
-        취향과 상황에 맞는 7가지 비주얼 스타일을 선택하세요.
-      </Text>
-
       <View style={styles.themeGrid}>
         {THEME_LIST.map((item) => {
           const isSelected = theme === item.id;
@@ -105,8 +101,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
   activeBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
   activeBadgeText: { fontSize: TYPOGRAPHY.label, fontWeight: '700' },
-  subDesc: { fontSize: TYPOGRAPHY.support, marginTop: 2, marginBottom: 6 },
-  themeGrid: { gap: 5 },
+  themeGrid: { gap: 5, marginTop: 8 },
   themeItem: {
     flexDirection: 'row',
     alignItems: 'center',

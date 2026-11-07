@@ -223,6 +223,11 @@ export const WalkRecordDetailModal: React.FC<WalkRecordDetailModalProps> = ({
 
             {/* 3. 지도 마커 범례 칩 바 */}
             <View style={styles.legendRow}>
+              {Boolean(record.isPublic) && (
+                <View style={[styles.legendChip, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
+                  <Text style={[styles.legendChipText, { color: '#047857', fontWeight: '700' }]}>🌐 이웃 공유 중</Text>
+                </View>
+              )}
               <View style={[styles.legendChip, { borderColor: '#10B981', backgroundColor: '#ECFDF5' }]}>
                 <Text style={styles.legendChipText}>🚩 출발지</Text>
               </View>

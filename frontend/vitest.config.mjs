@@ -20,6 +20,8 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./vitest.setup.mjs'],
     pool: 'threads',
+    maxWorkers: 4,
+    isolate: true,
     server: {
       deps: {
         inline: ['react-native-web', 'react-native-svg'],

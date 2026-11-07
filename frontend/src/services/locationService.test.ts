@@ -45,7 +45,7 @@ describe('locationService - 웹 환경 및 GPS 추적 안전 동작 테스트', 
     await stopWalkTracking();
   });
 
-  it('웹 브라우저(Platform.OS === web) 환경에서 startWalkTracking은 permission_denied 없이 성공(ok: true, mode: foreground)해야 한다', async () => {
+  it('웹 브라우저(Platform.OS === web)에서 위치 권한이 없으면 permission_denied 없이 가상 보행으로 성공(ok: true, mode: web_simulation)해야 한다', async () => {
     // Platform.OS가 web인 상태에서 호출
     const originalOS = Platform.OS;
     Platform.OS = 'web';
@@ -54,7 +54,7 @@ describe('locationService - 웹 환경 및 GPS 추적 안전 동작 테스트', 
       const result = await startWalkTracking();
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.mode).toBe('foreground');
+        expect(result.mode).toBe('web_simulation');
       }
 
       // 첫 번째 가상/실제 좌표가 버퍼에 수집되었는지 확인

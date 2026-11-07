@@ -111,6 +111,19 @@ function bootTemplate() {
 }
 
 describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
+  it('경로가 아직 없으면 마스킹 없이 초기 지도 중심 좌표를 사용한다', () => {
+    const html = buildMapLibreHtml({
+      styleUrl: PRIMARY_STYLE,
+      route: { type: 'FeatureCollection', features: [] },
+      routeColors: THEME_MAP_ROUTE_COLORS.forest,
+      initialCenter: [127.3601379, 36.3620608],
+    });
+
+    expect(html).toContain('"initialCenter":[127.3601379,36.3620608]');
+    expect(html).toContain('payload.initialCenter || payload.maskingCenter');
+    expect(html).toContain('"maskingFeature":null');
+  });
+
   it('keeps WebView marker backgrounds transparent without changing pin selection handling', () => {
     const html = buildMapLibreHtml({
       styleUrl: PRIMARY_STYLE,
@@ -259,5 +272,104 @@ describe('MapLibre WebView 템플릿 폴백 브릿지 동작 (T-OFM-7)', () => {
     expect(html).toContain(`color: ${THEME_MAP_ROUTE_COLORS.dusty_amber.mapGuidance}`);
     expect(html).toContain('text-shadow: 0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)');
     expect(html).toContain('font-weight: 900');
+  });
+});
+
+describe('MapLibre WebView 템플릿 적응형 방향 마커 (#319)', () => {
+  const LAT = 36.4315;
+  const METERS_PER_DEG_LNG = 111320 * Math.cos((LAT * Math.PI) / 180);
+  const directionPins: RouteStepPin[] = [
+    { id: 'd1', kind: 'turn', position: [127.38, LAT], instruction: '경로 방향 안내', icon: '↱', directionMarker: true },
+    { id: 'd2', kind: 'turn', position: [127.38 + 32 / METERS_PER_DEG_LNG, LAT], instruction: '경로 방향 안내', icon: '↑', directionMarker: true },
+  ];
+
+  function bootAdaptiveTemplate(initialZoom: number) {
+    const html = buildMapLibreHtml({
+      styleUrl: PRIMARY_STYLE, route, stepPins: directionPins, routeColors: THEME_MAP_ROUTE_COLORS.forest,
+    });
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+    const handlers: Record<string, Handler[]> = {};
+    const sources: Record<string, unknown> = {};
+    const classes = new Set<string>();
+    const container = {
+      classList: {
+        add: (c: string) => classes.add(c),
+        remove: (c: string) => classes.delete(c),
+      },
+    };
+    const markerElements: any[] = [];
+    let zoom = initialZoom;
+
+    const map = {
+      on(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
+      once(name: string, fn: Handler) { (handlers[name] ??= []).push(fn); },
+      emit(name: string, arg?: unknown) { [...(handlers[name] ?? [])].forEach((fn) => fn(arg)); },
+      addControl() { },
+      addSource(id: string, source: unknown) { sources[id] = source; },
+      addLayer() { },
+      getSource(id: string) { return sources[id]; },
+      getLayer() { return true; },
+      setPaintProperty() { },
+      fitBounds() { },
+      getZoom: () => zoom,
+      getContainer: () => container,
+      project([lng, lat]: [number, number]) {
+        const worldSize = 512 * 2 ** zoom;
+        const sin = Math.sin((lat * Math.PI) / 180);
+        return {
+          x: ((lng + 180) / 360) * worldSize,
+          y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
+        };
+      },
+    };
+    const fakeMapLibre = {
+      Map: function FakeMap() { return map; },
+      Marker: function FakeMarker(options: { element: any }) {
+        markerElements.push(options.element);
+        return { setLngLat() { return this; }, addTo() { return this; }, remove() { } };
+      },
+      AttributionControl: function FakeControl() { },
+    };
+    const fakeDocument = {
+      createElement: () => ({ style: {}, className: '', appendChild() { } }),
+      addEventListener() { },
+    };
+    new Function('window', 'document', 'maplibregl', 'setTimeout', 'clearTimeout', script)(
+      { addEventListener() { } }, fakeDocument, fakeMapLibre, () => 0, () => undefined,
+    );
+
+    return {
+      classes,
+      markerElements,
+      zoomTo(next: number) { zoom = next; map.emit('zoom'); },
+      load() { map.emit('load'); },
+    };
+  }
+
+  it('줌 15에서 마커가 겹치면 원거리(점) 마커를 유지하고, 겹치지 않을 만큼 확대되면 상세 마커로 바뀐다', () => {
+    const view = bootAdaptiveTemplate(15);
+    view.load();
+    expect(view.classes.has('zoom-compact-markers')).toBe(true);
+
+    view.zoomTo(15.8); // 32m ≈ 29px → 28px 마커가 아직 겹침
+    expect(view.classes.has('zoom-compact-markers')).toBe(true);
+
+    view.zoomTo(18);
+    expect(view.classes.has('zoom-compact-markers')).toBe(false);
+
+    view.zoomTo(14);
+    expect(view.classes.has('zoom-compact-markers')).toBe(true);
+  });
+
+  it('상세 방향 마커 화살표는 테마 안내색(주황)이 아닌 원거리 마커와 같은 색으로 그린다', () => {
+    const view = bootAdaptiveTemplate(18);
+    view.load();
+    const directionEls = view.markerElements.filter((el) => String(el.className).includes('direction-marker'));
+    expect(directionEls).toHaveLength(2);
+    directionEls.forEach((el) => {
+      const large = /<svg class="arrow-svg-large"[\s\S]*?<\/svg>/.exec(el.innerHTML)?.[0] ?? '';
+      expect(large).toContain('#26352B');
+      expect(large).not.toContain(THEME_MAP_ROUTE_COLORS.forest.mapGuidance as string);
+    });
   });
 });

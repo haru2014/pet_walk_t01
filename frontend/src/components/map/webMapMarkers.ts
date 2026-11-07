@@ -8,7 +8,8 @@
 import { RouteFeatureCollection, RouteStepPin } from '../../types/route';
 import { MapRouteColors } from '../../constants/mapStyles';
 import { RemovableHandle } from './webMapLifecycle';
-import { getRouteStepPinIcon, getLargeArrowSvg } from './routeStepIcon';
+import { getRouteStepPinIcon, getLargeArrowSvg, getAdaptiveArrowSvg } from './routeStepIcon';
+import { DIRECTION_MARKER_COLOR } from './adaptiveMarkerStyles';
 
 /** maplibre-gl Marker 생성자의 최소 구조 (동적 import 결과를 그대로 전달) */
 export interface MarkerLike extends RemovableHandle {
@@ -79,12 +80,13 @@ function applyPinBaseStyle(
   hasTitle: boolean,
   isCurrentLoc: boolean,
   textColor: string,
+  isDirectionMarker: boolean,
 ): void {
   const textShadow = isCurrentLoc && !hasTitle ? undefined : '0 0 4px #FFFFFF, 0 0 8px #FFFFFF, 0 0 12px rgba(255, 255, 255, 0.95)';
 
   Object.assign(element.style, {
-    width: hasTitle ? 'auto' : '32px',
-    height: hasTitle ? 'auto' : '32px',
+    width: hasTitle ? 'auto' : (isDirectionMarker ? '28px' : '32px'),
+    height: hasTitle ? 'auto' : (isDirectionMarker ? '28px' : '32px'),
     background: 'transparent',
     border: 'transparent',
     boxShadow: 'none',
@@ -96,6 +98,22 @@ function applyPinBaseStyle(
     textAlign: 'center',
     textShadow,
   });
+  if (isDirectionMarker) {
+    element.className = (element.className ? element.className + ' ' : '') + 'direction-marker';
+    Object.assign(element.style, {
+      background: '#FFFFFF',
+      border: '1px solid #718276',
+      borderRadius: '50%',
+      boxShadow: '0 1px 5px rgba(0, 0, 0, 0.22)',
+      color: '#596B5C',
+      fontSize: '20px',
+      textShadow: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0',
+    });
+  }
 }
 
 function applyPinGraphic(
@@ -111,12 +129,15 @@ function applyPinGraphic(
   if (isCurrentLoc) {
     if (pin.bearingDeg != null) {
       element.style.borderRadius = '50%';
-      element.style.transform = `rotate(${pin.bearingDeg - 90}deg)`;
-      element.innerHTML = '<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>';
+      const rot = pin.bearingDeg - 90;
+      element.innerHTML = `<svg width="18" height="18" viewBox="0 0 28 28" fill="none" style="display:block;transform:rotate(${rot}deg);transform-origin:14px 14px;"><polygon points="26,14 4,4 9,14 4,24" fill="#FFFFFF"/></svg>`;
     }
     return;
   }
-  const arrowSvg = getLargeArrowSvg(pinLabel, textColor);
+  // #319: 방향 마커는 원거리(점) 마커와 상세 마커가 같은 색을 쓰도록 테마 안내색(주황) 대신 공통 색을 사용합니다.
+  const arrowSvg = pin.directionMarker
+    ? getAdaptiveArrowSvg(pinLabel, DIRECTION_MARKER_COLOR, DIRECTION_MARKER_COLOR)
+    : getLargeArrowSvg(pinLabel, textColor);
   if (arrowSvg) {
     element.innerHTML = arrowSvg;
   }
@@ -133,7 +154,7 @@ function createPinElement(pin: RouteStepPin, guidanceColor: string): HTMLElement
   element.textContent = pinLabel;
 
   const textColor = getPinTextColor(hasTitle, isCurrentLoc, guidanceColor);
-  applyPinBaseStyle(element, hasTitle, isCurrentLoc, textColor);
+  applyPinBaseStyle(element, hasTitle, isCurrentLoc, textColor, Boolean(pin.directionMarker));
 
   if (hasTitle) {
     fillTitleLayout(element, pin, guidanceColor);

@@ -39,6 +39,20 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     });
   });
 
+  it('산책 설정 환경 조건 6종을 모두 서버로 보낸다 (차가 적은 길·조용한 길·쉬어가기 포함)', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    await expect(requestWalkPlan(dummyDog, {
+      originMode: 'park', pilotParkId: 'songgang', durationMinutes: 30,
+      environments: ['traffic', 'rest', 'stairs'], requestText: '',
+    })).rejects.toBeTruthy();
+    const [, options] = fetchMock.mock.calls[0];
+    expect(JSON.parse(options!.body as string)).toMatchObject({
+      environments: ['traffic', 'rest', 'stairs'],
+      avoid_traffic: true, prefer_quiet: false, prefer_rest: true,
+      avoid_stairs: true, prefer_shade: false, prefer_cushion: false,
+    });
+  });
+
   it('공원 경로 서버가 오프라인이면 검증되지 않은 로컬 코스로 대체하지 않는다', async () => {
     // fetch가 에러를 던지도록 모킹
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
@@ -86,6 +100,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
         json: async () => ({
           courses: [{ id: 'current_1', name: '현위치 안심 코스' }],
           briefing: '현위치 기반 코스',
+          geojson: { features: [{ geometry: { type: 'LineString', coordinates: [[126.978, 37.5665], [126.979, 37.5665]] } }] },
         }),
       } as Response;
     });
@@ -105,7 +120,7 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(capturedBody.park_zone).toBe('현재 위치 주변');
   });
 
-  it('진입 경로 2: 지정 공원 둘레길(park) 요청 시 공원 좌표, pilot_park_id 및 명칭을 전송해야 한다', async () => {
+  it('진입 경로 2: 지정 명소 둘레길 요청 시 공원 좌표, pilot_park_id 및 명칭을 전송해야 한다', async () => {
     let capturedBody: any = null;
     vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, options: any) => {
       capturedBody = JSON.parse(options.body);
@@ -138,26 +153,44 @@ describe('apiService (Live API 및 오프라인 폴백 듀얼 모드)', () => {
     expect(capturedBody.origin_lon).toBeCloseTo(127.3601379);
   });
 
-  it('현위치 기반 오프라인 폴백 시 실측 좌표 기준 안전 순환 경로를 생성해야 한다', async () => {
+  const currentLocationPrefs = {
+    originMode: 'current_location' as const,
+    durationMinutes: 20,
+    environments: ['soft' as const],
+    requestText: '',
+    userCoordinates: { lat: 37.5665, lon: 126.978 },
+    pilotParkId: 'yurim', // 남아 있어도 현재 위치 요청에는 쓰이지 않아야 함
+  };
+
+  it('현위치 모드에서 서버에 연결하지 못하면 앱이 만든 경로로 대신하지 않고 오류를 알린다', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+    await expect(requestWalkPlan(dummyDog, currentLocationPrefs))
+      .rejects.toMatchObject({ code: 'ROUTING_PROVIDER_TIMEOUT' });
+  });
 
-    const result = await requestWalkPlan(dummyDog, {
-      originMode: 'current_location',
-      durationMinutes: 20,
-      environments: ['soft'],
-      requestText: '',
-      userCoordinates: { lat: 37.5665, lon: 126.978 },
-    });
+  it('현위치 모드에서 서버가 오류를 돌려주면 그 코드를 전달하고 로컬 경로를 만들지 않는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false, status: 422,
+      json: async () => ({ code: 'NO_VALID_LOOP', detail: '순환 경로를 찾지 못했습니다.', request_id: 'trace-cur' }),
+    } as Response);
+    await expect(requestWalkPlan(dummyDog, currentLocationPrefs))
+      .rejects.toMatchObject({ code: 'NO_VALID_LOOP', requestId: 'trace-cur' });
+  });
 
-    expect(result.isLiveServer).toBe(false);
-    expect(result.route.type).toBe('FeatureCollection');
-    expect(result.route.features.length).toBeGreaterThan(0);
-    // 생성된 루프 첫 점이 서울 시청 인근(126.x, 37.x)인지 확인 (대전 유림공원 127.3592가 아님)
-    const firstCoord = result.route.features[0].geometry.coordinates[0];
-    expect(firstCoord[0]).toBeCloseTo(126.98, 1);
-    expect(firstCoord[1]).toBeCloseTo(37.56, 1);
-    expect(result.stepPins[0].position[0]).toBeCloseTo(126.978);
-    expect(result.stepPins[0].position[1]).toBeCloseTo(37.5665);
+  it('현위치 모드에서 서버 응답에 경로가 없으면 성공으로 취급하지 않는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, json: async () => ({ courses: [{ id: 'current_1' }] }),
+    } as Response);
+    await expect(requestWalkPlan(dummyDog, currentLocationPrefs))
+      .rejects.toMatchObject({ code: 'ROUTE_VALIDATION_FAILED' });
+  });
+
+  it('현위치 모드에서 GPS 좌표가 없으면 유림공원 좌표로 대신하지 않고 요청 없이 오류를 알린다', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    await expect(requestWalkPlan(dummyDog, {
+      originMode: 'current_location', durationMinutes: 20, environments: ['soft'], requestText: '',
+    })).rejects.toMatchObject({ code: 'LOCATION_UNAVAILABLE' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('서버의 경계 검증 거부를 그대로 전달하고 로컬 코스를 생성하지 않는다', async () => {

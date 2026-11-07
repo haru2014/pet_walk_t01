@@ -19,8 +19,10 @@ from langgraph.graph.message import add_messages
 from agent.walk_limits import MAX_WALK_MINUTES, MIN_WALK_MINUTES
 from agent.park_walk_planner import route_direction_label
 from agent.loop_route_planner import VARIANT_BEARINGS, plan_loop_candidates
-from agent.route_geometry import estimate_duration_minutes
+from agent.route_geometry import backtrack_ratio, estimate_duration_minutes
 from agent.pilot_park_routes import PILOT_PARK_CENTERS
+from services.request_budget import RequestBudget, budget_from, deadline_of
+from services.walk_preferences import WalkPreferences
 from test_case.test_thermal_and_parking import determine_heat_risk_dto
 
 # ==============================================================================
@@ -57,6 +59,10 @@ class WalkIntent(BaseModel):
     shade_priority: bool = Field(default=False)
     preferred_surfaces: List[AllowedSurface] = Field(default_factory=lambda: ["dirt", "grass"])
     extraction_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    # 앱 산책 설정의 '차가 적은 길' · '조용한 길'(US-20) · '쉬어가기 좋은 길'
+    avoid_traffic: bool = Field(default=False)
+    prefer_quiet: bool = Field(default=False)
+    prefer_rest: bool = Field(default=False)
 
 
 class RouteCandidate(BaseModel):
@@ -85,6 +91,12 @@ class RouteCandidate(BaseModel):
     surface_known_ratio: Optional[float] = None
     data_reliability: str = "estimated"
     direction_label: Optional[str] = None
+    # 실측 주변 맥락 (agent/candidate_exposure). 자료가 없으면 None
+    road_exposure_ratio: Optional[float] = None
+    major_road_ratio: Optional[float] = None
+    crossing_count: Optional[int] = None
+    rest_spot_count: Optional[int] = None
+    exposure_source: Optional[str] = None
 
 
 class ScoredRoute(BaseModel):
@@ -104,14 +116,36 @@ class ScoredRoute(BaseModel):
 DURATION_FIT_TOLERANCE = 0.25
 
 
+# 같은 순환로를 이 횟수보다 많이 도는 코스는 대안이 있으면 뒤로 민다 (공원 계획의 PREFERRED_LAP_REPEATS 와 같은 값)
+MAX_PREFERRED_LAPS = 2
+RETRACE_BUCKET_STEP = 0.1  # 같은 길을 되밟는 비율을 이 폭으로 묶어 비교한다 (미세한 차이로 점수 순위를 뒤집지 않는다)
+
+
+def repeat_penalty(candidate: "RouteCandidate") -> Tuple[int, float]:
+    """(3바퀴 이상 반복 여부, 같은 길 되밟기 비율 구간). 둘 다 작을수록 앞선다.
+
+    바퀴 반복(2바퀴 등)으로 생기는 되밟기는 빼고, 순환 코스 안에서 같은 길을 다시 걷는 몫만 센다.
+    """
+    laps = candidate.lap_count or 1
+    coords = candidate.geojson_coordinates
+    ratio = backtrack_ratio(coords) if len(coords) >= 2 else 0.0
+    lap_repeat_ratio = (laps - 1) / laps
+    retrace = max(0.0, ratio - lap_repeat_ratio)
+    bucket = round(round(retrace / RETRACE_BUCKET_STEP) * RETRACE_BUCKET_STEP, 2)
+    return (1 if laps > MAX_PREFERRED_LAPS else 0, bucket)
+
+
 def rank_key(scored: "ScoredRoute") -> tuple:
-    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고 그 안에서는 점수 순,
-    맞는 코스가 없으면 요청 시간에 가까운 순(같으면 점수 순). 점수 자체는 바꾸지 않는다.
-    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다."""
+    """순위 기준 (#170). 요청 시간에 맞는 코스를 먼저 세우고, 맞는 코스가 없으면 요청 시간에 가까운 순으로 센다.
+    같은 단계 안에서는 같은 길을 되풀이하지 않는 코스(되밟기 비율 순 → 3바퀴 이상 반복)를 앞세우고,
+    그다음 점수 순. 점수 자체는 바꾸지 않는다.
+    예: 송강 120분 요청에서 경사 점수가 높은 19분 코스보다 35분 코스를 먼저 추천한다.
+    같은 시간에 맞는 코스끼리면 되밟기가 적은 코스를 3바퀴 도는 코스보다 먼저 추천한다."""
     err = scored.distance_error_ratio
+    laps_over, retrace = repeat_penalty(scored.candidate)
     if err <= DURATION_FIT_TOLERANCE:
-        return (0, 0.0, -scored.total_score)
-    return (1, round(err, 3), -scored.total_score)
+        return (0, 0.0, retrace, laps_over, -scored.total_score)
+    return (1, round(err, 3), retrace, laps_over, -scored.total_score)
 
 
 class WalkPlanningResult(BaseModel):
@@ -351,12 +385,16 @@ class LoopCandidateRequest(BaseModel):
     estimated_surface_temp: Optional[float] = None
     air_temp_celsius: Optional[float] = None
     regenerate_nonce: int = 0
+    preferences: Optional[WalkPreferences] = None
+    # 이 요청에서 주변 길 조회·OSRM 에 쓸 수 있는 시간(초). None 이면 각 단계의 평소 예산을 쓴다
+    overpass_budget_s: Optional[float] = None
+    osrm_budget_s: Optional[float] = None
 
 
 # 후보별 표시 정보 및 보행 환경 지표 (기상청 실시간 지면열 모델 연동)
 DIRECTION_LABELS = ["북", "북동", "동", "남동", "남", "남서", "서", "북서"]
 VARIANT_NAME_TEMPLATES: Dict[int, str] = {
-    1: "🌿 {direction} 방면 보행안심 순환로",
+    1: "🌿 {direction} 방면 편안한 동네 산책로",
     2: "🚶 {direction} 방면 완만 보행 순환 코스",
     3: "🏢 {direction} 방면 도심 가로수길 순환 코스",
 }
@@ -399,6 +437,7 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
 
     거리와 소요 시간은 생성된 좌표열의 실측값에서 계산한다.
     """
+    budget = {} if req.osrm_budget_s is None else {"time_budget_s": req.osrm_budget_s}
     plans = plan_loop_candidates(
         req.origin_lat,
         req.origin_lon,
@@ -406,6 +445,9 @@ def generate_loop_candidates(req: LoopCandidateRequest) -> List[RouteCandidate]:
         origin_mode=req.origin_mode,
         pilot_park_id=req.pilot_park_id,
         regenerate_nonce=req.regenerate_nonce,
+        preferences=req.preferences,
+        overpass_budget_s=req.overpass_budget_s,
+        **budget,
     )
     candidates: List[RouteCandidate] = []
     for variant, plan in plans.items():
@@ -459,6 +501,8 @@ class WalkPlanningState(TypedDict):
     parking_lot_id: Optional[str]
     pilot_park_id: Optional[str]
     regenerate_nonce: int
+    # 이 요청의 외부 조회 데드라인(time.monotonic 기준 초). None 이면 예산 없이 평소대로 조회한다
+    plan_deadline: Optional[float]
     # 앱 산책 설정에서 고른 조건 (avoid_stairs / shade_priority / prefer_soft). 문장 분석 결과보다 앞선다
     intent_overrides: Optional[Dict[str, Any]]
     # 분석 & 보정 산출물
@@ -489,12 +533,14 @@ def apply_intent_overrides(intent: WalkIntent, overrides: Optional[Dict[str, Any
     - avoid_stairs: 앱의 '계단 피하기' 체크 여부 그대로 (체크 안 하면 계단을 피하지 않는다)
     - shade_priority: '그늘이 많은 길'을 체크했거나 요청 문장에 그늘·더위 낱말이 있으면 켠다
     - prefer_soft: '폭신한 길'을 체크하면 흙·잔디·탄성 노면을 선호에 넣는다
+    - avoid_traffic / prefer_quiet / prefer_rest: 체크 여부 그대로
     """
     if not overrides:
         return intent
     updated = intent.model_copy()
-    if isinstance(overrides.get("avoid_stairs"), bool):
-        updated.avoid_stairs = overrides["avoid_stairs"]
+    for key in ("avoid_stairs", "avoid_traffic", "prefer_quiet", "prefer_rest"):
+        if isinstance(overrides.get(key), bool):
+            setattr(updated, key, overrides[key])
     if overrides.get("shade_priority") is True:
         updated.shade_priority = True
     if overrides.get("prefer_soft") is True:
@@ -580,6 +626,7 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
     origin_mode = state.get("origin_mode")
     if not origin_mode:
         origin_mode = "current_location"
+    budget = budget_from(state.get("plan_deadline"))
 
     request = LoopCandidateRequest(
         origin_lat=state.get("origin_lat", 37.5665),
@@ -594,6 +641,10 @@ def node_generate_candidates(state: WalkPlanningState) -> Dict[str, Any]:
         estimated_surface_temp=surf_temp,
         air_temp_celsius=air_temp,
         regenerate_nonce=state.get("regenerate_nonce", 0),
+        # 앱이 산책 설정 조건을 보냈을 때만 길 선택에 반영한다 (문장 분석의 기본값만으로는 순위를 바꾸지 않는다)
+        preferences=WalkPreferences.from_intent(intent_dict) if state.get("intent_overrides") else None,
+        overpass_budget_s=None if budget is None else budget.overpass_s(),
+        osrm_budget_s=None if budget is None else budget.osrm_s(),
     )
     candidates = generate_loop_candidates(request)
 
@@ -639,6 +690,56 @@ def _apply_profile_to_candidate(c: RouteCandidate, profile: Dict[str, Any], surf
     c.data_reliability = "measured" if is_measured else "estimated"
 
 
+def _candidate_exposures(state: WalkPlanningState, candidates: List[RouteCandidate],
+                         target_dist: float) -> Dict[str, Dict[str, Any]]:
+    """후보별 차도 인접 비율·횡단 수·쉼터 수 (agent/candidate_exposure)."""
+    from agent.candidate_exposure import candidate_exposures
+
+    coords_by_id = {c.route_id: c.geojson_coordinates for c in candidates if c.geojson_coordinates}
+    return candidate_exposures(state, target_dist, coords_by_id)
+
+
+def _score_single_candidate(
+    c: RouteCandidate,
+    state: WalkPlanningState,
+    target_dist: float,
+    park_id: Optional[str],
+    exposure: Dict[str, Any],
+    dog: Dict[str, Any],
+    intent: Dict[str, Any],
+    current: Dict[str, Any],
+) -> ScoredRoute:
+    """개별 경로 후보에 대해 실측 프로필과 환경 노출값을 반영하여 개인화 점수를 산출한다."""
+    from agent.park_route_validation import entry_approach_length_m
+    from agent.personalized_scorer import score_personalized
+    from services.route_profile import measure_route_profile
+
+    profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
+    # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
+    approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
+    loop_distance_m = c.total_distance_m - 2 * approach_m
+    result = score_personalized(
+        {**profile, **exposure}, distance_m=loop_distance_m, target_distance_m=target_dist,
+        joint_care_level=int(dog.get("joint_care_level", 1)),
+        calibrated_max_slope=state.get("max_slope_allowed"),
+        avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
+        preferred_surfaces=intent.get("preferred_surfaces"),
+        air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
+        context_preferences=WalkPreferences.from_intent(intent),
+        lap_count=c.lap_count or 1,
+    )
+    if profile:
+        _apply_profile_to_candidate(c, profile, result.surface_temp_c)
+    for key, value in exposure.items():
+        setattr(c, key, value)
+    dist_error = abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0
+    return ScoredRoute(
+        candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
+        thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
+        distance_error_ratio=dist_error,
+    )
+
+
 def _score_candidates_personalized(state: WalkPlanningState, candidates: List[RouteCandidate],
                                    target_dist: float) -> List[ScoredRoute]:
     """[제안] 실측 지표(course_profiles 와 같은 계산) + 반려견 관절 단계 + 그늘·노면 선호로 채점한다.
@@ -646,37 +747,18 @@ def _score_candidates_personalized(state: WalkPlanningState, candidates: List[Ro
     후보의 경사·계단·그늘·지면온도도 실측값으로 바꿔, 카드·안내 문구가 같은 값을 보게 한다.
     기존 score_candidate_route(고정 프로필)는 비교·검토용으로 남겨 둔다.
     """
-    from agent.park_route_validation import entry_approach_length_m
-    from agent.personalized_scorer import score_personalized
-    from services.route_profile import measure_route_profile
-
     intent = state.get("parsed_intent") or {}
     dog = state.get("client_dog_context") or {}
     weather = state.get("weather_context") or {}
     current = weather.get("current") or weather
     park_id = state.get("pilot_park_id") if state.get("origin_mode") in ("park", "parking_pnr") else None
-    scored_list: List[ScoredRoute] = []
-    for c in candidates:
-        profile = measure_route_profile(c.geojson_coordinates, park_id) if c.geojson_coordinates else {}
-        # 경계 밖 주차장 진입로 왕복은 목표 거리와 비교하지 않는다 (#160 가 안: 공원 안 코스만 목표에 맞춘다)
-        approach_m = entry_approach_length_m(park_id, c.geojson_coordinates) if park_id else 0.0
-        loop_distance_m = c.total_distance_m - 2 * approach_m
-        result = score_personalized(
-            profile, distance_m=loop_distance_m, target_distance_m=target_dist,
-            joint_care_level=int(dog.get("joint_care_level", 1)),
-            calibrated_max_slope=state.get("max_slope_allowed"),
-            avoid_stairs=intent.get("avoid_stairs", True), shade_priority=intent.get("shade_priority", False),
-            preferred_surfaces=intent.get("preferred_surfaces"),
-            air_temp_c=current.get("air_temp_celsius"), surface_temp_c=current.get("estimated_surface_temp"),
+    exposures = _candidate_exposures(state, candidates, target_dist)
+    return [
+        _score_single_candidate(
+            c, state, target_dist, park_id, exposures.get(c.route_id) or {}, dog, intent, current
         )
-        if profile:
-            _apply_profile_to_candidate(c, profile, result.surface_temp_c)
-        scored_list.append(ScoredRoute(
-            candidate=c, total_score=result.total, stairs_score=result.stairs, slope_score=result.slope,
-            thermal_score=result.thermal, distance_score=result.distance, preference_score=result.preference, rank=1,
-            distance_error_ratio=abs(loop_distance_m - target_dist) / target_dist if target_dist else 0.0,
-        ))
-    return scored_list
+        for c in candidates
+    ]
 
 
 def node_score_and_rank(state: WalkPlanningState) -> Dict[str, Any]:
@@ -880,8 +962,12 @@ def run_walk_planning_agent(
     pilot_park_id: Optional[str] = None,
     intent_overrides: Optional[Dict[str, Any]] = None,
     regenerate_nonce: int = 0,
+    plan_budget: Optional[RequestBudget] = None,
 ) -> WalkPlanningResult:
-    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수."""
+    """[US-A1, US-A3, US-B1~B3, US-E3, US-F1, US-G1] Walk Planning Agent 단일 실행 진입 함수.
+
+    plan_budget 을 주면 주변 길 조회와 OSRM 이 그 예산 안에서만 외부 서버를 기다린다.
+    """
     agent = get_agent()
 
     if not origin_mode:
@@ -913,6 +999,7 @@ def run_walk_planning_agent(
         "pilot_park_id": pilot_park_id,
         "intent_overrides": intent_overrides,
         "regenerate_nonce": regenerate_nonce,
+        "plan_deadline": deadline_of(plan_budget),
         "parsed_intent": None,
         "calibrated_speed_kmh": 2.8,
         "target_distance_m": 0.0,

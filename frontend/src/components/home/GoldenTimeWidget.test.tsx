@@ -11,7 +11,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GoldenTimeWidget, WeatherDetailModal } from './GoldenTimeWidget';
+import { GoldenTimeWidget, WeatherDetailModal, computeWeatherModalProps } from './GoldenTimeWidget';
 import { HeatRiskResponse } from '../../types/weather';
 
 vi.mock('react-native', async (importOriginal) => {
@@ -372,6 +372,57 @@ describe('GoldenTimeWidget - Issue #50 골든타임 위젯 오늘/내일 구분 
       expect(html).toContain('38');
       expect(html).toContain('✓ 강설 주의');
       expect(html).toContain('눈 때문에 길이 미끄러워요');
+    });
+
+    it('WeatherDetailModal은 isLoading일 때 "실시간 측정" 대신 로딩 안내 뱃지를 띄운다', () => {
+      const { quotient } = computeWeatherModalProps(null);
+      const html = renderToStaticMarkup(
+        <WeatherDetailModal
+          visible={true}
+          onClose={vi.fn()}
+          colors={{ surface: '#fff', border: '#ddd', textMain: '#111', textMuted: '#666' }}
+          quotient={quotient}
+          subtitleText="산책 날씨를 확인 중입니다"
+          currentAirTemp={22}
+          roundedSurfaceTemp={23}
+          riskLevel="SAFE"
+          popPercent={10}
+          airQualityColor="#059669"
+          airQualityLabel="좋음"
+          isTomorrow={false}
+          timeRangeDisplay="17:00 ~ 23:00"
+          weather={null}
+          isLoading={true}
+        />
+      );
+      expect(html).toContain('⏳ 산책 정보 확인 중...');
+      expect(html).toContain('기상청·에어코리아 산책 정보를 받아오고 있어요...');
+      expect(html).not.toContain('📡 실시간 측정');
+    });
+
+    it('WeatherDetailModal은 weather가 null일 때 "실시간 측정" 대신 예상치 뱃지를 띄운다', () => {
+      const { quotient } = computeWeatherModalProps(null);
+      const html = renderToStaticMarkup(
+        <WeatherDetailModal
+          visible={true}
+          onClose={vi.fn()}
+          colors={{ surface: '#fff', border: '#ddd', textMain: '#111', textMuted: '#666' }}
+          quotient={quotient}
+          subtitleText="예상 정보를 보여드려요"
+          currentAirTemp={22}
+          roundedSurfaceTemp={23}
+          riskLevel="SAFE"
+          popPercent={10}
+          airQualityColor="#059669"
+          airQualityLabel="좋음"
+          isTomorrow={false}
+          timeRangeDisplay="17:00 ~ 23:00"
+          weather={null}
+          isLoading={false}
+        />
+      );
+      expect(html).toContain('⚠️ 예상치 (측정 불가)');
+      expect(html).not.toContain('📡 실시간 측정');
     });
   });
 });

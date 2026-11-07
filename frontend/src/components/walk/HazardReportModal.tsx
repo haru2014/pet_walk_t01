@@ -57,6 +57,27 @@ export function buildEmergencyReturnReport(
   };
 }
 
+/**
+ * 우회 버튼(새로운 길로 안전 우회하기)으로 서버에 올릴 위험 제보. 위험 종류를 직접 고르지 않았으면 올리지 않는다(null).
+ * 기본 선택이 공사 구역이라 종류를 고르지 않고 눌러도 가짜 공사 구역이 영구히 저장되던 문제 (2026-10-30 QA).
+ * 우회 경로 요청은 종류를 고르지 않아도 그대로 진행한다.
+ */
+export function buildRerouteHazardReport(
+  typeChosen: boolean,
+  hazardType: HazardType,
+  hazardLat: number,
+  hazardLon: number,
+): HazardReportPayload | null {
+  if (!typeChosen) return null;
+  return {
+    lat: hazardLat,
+    lon: hazardLon,
+    hazardType,
+    severity: 'danger',
+    description: `현장 돌발 위험 [${HAZARD_TYPE_LABELS[hazardType]}] 사용자 제보`,
+  };
+}
+
 export const HazardReportModal: React.FC<HazardReportModalProps> = ({
   visible,
   onClose,
@@ -90,13 +111,8 @@ export const HazardReportModal: React.FC<HazardReportModalProps> = ({
       const destLon = destinationLon ?? (startLon ?? currentLon);
 
       // 1. 서버에 위험 제보 비동기 적재
-      void reportHazard({
-        lat: hazardLat,
-        lon: hazardLon,
-        hazardType: selectedType,
-        severity: 'danger',
-        description: `현장 돌발 위험 [${HAZARD_TYPE_LABELS[selectedType]}] 사용자 제보`,
-      });
+      const report = buildRerouteHazardReport(typeChosen, selectedType, hazardLat, hazardLon);
+      if (report) void reportHazard(report);
 
       // 2. 우회 경로 요청
       const result = await requestRerouteAroundHazard({

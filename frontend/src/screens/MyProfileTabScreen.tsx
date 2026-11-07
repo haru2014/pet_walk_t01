@@ -7,7 +7,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../theme/tokens';
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Image } from 'react-native';
 import { AppText as Text } from '../components/common/AppText';
 import * as Updates from 'expo-updates';
 import { DogProfile } from '../types/dogProfile';
@@ -25,9 +25,11 @@ import { useAppTheme } from '../theme/themeManager';
 import { useAppResponsive } from '../hooks/useAppResponsive';
 import { LegalTermsModal, LegalTabType } from '../components/common/LegalTermsModal';
 import { VoiceSettingCard } from '../components/voice/VoiceSettingCard';
-import { WeeklyWalkReportCard, RecentWalkInfo } from '../components/home/WeeklyWalkReportCard';
 import { WalkStatisticsService, WeeklyWalkStats } from '../services/walkStatisticsService';
 import { LocalStorageService } from '../services/storage';
+import { WalkRecord } from '../types/storage';
+import { MonthlyWalkStampCalendar } from '../components/profile/MonthlyWalkStampCalendar';
+import dogSittingImg from '../../assets/ui_n2/dog_sitting.png';
 
 export interface MyProfileTabScreenProps {
   dog: DogProfile;
@@ -63,28 +65,18 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
   onSignOut,
 }) => {
   if (currentUser) {
+    if (!onSignOut) return null;
     return (
       <View style={styles.authBtnGroup}>
-        {onOpenAuthModal && (
-          <TouchableOpacity
-            onPress={() => onOpenAuthModal('signin')}
-            style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}
-            accessibilityRole="button"
-            accessibilityLabel="계정 전환"
-          >
-            <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>계정 전환</Text>
-          </TouchableOpacity>
-        )}
-        {onSignOut && (
-          <TouchableOpacity
-            onPress={onSignOut}
-            style={[styles.accountBtn, styles.logoutBtn, { borderColor: colors.border }]}
-            accessibilityRole="button"
-            accessibilityLabel="로그아웃"
-          >
-            <Text style={[styles.accountBtnText, { color: colors.textMuted }]}>로그아웃</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={onSignOut}
+          style={[styles.accountBtn, styles.logoutBtn, { borderColor: colors.border }]}
+          accessibilityRole="button"
+          accessibilityLabel="로그아웃"
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          <Text style={[styles.accountBtnText, { color: colors.textMuted }]}>로그아웃</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -98,6 +90,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
         style={[styles.accountBtn, { backgroundColor: colors.primary }]}
         accessibilityRole="button"
         accessibilityLabel="회원가입"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
         <Text style={[styles.accountBtnText, { color: '#FFFFFF' }]}>회원가입</Text>
       </TouchableOpacity>
@@ -106,6 +99,7 @@ const AccountAuthActions: React.FC<AccountAuthActionsProps> = ({
         style={[styles.accountBtn, { backgroundColor: colors.primaryLight }]}
         accessibilityRole="button"
         accessibilityLabel="로그인"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
         <Text style={[styles.accountBtnText, { color: colors.primaryDark }]}>로그인</Text>
       </TouchableOpacity>
@@ -137,6 +131,15 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [updateStatusMessage, setUpdateStatusMessage] = useState('');
   const { isUpdateAvailable, isUpdatePending } = Updates.useUpdates();
+
+  const getUpdateLaunchDescription = (): string => {
+    if (!Updates.isEnabled) {
+      return '이 실행 환경에서는 OTA 상태를 확인할 수 없습니다.';
+    }
+    return Updates.isEmbeddedLaunch
+      ? '현재 설치된 앱에 포함된 버전을 실행 중입니다.'
+      : 'OTA로 다운로드한 버전을 실행 중입니다.';
+  };
 
   const checkAndDownloadUpdate = async () => {
     if (!Updates.isEnabled) {
@@ -267,9 +270,7 @@ const SettingsSubTabSection: React.FC<SettingsSubTabSectionProps> = ({
     <CardWrapper variant="flat" style={{ marginTop: 2, marginBottom: 8 }}>
       <Text style={[styles.cardHeaderTitle, { color: colors.textMain }]}>📲 앱 업데이트 상태</Text>
       <Text style={[styles.backupDesc, { color: colors.textMuted, marginTop: 6 }]}>
-        {Updates.isEnabled
-          ? Updates.isEmbeddedLaunch ? '현재 설치된 앱에 포함된 버전을 실행 중입니다.' : 'OTA로 다운로드한 버전을 실행 중입니다.'
-          : '이 실행 환경에서는 OTA 상태를 확인할 수 없습니다.'}
+        {getUpdateLaunchDescription()}
       </Text>
       <View style={{ gap: 3, marginTop: 8 }}>
         <Text style={[styles.updateInfoText, { color: colors.textMuted }]}>채널: {Updates.channel ?? '확인할 수 없음'}</Text>
@@ -361,6 +362,261 @@ const confirmAndSignOut = (onSuccess: () => void) => {
   ]);
 };
 
+interface ProfileSegmentNavProps {
+  subTab: SubTabKey;
+  onSelectSubTab: (tab: SubTabKey) => void;
+  colors: ReturnType<typeof useAppTheme>['colors'];
+  isDark: boolean;
+  myProfile: ReturnType<typeof useAppResponsive>['myProfile'];
+}
+
+const SUB_TAB_ITEMS: { key: SubTabKey; label: string }[] = [
+  { key: 'dog_profile', label: '🐾 프로필' },
+  { key: 'theme_account', label: '🎨 테마·계정' },
+  { key: 'walk_records', label: '📜 활동' },
+  { key: 'settings', label: '⚙️ 설정' },
+];
+
+const ProfileSegmentNav: React.FC<ProfileSegmentNavProps> = ({
+  subTab,
+  onSelectSubTab,
+  colors,
+  isDark,
+  myProfile,
+}) => (
+  <View
+    style={[
+      styles.segmentContainer,
+      {
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.7)',
+      },
+    ]}
+  >
+    {SUB_TAB_ITEMS.map((item) => {
+      const active = subTab === item.key;
+      return (
+        <TouchableOpacity
+          key={item.key}
+          onPress={() => onSelectSubTab(item.key)}
+          style={[
+            styles.segmentBtn,
+            { paddingVertical: myProfile.segmentPaddingV },
+            active && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+          ]}
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.segmentText,
+              { fontSize: myProfile.segmentFontSize, color: active ? colors.primaryDark : colors.textMuted },
+              active && { fontWeight: '700' },
+            ]}
+          >
+            {item.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+interface DogProfileSubTabSectionProps {
+  dog: DogProfile;
+  dogs?: readonly DogProfile[];
+  selectedDogId?: string;
+  onSelectDog?: (dogId: string) => void;
+  onAddDog?: (newDog: DogProfile) => void;
+  onSaveDog: (fields: Partial<DogProfile>) => void;
+  onDeleteDog?: (dogId: string) => void | Promise<void>;
+  onRestoreCompleted: () => void;
+}
+
+const DogProfileSubTabSection: React.FC<DogProfileSubTabSectionProps> = ({
+  dog,
+  dogs,
+  selectedDogId,
+  onSelectDog,
+  onAddDog,
+  onSaveDog,
+  onDeleteDog,
+  onRestoreCompleted,
+}) => (
+  <ScrollView
+    style={styles.tabScrollContainer}
+    contentContainerStyle={styles.scrollContent}
+    showsVerticalScrollIndicator={false}
+    nestedScrollEnabled={true}
+  >
+    <DogProfileEditCard
+      dog={dog}
+      dogs={dogs}
+      selectedDogId={selectedDogId}
+      onSelectDog={onSelectDog}
+      onAddDog={onAddDog}
+      onSaveDog={onSaveDog}
+      onDeleteDog={onDeleteDog}
+    />
+    <DataBackupRestoreCard
+      dog={dog}
+      onRestoreCompleted={(result) => {
+        if (result.profile) {
+          onSaveDog(result.profile);
+        }
+        onRestoreCompleted();
+      }}
+    />
+  </ScrollView>
+);
+
+interface ThemeAccountSubTabSectionProps {
+  currentUser: ReturnType<typeof SupabaseService.getCurrentUser>;
+  colors: ReturnType<typeof useAppTheme>['colors'];
+  onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
+  onSignOut: () => void;
+}
+
+const ThemeAccountSubTabSection: React.FC<ThemeAccountSubTabSectionProps> = ({
+  currentUser,
+  colors,
+  onOpenAuthModal,
+  onSignOut,
+}) => (
+  <ScrollView
+    style={styles.tabScrollContainer}
+    contentContainerStyle={styles.scrollContent}
+    showsVerticalScrollIndicator={false}
+    nestedScrollEnabled={true}
+  >
+    <CardWrapper variant="flat" style={styles.accountCard}>
+      {/* 1번째 줄: 타이틀 + 우측 액션 버튼 */}
+      <View style={styles.accountHeaderRow}>
+        <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
+        <AccountAuthActions
+          currentUser={currentUser}
+          colors={colors}
+          onOpenAuthModal={onOpenAuthModal}
+          onSignOut={onSignOut}
+        />
+      </View>
+
+      {/* 2번째 줄: 로그인 시 이메일 / 게스트 시 1줄 혜택 안내 (말줄임 보장으로 항상 2줄 유지) */}
+      <View style={styles.accountSubRow}>
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[
+            styles.accountSubtitle,
+            { color: currentUser ? colors.textMuted : colors.primaryDark, fontWeight: currentUser ? '500' : '600' },
+          ]}
+        >
+          {currentUser
+            ? `🟢 ${currentUser.email} (클라우드 동기화됨)`
+            : '💡 가입 시 산책 기록 클라우드 저장 & 이웃 코스 공유'}
+        </Text>
+      </View>
+    </CardWrapper>
+
+    {/* 🎨 컬러 테마 선택기 */}
+    <ThemeSelectorCard />
+  </ScrollView>
+);
+
+interface WalkRecordsSubTabSectionProps {
+  walkRecords: WalkRecord[];
+  weeklyStats: WeeklyWalkStats;
+  dog: DogProfile;
+  colors: ReturnType<typeof useAppTheme>['colors'];
+  myProfile: ReturnType<typeof useAppResponsive>['myProfile'];
+  resetCount: number;
+  subTab: SubTabKey;
+  onOpenAuthModal?: (mode?: 'signup' | 'signin') => void;
+  onStartBookmark: (bookmark: BookmarkedRoute) => void;
+}
+
+const WalkRecordsSubTabSection: React.FC<WalkRecordsSubTabSectionProps> = ({
+  walkRecords,
+  weeklyStats,
+  dog,
+  colors,
+  myProfile,
+  resetCount,
+  subTab,
+  onOpenAuthModal,
+  onStartBookmark,
+}) => {
+  const [walkSubFilter, setWalkSubFilter] = useState<'history' | 'bookmarks'>('history');
+
+  return (
+    <ScrollView
+      style={styles.tabScrollContainer}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled={true}
+    >
+      <MonthlyWalkStampCalendar records={walkRecords} weeklyStats={weeklyStats} />
+
+      <View style={[styles.filterChipContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setWalkSubFilter('history')}
+          style={[
+            styles.filterChip,
+            { paddingVertical: myProfile.segmentPaddingV },
+            walkSubFilter === 'history' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterChipText,
+              {
+                fontSize: myProfile.segmentFontSize,
+                color: walkSubFilter === 'history' ? colors.primaryDark : colors.textMuted,
+              },
+              walkSubFilter === 'history' && { fontWeight: '700' },
+            ]}
+          >
+            🐾 완주 산책 기록
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setWalkSubFilter('bookmarks')}
+          style={[
+            styles.filterChip,
+            { paddingVertical: myProfile.segmentPaddingV },
+            walkSubFilter === 'bookmarks' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterChipText,
+              {
+                fontSize: myProfile.segmentFontSize,
+                color: walkSubFilter === 'bookmarks' ? colors.primaryDark : colors.textMuted,
+              },
+              walkSubFilter === 'bookmarks' && { fontWeight: '700' },
+            ]}
+          >
+            ⭐ 찜한 안심 코스
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {walkSubFilter === 'history' ? (
+        <MyWalkHistoryView dogName={dog.name} onOpenAuthModal={onOpenAuthModal} />
+      ) : (
+        <BookmarkListView
+          key={`${resetCount}_${walkSubFilter}_${subTab}`}
+          onStartBookmark={onStartBookmark}
+          dogSpeedKmH={dog.speedKmH}
+        />
+      )}
+    </ScrollView>
+  );
+};
+
 export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   dog,
   dogs,
@@ -379,19 +635,18 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   initialSubTab,
 }) => {
   const [subTab, setSubTab] = useState<SubTabKey>(initialSubTab || 'dog_profile');
-
-  const [walkSubFilter, setWalkSubFilter] = useState<'history' | 'bookmarks'>('history');
   const [resetCount, setResetCount] = useState(0);
   const [legalVisible, setLegalVisible] = useState(false);
   const [legalTab, setLegalTab] = useState<LegalTabType>('terms');
   const [currentUser, setCurrentUser] = useState(() => SupabaseService.getCurrentUser());
-  const { colors } = useAppTheme();
+  const { theme, colors } = useAppTheme();
+  const isDark = theme === 'dark';
   const { myProfile } = useAppResponsive();
 
   const [weeklyStats, setWeeklyStats] = useState<WeeklyWalkStats>(() =>
     WalkStatisticsService.getWeeklyStats([])
   );
-  const [recentStats, setRecentStats] = useState<RecentWalkInfo | null>(null);
+  const [walkRecords, setWalkRecords] = useState<WalkRecord[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -408,39 +663,12 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
     void LocalStorageService.getWalkHistory().then((history) => {
       if (!isMounted) return;
       if (history.length === 0) {
+        setWalkRecords([]);
         setWeeklyStats(WalkStatisticsService.getWeeklyStats([]));
-        setRecentStats(null);
         return;
       }
+      setWalkRecords(history);
       setWeeklyStats(WalkStatisticsService.getWeeklyStats(history));
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayList = history.filter((r) => r.completedAt.slice(0, 10) === todayStr);
-
-      if (todayList.length > 0) {
-        const totalDist = todayList.reduce((acc, r) => acc + r.totalDistanceKm, 0);
-        const totalDur = todayList.reduce((acc, r) => acc + r.durationMinutes, 0);
-        const avgSafe = Math.round(
-          (todayList.reduce((acc, r) => acc + r.safeSurfaceRatio, 0) / todayList.length) * 100
-        );
-        setRecentStats({
-          title: `오늘의 완주 (${todayList.length}회)`,
-          distanceKm: Math.round(totalDist * 10) / 10,
-          durationMinutes: totalDur,
-          safeRatioPercent: avgSafe,
-        });
-      } else {
-        const latest = history[0];
-        const dateStr = new Date(latest.completedAt).toLocaleDateString('ko-KR', {
-          month: 'numeric',
-          day: 'numeric',
-        });
-        setRecentStats({
-          title: `직전 완주 (${dateStr})`,
-          distanceKm: Math.round(latest.totalDistanceKm * 10) / 10,
-          durationMinutes: latest.durationMinutes,
-          safeRatioPercent: Math.round(latest.safeSurfaceRatio * 100),
-        });
-      }
     });
     return () => {
       isMounted = false;
@@ -459,213 +687,69 @@ export const MyProfileTabScreen: React.FC<MyProfileTabScreenProps> = ({
   };
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingHorizontal: myProfile.containerPaddingH }]}>
+      {/* 3대 원칙 준수 대각선 오로라/메시 블렌딩 글로우 (스크롤 독립 고정, pointerEvents="none", 4~6% 미세 투명도) */}
+      <View pointerEvents="none" style={styles.ambientAuraTop} />
+      <View pointerEvents="none" style={styles.ambientAuraTopSub} />
+      <View pointerEvents="none" style={styles.ambientAuraBottom} />
+      <View pointerEvents="none" style={styles.ambientAuraBottomSub} />
+
       {/* 상단 헤더 */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 강아지 정보 & 테마 설정 🐾</Text>
+        <View style={styles.sectionHeaderTextWrap}>
+          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>반려견 안심 케어 프로필</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textMain }]}>우리 강아지 정보 & 테마 설정 🐾</Text>
+        </View>
+        <View pointerEvents="none" style={styles.headerMascotWrap}>
+          <Image source={dogSittingImg} style={styles.headerMascotImg} resizeMode="contain" />
+        </View>
       </View>
 
-      {/* 🚀 Rule 11 컴팩트 세그먼트 네비게이션 (단일 뷰포트 / 스크롤 배제 4단 세그먼트) */}
-      <View style={[styles.segmentContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={() => handleSubTabChange('dog_profile')}
-          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'dog_profile' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.segmentText,
-              { fontSize: myProfile.segmentFontSize, color: subTab === 'dog_profile' ? colors.primaryDark : colors.textMuted },
-              subTab === 'dog_profile' && { fontWeight: '700' },
-            ]}
-          >
-            🐾 프로필
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleSubTabChange('theme_account')}
-          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'theme_account' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.segmentText,
-              { fontSize: myProfile.segmentFontSize, color: subTab === 'theme_account' ? colors.primaryDark : colors.textMuted },
-              subTab === 'theme_account' && { fontWeight: '700' },
-            ]}
-          >
-            🎨 테마·계정
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleSubTabChange('walk_records')}
-          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'walk_records' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.segmentText,
-              { fontSize: myProfile.segmentFontSize, color: subTab === 'walk_records' ? colors.primaryDark : colors.textMuted },
-              subTab === 'walk_records' && { fontWeight: '700' },
-            ]}
-          >
-            📜 활동
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleSubTabChange('settings')}
-          style={[styles.segmentBtn, { paddingVertical: myProfile.segmentPaddingV }, subTab === 'settings' && { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.segmentText,
-              { fontSize: myProfile.segmentFontSize, color: subTab === 'settings' ? colors.primaryDark : colors.textMuted },
-              subTab === 'settings' && { fontWeight: '700' },
-            ]}
-          >
-            ⚙️ 설정
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* 🚀 Rule 11 컴팩트 세그먼트 네비게이션 */}
+      <ProfileSegmentNav
+        subTab={subTab}
+        onSelectSubTab={handleSubTabChange}
+        colors={colors}
+        isDark={isDark}
+        myProfile={myProfile}
+      />
 
-      {/* 서브탭 1: 반려견 프로필 편집 카드 단독 렌더링 (단일 뷰포트 최적화) */}
+      {/* 서브탭 1: 반려견 프로필 */}
       {subTab === 'dog_profile' && (
-        <ScrollView
-          style={styles.tabScrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-        >
-          <DogProfileEditCard
-            dog={dog}
-            dogs={dogs}
-            selectedDogId={selectedDogId}
-            onSelectDog={onSelectDog}
-            onAddDog={onAddDog}
-            onSaveDog={onSaveDog}
-            onDeleteDog={onDeleteDog}
-          />
-          <DataBackupRestoreCard
-            dog={dog}
-            onRestoreCompleted={(result) => {
-              if (result.profile) {
-                onSaveDog(result.profile);
-              }
-              setResetCount((c) => c + 1);
-            }}
-          />
-        </ScrollView>
+        <DogProfileSubTabSection
+          dog={dog}
+          dogs={dogs}
+          selectedDogId={selectedDogId}
+          onSelectDog={onSelectDog}
+          onAddDog={onAddDog}
+          onSaveDog={onSaveDog}
+          onDeleteDog={onDeleteDog}
+          onRestoreCompleted={() => setResetCount((c) => c + 1)}
+        />
       )}
 
-      {/* 서브탭 2: 컬러 테마 선택 & 계정 상태 */}
+      {/* 서브탭 2: 컬러 테마 & 계정 상태 */}
       {subTab === 'theme_account' && (
-        <ScrollView
-          style={styles.tabScrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-        >
-          <CardWrapper variant="flat" style={styles.accountCard}>
-            <View style={styles.accountRow}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.accountTitle, { color: colors.textMain }]}>☁️ 편안하개 로그인 정보</Text>
-                <Text style={[styles.accountSubtitle, { color: colors.textMuted }]}>
-                  {currentUser ? `${currentUser.email} (로그인됨)` : '로그인하지 않고 이용 중'}
-                </Text>
-                {!currentUser && (
-                  <Text style={[styles.guestNotice, { color: colors.primaryDark }]}>
-                    회원가입하면 산책 기록을 계정에 저장하고 이웃과 코스를 나눌 수 있어요.
-                  </Text>
-                )}
-              </View>
-              <AccountAuthActions
-                currentUser={currentUser}
-                colors={colors}
-                onOpenAuthModal={onOpenAuthModal}
-                onSignOut={handleSignOut}
-              />
-            </View>
-          </CardWrapper>
-
-          {/* 🎨 컬러 테마 선택기 */}
-          <ThemeSelectorCard />
-        </ScrollView>
+        <ThemeAccountSubTabSection
+          currentUser={currentUser}
+          colors={colors}
+          onOpenAuthModal={onOpenAuthModal}
+          onSignOut={handleSignOut}
+        />
       )}
 
-      {/* 서브탭 3: 산책 활동 (이번 주 산책 달성도 & 완주 산책 기록 ｜ 찜한 안심 코스 2단 서브 필터 칩 토글) */}
+      {/* 서브탭 3: 활동 기록 */}
       {subTab === 'walk_records' && (
-        <ScrollView
-          style={styles.tabScrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-        >
-          {/* 🌟 이번 주 산책 달성도 & 직전 완주 통계 위젯 */}
-          <WeeklyWalkReportCard
-            stats={weeklyStats}
-            recentWalk={recentStats}
-            onPress={() => setWalkSubFilter('history')}
-            style={{ marginBottom: 10 }}
-          />
-
-          <View style={[styles.filterChipContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setWalkSubFilter('history')}
-              style={[
-                styles.filterChip,
-                { paddingVertical: myProfile.segmentPaddingV },
-                walkSubFilter === 'history' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  {
-                    fontSize: myProfile.segmentFontSize,
-                    color: walkSubFilter === 'history' ? colors.primaryDark : colors.textMuted,
-                  },
-                  walkSubFilter === 'history' && { fontWeight: '700' },
-                ]}
-              >
-                🐾 완주 산책 기록
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setWalkSubFilter('bookmarks')}
-              style={[
-                styles.filterChip,
-                { paddingVertical: myProfile.segmentPaddingV },
-                walkSubFilter === 'bookmarks' && { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  {
-                    fontSize: myProfile.segmentFontSize,
-                    color: walkSubFilter === 'bookmarks' ? colors.primaryDark : colors.textMuted,
-                  },
-                  walkSubFilter === 'bookmarks' && { fontWeight: '700' },
-                ]}
-              >
-                ⭐ 찜한 안심 코스
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {walkSubFilter === 'history' ? (
-            <MyWalkHistoryView dogName={dog.name} onOpenAuthModal={onOpenAuthModal} />
-          ) : (
-            <BookmarkListView
-              key={`${resetCount}_${walkSubFilter}_${subTab}`}
-              onStartBookmark={onStartBookmark}
-              dogSpeedKmH={dog.speedKmH}
-            />
-          )}
-        </ScrollView>
+        <WalkRecordsSubTabSection
+          walkRecords={walkRecords}
+          weeklyStats={weeklyStats}
+          dog={dog}
+          colors={colors}
+          myProfile={myProfile}
+          resetCount={resetCount}
+          subTab={subTab}
+          onOpenAuthModal={onOpenAuthModal}
+          onStartBookmark={onStartBookmark}
+        />
       )}
 
       {/* 서브탭 4: 안내 음성 설정 및 미리듣기, AI 시뮬레이터, 약관 및 데이터 초기화 */}
@@ -700,24 +784,80 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ambientAuraTop: {
+    position: 'absolute',
+    top: -30,
+    right: -20,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: 'rgba(207, 160, 82, 0.06)',
+  },
+  ambientAuraTopSub: {
+    position: 'absolute',
+    top: -5,
+    right: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(90, 115, 97, 0.04)',
+  },
+  ambientAuraBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -30,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90, 115, 97, 0.05)',
+  },
+  ambientAuraBottomSub: {
+    position: 'absolute',
+    bottom: -10,
+    left: 25,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(207, 160, 82, 0.04)',
   },
   tabScrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 64 },
-  sectionHeader: { marginBottom: 10 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  headerMascotWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerMascotImg: {
+    width: 44,
+    height: 44,
+  },
   sectionSubtitle: { fontSize: TYPOGRAPHY.support },
   sectionTitle: { fontSize: TYPOGRAPHY.sectionTitle, fontWeight: '800', letterSpacing: -0.4 },
   segmentContainer: {
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 3,
+    padding: 4,
     marginBottom: 12,
     gap: 4,
   },
   segmentBtn: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -726,7 +866,7 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: TYPOGRAPHY.caption, fontWeight: '600', color: '#6B7280' },
   filterChipContainer: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 3,
     marginBottom: 10,
@@ -735,7 +875,7 @@ const styles = StyleSheet.create({
   filterChip: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 9,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -743,13 +883,13 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: TYPOGRAPHY.label, fontWeight: '600', color: '#6B7280' },
   accountCard: { marginBottom: 10, paddingVertical: 10 },
-  accountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  accountHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   accountTitle: { fontSize: TYPOGRAPHY.cardTitle, fontWeight: '700' },
-  accountSubtitle: { fontSize: TYPOGRAPHY.support, marginTop: 2 },
-  guestNotice: { fontSize: TYPOGRAPHY.support, marginTop: 4, fontWeight: '600' },
-  authBtnGroup: { flexDirection: 'row', gap: 6 },
-  accountBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10 },
-  accountBtnText: { fontSize: TYPOGRAPHY.button, fontWeight: '700' },
+  accountSubRow: { marginTop: 6 },
+  accountSubtitle: { fontSize: TYPOGRAPHY.support, lineHeight: TYPOGRAPHY_LINE_HEIGHT.support },
+  authBtnGroup: { flexDirection: 'row', gap: 6, flexShrink: 0 },
+  accountBtn: { paddingHorizontal: 7, paddingVertical: 3.5, borderRadius: 8 },
+  accountBtnText: { fontSize: TYPOGRAPHY.caption, fontWeight: '700' },
   updateInfoText: { fontSize: TYPOGRAPHY.caption, lineHeight: 16 },
   logoutBtn: {
     backgroundColor: 'transparent',

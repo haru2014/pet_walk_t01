@@ -77,7 +77,7 @@ export const BREED_DURATION_GUIDES: readonly DogBreedDurationGuide[] = [
 /** 산책 시간 레이블 포맷터 (예: 75분 -> '1시간 15분', 자유 산책 -> '자유 산책') */
 export function formatDurationLabel(minutes: number | null, isFreeWalk?: boolean): string {
   if (isFreeWalk) return '자유 산책';
-  if (minutes == null) return '시간 미설정';
+  if (minutes == null) return '시간 미정';
   if (minutes < 60) return `${minutes}분`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
@@ -126,6 +126,10 @@ export interface RecommendedCourse {
   slopeSource?: 'dem' | 'approximation' | 'unknown';
   lapCount?: number;
   lapCycleMeters?: number | null;
+  /** 서버가 알려 준 순환 진입점 [lon, lat] (서버 loop_entry_point). 순환 시작·끝 핀 위치로 쓴다. */
+  loopEntryPoint?: readonly [number, number] | null;
+  /** 출발점에서 순환 진입점까지 거리(m) (서버 approach_distance_m) */
+  approachDistanceM?: number | null;
   differenceTag?: string;
   notice?: string;
 }

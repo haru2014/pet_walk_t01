@@ -1,78 +1,136 @@
-# Presentation 작업 공간
+# 편안하개 발표 자료 (Presentation)
+
+편안하개(PetWalk) 프로젝트 발표 자료를 만드는 폴더입니다. 범용 PPTX 생성 엔진(`engine/`, Node.js + PptxGenJS)과 테마(`templates/`)를 사용하고, 편안하개 발표 명세는 `input/petwalk-deck.json`에 있습니다.
 
 ## 실행 프롬프트
 presentation/pptx-maker/SKILL.md의 절차를 따라 PPTX를 만들어줘. 이번 발표 입력과 참고 자료는 presentation/input/을 확인해줘.
 
-## 스킬의 목적
+## 편안하개 발표 생성
 
-이 저장소의 PPTX 생성 스킬은 주제가 달라져도 반복해서 사용할 수 있는 범용 제작 절차를 제공합니다. 사용자가 제공한 자료와 요청 조건을 바탕으로 발표 구성을 만들고, 디자인 기준에 따라 편집 가능한 PowerPoint 파일을 생성·검토합니다.
+```bash
+cd presentation
+npm install            # 최초 1회 (pptxgenjs)
+npm run generate:petwalk
+# → output/편안하개_프로젝트_발표.pptx (4:3, petwalk 테마, 15장, 발표자 노트 포함)
+```
 
-이 README는 **스킬의 목적과 지원 범위**를 설명합니다. 여기에서 하나의 발표 주제를 고정하지 않습니다. 각 PPTX를 만들 때마다 사용자에게 해당 발표의 주제와 범위를 요청하거나, 사용자가 이미 지정한 조건을 확인해 작업에 적용합니다.
+- 명세: `input/petwalk-deck.json` (슬라이드 내용, 출처, 발표자 노트)
+- 요건 정의서: `input/materials/편안하개_발표_브리프.md`
+- 테마: `templates/petwalk.json` (앱 디자인 토큰의 포레스트 그린·크림 계열, Pretendard)
+- 앱 화면 이미지는 저장소의 `docs/screenshots/`를 `../docs/screenshots/...` 경로로 참조합니다. 반드시 `presentation/` 폴더에서 실행하세요.
+- 발표자 노트 원고: `output/편안하개_발표자노트_v2.md`
 
-## 스킬의 사용 범위
+내용을 고칠 때는 PPTX를 직접 고치기보다 `input/petwalk-deck.json`을 수정하고 다시 생성하는 것을 권장합니다. 근거가 없는 수치·성과는 넣지 않습니다(현장 CBT 결과는 아직 미포함).
 
-스킬은 다음 작업을 지원합니다.
+---
 
-- 제공된 문서·데이터·이미지에서 발표에 필요한 내용을 정리
-- 발표 대상과 목적에 맞춰 슬라이드 구성안 작성
-- 승인된 디자인 시스템에 맞춘 PPTX 생성
-- 표·차트·텍스트의 편집 가능성, 출처, 내용 정확성, 레이아웃 검토
-- 검토가 끝난 PPTX와 필요한 미리보기 산출물 저장
+## 범용 엔진 안내
 
-스킬은 입력 자료에 없는 사실, 수치, 성과를 만들어내지 않습니다. 근거가 부족하거나 자료 간 내용이 다르면 확인이 필요한 항목으로 표시합니다. 참고 자료의 출처와 사용 범위를 기록합니다.
 
-## 매 발표 요청에서 확인할 입력
+이 프로젝트는 다양한 문서·데이터·기획서 등 **범용적인 입력 자료를 바탕으로 고품질의 템플릿 기반 PowerPoint(.pptx) 발표 자료를 자동 생성**하기 위한 프로젝트입니다.
 
-PPTX 제작을 시작할 때 다음 정보를 확인합니다. 사용자가 이미 제공한 항목은 다시 묻지 않습니다.
+## 템플릿 다운로드
+https://slidespeak.co/slide-design-prompts
 
-1. **주제:** 발표에서 다룰 대상
-2. **목적:** 발표 후 청중이 이해하거나 결정해야 할 내용
-3. **대상 청중:** 팀원, 관리자, 고객 등
-4. **내용 범위:** 포함할 내용과 제외할 내용
-5. **근거 자료:** 사용할 파일, 폴더, 데이터, 링크
-6. **분량:** 슬라이드 수, 발표 시간 또는 권장 분량
-7. **출력 조건:** 파일 형식과 결과 저장 위치
-8. **디자인 조건:** 기존 디자인 시스템 외에 따를 템플릿·브랜드 지침
+---
 
-정보가 빠져도 안전하게 작업할 수 있는 경우에는 가정을 만들지 말고, 확인된 조건만으로 구성안을 제시합니다. 내용의 방향이나 정확성에 영향을 주는 정보가 없으면 제작 전에 질문합니다.
+## 🌟 주요 특징
 
-반복 입력을 간편하게 하려면 [발표 입력 템플릿](./template/presentation-input-template.md)을 복사해 발표별 요청 내용을 작성할 수 있습니다. 이 저장소에서 PPTX를 만들 때는 `presentation/input/`에 둔 자료도 함께 확인합니다. 템플릿은 입력 누락을 줄이기 위한 양식이며, 빈 항목을 임의로 채우지 않습니다.
+1. **범용 입력 자료 지원 (Universal Input Handling):**
+   - Markdown 문서, 회의록, 기획서, 데이터 요약 등 어떤 형식의 입력 자료라도 핵심 메시지와 수치를 추출하여 슬라이드로 변환합니다.
+2. **사전 정의된 테마 시스템 (Multi-Theme Support):**
+   - `petwalk`: 편안하개 앱 브랜드 포레스트 그린 & 크림 (편안하개 발표 기본, 4:3)
+   - `modern-business`: 신뢰감 있는 딥 네이비 & 로열 블루 (경영 실적, 전략 보고, IR)
+   - `tech-dark`: 세련된 딥 슬레이트 & 네온 시안 포인트 (기술 컨퍼런스, 개발자 밋업, IT 피치)
+   - `warm-pastel`: 부드럽고 친근한 소르베 파스텔 (라이프스타일, 교육, 서비스 소개)
+   - `clean-minimal`: 고대비 모노크롬 & 따뜻한 앰버 포인트 (포트폴리오, 에디토리얼 브리핑)
+3. **11종의 풍부한 슬라이드 레이아웃 카탈로그:**
+   - 표지(`cover`), 목차(`agenda`), 간지(`section`), 2단 비교(`columns-2`), 3단 기둥(`columns-3`), 4단 그리드(`cards-4`), 타임라인 로드맵(`timeline`), 핵심 지표(`metrics`), 네이티브 테이블(`table`), 핵심 명제(`key-message`), 마무리(`closing`)
+4. **100% 네이티브 편집 가능성 (Native PPTX):**
+   - 비트맵 캡처가 아닌 순수 파워포인트 텍스트 상자, 기본 도형, 표 객체로 생성되어 사용자가 파워포인트나 키노트에서 자유롭게 서식을 수정할 수 있습니다.
+5. **원클릭 CLI 및 모듈형 아키텍처:**
+   - 간결한 CLI 명령 및 npm 스크립트로 누구나 손쉽게 PPTX를 생성할 수 있습니다.
 
-## 기본 저장 위치
+---
 
-- 저장소 프리젠테이션 스킬: `presentation/pptx-maker/SKILL.md`
-- 디자인 기준: `presentation/design-system.md`
-- 입력 자료: `presentation/input/`
-- 입력 양식: `presentation/template/`
-- 참고 자료와 출처 기록: `presentation/references/`
-- 검토된 예시: `presentation/examples/`
-- 평가 사례와 실행 기록: `presentation/evals/`
-- 사용자가 요청한 최종 PPTX: `presentation/output/`
-- 발표자 노트 및 질의응답 참고 자료도 해당 발표의 PPTX와 함께 `presentation/output/`에 둡니다.
+## 📁 디렉터리 구조
 
-스킬 폴더는 요청한 저장소 루트의 `presentation/` 아래에 구현했습니다. Codex 등 도구가 표준 공용 스킬 경로만 자동 검색하는 경우에는 별도 등록이나 복사가 필요할 수 있습니다.
+```text
+presentation/
+├── package.json                   # npm 스크립트 및 프로젝트 메타데이터
+├── README.md                      # 프로젝트 사용 안내서 (본 문서)
+├── design-system.md               # 범용 디자인 시스템 표준 (색상, 타이포그래피, 레이아웃)
+├── templates/                     # 테마 정의 JSON (비즈니스, 테크, 파스텔, 미니멀)
+│   ├── petwalk.json               # 편안하개 테마
+│   ├── modern-business.json
+│   ├── tech-dark.json
+│   ├── warm-pastel.json
+│   └── clean-minimal.json
+├── template/                      # 재사용 입력 양식
+│   ├── presentation-input-template.md  # 발표 요건 정의서(Brief) 템플릿
+│   └── deck-spec-template.json         # 슬라이드 명세 JSON 템플릿
+├── engine/                        # PPTX 생성 엔진 (Node.js + PptxGenJS)
+│   ├── index.js                   # 메인 모듈 진입점
+│   ├── cli.js                     # CLI 실행기
+│   ├── generator.js               # PPTX 슬라이드 조립 및 저장 로직
+│   ├── layouts.js                 # 11종 슬라이드 레이아웃 렌더러
+│   ├── theme.js                   # 테마 로더 및 토큰 관리자
+│   └── parser.js                  # JSON / Markdown 슬라이드 파서
+├── input/                         # 사용자 입력 자료 저장소
+│   ├── README.md                  # 입력 자료 가이드
+│   ├── materials/                 # 브리프·원본 문서 (.md 등)
+│   └── petwalk-deck.json          # 편안하개 발표 명세
+├── examples/                      # 도메인별 완성된 실전 예시
+│   ├── business-report/           # 분기 경영 실적 보고서 예시
+│   └── tech-pitch/                # AI 테크 제품 피치 예시
+├── pptx-maker/                    # AI 에이전트 자동화 스킬
+│   ├── SKILL.md                   # AI 에이전트 실행 지침
+│   └── references/
+│       └── authoring-workflow.md  # 상세 제작 및 검토 워크플로우
+└── output/                        # 최종 생성된 PPTX 저장 폴더
+```
 
-편안하개 프로젝트 발표의 자료 후보와 사용 시 주의사항은 [출처 목록](./references/source-log.md)에 정리합니다.
+---
 
-요청이 별도 경로를 지정하면 그 위치를 따릅니다. 기존 파일을 덮어쓸 수 있는 경우에는 파일명을 바꾸거나 사용자에게 확인합니다.
+## 🚀 빠른 시작 (Quick Start)
 
-## 현재 발표 요청의 예시 입력
+### 완성된 예시 실행
+```bash
+# 경영 실적 보고서 예시 (modern-business)
+npm run example:business
 
-아래 내용은 **이번 편안하개 발표 요청에 한정된 입력**입니다. 범용 스킬의 고정 주제나 다른 PPT 요청에 자동 적용할 기본값이 아닙니다.
+# AI 플랫폼 기술 피치 예시 (tech-dark)
+npm run example:tech
 
-- **주제:** 편안하개 프로젝트에서 팀원들과 협업하여 완성도 높은 앱 서비스를 개발한 과정과 결과
-- **내용 범위:** 편안하개 프로젝트 저장소
-- **근거 자료:** 저장소의 `docs/` 아래 문서
-- **추가 입력:** 발표 목적, 청중, 슬라이드 수·발표 시간, 디자인 방향은 실제 구성안을 만들기 전에 확인
+# 소르베 파스텔 테마 예시 (warm-pastel)
+npm run example:pastel
+```
 
-이 발표를 제작할 때는 `docs/` 안의 문서를 먼저 목록화하고, 프로젝트 목표·팀 구성 및 역할·계획·구현·검증·결과를 뒷받침하는 자료를 선별합니다. 각 주장과 수치를 근거 문서에 연결하고, 문서에 기록되지 않은 성과나 팀 기여를 추정하지 않습니다.
+---
 
-## 작업 원칙
+## 🛠️ 새 발표 자료 제작 워크플로우
 
-- 주제와 범위는 매 발표 요청에 맞게 정합니다.
-- 제공된 근거를 우선 사용하고, 사실과 해석을 구분합니다.
-- 슬라이드 수와 발표 시간은 요청에서 확인하거나 사용자와 정합니다.
-- 표와 차트는 가능하면 나중에 편집할 수 있는 PowerPoint 요소로 만듭니다.
-- PPTX를 생성한 뒤 전체 슬라이드를 렌더링하거나 열어 잘림·겹침·가독성을 확인합니다.
-- 자동 검사 결과만으로 시각 검토를 완료했다고 간주하지 않습니다.
+1. **자료 준비:**
+   - 발표에 활용할 원본 문서를 `input/materials/`에 넣습니다.
+   - 필요 시 `template/presentation-input-template.md`를 참고하여 발표 목적, 대상 청중, 선호 테마를 정합니다.
 
+2. **슬라이드 기획 및 명세 작성:**
+   - 원본 자료의 핵심 메시지를 11종 레이아웃에 맞춰 `input/my-deck.json`으로 작성합니다. (또는 AI 에이전트에게 입력 자료를 주고 자동 작성을 요청합니다.)
+
+3. **지능형 레이아웃 자동 최적화 (선택 사항):**
+   - 작성된 슬라이드 명세의 내용과 데이터 형태에 맞춰 가장 어울리는 포맷을 지능적으로 자동 배정하고 싶다면:
+   ```bash
+   # 슬라이드별 최적 포맷 분석 및 미리보기
+   python apply_tailored_layouts.py --deck input/my-deck.json --dry-run
+
+   # 최적 포맷 자동 적용 및 PPTX 원클릭 빌드
+   python apply_tailored_layouts.py --deck input/my-deck.json --build
+   ```
+
+4. **PPTX 생성:**
+   ```bash
+   node engine/cli.js --deck input/my-deck.json --theme tech-dark --out output/my-deck.pptx
+   ```
+
+5. **검토 및 수정:**
+   - `output/`에 생성된 `.pptx` 파일을 열어 확인하고, 필요 시 파워포인트에서 직접 편집합니다.

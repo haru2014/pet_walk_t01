@@ -59,6 +59,14 @@ describe('후기 공개 서버 호출 (이슈 #116)', () => {
     expect((result as { message: string }).message).toContain('집 근처 위치를 보호하고 나면');
   });
 
+  it('평균 속도가 너무 빠른 기록(422)은 공개하지 않고, 다시 시도하라는 말 대신 이유를 알려 준다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(422, { detail: { code: 'WALK_SPEED_TOO_FAST', message: 'x' } }));
+    const result = await SupabaseService.setWalkRecordPublic(WALK_ID, true);
+    expect(result).toMatchObject({ ok: false, code: 'WALK_SPEED_TOO_FAST' });
+    expect((result as { message: string }).message).toContain('평균 속도가 너무 빨라');
+    expect((result as { message: string }).message).not.toContain('잠시 후');
+  });
+
   it('로그인 만료(401)를 알려 준다', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(reply(401, { detail: { code: 'AUTH_INVALID', message: 'x' } }));
     expect(await SupabaseService.setWalkRecordPublic(WALK_ID, true)).toMatchObject({ ok: false, code: 'AUTH_INVALID' });

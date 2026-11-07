@@ -48,6 +48,26 @@ export interface PeriodWalkStats {
   averageComfortScore: number;
 }
 
+export interface MonthlyWalkCalendarDay {
+  readonly day: number;
+  readonly dateStr: string;
+  readonly walkCount: number;
+  readonly hasWalked: boolean;
+  readonly isToday: boolean;
+  readonly isFuture: boolean;
+}
+
+export interface MonthlyWalkCalendarStats {
+  readonly year: number;
+  readonly month: number;
+  readonly monthLabel: string;
+  readonly firstDayOfWeek: number;
+  readonly daysInMonth: number;
+  readonly days: readonly MonthlyWalkCalendarDay[];
+  readonly completedDays: number;
+  readonly totalWalks: number;
+}
+
 function toLocalDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -56,6 +76,60 @@ function toLocalDateStr(d: Date): string {
 }
 
 export class WalkStatisticsService {
+  /** Calendar data from completed walk records, using the device's local calendar dates. */
+  static getMonthlyWalkCalendar(
+    records: readonly WalkRecord[],
+    year: number,
+    month: number,
+    now = new Date(),
+  ): MonthlyWalkCalendarStats {
+    const monthStart = new Date(year, month - 1, 1);
+    const calendarYear = monthStart.getFullYear();
+    const calendarMonth = monthStart.getMonth() + 1;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = toLocalDateStr(today);
+    const daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+    const walksByDate = new Map<string, number>();
+
+    records.forEach((record) => {
+      const completedAt = new Date(record.completedAt);
+      if (!Number.isFinite(completedAt.getTime())) return;
+      const dateStr = toLocalDateStr(completedAt);
+      if (
+        completedAt.getFullYear() !== calendarYear ||
+        completedAt.getMonth() + 1 !== calendarMonth ||
+        dateStr > todayStr
+      ) return;
+      walksByDate.set(dateStr, (walksByDate.get(dateStr) ?? 0) + 1);
+    });
+
+    const days = Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1;
+      const dateStr = toLocalDateStr(new Date(calendarYear, calendarMonth - 1, day));
+      const isFuture = dateStr > todayStr;
+      const walkCount = isFuture ? 0 : (walksByDate.get(dateStr) ?? 0);
+      return {
+        day,
+        dateStr,
+        walkCount,
+        hasWalked: walkCount > 0,
+        isToday: dateStr === todayStr,
+        isFuture,
+      };
+    });
+
+    return {
+      year: calendarYear,
+      month: calendarMonth,
+      monthLabel: `${calendarYear}년 ${calendarMonth}월`,
+      firstDayOfWeek: new Date(calendarYear, calendarMonth - 1, 1).getDay(),
+      daysInMonth,
+      days,
+      completedDays: days.filter((day) => day.hasWalked).length,
+      totalWalks: days.reduce((total, day) => total + day.walkCount, 0),
+    };
+  }
+
   /**
    * 이번 주(월~일 또는 최근 7일) 산책 달성도 및 관절 케어 통계 계산
    */

@@ -23,6 +23,8 @@ from agent.road_network_routes import (
     V3_ROAD_ALIGNED_COORDS,
     fetch_osrm_foot_route,
 )
+from agent.fallback_rectangle import plan_fallback_rectangle
+from agent.route_barriers import BarrierIndex
 from agent.offline_walk_network import plan_offline_network_loop
 from agent.pilot_park_routes import resolve_pilot_park_key
 from agent.route_geometry import (
@@ -36,8 +38,14 @@ from agent.route_geometry import (
 from agent.route_steps import build_turn_steps
 from agent.park_walk_planner import plan_park_walk
 from agent.park_route_validation import RoutePlanningError, validate_park_route
+from agent.preference_loop_planner import LoopQuery, plan_preference_loops
+from agent.walk_graph_provider import barriers_for_loop, route_is_passable, walk_graph_for_loop
+from services.route_exposure import measure_route_exposure
+from services.walk_preferences import WalkPreferences
 
 logger = logging.getLogger(__name__)
+
+MAX_MAJOR_ROAD_RATIO_FOR_QUIET = 0.15
 
 # 후보 코스별 순환 방향(방위각). 서로 다른 방향의 도로망을 탐색해 대안을 확보한다.
 VARIANT_BEARINGS: Dict[int, float] = {1: 30.0, 2: 150.0, 3: 270.0}
@@ -61,7 +69,6 @@ RELAXED_MAX_BACKTRACK = 0.30
 RELAXED_MAX_ERROR = 0.50  # 20분 요청에 30분까지. 실측에서 1.77배(34분)는 시간이 너무 어긋났다.
 RELAXED_MAX_TORTUOSITY = 1.8  # 길이 / 볼록껍질 둘레. 실제 순환 코스 62개는 1.02~1.69, 역 앞 광장을 헤매던 길은 1.97 이었다.
 STATIC_MATCH_RADIUS_M = 300.0
-FALLBACK_EDGE_SPACING_M = 25.0
 M_PER_DEG_LAT = 111_320.0
 # 처음 방향에서 탈락한 후보를 다른 방향으로 다시 시도한다 (현재 위치 모드, 시간 예산이 남을 때만, 방향당 OSRM 1회).
 #   애경연구원 근처 실측: 서쪽(270도)은 하천·큰 도로에 막혀 반경을 바꿔도 길이가 2282→842→2282m 로 널뛰며 수렴하지 않았다.
@@ -74,13 +81,12 @@ STATIC_SEOUL_LOOPS: Dict[int, List[List[float]]] = {
     2: V2_ROAD_ALIGNED_COORDS,
     3: V3_ROAD_ALIGNED_COORDS,
 }
-# 폴백 직사각형의 세로/가로 비율 (후보별로 모양을 달리한다)
-FALLBACK_ASPECT_RATIOS: Dict[int, float] = {1: 0.6, 2: 1.0, 3: 1.6}
 
 
 @dataclass(frozen=True)
 class LoopPlan:
-    """순환 코스 생성 결과. source 는 osrm_live / static_seoul / rectangle_fallback."""
+    """순환 코스 생성 결과. source 는 osm_graph(조건 반영) / osm_graph_park(공원 유인) / osrm_live /
+    static_seoul / rectangle_fallback 등."""
     coords: List[List[float]]
     steps: List[Dict[str, Any]]
     distance_m: float
@@ -118,9 +124,9 @@ def _route_waypoints(waypoints: List[Tuple[float, float]]) -> Optional[List[List
     return cleaned if len(cleaned) >= 4 else None
 
 
-def _is_valid_loop(coords: List[List[float]]) -> bool:
+def _is_valid_loop(coords: List[List[float]], max_backtrack: float = MAX_BACKTRACK_RATIO) -> bool:
     """순환 종결성과 왕복 비율 기준을 충족하는지 검사한다."""
-    return loop_closure_gap_m(coords) <= MAX_CLOSURE_GAP_M and backtrack_ratio(coords) <= MAX_BACKTRACK_RATIO
+    return loop_closure_gap_m(coords) <= MAX_CLOSURE_GAP_M and backtrack_ratio(coords) <= max_backtrack
 
 
 def _evaluate_scale(
@@ -269,13 +275,15 @@ def _plan_static_pilot_park(
     pilot_park_id: Optional[str] = None,
     target_distance_m: Optional[float] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> Optional[LoopPlan]:
     """Compatibility entry point: only verified, boundary-constrained graph routes."""
     park_key = resolve_pilot_park_key(origin_lat, origin_lon, pilot_park_id=pilot_park_id)
     if park_key is None:
         raise RoutePlanningError("BOUNDARY_DATA_UNAVAILABLE", "선택한 공원의 신뢰할 수 있는 경계 데이터가 없습니다.")
     target = target_distance_m or 1400.0
-    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant, regenerate_nonce=regenerate_nonce)
+    coords = plan_park_walk(park_key, origin_lat, origin_lon, target, variant,
+                            regenerate_nonce=regenerate_nonce, preferences=preferences)
     validate_park_route(coords, park_key, 3.0, target / 50.0, (origin_lon, origin_lat))
     lap_count = getattr(coords, "lap_count", 1) or 1
     lap_cycle_m = getattr(coords, "lap_cycle_m", None)
@@ -314,39 +322,6 @@ def _plan_static_seoul(
     return _to_plan(coords, "static_seoul")
 
 
-def _densify_edge(start: Tuple[float, float], end: Tuple[float, float]) -> List[List[float]]:
-    """[경도, 위도] 두 점 사이를 약 25m 간격으로 보간한다(끝점 제외)."""
-    count = max(1, math.ceil(haversine_m(start, end) / FALLBACK_EDGE_SPACING_M))
-    return [
-        [start[0] + (end[0] - start[0]) * i / count, start[1] + (end[1] - start[1]) * i / count]
-        for i in range(count)
-    ]
-
-
-def _plan_rectangle_fallback(
-    origin_lat: float,
-    origin_lon: float,
-    target_distance_m: float,
-    variant: int,
-) -> LoopPlan:
-    """목표 거리에 맞춘 직사각형 순환 코스. 도로망 정보가 없으므로 건물을 관통할 수 있다."""
-    aspect = FALLBACK_ASPECT_RATIOS[variant]
-    width_m = target_distance_m / (2 * (1 + aspect))
-    d_lat = (width_m * aspect) / M_PER_DEG_LAT
-    d_lon = width_m / (M_PER_DEG_LAT * math.cos(math.radians(origin_lat)))
-    corners = [
-        (origin_lon, origin_lat),
-        (origin_lon, origin_lat + d_lat),
-        (origin_lon + d_lon, origin_lat + d_lat),
-        (origin_lon + d_lon, origin_lat),
-    ]
-    coords: List[List[float]] = []
-    for i, corner in enumerate(corners):
-        coords.extend(_densify_edge(corner, corners[(i + 1) % len(corners)]))
-    coords.append(list(corners[0]))
-    return _to_plan(coords, "rectangle_fallback")
-
-
 def _plan_offline_network(
     origin_lat: float,
     origin_lon: float,
@@ -365,6 +340,24 @@ def _plan_offline_network(
     return _to_plan(coords, "offline_network")
 
 
+def _is_traffic_acceptable(
+    coords: List[List[float]],
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    preferences: Optional[WalkPreferences],
+) -> bool:
+    """차가 적은 길 옵션이 켜져 있을 때 큰길 노출도가 기준치 이하인지 판정."""
+    if not preferences or not preferences.avoid_traffic:
+        return True
+    walk = walk_graph_for_loop(origin_lat, origin_lon, target_distance_m)
+    if walk is None:
+        return True
+    exposure = measure_route_exposure(coords, walk)
+    major = exposure.get("major_road_ratio")
+    return major is None or major <= MAX_MAJOR_ROAD_RATIO_FOR_QUIET
+
+
 def _plan_variant(
     origin_lat: float,
     origin_lon: float,
@@ -374,6 +367,7 @@ def _plan_variant(
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
 ) -> Optional[LoopPlan]:
     """공원/P&R은 내부 보행 그래프만 사용하며 일반 라우터나 기하학적 폴백을 사용하지 않는다.
 
@@ -382,7 +376,7 @@ def _plan_variant(
     if origin_mode in ("park", "parking_pnr"):
         return _plan_static_pilot_park(
             origin_lat, origin_lon, variant, pilot_park_id=pilot_park_id, target_distance_m=target_distance_m,
-            regenerate_nonce=regenerate_nonce,
+            regenerate_nonce=regenerate_nonce, preferences=preferences,
         )
 
     # 📍 현위치 기반 모드 (current_location): 1안(추천)은 유지하고 2·3안은 회전 오프셋 적용
@@ -396,7 +390,11 @@ def _plan_variant(
         bearing_offset=bearing_offset, relaxed_sink=relaxed
     )
     if plan is not None:
-        return plan
+        if _is_traffic_acceptable(plan.coords, origin_lat, origin_lon, target_distance_m, preferences):
+            return plan
+        logger.info("OSRM 실시간 경로(variant=%d)가 큰길을 통과하여 다른 방위각으로 재탐색합니다.", variant)
+        relaxed.append((0.20, plan.coords))
+        plan = None
     logger.warning("OSRM 순환 코스 생성 실패(variant=%d): 오프라인 도로망 폴백을 사용합니다.", variant)
 
     offline_target = target_distance_m * {1: 1.0, 2: 1.2, 3: 1.1}[variant]
@@ -414,7 +412,10 @@ def _plan_variant(
             origin_lat, origin_lon, target_distance_m, variant, deadline, offset, max_refinements=0, relaxed_sink=relaxed
         )
         if plan is not None:
-            return plan
+            if _is_traffic_acceptable(plan.coords, origin_lat, origin_lon, target_distance_m, preferences):
+                return plan
+            relaxed.append((0.25, plan.coords))
+            plan = None
     if relaxed:
         # 엄격 조건을 맞춘 길이 끝내 없으면, 지금까지 계산해 본 것 중 덜 나쁜 실제 도로 순환을 쓴다 (직사각형보다 낫다).
         _, coords = min(relaxed, key=lambda item: item[0])
@@ -423,12 +424,57 @@ def _plan_variant(
     return None
 
 
-def _rectangle_candidates(origin_lat: float, origin_lon: float, target_distance_m: float) -> Dict[int, LoopPlan]:
-    """실제 길 기반 후보가 하나도 없을 때만 쓰는 마지막 수단. 건물을 관통할 수 있다."""
-    return {
-        variant: _plan_rectangle_fallback(origin_lat, origin_lon, target_distance_m * factor, variant)
-        for variant, factor in {1: 1.0, 2: 1.2, 3: 1.1}.items()
-    }
+# 하위 호환성 (테스트 및 레거시 monkeypatch 용)
+_plan_rectangle_fallback = plan_fallback_rectangle
+
+
+def _rectangle_candidates(origin_lat: float, origin_lon: float, target_distance_m: float,
+                          barriers: Optional[BarrierIndex] = None) -> Dict[int, LoopPlan]:
+    """실제 길 기반 후보가 하나도 없을 때만 쓰는 마지막 수단. 건물을 관통할 수 있다.
+
+    물길·철로를 건너지 않는 모양만 쓴다. 모든 모양이 걸리는 후보는 만들지 않는다
+    (강을 건너라고 안내하는 것보다 후보가 적은 편이 낫다).
+    """
+    plans: Dict[int, LoopPlan] = {}
+    for variant, factor in {1: 1.0, 2: 1.2, 3: 1.1}.items():
+        coords = _plan_rectangle_fallback(origin_lat, origin_lon, target_distance_m * factor, variant, barriers)
+        if coords is None:
+            logger.warning("기하학적 대체 코스(후보 %d)가 모두 물길·철로를 건너 만들지 않습니다.", variant)
+            continue
+        plans[variant] = _to_plan(coords, "rectangle_fallback")
+    return plans
+
+
+def _passable_candidates(
+    plans: Dict[int, LoopPlan],
+    origin_lat: float,
+    origin_lon: float,
+    target_distance_m: float,
+    origin_mode: str,
+    overpass_budget_s: Optional[float] = None,
+) -> Dict[int, LoopPlan]:
+    """물길·철로를 건너는 후보를 떨어내고, 남은 것이 없으면 기하학적 대체 코스를 쓴다.
+
+    공원·P&R 모드는 경계 기반 자체 검증(park_route_validation)을 쓰므로 건너뛴다.
+    """
+    barriers: Optional[BarrierIndex] = None
+    if origin_mode not in ("park", "parking_pnr"):
+        barriers = barriers_for_loop(origin_lat, origin_lon, target_distance_m, overpass_budget_s)
+        plans = _drop_impassable(plans, barriers)
+    return plans or _rectangle_candidates(origin_lat, origin_lon, target_distance_m, barriers)
+
+
+def _drop_impassable(plans: Dict[int, LoopPlan], barriers: Optional[BarrierIndex]) -> Dict[int, LoopPlan]:
+    """다리 없이 물길·철로를 건너는 후보를 떨어낸다. 확인할 자료가 없으면 그대로 둔다."""
+    if barriers is None or not barriers:
+        return plans
+    kept: Dict[int, LoopPlan] = {}
+    for variant, plan in plans.items():
+        if route_is_passable(plan.coords, barriers):
+            kept[variant] = plan
+        else:
+            logger.warning("후보 %d(%s)가 다리 없이 물길·철로를 건너 제외합니다.", variant, plan.source)
+    return kept
 
 
 def _substitute_seoul_duplicates(
@@ -471,6 +517,24 @@ def _deduplicate_osrm_live(plans: Dict[int, LoopPlan], origin_mode: str) -> Dict
     return {v: p for v, p in plans.items() if p.source != "osrm_live" or v in keep}
 
 
+def _plan_graph_variants(query: LoopQuery, overpass_budget_s: Optional[float] = None) -> Dict[int, LoopPlan]:
+    """[현재 위치 모드] 출발지 주변 OSM 보행 그래프에서 환경 조건 비용으로 순환 후보를 찾는다.
+
+    그래프를 받지 못하거나(오프라인·Overpass 장애) 출발점이 보행망에서 멀면 빈 사전 → OSRM 경로로 돌아간다.
+    """
+    walk = walk_graph_for_loop(query.origin[1], query.origin[0], query.target_m, overpass_budget_s)
+    if walk is None:
+        return {}
+    loops = plan_preference_loops(walk, query)
+    plans = {}
+    for variant, loop in loops.items():
+        # 조건을 반영해 찾은 실제 보행로다. 조건을 무시하는 OSRM 대체 경로와 같은 완화 기준(왕복 30%)으로 받는다.
+        #   예전에는 여기만 15% 를 요구해, 조건 반영 코스가 탈락하고 그 자리를 조건 무시 경로가 채웠다.
+        if _is_valid_loop(loop.coords, RELAXED_MAX_BACKTRACK):
+            plans[variant] = _to_plan(loop.coords, "osm_graph_park" if loop.park_attraction else "osm_graph")
+    return plans
+
+
 def plan_loop_candidates(
     origin_lat: float,
     origin_lon: float,
@@ -479,10 +543,25 @@ def plan_loop_candidates(
     origin_mode: str = "current_location",
     pilot_park_id: Optional[str] = None,
     regenerate_nonce: int = 0,
+    preferences: Optional[WalkPreferences] = None,
+    overpass_budget_s: Optional[float] = None,
 ) -> Dict[int, LoopPlan]:
-    """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3)."""
+    """방향이 다른 순환 후보 3종을 병렬로 생성한다. 키는 후보 번호(1~3).
+
+    현재 위치 모드는 OSM 보행 그래프(환경 조건 반영)를 먼저 쓰고, 채우지 못한 후보만 OSRM 으로 찾는다.
+    time_budget_s 는 OSRM 단계, overpass_budget_s 는 주변 길 조회에 쓸 시간이다
+    (요청 전체 예산: services/request_budget.py).
+    """
+    graph_plans: Dict[int, LoopPlan] = {}
+    if origin_mode not in ("park", "parking_pnr"):
+        graph_plans = _plan_graph_variants(LoopQuery(
+            origin=(origin_lon, origin_lat), target_m=target_distance_m,
+            prefs=preferences or WalkPreferences(), bearings=VARIANT_BEARINGS, regenerate_nonce=regenerate_nonce,
+        ), overpass_budget_s)
+    # OSRM 예산은 그래프 단계 뒤부터 센다 (Overpass 가 느리다 실패해도 OSRM 대체 경로 품질은 그대로)
     deadline = time.monotonic() + time_budget_s
-    with ThreadPoolExecutor(max_workers=len(VARIANT_BEARINGS)) as pool:
+    remaining = [variant for variant in VARIANT_BEARINGS if variant not in graph_plans]
+    with ThreadPoolExecutor(max_workers=max(1, len(remaining))) as pool:
         futures = {
             variant: pool.submit(
                 _plan_variant,
@@ -494,14 +573,15 @@ def plan_loop_candidates(
                 origin_mode,
                 pilot_park_id,
                 regenerate_nonce,
+                preferences,
             )
-            for variant in VARIANT_BEARINGS
+            for variant in remaining
         }
         results = {variant: future.result() for variant, future in futures.items()}
 
     plans = {variant: plan for variant, plan in results.items() if plan is not None}
-    if not plans:
-        return _rectangle_candidates(origin_lat, origin_lon, target_distance_m)
-
+    plans.update(graph_plans)
+    plans = _passable_candidates(plans, origin_lat, origin_lon, target_distance_m,
+                                 origin_mode, overpass_budget_s)
     _substitute_seoul_duplicates(plans, origin_lat, origin_lon, origin_mode)
     return _deduplicate_osrm_live(plans, origin_mode)

@@ -45,6 +45,20 @@ export function warmupBackendServer(): void {
 }
 
 /**
+ * 현재 위치 주변 자료(날씨·보행 그래프)를 서버가 미리 받아 두게 한다.
+ *
+ * 시범 공원은 서버가 켜질 때 예열되지만 현재 위치는 매번 처음 보는 곳이어서, 첫 코스 요청이
+ * 날씨와 주변 길 조회를 그대로 기다렸다(합쳐서 10초 이상). 홈 화면에서 GPS 좌표를 얻는 즉시
+ * 한 번 불러 두면 첫 코스 요청이 캐시를 쓴다. 응답은 기다리지 않는다(실패해도 무해하다).
+ */
+export function prewarmCurrentLocation(lat: number, lon: number): void {
+  const primary = getPrimaryApiBaseUrl();
+  if (!primary?.startsWith('http')) return;
+  const query = `lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`;
+  fetch(`${primary}/api/v1/walk/prewarm?${query}`, { method: 'POST' }).catch(() => {});
+}
+
+/**
  * 타임아웃 지원 fetch 래퍼 (Render 콜드 스타트 10~15초 대응을 위해 기본 15초)
  */
 async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 15000): Promise<Response> {

@@ -48,18 +48,7 @@ Gemini는 새로운 코드를 제안하거나 기존 코드를 수정할 때, �
    - **Gemini 가용 모델 순차 선택 체인 (Cascading Fallback)**: 반드시 `GeminiModelSelector`를 통해 **1순위 `gemini-3.5-flash-lite` ➔ 2순위 `gemini-3.1-flash-lite` ➔ 3순위 `gemini-3.6-flash`** 순으로 자동 선택 호출하며, 구형 `gemini-1.5` 계열 호출은 전면 배제합니다.
    - **Pydantic V2 Strict & Structured JSON**: 모든 API 입출력은 Pydantic V2 스키마를 강제하고, 비전 분석 시 `response_mime_type="application/json"`을 적용하여 환각 없는 구조화된 데이터를 보장합니다.
 
-3. **디자인 시스템 및 스타일링 통일**:
-   - 컴포넌트 스타일링 시 `StyleSheet.create`를 사용하며, 공통 디자인 토큰을 엄격히 준수합니다.
-   - **노면 및 보행 환경별 표준 색상 규격 (Polyline & Badge)**:
-     - 흙/잔디길 (Dirt / Grass): 초록색 (`#10B981`)
-     - 흙길 (Dirt / Ground): 갈색 (`#92400E`)
-     - 우레탄/탄성포장 (Rubber / Cushion): 주황색 (`#F97316`)
-     - 보도블록 (Standard Paved): 파란색 (`#3B82F6`)
-     - 아스팔트 (Asphalt - 경고): 짙은 회색 (`#6B7280`)
-     - 위험 노면/급경사 (Hazard / Steep): 빨간색 (`#EF4444`)
-   - **야외 시인성 및 한 손 조작성**: 태양광 아래 시인성을 위해 저반사 아이보리 배경(`#FAFAFA`)과 고대비 차콜 텍스트(`#1E293B`)를 적용하고, 하단 50% Thumb Zone 및 48px 이상의 안전 터치 영역을 유지합니다.
-
-4. **네이밍 컨벤션 명문화**:
+3. **네이밍 컨벤션 명문화**:
    - 프론트엔드 파일명 및 컴포넌트명: PascalCase (`WalkMapScreen.tsx`, `SafetySummaryCard.tsx`)
    - 프론트엔드 함수, 변수, 훅명: camelCase (`useWalkTracking`, `isTrackingActive`)
    - 백엔드 파일명 및 함수/변수명: snake_case (`generate_loop_route`, `safety_score`)

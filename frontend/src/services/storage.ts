@@ -85,5 +85,16 @@ export class LocalStorageService {
     );
     return this.setItem(STORAGE_KEYS.WALK_HISTORY, updated);
   }
+
+  static async updateWalkRecordPublic(recordId: string, isPublic: boolean): Promise<boolean> {
+    const history = await this.getWalkHistory();
+    const now = new Date().toISOString();
+    const updated = history.map((record) =>
+      record.id === recordId
+        ? { ...record, isPublic, sharedAt: isPublic ? (record.sharedAt || now) : undefined }
+        : record
+    );
+    return this.setItem(STORAGE_KEYS.WALK_HISTORY, updated);
+  }
 }
 

@@ -60,6 +60,7 @@ export const WalkTabScreen: React.FC<WalkTabScreenProps> = ({
         <WalkSettingsView
           dog={dog}
           initialPreferences={preferences}
+          feedback={feedbackSummary}
           onBack={onBack}
           onFindRoute={handleFindRoute}
         />

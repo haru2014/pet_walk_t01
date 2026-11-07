@@ -94,6 +94,10 @@ vi.mock('../map/RouteMapView', () => ({
   RouteMapView: () => React.createElement('div', { 'data-testid': 'mock-route-map-view' }),
 }));
 
+vi.mock('../map/MapLibreMapView', () => ({
+  MapLibreMapView: () => React.createElement('div', { 'data-testid': 'mock-loading-map' }),
+}));
+
 vi.mock('../../services/api', async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
@@ -138,13 +142,13 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       />
     );
 
-    // 공원 검증 확인 전에는 코스 상세 카드가 아닌 대기/알림 뷰와 돌아가기 버튼 표시
-    expect(html).toContain('보행 경로를 확인하고 있어요');
-    expect(html).toContain('산책 설정으로 돌아가기');
+    // 공원 검증 확인 전에는 새 경로 로딩 화면과 설정 화면으로 돌아가는 헤더를 표시
+    expect(html).toContain('산책하기 좋은 길을 찾고 있어요');
+    expect(html).toContain('aria-label="뒤로가기"');
     expect(html).not.toContain('실시간 AI 맞춤 코스');
   });
 
-  it('현위치 모드(current_location)에서는 안전 기본 코스를 준비하여 바로 렌더링할 수 있다', () => {
+  it('현위치 모드(current_location)에서도 생성 대기 시간 동안 스플래시 화면을 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 30,
@@ -162,13 +166,11 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       />
     );
 
-    // 현위치 모드에서는 안전 로컬 코스가 즉시 준비되어 추천 산책 코스 헤더 표시
-    expect(html).toContain('추천 산책 코스');
-    expect(html).toContain('기본 안심 코스');
-    // Option 2: 하단 액션 바에 다시 추천 버튼과 산책 시작 버튼이 공존
-    expect(html).toContain('다시 추천');
-    expect(html).toContain('이 코스로 산책 시작하기');
-    expect(html).toContain('다른 코스 다시 추천받기');
+    // 현위치 모드에서도 생성 대기 시간 동안에는 스플래시 화면을 표출
+    expect(html).toContain('산책하기 좋은 길을 찾고 있어요');
+    expect(html).toContain('현재 위치 산책 경로를 요청하고 있어요.');
+    expect(html).toContain('현재 위치 주변 · 경로 확정 전');
+    expect(html).not.toContain('추천 산책 코스');
   });
 
   it('하단 액션 영역에 다시 추천 버튼(Option 2)이 렌더링된다', () => {
@@ -178,6 +180,15 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       environments: ['soft'],
       requestText: '',
     };
+    const mockCourses = courseAdaptivePlanner.generateAdaptiveCourses(mockDog, preferences, null);
+    const mockResult = {
+      isLiveServer: false,
+      courses: mockCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -186,6 +197,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={mockCourses}
+        initialPlanResult={mockResult}
       />
     );
 
@@ -193,14 +206,14 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(html).toContain('aria-label="다른 코스 다시 추천받기"');
   });
 
-  it('순환 코스에서 notice가 주어지면 바퀴 요약 블록에 💡 안내 문구가 함께 렌더링된다', () => {
+  it('순환 코스는 기존 바퀴·거리·시간을 한 줄로 표시하고 안내(notice)를 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 30,
       environments: ['soft'],
       requestText: '',
     };
-    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+    const testCourses = [
       {
         id: 'c_test_lap',
         name: '송강근린공원 순환로',
@@ -215,7 +228,8 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         lapCycleMeters: 450,
         notice: '산책로가 짧아 최대 약 60분 코스예요',
       },
-    ]);
+    ];
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce(testCourses);
     vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce({
       lapCount: 4,
       lapCycleMeters: 450,
@@ -223,6 +237,14 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
       entry: [127.3592, 36.3628],
       totalMeters: 1900,
     });
+    const mockResult = {
+      isLiveServer: false,
+      courses: testCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -231,21 +253,24 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={testCourses}
+        initialPlanResult={mockResult}
       />
     );
 
-    expect(html).toContain('4바퀴');
-    expect(html).toContain('💡 산책로가 짧아 최대 약 60분 코스예요');
+    expect(html).toContain('🔄 4바퀴 · 1.2km · 약 20분');
+    expect(html).not.toContain('여러 바퀴 도는 코스입니다');
+    expect(html).toContain('산책로가 짧아 최대 약 60분 코스예요');
   });
 
-  it('lapInfo가 null이어도 notice가 주어지면 reason 블록에 💡 안내 문구가 함께 렌더링된다', () => {
+  it('lapInfo가 없어도 코스 데이터의 반복 횟수를 정보 행에 표시하고 안내(notice)를 표출한다', () => {
     const preferences: WalkPreferences = {
       originMode: 'current_location',
       durationMinutes: 60,
       environments: ['soft'],
       requestText: '',
     };
-    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce([
+    const testCourses = [
       {
         id: 'c_test_no_lap',
         name: '송강근린공원 코스',
@@ -260,8 +285,17 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         lapCycleMeters: 450,
         notice: '산책로가 짧아 최대 약 60분 코스예요',
       },
-    ]);
+    ];
+    vi.spyOn(courseAdaptivePlanner, 'generateAdaptiveCourses').mockReturnValueOnce(testCourses);
     vi.spyOn(courseLapInfo, 'analyzeCourseLaps').mockReturnValueOnce(null);
+    const mockResult = {
+      isLiveServer: false,
+      courses: testCourses,
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '코스가 생성되었습니다.',
+      safetyBriefingMessage: '',
+    };
 
     const html = renderToStaticMarkup(
       <CourseRecommendationView
@@ -270,11 +304,14 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
         feedback={null}
         onBack={vi.fn()}
         onStartWalk={vi.fn()}
+        initialCourses={testCourses}
+        initialPlanResult={mockResult}
       />
     );
 
-    expect(html).toContain('순환로(약 450m)를 8바퀴 반복하는 코스입니다.');
-    expect(html).toContain('💡 산책로가 짧아 최대 약 60분 코스예요');
+    expect(html).toContain('🔄 8바퀴 · 2.5km · 약 45분');
+    expect(html).not.toContain('순환로(약 450m)를 8바퀴 반복하는 코스입니다.');
+    expect(html).toContain('산책로가 짧아 최대 약 60분 코스예요');
   });
 
   it('formatCourseDisplayName은 긴 행정명, 괄호 별칭, 중복 거리와 불필요한 안 번호를 정제한다', () => {
@@ -340,5 +377,47 @@ describe('CourseRecommendationView - P0 공원 검증 및 PlanSourceBadge 연계
     expect(getWeatherEmoji('구름이 많고 흐린 날씨입니다.')).toBe('☁️');
     expect(getWeatherEmoji('안전하고 쾌적한 산책 되세요.')).toBe('🐾');
     expect(getWeatherEmoji('')).toBe('🌤️');
+  });
+
+  it('현재 위치 모드에서는 1, 2, 3코스 모두 유림공원 텍스트나 코스로 점프하지 않는다', () => {
+    const preferences: WalkPreferences = {
+      originMode: 'current_location',
+      durationMinutes: 30,
+      environments: ['soft'],
+      requestText: '',
+      userCoordinates: { lat: 37.5665, lon: 126.978 },
+      pilotParkId: 'yurim', // pilotParkId가 남아있더라도 무시되어야 함
+    };
+
+    const mockPlanResult = {
+      isLiveServer: false,
+      courses: [
+        { id: 'course_1', name: '맞춤 안심 순환 코스', distanceKm: '1.4 km', estimatedMinutes: 30, stairsCount: '0회', softRatio: '70%', shadeLevel: '많음', shadePercent: 60, reason: '안심 코스' },
+        { id: 'course_2', name: '근린공원 안심 순환 코스', distanceKm: '1.2 km', estimatedMinutes: 25, stairsCount: '0회', softRatio: '65%', shadeLevel: '보통', shadePercent: 50, reason: '공원 코스' },
+        { id: 'course_3', name: '조용한 주택가 산책로', distanceKm: '1.5 km', estimatedMinutes: 32, stairsCount: '0회', softRatio: '60%', shadeLevel: '보통', shadePercent: 45, reason: '주택가 코스' },
+      ],
+      route: { type: 'FeatureCollection' as const, features: [] },
+      stepPins: [],
+      briefingMessage: '맞춤 코스',
+      safetyBriefingMessage: '',
+    };
+
+    const html = renderToStaticMarkup(
+      <CourseRecommendationView
+        dog={mockDog}
+        preferences={preferences}
+        feedback={null}
+        onBack={vi.fn()}
+        onStartWalk={vi.fn()}
+        initialCourses={mockPlanResult.courses}
+        initialPlanResult={mockPlanResult}
+      />
+    );
+
+    // 유림공원 텍스트가 노출되지 않아야 함
+    expect(html).not.toContain('유림공원');
+    expect(html).toContain('맞춤 안심 순환 코스');
+    expect(html).toContain('근린공원 안심 순환 코스');
+    expect(html).toContain('조용한 주택가 산책로');
   });
 });

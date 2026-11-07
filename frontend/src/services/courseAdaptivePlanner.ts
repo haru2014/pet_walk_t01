@@ -30,7 +30,7 @@ interface CourseBuilderContext {
 
 /** 환경 ID 목록을 친근한 한국어 요약 문구로 결합한다. */
 function buildEnvironmentSummaryText(envs: readonly EnvironmentId[]): string {
-  if (envs.length === 0) return '기본 안심 경로';
+  if (envs.length === 0) return '편안한 안심 보행로';
   const labelMap = new Map(WALK_ENVIRONMENTS.map((e) => [e.id, e.label]));
   const labels = envs.map((id) => labelMap.get(id)).filter(Boolean) as string[];
   if (labels.length <= 2) return labels.join('과 ');
@@ -62,7 +62,8 @@ function buildForestCourse(ctx: CourseBuilderContext): RecommendedCourse {
 
   let courseId = 'course_1';
   let courseName = hasSoft ? '편안한 숲길 코스' : '맞춤 안심 순환 코스';
-  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}을 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
+  const envParticle = envSummary.endsWith('조건') ? '을' : '를';
+  let reason = `${dog.name}의 ${targetMinutes}분 산책 목표에 맞춰, ${envSummary}${envParticle} 우선 반영한 최적 순환 경로예요.${feedbackReason}`;
 
   if (pilotParkId === 'yurim') {
     courseId = 'yurim_course_1';
@@ -111,9 +112,10 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.2, +(2.8 + slopeOffset * 0.2).toFixed(1))
     : 2.8;
 
-  const park = getPilotParkById(pilotParkId);
-  const parkCourseName = pilotParkId ? `${park.shortName} 둘레 한바퀴` : '공원 한바퀴 코스';
+  const park = pilotParkId ? getPilotParkById(pilotParkId) : null;
+  const parkCourseName = park ? `${park.shortName} 둘레 한바퀴` : '근린공원 안심 순환 코스';
   const courseId = pilotParkId ? `${pilotParkId}_course_2` : 'course_2';
+  const targetAreaName = park ? `${park.shortName} 둘레를` : '출발지 주변 완만한 코스를';
 
   return {
     id: courseId,
@@ -126,7 +128,7 @@ function buildParkCourse(ctx: CourseBuilderContext): RecommendedCourse {
     maxSlopePercent,
     shadePercent: 55,
     softSurfacePercent: 75,
-    reason: `${detail}를 중심으로 ${park.shortName} 둘레를 여유롭게 산책할 수 있어요.`,
+    reason: `${detail}를 중심으로 ${targetAreaName} 여유롭게 산책할 수 있어요.`,
     differenceTag: '가벼운 여유 코스 (-15%)',
   };
 }
@@ -145,9 +147,9 @@ function buildResidentialCourse(ctx: CourseBuilderContext): RecommendedCourse {
     ? Math.max(1.5, +(3.2 + slopeOffset * 0.2).toFixed(1))
     : 3.2;
 
-  const park = getPilotParkById(pilotParkId);
+  const park = pilotParkId ? getPilotParkById(pilotParkId) : null;
   let residentialName = hasQuiet ? '조용한 주택가 코스' : '한적한 골목길 코스';
-  if (pilotParkId) {
+  if (park) {
     residentialName = `${park.shortName} 외곽 안심길`;
   }
   const courseId = pilotParkId ? `${pilotParkId}_course_3` : 'course_3';
@@ -222,7 +224,7 @@ export function calculateAdaptiveCourseScore(
   preferences?: WalkPreferences,
   feedback?: FeedbackSummaryPayload | null
 ): number {
-  const envs = preferences?.environments ?? [];
+  const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const avoidStairs = envs.includes('stairs');
   const preferShade = envs.includes('shade');
   const preferSoft = envs.includes('soft');
@@ -287,7 +289,8 @@ export function generateAdaptiveCourses(
   const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const speed = dog.speedKmH > 0 ? dog.speedKmH : 2.8;
   const envSummary = buildEnvironmentSummaryText(envs);
-  const pilotParkId = preferences?.pilotParkId;
+  const isCurrentLoc = (preferences?.originMode ?? 'park') === 'current_location';
+  const pilotParkId = isCurrentLoc ? undefined : preferences?.pilotParkId;
 
   const ctx: CourseBuilderContext = { dog, targetMinutes, speed, envs, envSummary, feedback, pilotParkId };
 
@@ -338,7 +341,7 @@ export function generateAdaptiveBriefing(
   const isFree = preferences?.isFreeWalk;
   const targetMinutes = preferences?.durationMinutes ?? 30;
   const timeDesc = isFree ? '자유 산책' : `${formatDurationLabel(targetMinutes)}`;
-  const envs = preferences?.environments ?? [];
+  const envs = preferences?.environments ?? ['soft', 'shade', 'stairs'];
   const envSummary = buildEnvironmentSummaryText(envs);
   const isCurrent = preferences?.originMode === 'current_location';
   const park = getPilotParkById(preferences?.pilotParkId);

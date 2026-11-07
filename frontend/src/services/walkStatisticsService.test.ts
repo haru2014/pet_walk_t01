@@ -116,6 +116,61 @@ describe('WalkStatisticsService', () => {
     expect(allRecords[0].id).toBe('walk_2');
   });
 
+  it('월간 달력은 해당 월의 실제 시작 요일과 날짜 수를 계산하고 빈 달은 0일로 표시한다', () => {
+    const calendar = WalkStatisticsService.getMonthlyWalkCalendar(
+      [],
+      2026,
+      2,
+      new Date('2026-02-14T12:00:00.000Z'),
+    );
+
+    expect(calendar.monthLabel).toBe('2026년 2월');
+    expect(calendar.firstDayOfWeek).toBe(0); // 2026년 2월 1일은 일요일
+    expect(calendar.daysInMonth).toBe(28);
+    expect(calendar.completedDays).toBe(0);
+    expect(calendar.days).toHaveLength(28);
+  });
+
+  it('월간 완료 일수는 중복 산책을 하루로 세고 미래 날짜 기록에는 도장을 찍지 않는다', () => {
+    const duplicate = { ...mockRecords[0], id: 'walk_same_day_again' };
+    const future = {
+      ...mockRecords[0],
+      id: 'walk_future',
+      completedAt: '2026-10-20T10:30:00.000Z',
+    };
+    const calendar = WalkStatisticsService.getMonthlyWalkCalendar(
+      [...mockRecords, duplicate, future],
+      2026,
+      10,
+      new Date('2026-10-14T12:00:00.000Z'),
+    );
+
+    expect(calendar.completedDays).toBe(2);
+    expect(calendar.totalWalks).toBe(3);
+    expect(calendar.days.find((day) => day.day === 12)).toMatchObject({ hasWalked: true, walkCount: 2 });
+    expect(calendar.days.find((day) => day.day === 14)).toMatchObject({ isToday: true });
+    expect(calendar.days.find((day) => day.day === 20)).toMatchObject({ isFuture: true, hasWalked: false, walkCount: 0 });
+  });
+
+  it('이전 달을 선택하면 해당 달의 완료 기록만 달력에 반영한다', () => {
+    const septemberRecord = {
+      ...mockRecords[0],
+      id: 'walk_september',
+      completedAt: '2026-09-30T10:30:00.000Z',
+    };
+    const calendar = WalkStatisticsService.getMonthlyWalkCalendar(
+      [septemberRecord, ...mockRecords],
+      2026,
+      9,
+      new Date('2026-10-14T12:00:00.000Z'),
+    );
+
+    expect(calendar.monthLabel).toBe('2026년 9월');
+    expect(calendar.daysInMonth).toBe(30);
+    expect(calendar.completedDays).toBe(1);
+    expect(calendar.days[29]).toMatchObject({ day: 30, hasWalked: true });
+  });
+
   it('기록이 JSON 포맷으로 직렬화된다', () => {
     const jsonStr = WalkStatisticsService.exportWalkRecordsToJson(mockRecords, '초코');
     const parsed = JSON.parse(jsonStr);

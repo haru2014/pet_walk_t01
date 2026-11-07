@@ -176,7 +176,8 @@ describe('회전 안내는 다음 방향 전환을 경로상 거리로 묶는다
     { id: 'turn-u', kind: 'turn', position: [127.00045, 0], instruction: '유턴하여 반대 방향으로 이동하세요.' },
   ];
 
-  it('5m 안에 이어지는 방향 전환은 한 번의 순서 안내로 묶는다', () => {
+  it('10m 안에 이어지는 연속 방향 전환은 한 번의 순서 안내로 묶는다', () => {
+    // turn-left(127.0003)까지 약 4.4m 남은 위치
     const result = evaluateGuidance([127.00026, 0], route, pins, STARTED_STATE);
     const turnEvent = result.events.find((event) => event.category === 'turn');
 
@@ -186,9 +187,16 @@ describe('회전 안내는 다음 방향 전환을 경로상 거리로 묶는다
     expect(result.nextState.announcedPinIds).not.toContain('turn-u');
   });
 
-  it('아직 5m보다 멀리 있는 다음 회전은 미리 안내하지 않는다', () => {
-    const result = evaluateGuidance([127.0001, 0], route, pins, STARTED_STATE);
-    expect(result.events.filter((event) => event.category === 'turn')).toHaveLength(0);
+  it('회전 지점 30m 전부터 사전 안내하고, 30m보다 멀리 있으면 안내하지 않는다', () => {
+    // turn-left(127.0003)까지 약 33m 거리 (30m 초과): 안내 없음
+    const far = evaluateGuidance([127.0, 0], route, pins, STARTED_STATE);
+    expect(far.events.filter((event) => event.category === 'turn')).toHaveLength(0);
+
+    // 약 22m 거리 (30m 이내): 20~25m 전방 사전 안내 발화
+    const near = evaluateGuidance([127.0001, 0], route, pins, STARTED_STATE);
+    const turnEvent = near.events.find((event) => event.category === 'turn');
+    expect(turnEvent).toBeDefined();
+    expect(turnEvent?.message).toContain('좌회전하십시오');
   });
 });
 

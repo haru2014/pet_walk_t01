@@ -2,14 +2,14 @@
 > **AI Native 반려견 맞춤형 안심 노면 산책 에이전트 및 핸즈프리 모바일 플랫폼**  
 > *"견주에게는 시선과 두 손의 자유를, 반려견에게는 관절 안심 발걸음을"*
 
-> **현재 코드 기준 (2026-10-25):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시할 수 있습니다. 실제 배포 상태와 테스트 통과 수는 이 갱신에서 확인하지 않았으므로 아래의 배포 링크와 누적 테스트 수는 **마지막 기록값**으로 봐 주세요. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 실행·배포 안내는 [백엔드 가이드](docs/09_백엔드_서버_실행_배포_가이드.md)를 참고하세요.
+> **현재 코드 기준 (2026-11-04):** 이 저장소는 Expo SDK 57 모바일 앱과 FastAPI 백엔드로 구성됩니다. 산책 설정에서 코스 2·3 재생성을 지원하고, 지정 공원 경로는 후보 풀에서 직전 경로와 겹침이 낮은 코스 및 반대 방향 코스를 우선 제공합니다. 코스 카드에는 순환 진입점과 바퀴 수를 표시합니다. 최근 지도 마커의 직진 벡터 화살표 광학 정렬 및 코스 추천 상단 찜하기 UI 최적화가 적용되었으며, 17종 최신 실제 구동 화면 갤러리가 체계적으로 구축되었습니다. 최신 코드 기준 요약은 [현재 코드 상태 보고서](docs/reports/2026-10-25_현재_코드_기준_상태.md), API는 [API 명세](docs/07_편안하개_API_list.md), 스크린샷 갤러리는 [스크린샷 안내](docs/screenshots/README.md)를 참고하세요.
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v1.0.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB.svg)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-0%20Errors%20(Clean)-3178C6.svg)](frontend)
-[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-796%20passed%2C%205%20skipped-brightgreen.svg)](backend/test_case)
-[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-406%2F406%20Passed-brightgreen.svg)](frontend)
+[![Pytest TDD](https://img.shields.io/badge/Pytest%20TDD-948%20collected-brightgreen.svg)](backend/test_case)
+[![Mobile Tests](https://img.shields.io/badge/Vitest%20Mobile-566%2F566%20Passed-brightgreen.svg)](frontend)
 [![Code Quality](https://img.shields.io/badge/SonarLint-Line%20%E2%89%A4%20250%20(100%25)-success.svg)](frontend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -17,6 +17,8 @@
 ## 테스트용 앱 다운로드 주소
 https://expo.dev/artifacts/eas/VBEa7RZrgonb30FUxB63-3YPJXY6IOlySrvw32uJJrg.apk
 
+## 웹 서비스 데모 주소
+https://pet-walk-t01-1.onrender.com
 
 ## 웹 서비스 운영 서버 주소
 https://pet-walk-t01-z095.onrender.com
@@ -34,6 +36,35 @@ graph LR
     BE <--> KMA["☀️ 기상청 단기예보 & 지면온도"]
     BE <--> Supa[("🌐 Supabase Cloud / Mock Fallback")]
 ```
+## 📖 목차 (Table of Contents)
+
+0. [⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)](#-빠른-시작-및-가동-가이드-quick-start-guide)
+1. [🌟 프로젝트 개요 및 핵심 철학 (Overview)](#-1-프로젝트-개요-및-핵심-철학-overview)
+2. [🚨 해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
+3. [💡 4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
+4. [🏗️ 시스템 아키텍처 (System Architecture)](#-4-시스템-아키텍처-system-architecture)
+5. [📱 핵심 사용자 여정 및 주요 화면 갤러리 (User Journey & Screens)](#-5-핵심-사용자-여정-및-주요-화면-갤러리-user-journey--screens)
+   - [5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)](#51-📸-실제-구동-화면-스크린샷-갤러리-key-screenshots-gallery)
+   - [5.2 🗺️ 6대 핵심 시나리오 화면 명세 및 사용자 여정](#52-🗺️-6대-핵심-시나리오-화면-명세-및-사용자-여정)
+6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
+   - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
+   - [6.2 팀원별 담당 사용자 스토리 요약](#62-팀원별-담당-사용자-스토리-요약)
+   - [6.3 프로젝트 주요 마일스톤 (수행계획서 정합)](#63-프로젝트-주요-마일스톤-수행계획서-정합)
+   - [6.4 📊 2026-10-21 구현 현황 기록](#64-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
+7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
+   - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
+   - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
+8. [📂 프로젝트 디렉터리 구조 및 공식 산출물 문서 (Directory Structure & Docs)](#-8-프로젝트-디렉터리-구조-및-공식-산출물-문서-directory-structure--docs)
+   - [8.1 📚 docs/ 기획 및 공식 엔지니어링 산출물 문서 목록](#81-📚-docs-기획-및-공식-엔지니어링-산출물-문서-목록)
+   - [8.2 전체 프로젝트 디렉터리 트리](#82-전체-프로젝트-디렉터리-트리)
+9. [🚀 시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
+   - [9.1 환경 요구사항](#91-환경-요구사항)
+   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트-backend--supabase)
+   - [9.3 프론트엔드 모바일 앱/웹 가동](#93-프론트엔드-모바일-앱웹-가동)
+   - [9.4 의존성 설치 및 TDD/단위 테스트 실행](#94-의존성-설치-및-tdd단위-테스트-실행)
+   - [9.5 주요 개발 현황 보고서 및 설계 문서](#95-주요-개발-현황-보고서-및-설계-문서)
+   - [9.6 인터랙티브 목업 갤러리 확인](#96-인터랙티브-목업-갤러리-확인)
+10. [📜 라이선스 및 저작권 (License)](#-10-라이선스-및-저작권-license)
 
 ---
 
@@ -140,43 +171,12 @@ open mockup/index.html
 python -m pytest   # 루트에서 실행 시 backend/test_case 자동 감지
 # 또는: cd backend && pytest test_case/ -v
 
-# 2. 프론트엔드 Vitest 마지막 기록 (70개 파일, 406개 통과; 현재 HEAD에서는 재실행하지 않음)
+# 2. 프론트엔드 Vitest 최신 기록 (87개 파일, 566개 전원 통과 100% PASS)
 cd frontend && npm test
 
 # 3. 프론트엔드 TypeScript 무결성 검증 (0 Errors)
 cd frontend && npm run check
 ```
-
----
-
-## 📖 목차 (Table of Contents)
-
-0. [⚡ 빠른 시작 및 가동 가이드 (Quick Start Guide)](#-빠른-시작-및-가동-가이드-quick-start-guide)
-1. [🌟 프로젝트 개요 및 핵심 철학 (Overview)](#-1-프로젝트-개요-및-핵심-철학-overview)
-2. [🚨 해결하고자 하는 핵심 문제 (Problem Statement)](#-2-해결하고자-하는-핵심-문제-problem-statement)
-3. [💡 4대 핵심 엔지니어링 전략 (Engineering Strategy)](#-3-4대-핵심-엔지니어링-전략-engineering-strategy)
-4. [🏗️ 시스템 아키텍처 (System Architecture)](#-4-시스템-아키텍처-system-architecture)
-5. [📱 핵심 사용자 여정 및 주요 화면 갤러리 (User Journey & Screens)](#-5-핵심-사용자-여정-및-주요-화면-갤러리-user-journey--screens)
-   - [5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)](#51-📸-실제-구동-화면-스크린샷-갤러리-key-screenshots-gallery)
-   - [5.2 🗺️ 6대 핵심 시나리오 화면 명세 및 사용자 여정](#52-🗺️-6대-핵심-시나리오-화면-명세-및-사용자-여정)
-6. [👥 5인 팀 R&R, 프로젝트 마일스톤 및 개발 현황 (Team Roles, Milestones & Status)](#-6-5인-팀-rr-프로젝트-마일스톤-및-개발-현황-team-roles-milestones--status)
-   - [6.1 5인 전담 R&R 및 협업 체계](#61-5인-전담-rr-및-협업-체계)
-   - [6.2 프로젝트 주요 마일스톤 (수행계획서 정합)](#62-프로젝트-주요-마일스톤-수행계획서-정합)
-   - [6.3 📊 2026-10-21 구현 현황 기록](#63-📊-현재-프로젝트-개발-및-구현-현황-2026-10-21-기록)
-7. [🧪 TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)](#-7-tdd-테스트-스위트-및-품질-가드레일-test-driven-development)
-   - [7.1 테스트 스위트 구성 및 실행 결과](#71-테스트-스위트-구성-및-실행-결과)
-   - [7.2 엄격한 품질 가드레일 (Enforced Guardrails)](#72-엄격한-품질-가드레일-enforced-guardrails)
-8. [📂 프로젝트 디렉터리 구조 및 공식 산출물 문서 (Directory Structure & Docs)](#-8-프로젝트-디렉터리-구조-및-공식-산출물-문서-directory-structure--docs)
-   - [8.1 📚 docs/ 기획 및 공식 엔지니어링 산출물 문서 목록](#81-📚-docs-기획-및-공식-엔지니어링-산출물-문서-목록)
-   - [8.2 전체 프로젝트 디렉터리 트리](#82-전체-프로젝트-디렉터리-트리)
-9. [🚀 시작하기 및 실행 방법 (Getting Started)](#-9-시작하기-및-실행-방법-getting-started)
-   - [9.1 환경 요구사항](#91-환경-요구사항)
-   - [9.2 백엔드 가동 및 API 테스트](#92-백엔드-가동-및-api-테스트-backend--supabase)
-   - [9.3 프론트엔드 모바일 앱/웹 가동](#93-프론트엔드-모바일-앱웹-가동)
-   - [9.4 의존성 설치 및 TDD/단위 테스트 실행](#94-의존성-설치-및-tdd단위-테스트-실행)
-   - [9.5 주요 개발 현황 보고서 및 설계 문서](#95-주요-개발-현황-보고서-및-설계-문서)
-   - [9.6 인터랙티브 목업 갤러리 확인](#96-인터랙티브-목업-갤러리-확인)
-10. [📜 라이선스 및 저작권 (License)](#-10-라이선스-및-저작권-license)
 
 ---
 
@@ -280,25 +280,45 @@ graph TB
 
 ### 5.1 📸 실제 구동 화면 스크린샷 갤러리 (Key Screenshots Gallery)
 
-편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 최신 실제 구동 화면 모음입니다. (고화질 원본: [`docs/screenshots/`](docs/screenshots/))
+편안하개 모바일 애플리케이션의 핵심 사용자 여정(User Journey)과 최신 실제 구동 대표 화면 모음입니다. (고화질 원본 및 상세 명세: [`docs/screenshots/README.md`](docs/screenshots/README.md))
 
-#### 🌟 1. 메인 홈 & 실시간 지면열 리포트 & 코스 탐색
-| 01. 메인 홈 화면 | 02. 오늘의 산책 날씨 리포트 | 03. 맞춤 산책 조건 설정 | 04. 추천 산책 코스 프리뷰 |
+#### 🌟 1. 온보딩 4단계 (처음 시작하기)
+| 01-1. 가입 및 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 & 200m 보호 | 01-4. 안심 코스 지도 & 시작 |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/02_home_screen1.png" width="200" alt="메인 홈 화면"/> | <img src="docs/screenshots/02-1_golden_time_report1.png" width="200" alt="오늘의 산책 날씨 리포트"/> | <img src="docs/screenshots/03_walk_settings1.png" width="200" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/04_course_recommendation1.png" width="200" alt="추천 산책 코스 프리뷰"/> |
-| **반려견 맞춤 대시보드**<br>• 초코(골든 리트리버) 준비 카드<br>• **산책지수 100점** 골든타임 위젯<br>• 7일 산책 달성도 게이지 | **정밀 날씨 분석 모달**<br>• 4대 환경 메트릭 (기온/지면열/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교**<br>• 기상청·에어코리아 공식 출처 | **산책 조건 다중 선택**<br>• 목표 시간 슬라이더 (15~120분)<br>• 6대 선호 보행길 원터치 칩<br>• 대전·세종 5대 공원 거점 연계 | **실시간 AI 코스 요약**<br>• 실제 OSM 도로망 경로 라인<br>• 웨이포인트 핀 및 구간 분석<br>• 완만길/폭신한 길 비율 요약 |
+| <img src="docs/screenshots/01-1_onboarding_wizard_step1_terms.png" width="180" alt="온보딩 Step 1 가입 및 약관 동의"/> | <img src="docs/screenshots/01-2_onboarding_wizard_step2_dog_profile.png" width="180" alt="온보딩 Step 2 프로필 등록"/> | <img src="docs/screenshots/01-3_onboarding_wizard_step3_location_consent.png" width="180" alt="온보딩 Step 3 위치 동의"/> | <img src="docs/screenshots/01-4_onboarding_wizard_step4_course_preview.png" width="180" alt="온보딩 Step 4 코스 프리뷰"/> |
+| **보호자 환영 & 약관 동의**<br>• 계정 생성 및 이용약관 동의<br>• 위치기반서비스 필수 동의 | **우리 강아지 소개**<br>• 이름(초코), 견종, 나이 입력<br>• 대표 사진 원터치 등록 | **안심 보행로 위치 권한**<br>• **집 주변 200m 자동 안심 보호**<br>• 공간 지터링 & 자동 가림 고지 | **주변 안심 코스 프리뷰**<br>• 대전 중심 안심 예시 지도<br>• 첫 산책 바로 시작하기 |
 
-#### 🌟 2. 4단계 온보딩 위저드 플로우
-| 01-1. 서비스 약관 동의 | 01-2. 반려견 프로필 등록 | 01-3. 위치 권한 안내 | 01-4. 온보딩 완료 축하 |
+#### 🌟 2. 메인 홈 & 실시간 지면열 날씨 리포트 (홈 탭)
+| 02. 메인 홈 (날씨 로드 완료) | 02-1. 오늘의 산책 날씨 리포트 모달 |
+| :---: | :---: |
+| <img src="docs/screenshots/02_home_screen_weather_loaded.png" width="220" alt="메인 홈 날씨 로드 완료"/> | <img src="docs/screenshots/02-1_golden_time_weather_detail_modal.png" width="220" alt="오늘의 산책 날씨 리포트"/> |
+| **산책 지수 & 골든타임 대시보드**<br>• **오늘 강아지 산책지수 90점** 골든타임 배지<br>• 기온·노면 체감온도 및 상세 날씨 팝업<br>• 맞춤 추천 산책길 바로가기 | **정밀 노면 발바닥 체감온도 분석**<br>• 4대 환경 메트릭 (기온/체감/강수/미세먼지)<br>• **노면별 발바닥 체감온도 비교** (아스팔트 21.2℃, 보도블록 20.4℃, 흙 20.1℃, 잔디 18.4℃)<br>• 100점 만점 안심 시간대 브리핑 |
+
+#### 🌟 3. 맞춤 산책 조건 설정 & 추천 코스 (산책 탭)
+| 03. 맞춤 산책 조건 설정 | 03-1. 맞춤 조건 필터 선택 | 03-3. 산책 경로 생성 중 로딩 | 04. 추천 코스 프리뷰 |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_onboarding_wizard1.png" width="200" alt="온보딩 1단계"/> | <img src="docs/screenshots/01_onboarding_wizard2.png" width="200" alt="온보딩 2단계"/> | <img src="docs/screenshots/01_onboarding_wizard3.png" width="200" alt="온보딩 3단계"/> | <img src="docs/screenshots/01_onboarding_wizard4.png" width="200" alt="온보딩 4단계"/> |
-| **투명한 이용 약관**<br>• 필수 이용약관 & 개인정보 동의<br>• Local-First 프라이버시 원칙 | **강아지 프로필 등록**<br>• 이름, 견종, 생년월일, 체중<br>• 관절 케어 필요 수준 설정 | **위치 정보 권한 동의**<br>• 산책 시작 안내용 한정 수집<br>• 200m 마스킹 원칙 사전 고지 | **산책 준비 완료**<br>• 프로필 세팅 완료 축하<br>• 원터치 메인 홈 화면 진입 |
+| <img src="docs/screenshots/03_walk_settings_park_and_time.png" width="180" alt="맞춤 산책 조건 설정"/> | <img src="docs/screenshots/03-1_walk_settings_filter_options.png" width="180" alt="맞춤 조건 필터 선택"/> | <img src="docs/screenshots/03-3_route_generating_loading.png" width="180" alt="산책 경로 생성 로딩"/> | <img src="docs/screenshots/04_course_recommendation.png" width="180" alt="추천 산책 코스"/> |
+| **자연어 & 명소 둘레길**<br>• 음성/텍스트 맞춤 조건 입력<br>• 현재 위치 / 지정 명소 탭<br>• 30분 등 시간 간편 설정 | **6대 맞춤 보행 필터**<br>• 폭신한 길, 그늘길, 계단 피하기<br>• 차가 적은 길, 조용한 길<br>• 다중 조건 조합 탐색 | **실시간 탐색 피드백**<br>• "산책하기 좋은 길을 찾고 있어요"<br>• 관절 안심·노면·그늘길 계산 중 | **경로 전체 조망 & 정보 카드**<br>• 유림공원 순환로 2바퀴 지도 프리뷰<br>• 지면온도(14.4℃) 안내<br>• 코스 찜하기 및 바로 산책 시작 |
 
-#### 🌟 3. 마이 프로필 & 안심 커뮤니티 피드
-| 08-1. 반려견 프로필 관리 | 08-2. 3대 테마 선택기 | 08-3. 완주 산책 활동 리포트 | 08-4. 설정 및 데이터 관리 | 09. 커뮤니티 안심 피드 |
+#### 🌟 4. 실시간 보행 내비게이션 & 산책 제어
+| 06-1. 산책 진행 중 (자유 산책 트래커) | 06-2. 산책 진행 중 (내비게이션 & 재탐색) |
+| :---: | :---: |
+| <img src="docs/screenshots/06-1_walk_in_progress_free_walk_tracker.png" width="220" alt="자유 산책 트래커"/> | <img src="docs/screenshots/06-2_walk_in_progress_reroute_navigation.png" width="220" alt="다크 내비게이션"/> |
+| **자유 산책 모드 & 전방 위험 알림**<br>• 자유 산책 실시간 경로 추적<br>• 전방 위험 제보 실시간 모니터링<br>• 경과 시간, 이동 거리, 배변/소변 기록 | **초절전 다크 내비게이션 & 경로 이탈 재탐색**<br>• True Black HUD 턴바이턴 안내<br>• 경로 이탈 시 실시간 출발지 복귀 새 경로 안내<br>• 실시간 GPS 보행 트래커 HUD |
+
+#### 🌟 5. 마이 탭 (프로필, 6대 컬러 테마, 월간 스탬프 & 통계, AI 음성 설정)
+| 08-1. 프로필 관리 | 08-2. 6대 테마 & 계정 | 08-3A. 월간 스탬프 달력 | 08-3B. 활동 통계 & 완주 기록 | 08-4. AI 길안내 음성 설정 |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/08-1_my_profile1.png" width="160" alt="반려견 프로필 관리"/> | <img src="docs/screenshots/08-2_my_theme1.png" width="160" alt="3대 테마 선택기"/> | <img src="docs/screenshots/08-3_my_walk_report.png" width="160" alt="완주 산책 활동 리포트"/> | <img src="docs/screenshots/08-4_my_setting1.png" width="160" alt="설정 및 데이터 관리"/> | <img src="docs/screenshots/09_community_feed1.png" width="160" alt="커뮤니티 안심 피드"/> |
-| **강아지 맞춤 케어**<br>• 나이/체중/성별 관리<br>• 다견 가정을 위한 전환 | **야외 시인성 테마**<br>• 숲길 / 비비드 / 다크 테마<br>• 눈부심 방지 고대비 토큰 | **보행 통계 & 상세 지도**<br>• GPS 경로·배변 지도 뷰어<br>• 찜한 코스 원터치 재산책 | **프라이버시 & 무결성**<br>• AI 음성 안내 설정<br>• CSV/JSON 내보내기 & 초기화 | **200m 공간 마스킹**<br>• 복합 기간 필터(7/30일/전체)<br>• 안심 코스 찜하기(즐겨찾기) |
+| <img src="docs/screenshots/08-1_my_tab_profile_edit.png" width="160" alt="프로필 관리"/> | <img src="docs/screenshots/08-2_my_tab_theme_and_account.png" width="160" alt="테마 및 계정"/> | <img src="docs/screenshots/08-3A_my_tab_activity_stamps.png" width="160" alt="월간 스탬프 달력"/> | <img src="docs/screenshots/08-3B_my_tab_activity_history.png" width="160" alt="활동 통계 및 완주 기록"/> | <img src="docs/screenshots/08-4_my_tab_settings_voice.png" width="160" alt="AI 음성 설정"/> |
+| **반려견 안심 케어**<br>• 대표 사진/이름/나이/체중<br>• 관절 안심 케어 수준 관리<br>• 다견 원터치 전환 | **6종 비주얼 스타일**<br>• 더스티 앰버 & 세이지 그린<br>• 숲길, 비비드, 다크포켓, 바다<br>• 간편 계정 전환 및 로그아웃 | **월간 보행 달력**<br>• 이번 달 산책 스탬프 캘린더<br>• 발자국 스탬프로 달성도 시각화<br>• 완주 기록 / 찜한 코스 탭 | **보행 통계 & 완주 카드**<br>• 최근 7일/30일/전체 통계 집계<br>• 편안한 길 비율(73%) 분석<br>• 완주 인증 카드 및 이웃 공유 | **맞춤형 4종 AI 보이스**<br>• 차분한 안심 톤 등 목소리 4종<br>• 실시간 미리듣기 및 음량 슬라이더<br>• 산책길 추천 미리보기 테스트 |
+[!NOTE]
+• 마이페이지 내 **서비스 이용약관 모달**([`08-6_my_service_terms_modal.png`](docs\screenshots\08-6_my_service_terms_modal.png)) 및 **개인정보보호정책 모달**([`08-5_my_privacy_policy_modal.png`](docs\screenshots\08-5_my_privacy_policy_modal.png))을 통해 투명한 Local-First 프라이버시 정책을 고지합니다.  
+
+#### 🌟 6. 커뮤니티 안심 피드 (200m 공간 지터링 마스킹)
+| 09. 커뮤니티 코스 피드 |
+| :---: |
+| <img src="docs/screenshots/09_community_feed_course_list.png" width="240" alt="커뮤니티 안심 피드"/> |
+| **이웃들이 공유한 안심 산책로 (자택 200m 공간 보호)**<br>• 자택 노출 방지를 위한 출발·도착지 200m 자동 공간 지터링 및 절단 마스킹<br>• 대전·세종 주요 랜드마크 필터 및 최근 7일/30일/전체 기간 복합 필터링<br>• 이웃 코스 원터치 찜하기(즐겨찾기) 및 경로 지도 바로보기 |
 
 ---
 
@@ -342,9 +362,282 @@ graph LR
 | **4번** | **앱 / 모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | **김승현** | • React Native Expo 모바일 앱 구축, 시선 해방 TTS 음성 안내<br>• Local-First 스토리지, 즐겨찾기(US-29), 온보딩(US-21), 위치동의(US-23) | `US-A2`, `US-C1`, `US-C2`, `US-E1~E3`, `US-H1`<br>*(Phase 2: US-29, 23, 21)* |
 | **5번** | **UI / 화면 구현·품질 검증**<br/>(UI/UX Designer & Experience Lead) | **김정님** | • 핵심 시나리오 UI/UX 화면 개발, 고대비 시인성 토큰 적용<br>• 웰니스 카피라이팅 가드레일 준수, EAS 배포 및 CBT 총괄 | `US-A2`, `US-A3`, `US-C1`, `US-E2`, `US-F1`, `US-G1~G2`, `US-H1` |
 
+#### 📋 팀원별 세부 역할 및 책임 범위 ([`02_편안하개_Team_building.md`](docs/02_편안하개_Team_building.md) 기준)
+
+| 번호 | 담당자 | 공식 역할 & 포지션 | 쉽게 설명하면 (제안 MVP 역할) | 담당 범위 및 핵심 책임 | 배정 공수 | 관련 에픽 및 담당 스토리 |
+|:---:|:---:|---|---|---|:---:|---|
+| **1번** | **조현정 (팀장)** | **프로젝트 총괄·AI 기능 설계**<br/>(PM & AI Agent Lead) | **무엇을 만들지 정하고 AI와 전체 기능을 연결**<br/>(PM·AI 서비스 통합) | • LangGraph 기반 Walk Planning Agent 설계 및 오케스트레이션<br>• Pydantic V2 Strict Input Schema 및 상태 머신 수립<br>• 클라이언트 로컬 맥락(반려견 조건, 피드백) 기반 무상태(Stateless) 프롬프트 오케스트레이션<br>• 체급별 표준 보행 속도 모델 및 목표 시간 수렴도($\pm 15\%$) 튜닝<br>• 산책 생성 기준 이원화(`origin_mode`: 현위치 vs 5대 공원 거점 90%+ 가중치) 기획<br>• Candidate Route Scorer 다요소(무장애길+지면온도) 랭킹 수치 알고리즘 및 추천 사유 브리핑 | **55 h**<br/>(18.5%) | Epic A (`US-A1`, `US-A3`)<br>Epic B (`US-B3`)<br>Epic E (`US-E3`)<br>*(Phase 2: `US-D2`)* |
+| **2번** | **전황진 (데이터)** | **지도·공간데이터·AI 분석**<br/>(AI & Spatial Data Engineer) | **어떤 길이 흙길·계단·경사인지 데이터로 정리**<br/>(GIS·공공데이터·공간분석) | • DEM 고도 래스터 적재 및 15도 미만 무장애 보행로 고도 분석<br>• 기상청 단기예보 격자 변환 및 실시간 수집 클라이언트(`kma_weather_client`) 구축<br>• 대전 3대 공원(유림/송강/도안) & 세종 2대 공원(세종호수/세종중앙) 정밀 보행망 정제<br>• 전국 공영주차장 API 및 커뮤니티 200m 공간 블러링(Spatial Jittering) 파이프라인<br>• *(Phase 2: Gemini 멀티모달 비전 AI 현장 위험 턱/계단 분석 및 공원 종합안내판 판독)* | **53 h**<br/>(17.8%) | Epic B (`US-B1`, `US-B2`)<br>Epic F (`US-F1`)<br>Epic G (`US-G1`, `US-G2`)<br>*(Phase 2: `US-D1`, `US-D2`)* |
+| **3번** | **노희선 (서버)** | **서버·맞춤 경로 계산**<br/>(Backend & Spatial Routing Lead) | **반려견에게 적합한 산책길을 실제로 계산**<br/>(백엔드·맞춤경로 알고리즘) | • FastAPI 백엔드 코어 구축 및 Stateless REST API 엔드포인트 구현<br>• OpenRouteService / OSRM 라우팅 API Adapter 연동 및 대전·세종 5대 공원 정밀 라우팅<br>• 무장애길(OSM 계단 배제 + 경사 15도 미만 제어) 하드 제약 라우팅 및 위험 우회(`/reroute`)<br>• 기상·노면 연동 지면온도 기반 비용 함수 및 고온 노면 회피 라우팅 API<br>• Supabase Auth 간편 이메일 가입/로그인 및 커뮤니티 공개 코스 REST API<br>• 백엔드 Pytest TDD 단위 테스트 100% 통과 달성 | **74 h**<br/>(24.8%) | Epic B (`US-B1`, `US-B2`, `US-B3`)<br>Epic F (`US-F1`)<br>Epic G (`US-G1`, `US-G2`)<br>*(Phase 2: `US-D2`)* |
+| **4번** | **김승현 (앱)** | **모바일 앱·GPS·음성 안내**<br/>(Frontend & Mobile App Lead) | **스마트폰에서 경로를 보고 실제 산책할 수 있게 구현**<br/>(모바일·GPS·산책 안내) | • React Native (Expo SDK 57) 모바일 앱 코어 아키텍처 구축<br>• Android Foreground Service + `expo-speech` 기반 시선 해방 핸즈프리 음성 안내 엔진 개발<br>• AI 보이스 프로필 4종 & 스마트 돌발 짖음 감지 자동 음소거/복구 (`ambientNoiseMonitor.ts`)<br>• 4단계 온보딩 플로우(가입/약관 $\to$ 반려견 $\to$ 위치동의 $\to$ 주변탐색 지도) 개발<br>• `react-native-maps` / OpenFreeMap 기반 구간별 색상 분기 Polyline 렌더링<br>• `AsyncStorage` 로컬 스토리지 모듈(반려견 프로필, 궤적, JSON 백업/복원, 북마크 보관함)<br>• EAS Build 1회 APK 패키징 & EAS Update (`expo-updates`) 무선 무점검 OTA 파이프라인<br>• 프론트엔드 Vitest 단위 테스트 100% 통과 달성 | **78 h**<br/>(26.2%) | Epic A (`US-A2`)<br>Epic C (`US-C1`, `US-C2`)<br>Epic E (`US-E1`, `US-E2`, `US-E3`)<br>Epic H (`US-H1`)<br>*(Phase 2: `US-D2`, `US-18`, `21`, `23`, `29`)* |
+| **5번** | **김정님 (UI)** | **화면 구현·통합 테스트**<br/>(UI/UX Designer & Product Experience Lead) | **앱 화면을 완성하고 전체 기능이 제대로 연결되는지 확인**<br/>(UI 구현·통합·QA) | • 전문 디자이너: 편안하개 디자인 시스템 구축 (Color Tokens, Typography, Iconography)<br>• 핵심 시나리오 고화질 UI 화면 완성 (플래너, 프리뷰, 다크 포켓, 리포트, 커뮤니티)<br>• 다크 포켓 내 56px 대형 긴급 원터치 음소거 버튼 및 4단계 온보딩 UI/UX 구현<br>• 산책 완주 인포그래픽 요약 카드 & 보행 체감 피드백 UI 디자인<br>• 앱 전역 긍정적 웰니스 카피라이팅 가이드라인 수립 (질병 용어 100% 배제)<br>• 최소 5인 실사용자 필드 테스트(CBT) 사용성 평가(Usability Testing), 전체 기능 통합 검증 및 UI/UX 튜닝 총괄 | **38 h**<br/>(12.7%) | Epic A (`US-A2`, `US-A3`)<br>Epic C (`US-C1`)<br>Epic E (`US-E2`)<br>Epic F (`US-F1`)<br>Epic G (`US-G1`, `US-G2`)<br>Epic H (`US-H1`) |
+
 ---
 
-### 6.2 프로젝트 주요 마일스톤 (수행계획서 정합)
+### 6.2 팀원별 담당 사용자 스토리 요약
+> 상세 요구사항 및 인수 조건(DoD): [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)
+
+<table>
+  <thead>
+    <tr>
+      <th align="center">담당 팀원 (역할)</th>
+      <th align="center">스토리 ID</th>
+      <th align="left">에픽 (Epic)</th>
+      <th align="left">사용자 스토리 명칭</th>
+      <th align="center">포인트</th>
+      <th align="left">담당 역할 내 구현 및 책임 요약</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5" align="center"><strong>1번 조현정</strong><br/>(팀장 / AI 설계)</td>
+      <td align="center"><code>US-A1</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>대화형 자연어 산책 요청 및 조건 구조화</td>
+      <td align="center">5 pt</td>
+      <td>자연어 발화에서 목표 시간·계단 회피·경사·그늘 선호도를 추출하고 로컬 반려견 프로필과 결합해 Pydantic 스키마(<code>WalkIntent</code>)로 구조화</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-A3</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>목표 산책 시간/거리 기반 환산 (속도/슬라이더)</td>
+      <td align="center">3 pt</td>
+      <td>체급·연령별 표준 보행 속도 모델(소형 2.8, 중형 3.6, 대형 4.2, 노령견 2.2 km/h) 적용 및 목표 시간 ±15% 수렴 튜닝</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B3</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>Routing API Adapter 연동 및 후보 경로 다요소 스코어링</td>
+      <td align="center">8 pt</td>
+      <td>후보 경로들의 무장애길 지표(계단 0, 경사 &lt;15°), 지면온도 안전도, 거리 적합도를 100점 만점으로 종합 채점 및 추천 사유 브리핑 생성</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E3</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정</td>
+      <td align="center">3 pt</td>
+      <td>클라이언트가 전달한 최근 산책 체감 피드백 요약을 무상태로 주입받아 다음 산책 추천 시 허용 경사도 등 에이전트 가중치 동적 보정</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code></td>
+      <td>Phase 2 (동적 장애물 우회)</td>
+      <td>현장 위험 구간 우회 및 동적 재탐색</td>
+      <td align="center">5 pt</td>
+      <td>산책 중 위험 구간 감지 및 동적 우회 경로 재산출에 따른 AI 안내 브리핑 설계</td>
+    </tr>
+    <tr>
+      <td rowspan="6" align="center"><strong>2번 전황진</strong><br/>(데이터 / 공간·AI)</td>
+      <td align="center"><code>US-B1</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출</td>
+      <td align="center">8 pt</td>
+      <td>대전·세종 5대 공원 OSM 보행망 및 공공 무장애길 정제, DEM 고도 래스터 기반 15도 미만 완만 경사 보행로 데이터 분석</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B2</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피)</td>
+      <td align="center">5 pt</td>
+      <td>기상청 단기예보(기온·일사량)와 링크별 노면 재질(아스팔트 vs 흙/잔디/탄성포장)을 결합한 경험적 지면온도 추정 모델 구축</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>기상청 격자 변환(<code>kma_grid_converter</code>) 및 실시간 수집 클라이언트(<code>kma_weather_client</code>) 구축, 시간대별 지면열 위험 지수·골든타임 산출</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>전국 공영주차장 공공데이터 POI 정제 및 주차장 출입구 좌표를 산책 출발·도착 웨이포인트로 자동 매핑</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>커뮤니티 코스 공유 시 자택 위치 노출 방지를 위해 출발·도착지 반경 200m 구간 좌표를 자동 절단·블러링하는 공간 지터링 파이프라인 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D1</code><br/><code>US-D2</code></td>
+      <td>Phase 2 (비전 AI & 동적 우회)</td>
+      <td>Vision AI 현장 턱·계단 시각 분석 및 위험 구간 동적 우회</td>
+      <td align="center">10 pt</td>
+      <td>Gemini 순차 폴백 체인 기반 현장 높은 턱·계단 시각 판독 및 공원 종합안내판 반려견 출입금지 구역 JSON 파싱</td>
+    </tr>
+    <tr>
+      <td rowspan="7" align="center"><strong>3번 노희선</strong><br/>(서버 / 맞춤 경로)</td>
+      <td align="center"><code>US-B1</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>지도·지자체 데이터 기반 무장애길(경사 15도 미만·무계단) 안심 경로 도출</td>
+      <td align="center">8 pt</td>
+      <td>계단(<code>highway=steps</code>) 하드 제약 배제 및 15도 미만 완만 경사 가중치가 적용된 서버 라우팅 엔진 및 무장애 메타데이터 스키마 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B2</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>기상·노면 연동 지면온도 기반 안심 경로 도출 (열 위험 회피)</td>
+      <td align="center">5 pt</td>
+      <td>추정 지면온도 35℃ 초과 고온 구간에 동적 페널티 가중치를 부여하여 저온 안전 노면을 우선 탐색하는 라우팅 비용 함수 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-B3</code></td>
+      <td>Epic B (무장애·지면온도 라우팅)</td>
+      <td>Routing API Adapter 연동 및 후보 경로 다요소 스코어링</td>
+      <td align="center">8 pt</td>
+      <td>OpenRouteService / OSRM 라우팅 어댑터 연동으로 실제 도로망 순환 후보 경로 2~3개를 1.5초 내 수집 및 최적 경로 GeoJSON·스텝 반환</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>1.1km 격자 단위 10분 TTL 메모리 캐시 및 타임아웃 캡이 적용된 실시간 열 위험 지수 조회 REST API(<code>GET /api/v1/weather/heat-risk</code>) 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>반경 내 공영주차장 탐색 API(<code>GET /api/v1/parking/nearby</code>) 및 주차장 출입구 스냅 기반 순환 코스 생성 엔드포인트 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>Supabase Auth 간편 이메일 가입/로그인 연동 및 200m 공간 마스킹이 적용된 공개 코스 공유·피드 조회 REST API 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code></td>
+      <td>Phase 2 (동적 장애물 우회)</td>
+      <td>현장 위험 구간 우회 및 동적 재탐색</td>
+      <td align="center">5 pt</td>
+      <td>위험 지점 좌표를 임시 차단 링크로 등록하고 3초 이내에 안전 우회로를 재산출하는 <code>/api/v1/walk/reroute</code> 엔드포인트 구현</td>
+    </tr>
+    <tr>
+      <td rowspan="8" align="center"><strong>4번 김승현</strong><br/>(앱 / GPS·음성 안내)</td>
+      <td align="center"><code>US-A2</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>반려견 프로필 로컬 등록 및 JSON 백업/복원</td>
+      <td align="center">3 pt</td>
+      <td>반려견 프로필을 서버 DB 전송 없이 기기 <code>AsyncStorage</code>에만 영속 저장하고 로컬 JSON 파일 내보내기/가져오기 백업 모듈 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C1</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>React Native Maps 기반 구간별 색상 분기 경로 시각화</td>
+      <td align="center">5 pt</td>
+      <td><code>react-native-maps</code> / OpenFreeMap 지도 위에 구간 속성별 분기 색상(완만/그늘 초록, 일반 파랑, 주의 주황) Polyline 및 마커 렌더링</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C2</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>시선 해방(Eyes-Free) 백그라운드 핸즈프리 음성 길 안내</td>
+      <td align="center">5 pt</td>
+      <td>Android Foreground Service + <code>expo-speech</code> 기반 주머니 속 30m 전 회전 음성 안내, 40m 이탈 알림, AI 보이스 4종 및 73dB 짖음 감지 자동 음소거</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E1</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>백그라운드 GPS 위치 추적 및 실산책 경로 로컬 저장</td>
+      <td align="center">5 pt</td>
+      <td>백그라운드 실보행 GPS 궤적을 수집해 로컬(<code>@편안하개:walk_history</code>)에 영구 저장하고 완주 상세 화면에서 계획 경로와 오버레이 시각화</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E2</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>산책 종료 후 보행 체감 피드백 수집 및 로컬 통계</td>
+      <td align="center">3 pt</td>
+      <td>산책 완료 시 보행 지표 통계 산출 및 사용자 체감 피드백·별점을 로컬 산책 이력 메타데이터에 즉시 바인딩</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E3</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>로컬 누적 피드백 기반 무상태(Stateless) AI 추천 보정</td>
+      <td align="center">3 pt</td>
+      <td>로컬에 누적된 최근 3회 산책 피드백 요약을 산책 계획 요청 페이로드(<code>feedbackContext.ts</code>)에 담아 서버로 무상태 전달</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-H1</code></td>
+      <td>Epic H (무중단 배포 & 실사용 검증)</td>
+      <td>EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT</td>
+      <td align="center">5 pt</td>
+      <td>EAS Build 기반 테스터용 Android APK 1회 패키징 배포 및 <code>expo-updates</code> 무선 무점검 OTA 실시간 핫픽스 파이프라인 구축</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-D2</code>, <code>18</code>,<br/><code>21</code>, <code>23</code>, <code>29</code></td>
+      <td>Phase 2 (모바일 확장 백로그)</td>
+      <td>위험 우회 안내, 원터치 배변 마킹, 온보딩, 위치동의, 즐겨찾기 보관함</td>
+      <td align="center">14 pt</td>
+      <td>위험 우회 안내 전환(<code>US-D2</code>), 한 손 원터치 배변 마킹 FAB(<code>US-18</code>), 4단계 온보딩 위저드(<code>US-21</code>), 위치동의 투명 고지(<code>US-23</code>), 코스 북마크 로컬 보관함(<code>US-29</code>) 구현</td>
+    </tr>
+    <tr>
+      <td rowspan="8" align="center"><strong>5번 김정님</strong><br/>(UI / 화면·통합 테스트)</td>
+      <td align="center"><code>US-A2</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>반려견 프로필 로컬 등록 및 JSON 백업/복원</td>
+      <td align="center">3 pt</td>
+      <td>질병 용어를 100% 배제하고 '관절 안심 케어 수준', '폭신한 길 위주' 등 긍정적 웰니스 카피라이팅이 적용된 프로필 등록·관리 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-A3</code></td>
+      <td>Epic A (조건 입력 & 개인화)</td>
+      <td>목표 산책 시간/거리 기반 환산 (속도/슬라이더)</td>
+      <td align="center">3 pt</td>
+      <td>15분 단위 세분화 산책 시간 슬라이더(<code>WalkDurationSlider.tsx</code>), 자유 산책 모드 및 체급별 예상 거리 자동 환산 플래너 화면 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-C1</code></td>
+      <td>Epic C (모바일 UI & 핸즈프리 안내)</td>
+      <td>React Native Maps 기반 구간별 색상 분기 경로 시각화</td>
+      <td align="center">5 pt</td>
+      <td>고대비 야외 시인성 컬러 토큰 적용 및 하단 코스 요약 카드(접기/펼치기 Split View)·회전 스텝 리스트 뷰(<code>CourseRecommendationView.tsx</code>) 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-E2</code></td>
+      <td>Epic E (산책 기록 & Memory)</td>
+      <td>산책 종료 후 보행 체감 피드백 수집 및 로컬 통계</td>
+      <td align="center">3 pt</td>
+      <td>산책 완주 인포그래픽 요약 카드(거리, 시간, 완만 구간 비율) 및 3초 원터치 간편 피드백 모달(<code>QuickFeedbackModal.tsx</code>) UI 디자인·구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-F1</code></td>
+      <td>Epic F (기상 연동 열 위험 관리)</td>
+      <td>기상청 단기예보 연동 시간대별 열 위험 지수 안내</td>
+      <td align="center">3 pt</td>
+      <td>메인 홈 시간대별 열 위험 지수·골든타임 위젯(<code>GoldenTimeWidget.tsx</code>) 및 노면별 발바닥 체감온도 비교 날씨 리포트 모달 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G1</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>출발 거점 연계 공영주차장(P&amp;R) 코스 탐색</td>
+      <td align="center">2 pt</td>
+      <td>플래너 화면 내 주차장 연계(P&amp;R) 탐색 토글 및 코스 요약 카드 내 주차장 명칭·기본 정보 표시 UI 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-G2</code></td>
+      <td>Epic G (거점 연계 & 커뮤니티)</td>
+      <td>간편 이메일 가입 및 코스 공유 (출발지 200m 마스킹)</td>
+      <td align="center">4 pt</td>
+      <td>간편 가입 화면 및 200m 안심 마스킹 뱃지가 적용된 이웃 공유 코스 탐색 커뮤니티 피드 화면 구현</td>
+    </tr>
+    <tr>
+      <td align="center"><code>US-H1</code></td>
+      <td>Epic H (무중단 배포 & 실사용 검증)</td>
+      <td>EAS Build 1회 배포, EAS Update 무선 OTA 및 5인 CBT</td>
+      <td align="center">5 pt</td>
+      <td>최소 5인 이상 실사용자 필드 산책 테스트(CBT) 사용성 평가(Usability Testing) 수행, 핸즈프리 음성·계단 회피 체감 설문 수집 및 통합 QA 총괄</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+### 6.3 프로젝트 주요 마일스톤 (수행계획서 정합)
 > 상세 타임라인 명세: [`docs/05_편안하개_프로젝트_수행계획서_일정.md`](docs/05_편안하개_프로젝트_수행계획서_일정.md)
 
 | 마일스톤 단계 | 일정 | 주요 목표 및 산출물 | 책임 |
@@ -356,7 +649,7 @@ graph LR
 
 ---
 
-### 6.3 📊 ~~현재 프로젝트 개발 및 구현 현황~~ (2026-10-21 기록)
+### 6.4 📊 ~~현재 프로젝트 개발 및 구현 현황~~ (2026-10-21 기록)
 
 본 프로젝트는 핵심 사용자 여정 및 Phase 2 프론트엔드 단독 완결형 스토리를 100% 완료하고 엄격한 품질 가드레일을 통과한 안정화 상태입니다.
 
@@ -410,7 +703,7 @@ graph LR
 15. **다견 가정 맞춤형 강아지 프로필 관리 및 직관적 추가 플로우 (Issue #127, US-A2)**:
     - 상단 등록된 다견 선택 칩 바(`[🐾 초코] [🐾 콩이 ✓] [+ 새 강아지 추가]`), 강아지별 대표 사진 및 맞춤 체중/나이/관절 케어 레벨 독립 관리 모달 지원.
 
-### 6.4 2026-10-23 저장소 코드 기준 현황 보완
+### 6.5 2026-10-23 저장소 코드 기준 현황 보완
 
 아래 내용은 기존 구현 현황과 테스트 기록을 삭제하지 않고, 저장소에서 확인되는 화면·서비스·API 연결을 덧붙인 갱신이다. 기능 코드의 존재는 모든 인수 조건의 통과나 실기기·운영 환경 검증을 의미하지 않는다.
 
@@ -431,7 +724,7 @@ graph LR
 - 기존 문서에는 MVP 15개와 README 일부의 18개 핵심 스토리 등 서로 다른 집계가 남아 있다. 원래 내용을 유지하며 숫자를 임의로 통일하지 않았고, 범위별 집계 및 완료 판정은 정합성 확인 대상으로 남겼다. 상세 매핑은 [`docs/03_편안하개_Agile_User_Stories.md`](docs/03_편안하개_Agile_User_Stories.md)의 5절을 참조한다.
 - 변경 이력: 2026-10-23자 보완 절을 추가했으며, 기존 README 내용의 삭제·축약·대체는 없고 삭제된 항목도 없다.
 
-### 6.5 2026-10-25 최신 코드 현황
+### 6.6 2026-10-25 최신 코드 현황
 
 2026-10-25 저장소 코드에서 확인한 업데이트입니다. 아래는 코드 정적 확인 결과이며, 새로 테스트하거나 운영 서버에 배포해 확인한 결과는 아닙니다.
 
@@ -445,11 +738,24 @@ graph LR
 
 최근 관련 변경은 `d66661c`(순환 구간·바퀴 안내)와 `fdbe678`(2·3번 대안 코스 재생성)입니다.
 
+### 6.7 📊 2026-11-04 최신 UI/UX 고도화 및 품질 개선 현황
+
+2026년 11월 4일 실제 현장 구동 검증 및 사용자 피드백을 반영하여 모바일 프론트엔드 UI/UX 완성도와 벡터 지도 시각화를 전면 고도화했습니다.
+
+| 구분 | 고도화 항목 | 주요 개선 내용 및 기술 구현 | 관련 파일 |
+| :--- | :--- | :--- | :--- |
+| **UI/UX 최적화** | **코스 추천 찜하기 버튼 재배치 및 가로 폭 100% 확보** | • 상단 코스 카드 행에 가로 스크롤을 좁히던 찜하기 버튼을 선택된 코스 헤더 라인(`CourseInfoCard`)으로 통합 이동<br>• 추천 코스 카드들이 모바일 가로 100% 온전한 카드 너비를 확보하여 시각적 답답함 해소 및 스크롤 사용성 극대화 | `CourseRecommendationView.tsx`, `CourseInfoCard.tsx` |
+| **지도 시각화** | **28px 볼드 방향 벡터 마커 및 직진 화살표 일체화** | • WebView 지도 템플릿(`maplibreWebTemplate.ts`) 내 10.5px 점 마커를 28px 볼드 방향 벡터 마커로 복원<br>• 직진 구간에 얇은 기본 화살표 대신 볼드 직진 벡터 화살표(`↑`, 22px / fill `#166534`) 및 광학적 중앙 정렬(Optical Centering)을 적용하여 원형 마커 내 정중앙 일체감 구현<br>• 미려한 1px 안심 세이지 테두리(`1px solid #718276`)로 지도 위 시인성 극대화 | `webMapMarkers.ts`, `maplibreWebTemplate.ts`, `webMapMarkers.test.ts` |
+| **날씨 & 지면열** | **노면별 발바닥 체감온도 4종 정밀 분석 모달** | • 메인 홈 90~100점 산책 지수 카드 터치 시 표출되는 정밀 날씨 리포트 모달 고도화<br>• 기온, 체감 지면열, 일사량(W/m²), 미세먼지 수치 표출<br>• **아스팔트, 보도블록, 흙, 잔디** 4대 노면 종류별 발바닥 예상 체감온도 실시간 산출 및 안심 색상 태그 바인딩 | `GoldenTimeWidget.tsx`, `HomeScreen.tsx` |
+| **개인화 & 마이** | **마이페이지 4대 탭 체계 및 약관 모달 완성** | • **프로필 탭**: 반려견 대표 사진, 이름, 나이, 체중, 관절 안심 케어 수준 관리<br>• **테마·계정 탭**: 더스티 앰버, 숲길, 비비드, 다크 포켓, 바다 등 6종 비주얼 스타일 실시간 전환<br>• **활동 탭**: 월간 산책 스탬프 달력 캘린더 및 최근 7일/30일/전체 보행 통계/완주 인증 카드<br>• **설정 탭**: 4종 AI 길안내 음성 선택, 미리듣기 및 볼륨 조절 슬라이더<br>• 서비스 이용약관 및 개인정보보호정책 전문 모달 연동 | `MyProfileScreen.tsx`, `MonthlyWalkStampCalendar.tsx`, `MyWalkHistoryView.tsx` |
+| **문서 & 갤러리** | **최신 구동 스크린샷 19종 체계화** | • `KakaoTalk_` 임시 캡처 17종을 사용자 여정별 표준 파일명으로 일괄 정리 및 리네임<br>• `docs/screenshots/README.md` 및 프로젝트 루트 `README.md` 갤러리 전면 동기화 | `docs/screenshots/` |
+| **품질 검증** | **프론트엔드 Vitest 566개 전원 통과** | • 프론트엔드 87개 테스트 파일, **566 / 566 테스트 100% PASS**<br>• TypeScript 컴파일 무결성 검증 통과 (**0 Errors**) | `frontend` |
+
 ---
 
 ## 🧪 7. TDD 테스트 스위트 및 품질 가드레일 (Test-Driven Development)
 
-~~본 프로젝트는 TDD/ATDD를 기반으로 구축되었으며, 모든 인수 조건과 DoD를 테스트 코드로 100% 사전 검증합니다.~~ 아래 테스트 수와 PASS 표시는 과거 실행 결과로 보존합니다. 현재 코드 현황은 §6.5의 정적 검토를 참고하세요. (테스트 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
+~~본 프로젝트는 TDD/ATDD를 기반으로 구축되었으며, 모든 인수 조건과 DoD를 테스트 코드로 100% 사전 검증합니다.~~ 아래 테스트 수와 PASS 표시는 과거 실행 결과로 보존합니다. 현재 코드 현황은 §6.6의 정적 검토를 참고하세요. (테스트 가이드: [`backend/test_case/README.md`](backend/test_case/README.md))
 
 ### 7.1 테스트 스위트 구성 및 실행 결과
 
@@ -502,7 +808,7 @@ cd frontend && npm test
 | [`docs/implementation_plan/노희선_향후_구현계획.md`](docs/implementation_plan/노희선_향후_구현계획.md) | 3번 노희선(서버 / Backend & Spatial Routing Lead) 향후 주차별 구현 계획서 | 서버 / REST API |
 | [`docs/implementation_plan/김승현_향후_구현계획.md`](docs/implementation_plan/김승현_향후_구현계획.md) | 4번 김승현(앱 / Frontend & Mobile App Lead) 향후 주차별 구현 계획서 | 모바일 / EAS 배포 |
 | [`docs/implementation_plan/김정님_향후_구현계획.md`](docs/implementation_plan/김정님_향후_구현계획.md) | 5번 김정님(UI / UI/UX & Experience Lead) 향후 주차별 구현 계획서 | UI/UX / 5인 CBT |
-| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 9종 갤러리 및 상세 설명 | 화면 갤러리 |
+| [`docs/screenshots/README.md`](docs/screenshots/README.md) | 주요 모바일 구동 화면 스크린샷 19종 갤러리 및 상세 설명 | 화면 갤러리 |
 
 ---
 

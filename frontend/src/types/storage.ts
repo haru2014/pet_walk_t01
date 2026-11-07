@@ -40,6 +40,10 @@ export interface WalkRecord {
   id: string;
   /** Supabase walk_records.id. Legacy local records may not have a UUID in id. */
   remoteId?: string;
+  /** 커뮤니티 이웃 후기 공유 여부 (US-G2) */
+  isPublic?: boolean;
+  /** 커뮤니티 이웃 후기 공유 일시 */
+  sharedAt?: string;
   dogId: string;
   dogSummary?: WalkDogSummary;
   startedAt: string;
@@ -49,6 +53,12 @@ export interface WalkRecord {
   averageSpeedKmH: number;
   safeSurfaceRatio: number;
   gpsTrack: { lat: number; lon: number; timestamp: number }[];
+  /** 산책을 처음 시작한 지점 [lon, lat]. 경로 이탈 재탐색과 무관하게 고정되며, 공유 시 200m 개인정보 보호 기준점이다. */
+  walkStartPoint?: [number, number];
+  /** 산책을 완료한 지점 [lon, lat]. 공유 시 200m 개인정보 보호 기준점이다. */
+  walkEndPoint?: [number, number];
+  /** 웹 데모에서 위치 권한 없이 만든 가상 보행 기록 (실제 위치 아님 — 공유·공개 불가, #297) */
+  isSimulated?: boolean;
   feedback?: WalkFeedback;
   poopCount?: number;
   poopEvents?: PoopEvent[];

@@ -26,3 +26,8 @@ export function hapticLight(): Promise<void> {
 export function hapticSuccess(): Promise<void> {
   return safeRun(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
+
+/** 회전 지점 접근 알림 (다크 포켓 모드 방향 카드) */
+export function hapticTurnApproach(): Promise<void> {
+  return safeRun(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+}
