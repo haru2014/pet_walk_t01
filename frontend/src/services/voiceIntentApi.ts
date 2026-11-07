@@ -8,6 +8,7 @@
  * - 오프라인 안전망: 서버 요청 실패·타임아웃 후 extractLocalVoiceIntent로 폴백
  */
 
+import { Platform } from 'react-native';
 import { fetchWithServerFallback } from './apiClient';
 import { extractVoiceLandmark, normalizeToFrontendParkId, unsupportedParkMessage } from './voiceIntentLandmarks';
 import { sanitizeVoiceBriefing } from './voiceBriefing';
@@ -34,13 +35,20 @@ export interface VoiceIntentResult {
 
 /** Send a recorded utterance to the backend for Gemini transcription only. */
 export async function transcribeVoiceCommand(
-  audio: Blob,
+  audio: Blob | { uri: string; type?: string; name?: string },
   fileName: string,
   mimeType: string,
   dogName?: string
 ): Promise<string> {
   const form = new FormData();
-  form.append('audio', audio, fileName);
+  if (Platform.OS === 'web') {
+    form.append('audio', audio as Blob, fileName);
+  } else {
+    const filePayload = (audio as any)?.uri
+      ? { uri: (audio as any).uri, name: fileName, type: mimeType }
+      : audio;
+    form.append('audio', filePayload as any, fileName);
+  }
   form.append('mime_type', mimeType);
   form.append('dog_name', dogName ?? '');
 

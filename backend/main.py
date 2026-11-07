@@ -193,7 +193,7 @@ class VoiceIntentRequest(BaseModel):
 @app.post(
     "/api/v1/voice/transcribe",
     responses={
-        400: {"description": "녹음된 음성이 비어 있습니다."},
+        400: {"description": "녹음된 음성이 비어 있거나 내용을 알아들을 수 없습니다."},
         413: {"description": "음성 파일이 너무 큽니다. 짧게 다시 녹음해 주세요."},
         415: {"description": "지원하지 않는 음성 파일 형식입니다."},
         502: {"description": "Gemini 음성 인식에 실패했습니다."},
@@ -208,9 +208,14 @@ def transcribe_voice_command(
     """짧은 산책 음성 명령을 Gemini로 받아쓰기만 한다."""
     allowed_mime_types = {
         "audio/mp4", "audio/m4a", "audio/webm", "audio/ogg", "audio/wav",
-        "audio/mpeg", "audio/mp3", "audio/aac",
+        "audio/mpeg", "audio/mp3", "audio/aac", "audio/x-m4a", "audio/3gpp", "audio/x-wav",
     }
     resolved_mime_type = (mime_type or audio.content_type or "").split(";")[0].strip().lower()
+    if resolved_mime_type in ("audio/x-m4a", "audio/3gpp"):
+        resolved_mime_type = "audio/m4a"
+    elif resolved_mime_type == "audio/x-wav":
+        resolved_mime_type = "audio/wav"
+
     if resolved_mime_type not in allowed_mime_types:
         raise HTTPException(status_code=415, detail="지원하지 않는 음성 파일 형식입니다.")
 
@@ -224,10 +229,12 @@ def transcribe_voice_command(
         transcript = transcribe_walk_command(audio_data, resolved_mime_type, dog_name[:80])
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="음성 인식 서비스를 사용할 수 없습니다.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc) or "음성을 알아듣지 못했습니다.") from exc
     except Exception as exc:
-        logger.warning("Gemini voice transcription failed (%s)", type(exc).__name__)
+        logger.warning("Gemini voice transcription failed (%s: %s)", type(exc).__name__, exc)
         raise HTTPException(status_code=502, detail="Gemini 음성 인식에 실패했습니다.") from exc
-    return {"status": "success", "transcript": transcript, "model_used": "gemini-3.5-transcribe"}
+    return {"status": "success", "transcript": transcript, "model_used": "gemini-3.5-flash-lite"}
 
 
 class TtsRequest(BaseModel):

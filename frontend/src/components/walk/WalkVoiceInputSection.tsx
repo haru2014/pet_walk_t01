@@ -83,12 +83,17 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
 
       const isWebRecording = Platform.OS === 'web';
       const mimeType = isWebRecording ? 'audio/webm' : 'audio/m4a';
-      const recordingBlob = isWebRecording
-        ? await (await fetch(uri)).blob()
-        : await (async () => {
-            const { File } = await import('expo-file-system');
-            return new File(uri);
-          })();
+      let recordingBlob: Blob | { uri: string; type: string; name: string };
+      if (isWebRecording) {
+        recordingBlob = await (await fetch(uri)).blob();
+      } else {
+        try {
+          const { File } = await import('expo-file-system');
+          recordingBlob = new File(uri);
+        } catch {
+          recordingBlob = { uri, name: 'walk-command.m4a', type: 'audio/m4a' };
+        }
+      }
       const transcript = await transcribeVoiceCommand(
         recordingBlob,
         isWebRecording ? 'walk-command.webm' : 'walk-command.m4a',
@@ -101,7 +106,7 @@ export const WalkVoiceInputSection: React.FC<WalkVoiceInputSectionProps> = ({
       const localResult = extractLocalVoiceIntent(transcript, dogName);
       const result: VoiceIntentResult = {
         ...localResult,
-        model_used: 'gemini-3.5-transcribe',
+        model_used: 'gemini-3.5-flash-lite',
         data_source: 'gemini_transcription',
       };
       setAnalysisResult(result);
