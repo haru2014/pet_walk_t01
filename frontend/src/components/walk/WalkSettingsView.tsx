@@ -11,7 +11,7 @@ import { TYPOGRAPHY, TYPOGRAPHY_LINE_HEIGHT } from '../../theme/tokens';
  * 6. 하단 Thumb Zone 버튼: [✨ AI 산책 코스 찾아보기]
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { AppText as Text } from '../common/AppText';
 import { useAppTheme } from '../../theme/themeManager';
@@ -159,12 +159,16 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     }
   };
 
-  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 전달되면 즉시 동기화
-  useEffect(() => {
-    if (initialPreferences?.userCoordinates && !userCoords) {
+  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 변경/전달되면 렌더링 시점에 즉시 동기화 (cascading render 방지)
+  const [prevInitialCoordinates, setPrevInitialCoordinates] = useState(
+    initialPreferences?.userCoordinates
+  );
+  if (initialPreferences?.userCoordinates !== prevInitialCoordinates) {
+    setPrevInitialCoordinates(initialPreferences?.userCoordinates);
+    if (!userCoords && initialPreferences?.userCoordinates) {
       setUserCoords(initialPreferences.userCoordinates);
     }
-  }, [initialPreferences?.userCoordinates, userCoords]);
+  }
   // 📍 1-1: 현재 위치 모드 활성화 시 백그라운드 GPS 사전 획득 (센서 응답 대기시간 0초화)
   useEffect(() => {
     let isMounted = true;
