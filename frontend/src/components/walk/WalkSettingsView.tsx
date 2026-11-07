@@ -102,6 +102,99 @@ function buildAiNoticeSummary(
   return parts.join(' · ');
 }
 
+function resolveInitialOriginMode(initialPreferences?: WalkPreferences): WalkOriginMode {
+  if (initialPreferences?.originMode) return initialPreferences.originMode;
+  if (initialPreferences?.userCoordinates) return 'current_location';
+  return 'park';
+}
+
+function buildWalkPlanPreferences(
+  originMode: WalkOriginMode,
+  duration: number | null,
+  isFreeWalk: boolean,
+  environments: EnvironmentId[],
+  requestText: string,
+  pilotParkId: string,
+  userCoordinates?: { lat: number; lon: number }
+): WalkPreferences {
+  return {
+    originMode,
+    durationMinutes: isFreeWalk ? null : duration,
+    environments,
+    requestText,
+    isFreeWalk,
+    pilotParkId: originMode === 'park' ? pilotParkId : undefined,
+    userCoordinates: originMode === 'current_location' ? userCoordinates : undefined,
+  };
+}
+
+async function executeUserLocationFetch(): Promise<{
+  coords?: { lat: number; lon: number };
+  error?: string;
+}> {
+  const res = await getCurrentLocationCoords(5000);
+  if (res.ok && res.coords) {
+    return { coords: { lat: res.coords.latitude, lon: res.coords.longitude } };
+  }
+  return { error: res.errorMessage || '현재 위치를 확인할 수 없습니다.' };
+}
+
+interface ParsedVoiceIntentState {
+  resolvedDuration: number | null;
+  showDetailed: boolean;
+  rawTarget: string | null;
+  parkId: string | null;
+  isUnsupported: boolean;
+  resolvedParkId: string;
+  aiNotice: { summary: string; briefing?: string } | null;
+}
+
+function parseVoiceIntentState(
+  result: VoiceIntentResult,
+  currentDuration: number | null,
+  currentParkId: string
+): ParsedVoiceIntentState {
+  const { intent, landmark_park_id } = result;
+
+  let resolvedDuration = currentDuration;
+  let showDetailed = false;
+  if (intent.target_duration_minutes) {
+    resolvedDuration = intent.target_duration_minutes;
+    showDetailed = ![20, 30, 40, 60].includes(intent.target_duration_minutes);
+  }
+
+  const rawTarget = intent.destination_landmark || landmark_park_id || null;
+  const parkId = rawTarget ? normalizeToFrontendParkId(rawTarget) : null;
+  const isUnsupported = Boolean(rawTarget && !parkId);
+  const resolvedParkId = parkId || currentParkId;
+  const parkObj = getPilotParkById(resolvedParkId);
+
+  let aiNotice: { summary: string; briefing?: string } | null = null;
+  if (isUnsupported && rawTarget) {
+    aiNotice = { summary: unsupportedParkMessage(rawTarget) };
+  } else if (parkId) {
+    aiNotice = {
+      summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+      briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
+    };
+  } else {
+    aiNotice = {
+      summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
+      briefing: intent.briefing_message || undefined,
+    };
+  }
+
+  return {
+    resolvedDuration,
+    showDetailed,
+    rawTarget,
+    parkId,
+    isUnsupported,
+    resolvedParkId,
+    aiNotice,
+  };
+}
+
 export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   dog,
   initialPreferences,
@@ -111,11 +204,9 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
 }) => {
   const { colors } = useAppTheme();
   const { walkSettings, scale } = useAppResponsive();
-  const [originMode, setOriginMode] = useState<WalkOriginMode>(() => {
-    if (initialPreferences?.originMode) return initialPreferences.originMode;
-    if (initialPreferences?.userCoordinates) return 'current_location';
-    return 'park';
-  });
+  const [originMode, setOriginMode] = useState<WalkOriginMode>(() =>
+    resolveInitialOriginMode(initialPreferences)
+  );
   const [pilotParkId, setPilotParkId] = useState<string>(
     initialPreferences?.pilotParkId ?? 'yurim'
   );
@@ -146,24 +237,24 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
   const fetchUserLocation = async () => {
     setIsLocating(true);
     setLocationError(null);
-    const res = await getCurrentLocationCoords(5000);
+    const result = await executeUserLocationFetch();
     setIsLocating(false);
-    if (res.ok && res.coords) {
-      const coords = { lat: res.coords.latitude, lon: res.coords.longitude };
-      setUserCoords(coords);
-      return coords;
-    } else {
-      const err = res.errorMessage || '현재 위치를 확인할 수 없습니다.';
-      setLocationError(err);
-      return null;
+    if (result.coords) {
+      setUserCoords(result.coords);
+      return result.coords;
     }
+    const err = result.error || '현재 위치를 확인할 수 없습니다.';
+    setLocationError(err);
+    return null;
   };
 
-  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 전달되면 즉시 동기화
-  const [prevInitialCoords, setPrevInitialCoords] = useState(initialPreferences?.userCoordinates);
-  if (initialPreferences?.userCoordinates && initialPreferences.userCoordinates !== prevInitialCoords) {
-    setPrevInitialCoords(initialPreferences.userCoordinates);
-    if (!userCoords) {
+  // 📍 홈 화면 등 상위에서 공유된 GPS 좌표가 변경/전달되면 렌더링 시점에 즉시 동기화 (cascading render 방지)
+  const [prevInitialCoordinates, setPrevInitialCoordinates] = useState(
+    initialPreferences?.userCoordinates
+  );
+  if (initialPreferences?.userCoordinates !== prevInitialCoordinates) {
+    setPrevInitialCoordinates(initialPreferences?.userCoordinates);
+    if (!userCoords && initialPreferences?.userCoordinates) {
       setUserCoords(initialPreferences.userCoordinates);
     }
   }
@@ -199,15 +290,15 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     if (unsupportedLandmark) return;
     if (originMode === 'current_location' && !userCoords) return;
 
-    const currentPreferences: WalkPreferences = {
+    const currentPreferences = buildWalkPlanPreferences(
       originMode,
-      durationMinutes: isFreeWalk ? null : duration,
+      duration,
+      isFreeWalk,
       environments,
       requestText,
-      isFreeWalk,
-      pilotParkId: originMode === 'park' ? pilotParkId : undefined,
-      userCoordinates: originMode === 'current_location' ? userCoords : undefined,
-    };
+      pilotParkId,
+      userCoords
+    );
 
     const timer = setTimeout(() => {
       void prefetchWalkPlan(dog, currentPreferences, feedback);
@@ -235,80 +326,55 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
     );
   };
 
+  const handleFreeWalkChange = (free: boolean) => {
+    setIsFreeWalk(free);
+    if (free) {
+      setDuration(null);
+    } else if (!duration) {
+      setDuration(30);
+    }
+  };
+
   const handleIntentParsed = (result: VoiceIntentResult) => {
-    const { intent, landmark_park_id } = result;
+    const parsed = parseVoiceIntentState(result, duration, pilotParkId);
 
-    // 1. 산책 시간 자동 반영
-    let resolvedDuration = duration;
-    if (intent.target_duration_minutes) {
-      resolvedDuration = intent.target_duration_minutes;
-      setDuration(resolvedDuration);
+    if (result.intent.target_duration_minutes) {
+      setDuration(parsed.resolvedDuration);
       setIsFreeWalk(false);
-      if (![20, 30, 40, 60].includes(intent.target_duration_minutes)) {
-        setShowDetailedDuration(true);
-      }
+      if (parsed.showDetailed) setShowDetailedDuration(true);
     }
 
-    // 2. 환경 칩 자동 반영 (버그 수정: avoid_stairs 감지 시 stairs 칩 켜기)
-    setEnvironments((prev) => resolveAiEnvironments(prev, intent));
+    setEnvironments((prev) => resolveAiEnvironments(prev, result.intent));
+    setUnsupportedLandmark(parsed.isUnsupported ? parsed.rawTarget : null);
+    setAiNotice(parsed.aiNotice);
+    if (parsed.isUnsupported) return;
 
-    // 3. 랜드마크 공원 자동 설정 (정규화 적용)
-    let resolvedParkId = pilotParkId;
-    const rawTarget = intent.destination_landmark || landmark_park_id;
-    const parkId = normalizeToFrontendParkId(rawTarget);
-    setUnsupportedLandmark(rawTarget && !parkId ? rawTarget : null);
-    if (rawTarget && !parkId) {
-      setAiNotice({ summary: unsupportedParkMessage(rawTarget) });
-      return;
-    }
-    if (parkId) {
-      resolvedParkId = parkId;
-      // 장소 언급은 출발 위치 선택이 아니다. 공원 모드는 사용자가 직접 선택한다.
+    if (parsed.parkId) {
       setOriginMode('current_location');
-      setPilotParkId(resolvedParkId);
+      setPilotParkId(parsed.resolvedParkId);
     }
-
-    // 4. AI 맞춤 설정 알림 요약
-    const parkObj = getPilotParkById(resolvedParkId);
-    setAiNotice(parkId
-      ? {
-        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
-        briefing: `${parkObj?.name ?? '말씀하신 공원'}을 인식했어요. 산책은 현재 위치에서 시작하도록 설정했어요. 공원 보행로에서 시작하려면 공원 모드를 직접 선택해 주세요.`,
-      }
-      : {
-        summary: buildAiNoticeSummary(resolvedDuration, undefined, intent),
-        briefing: intent.briefing_message || undefined,
-      });
   };
 
   const currentPark = getPilotParkById(pilotParkId);
 
   const handleSubmit = async () => {
     if (unsupportedLandmark) return;
-    const payloadDuration = isFreeWalk ? null : duration;
-    if (originMode === 'current_location') {
-      const coords = userCoords ?? (await fetchUserLocation()) ?? undefined;
-      // 위치를 못 받았으면 다른 곳 좌표로 대신하지 않고 안내(배너)만 남긴다.
-      if (!coords) return;
-      onFindRoute({
+    const coords = originMode === 'current_location'
+      ? (userCoords ?? (await fetchUserLocation()) ?? undefined)
+      : undefined;
+    if (originMode === 'current_location' && !coords) return;
+
+    onFindRoute(
+      buildWalkPlanPreferences(
         originMode,
-        durationMinutes: payloadDuration,
+        duration,
+        isFreeWalk,
         environments,
         requestText,
-        isFreeWalk,
-        pilotParkId: undefined,
-        userCoordinates: coords,
-      });
-    } else {
-      onFindRoute({
-        originMode,
-        durationMinutes: payloadDuration,
-        environments,
-        requestText,
-        isFreeWalk,
         pilotParkId,
-      });
-    }
+        coords
+      )
+    );
   };
 
   return (
@@ -343,7 +409,6 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
           requestText={requestText}
           onChangeText={setRequestText}
           onIntentParsed={handleIntentParsed}
-          coords={userCoords}
           onFindRouteDirectly={handleSubmit}
           hideResultBadge={true}
         />
@@ -541,14 +606,7 @@ export const WalkSettingsView: React.FC<WalkSettingsViewProps> = ({
                 setIsFreeWalk(false);
                 setDuration(mins);
               }}
-              onChangeFreeWalk={(free) => {
-                setIsFreeWalk(free);
-                if (free) {
-                  setDuration(null);
-                } else if (!duration) {
-                  setDuration(30);
-                }
-              }}
+              onChangeFreeWalk={handleFreeWalkChange}
               hideHeader={true}
             />
           )}

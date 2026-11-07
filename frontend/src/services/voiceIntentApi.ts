@@ -34,13 +34,50 @@ export interface VoiceIntentResult {
 
 /** Send a recorded utterance to the backend for Gemini transcription only. */
 export async function transcribeVoiceCommand(
-  audio: Blob,
+  audio: Blob | { uri: string; type?: string; name?: string },
   fileName: string,
   mimeType: string,
   dogName?: string
 ): Promise<string> {
   const form = new FormData();
-  form.append('audio', audio, fileName);
+
+  let audioPayload: any = audio;
+  // Expo WinterCG fetch 환경에서는 { uri } 형태의 평문 객체가 지원되지 않으므로 Blob으로 변환
+  if (
+    !(audioPayload instanceof Blob) &&
+    typeof audioPayload === 'object' &&
+    audioPayload?.uri &&
+    typeof audioPayload.bytes !== 'function'
+  ) {
+    try {
+      const res = await fetch(audioPayload.uri);
+      audioPayload = await res.blob();
+    } catch {
+      try {
+        const { File } = await import('expo-file-system');
+        const file = new File(audioPayload.uri);
+        const bytes = await file.bytes();
+        audioPayload = new Blob([bytes], { type: mimeType });
+      } catch {
+        // 폴백 유지
+      }
+    }
+  }
+
+  if (
+    audioPayload instanceof Blob ||
+    (typeof audioPayload === 'object' && typeof audioPayload?.bytes === 'function')
+  ) {
+    form.append('audio', audioPayload as Blob, fileName);
+  } else {
+    // 클래식 React Native 네이티브 폴백
+    form.append('audio', {
+      uri: (audioPayload as any)?.uri || '',
+      name: fileName,
+      type: mimeType,
+    } as any);
+  }
+
   form.append('mime_type', mimeType);
   form.append('dog_name', dogName ?? '');
 
