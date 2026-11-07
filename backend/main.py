@@ -220,7 +220,21 @@ def transcribe_voice_command(
         resolved_mime_type = AUDIO_WAV_MIME_TYPE
 
     if resolved_mime_type not in allowed_mime_types:
-        raise HTTPException(status_code=415, detail="지원하지 않는 음성 파일 형식입니다.")
+        filename_lower = (audio.filename or "").lower()
+        if filename_lower.endswith((".m4a", ".mp4")):
+            resolved_mime_type = "audio/m4a"
+        elif filename_lower.endswith(".webm"):
+            resolved_mime_type = "audio/webm"
+        elif filename_lower.endswith(".wav"):
+            resolved_mime_type = AUDIO_WAV_MIME_TYPE
+        elif filename_lower.endswith(".ogg"):
+            resolved_mime_type = "audio/ogg"
+        elif filename_lower.endswith((".mp3", ".mpeg")):
+            resolved_mime_type = "audio/mpeg"
+        elif filename_lower.endswith((".3gp", ".3gpp")):
+            resolved_mime_type = "audio/m4a"
+        else:
+            raise HTTPException(status_code=415, detail="지원하지 않는 음성 파일 형식입니다.")
 
     audio_data = audio.file.read(10 * 1024 * 1024 + 1)
     if not audio_data:
